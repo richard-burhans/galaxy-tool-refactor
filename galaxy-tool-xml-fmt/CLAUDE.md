@@ -4,16 +4,32 @@ Guidance for Claude Code working in this repository.
 
 ## Project
 
-`galaxy-tool-xml-fmt` is tier 3 of the Galaxy tool refactoring
-framework. Tier 1 (`galaxy-tool-xml`) parses, validates, and exposes
-typed views. Tier 2 (`galaxy-tool-xml-codemod`) performs structural
-refactors. This package is the **only** component in the architecture
-that writes Galaxy tool XML to disk.
+`galaxy-tool-xml-fmt` is the **formatting** tier of the Galaxy tool
+refactoring framework — one of three layers:
+
+| Tier | Layer | Package | Owns |
+|---|---|---|---|
+| 1 | **parsing & validation** | `galaxy-tool-xml` | parse · XSD validate · typed views |
+| 2 | **structure** | `galaxy-tool-xml-codemod` | structural mutations |
+| 3 | **formatting** | `galaxy-tool-xml-fmt` *(this repo)* | cosmetic formatting; the only tier that writes XML to disk |
 
 The fmt tool is opinionated like `black`: a single canonical
 formatting per input, no user-tunable style. The opinionated choice
 goes here so the lower tiers can ignore trivia (indentation, quote
 style, attribute spacing, empty-element shorthand) entirely.
+
+**Tier independence.** This package's library
+(`format_tool_document`) does **not** depend on
+`galaxy-tool-xml-codemod`. Cosmetic-only formatting is fully
+functional with just `galaxy-tool-xml + galaxy-tool-xml-fmt` installed.
+
+For the project's preferred (fully-canonical) workflow — structural
+canonicalisation **then** cosmetic formatting — install the
+`[canonical]` extra (`pip install galaxy-tool-xml-fmt[canonical]`) and
+use the `galaxy-tool-xml-fmt` CLI. When the extra is present, the CLI
+runs `galaxy_tool_xml_codemod.canonical.CANONICAL_CODEMODS` before
+fmt's cosmetic rules. Without the extra, the CLI prints a one-line
+hint at startup and proceeds with cosmetic rules only.
 
 ## Coding standards
 
@@ -39,7 +55,7 @@ Hand-written code follows **dignified-python**, vendored at the workspace root
   artifacts (`../docs/corpus_data/`) and `../scripts/measure.py` when
   answering questions about real-world tool XML.
 - **Decisions are recorded** in `docs/decisions.md` once they land
-  (mirror the parent's conventions: §10 entries cite a date and a
+  (mirror the parent's conventions: each entry cites a date and a
   reproducible measurement command).
 - See `galaxy-tool-xml/docs/decisions.md` §3 (representation /
   trivia contract) and §9 (three-tier vision) for the rationale this
@@ -53,7 +69,8 @@ Run these from the **workspace root** (`galaxy-tool-refactor/`):
 - `uv run --package galaxy-tool-xml-fmt pytest galaxy-tool-xml-fmt/tests/` — run tests
 - `uv run ruff check galaxy-tool-xml-fmt/src` — lint
 - `uv run mypy --config-file galaxy-tool-xml-fmt/pyproject.toml galaxy-tool-xml-fmt/src` — type-check (strict)
-- `uv run python scripts/corpus_check.py fmt` — sweep corpus for formatter idempotence
+- `uv run python -m scripts.corpus_check fmt` — sweep corpus for cosmetic-pipeline idempotence
+- `uv run python -m scripts.corpus_check codemod <dotted.module>:<ClassName>` — sweep a structural codemod (tier 2 subcommand)
 
 ## Useful workspace references
 
@@ -61,5 +78,9 @@ Run these from the **workspace root** (`galaxy-tool-refactor/`):
   contract this formatter respects
 - `galaxy-tool-xml/docs/decisions.md` §3 (representation), §9
   (three-tier vision)
+- `galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/canonical.py` —
+  the `CANONICAL_CODEMODS` contract the CLI runs as a prelude
+- `src/galaxy_tool_xml_fmt/cli.py` — the orchestrator with the
+  optional-codemod try-import
 - `../docs/corpus_data/combined_corpus_data.json` — the real-world
   distribution of tool XML idioms the formatter must preserve idempotently

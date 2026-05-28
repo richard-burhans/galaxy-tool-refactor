@@ -1,4 +1,13 @@
-"""The format pipeline entry point."""
+"""The cosmetic format pipeline entry point.
+
+``format_tool_document`` applies fmt's cosmetic rules (indentation,
+blank lines, empty-element shorthand) and serialises. It does **not**
+perform structural canonicalisation — that's tier 2 (``galaxy-tool-xml-codemod``)'s
+``CANONICAL_CODEMODS``, which fmt's CLI runs as a prelude when the
+codemod package is installed (declared as the ``canonical`` extra).
+This module has no dependency on the codemod package — minimal
+installs (xml + fmt) get cosmetic-only formatting.
+"""
 
 from __future__ import annotations
 
@@ -9,8 +18,6 @@ from galaxy_tool_xml_fmt.edits import apply_edits
 from galaxy_tool_xml_fmt.rule_blank_line import BlankLineBetweenSections
 from galaxy_tool_xml_fmt.rule_empty_element import EmptyElementShorthand
 from galaxy_tool_xml_fmt.rule_indent import CanonicalIndent
-from galaxy_tool_xml_fmt.rule_param_attr_order import ParamAttributeOrder
-from galaxy_tool_xml_fmt.rule_tool_attr_order import ToolAttributeOrder
 from galaxy_tool_xml_fmt.rules import Rule
 from galaxy_tool_xml_fmt.serializer import to_bytes
 
@@ -20,29 +27,32 @@ if TYPE_CHECKING:
 
 @cache
 def all_rules() -> tuple[type[Rule], ...]:
-    """Return the active formatter rules sorted by application order."""
+    """Return the active cosmetic formatter rules sorted by application order."""
     rule_classes: list[type[Rule]] = [
         BlankLineBetweenSections,
         CanonicalIndent,
         EmptyElementShorthand,
-        ParamAttributeOrder,
-        ToolAttributeOrder,
     ]
     return tuple(sorted(rule_classes, key=lambda cls: cls.meta.order))
 
 
 def format_tool_document(document: ToolDocument) -> bytes:
-    """Format *document* to canonical Galaxy tool XML bytes.
+    """Format *document* with cosmetic rules and serialise to bytes.
 
-    Runs every active rule against the document's mutable lxml tree in
-    order, then serializes the result. The input document is mutated
-    in-place; callers that need the original tree should pass a copy.
+    Runs every active cosmetic rule against the document's mutable lxml
+    tree in order, then serialises the result. The input document is
+    mutated in-place; callers that need the original tree should pass a
+    copy. **No structural canonicalisation** — for the full canonical
+    pipeline use the CLI (``galaxy-tool-xml-fmt <file>``) with the
+    ``canonical`` extra installed, or apply
+    ``galaxy_tool_xml_codemod.canonical.CANONICAL_CODEMODS`` yourself
+    before calling this function.
 
     Args:
         document: A parsed Galaxy tool document.
 
     Returns:
-        Canonical-form XML bytes.
+        Canonical-form XML bytes (cosmetic-only).
     """
     tree = document.tree
     for rule_cls in all_rules():

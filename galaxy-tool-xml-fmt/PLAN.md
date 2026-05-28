@@ -2,11 +2,19 @@
 
 ## Status
 
-**M0–M4 are done. M2 (CLI) is the remaining v0.1 work.** Five rules
-ship (GTX001–005), the format pipeline is wired, the regression
-fixture-replay test is green on every retained corpus failure, and the
-2026-05-28 sweep over 21 public repos found 100% idempotence on the
-4,014 tools that validate under profile 26.1.
+**M0–M4 are done; the CLI has shipped (M2).** Three cosmetic rules
+remain in this package (GTX001 indent, GTX003 blank line,
+GTX004 empty-element shorthand); the former structural rules GTX002
+(`<param>` attribute order) and GTX005 (`<tool>` attribute order) have
+moved to `galaxy-tool-xml-codemod` as `ReorderParamAttributes` and
+`ReorderToolAttributes`. The codemod package is an optional
+`[canonical]` extra of this package; fmt's CLI orchestrates both
+layers when the extra is installed. See `docs/decisions.md` §D10 for
+the architecture split.
+
+The 2026-05-28 corpus sweep checked 4,052 tools across 21 public
+repos: 100% idempotent under both the cosmetic pipeline (this package)
+and the structural pipeline (each canonical codemod).
 
 ## Design intent
 
@@ -28,6 +36,8 @@ of the output must be a no-op (idempotence).
 
 ## What we *rewrite*
 
+Cosmetic rules in this package:
+
 - Indentation (canonical: 4 spaces, no tabs — GTX001)
 - Attribute quoting (canonical: double quotes — locked by lxml + tests, D7)
 - Empty-element shorthand (canonical: `<foo/>` over `<foo></foo>` when
@@ -35,11 +45,16 @@ of the output must be a no-op (idempotence).
 - Trailing / inner whitespace on dense leaves
 - Blank-line policy (canonical: one blank between top-level sections —
   GTX003)
-- `<param>` attribute order (canonical: IUC order — GTX002)
-- `<tool>` attribute order (canonical: id, name, version, profile,
-  alphabetical — GTX005)
 - One-line layout for all attributes regardless of source layout
   (locked by lxml + tests, D8)
+
+Structural transforms applied by the CLI via the `[canonical]` extra
+(implemented in `galaxy-tool-xml-codemod`):
+
+- `<param>` attribute order (canonical: IUC order — `ReorderParamAttributes`,
+  was GTX002 in this package)
+- `<tool>` attribute order (canonical: id, name, version, profile,
+  alphabetical — `ReorderToolAttributes`, was GTX005)
 
 ## Milestone status
 
@@ -55,24 +70,22 @@ configured.
 `galaxy_tool_xml_fmt.format` runs every registered rule via
 `apply_edits` and serialises through lxml.
 
-### M2 — CLI ⏳ *(remaining v0.1 work)*
+### M2 — CLI ✅
 
 `galaxy-tool-xml-fmt FILE...` writes canonical formatting back to each
-file in place. Mirror `black`'s ergonomics: `--check`, `--diff`,
-`--quiet`, recursive directory discovery,
-`pyproject.toml`-based config later if it earns its keep.
+file in place. Mirrors `black`'s ergonomics: `--check`, `--diff`,
+`--quiet`, recursive directory discovery. The CLI also performs
+optional structural canonicalisation via `[canonical]` extra (see
+`docs/decisions.md` §D10).
 
-The entry point in `pyproject.toml` (`galaxy_tool_xml_fmt.cli:main`)
-is wired but the module doesn't exist yet — pip-installing today and
-running the binary errors with `ModuleNotFoundError`.
+### M3 — Attribute / element ordering rules → moved to codemod tier
 
-### M3 — Attribute / element ordering rules ✅ (so far)
-
-GTX002 (`<param>`) and GTX005 (`<tool>`) ship. The shared
-`attribute_ordering` helper makes adding a new per-element-kind rule
-a priority-map + one-line registration. Open: which other elements
-the community will want canonicalised (`<output>`, `<test>`,
-`<requirement>`?). Deferred until a real ask lands.
+Originally landed here as GTX002 (`<param>`) and GTX005 (`<tool>`);
+2026-05-28 they were relocated to `galaxy-tool-xml-codemod` as
+`ReorderParamAttributes` and `ReorderToolAttributes`. Open questions
+about which other elements deserve canonicalisation (`<output>`,
+`<test>`, `<requirement>`?) now belong on the codemod side of the
+fence.
 
 ### M4 — Corpus idempotence sweep ✅
 

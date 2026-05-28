@@ -10,20 +10,55 @@ quietly so a directory pointed at a mixed tree (tools, macros, tests)
 only reformats the tools. A malformed XML file is reported as an error
 but doesn't stop the run; the exit code is non-zero if any file errored
 or, under ``--check``, if any file would be reformatted.
+
+**Canonical vs cosmetic mode.** When the optional
+``galaxy-tool-xml-codemod`` package is installed (via the ``canonical``
+extra: ``pip install galaxy-tool-xml-fmt[canonical]``), the CLI runs
+the structural ``CANONICAL_CODEMODS`` tuple before fmt's cosmetic
+rules — producing fully-canonical output. Without that extra, fmt
+applies cosmetic rules only and prints a one-line hint at startup so
+users know what they're getting.
 """
 
 from __future__ import annotations
 
 import difflib
 import sys
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
 import click
 from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_tool
+from galaxy_tool_xml.document import ToolDocument
 
 from galaxy_tool_xml_fmt.format import format_tool_document
+
+
+def _resolve_canonical_pipeline() -> (
+    tuple[Callable[[ToolDocument], None], bool]
+):
+    """Return ``(apply_canonical, is_canonical)`` for the current install.
+
+    LBYL via ``importlib.util.find_spec`` so we never raise on a missing
+    optional dependency. If ``galaxy-tool-xml-codemod`` is installed,
+    returns a closure that runs ``CANONICAL_CODEMODS`` over a document;
+    otherwise returns a no-op closure and ``is_canonical=False``.
+    """
+    import importlib.util
+
+    if importlib.util.find_spec("galaxy_tool_xml_codemod") is None:
+        return lambda _document: None, False
+    # Late import: the package is present, so import is safe.
+    from galaxy_tool_xml_codemod.canonical import CANONICAL_CODEMODS
+    from galaxy_tool_xml_codemod.module import Module
+
+    def _apply(document: ToolDocument) -> None:
+        module = Module(document)
+        for codemod_cls in CANONICAL_CODEMODS:
+            codemod_cls().apply(module)
+
+    return _apply, True
 
 
 @dataclass
@@ -103,6 +138,7 @@ class _Options:
     check: bool
     diff: bool
     quiet: bool
+    apply_canonical: Callable[[ToolDocument], None]
 
 
 def _process_file(path: Path, options: _Options, counts: _Counts) -> None:
@@ -132,6 +168,7 @@ def _process_file(path: Path, options: _Options, counts: _Counts) -> None:
     if document.root.tag != "tool":
         counts.skipped += 1
         return
+    options.apply_canonical(document)
     formatted = format_tool_document(document)
     if formatted == original:
         counts.unchanged += 1
@@ -225,7 +262,17 @@ def main(paths: tuple[Path, ...], check: bool, diff: bool, quiet: bool) -> None:
     recursively for ``*.xml`` files; non-Galaxy-tool XML (root element
     not ``<tool>``) is skipped.
     """
-    options = _Options(check=check, diff=diff, quiet=quiet)
+    apply_canonical, is_canonical = _resolve_canonical_pipeline()
+    if not quiet and not is_canonical:
+        click.echo(
+            "note: galaxy-tool-xml-codemod is not installed — running "
+            "cosmetic rules only. Install with `pip install "
+            "galaxy-tool-xml-fmt[canonical]` for fully-canonical output.",
+            err=True,
+        )
+    options = _Options(
+        check=check, diff=diff, quiet=quiet, apply_canonical=apply_canonical
+    )
     counts = _Counts()
     for target in _iter_targets(paths):
         _process_file(target, options, counts)

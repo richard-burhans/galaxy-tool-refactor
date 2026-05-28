@@ -2,21 +2,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
-from typing import ClassVar
+from collections.abc import Callable
 
 import pytest
 from galaxy_tool_xml.document import ToolDocument
 from lxml import etree
 
-from galaxy_tool_xml_fmt.edits import Edit, NoOp, apply_edits
+from galaxy_tool_xml_fmt.edits import NoOp, apply_edits
 from galaxy_tool_xml_fmt.format import all_rules, format_tool_document
 from galaxy_tool_xml_fmt.rule_blank_line import BlankLineBetweenSections
 from galaxy_tool_xml_fmt.rule_empty_element import EmptyElementShorthand
 from galaxy_tool_xml_fmt.rule_indent import CanonicalIndent
-from galaxy_tool_xml_fmt.rule_param_attr_order import ParamAttributeOrder
-from galaxy_tool_xml_fmt.rule_tool_attr_order import ToolAttributeOrder
-from galaxy_tool_xml_fmt.rules import Rule, RuleMeta
+from galaxy_tool_xml_fmt.rules import Rule
 
 _TINY_TOOL = b"""<?xml version='1.0' encoding='UTF-8'?>
 <tool id="t" name="T" version="0.1.0">
@@ -28,8 +25,6 @@ _EXPECTED_RULES: frozenset[type[Rule]] = frozenset({
     BlankLineBetweenSections,
     EmptyElementShorthand,
     CanonicalIndent,
-    ParamAttributeOrder,
-    ToolAttributeOrder,
 })
 
 
@@ -59,6 +54,7 @@ def test_format_tool_document_is_identity_with_empty_rules(
     monkeypatch: pytest.MonkeyPatch,
     make_doc: Callable[[bytes], ToolDocument],
 ) -> None:
+    """No cosmetic rules → format_tool_document is identity (modulo serialisation)."""
     import galaxy_tool_xml_fmt.format as fmt_module
 
     monkeypatch.setattr(fmt_module, "all_rules", lambda: ())
@@ -67,3 +63,30 @@ def test_format_tool_document_is_identity_with_empty_rules(
     output = format_tool_document(doc)
     reparsed = etree.fromstring(output, parser=parser)
     assert etree.tostring(reparsed) == etree.tostring(doc.tree.getroot())
+
+
+def test_format_tool_document_does_not_import_codemod_package(
+    make_doc: Callable[[bytes], ToolDocument],
+) -> None:
+    """The fmt library function must not import galaxy-tool-xml-codemod.
+
+    Tier separation: fmt's library is cosmetic-only; codemod is an
+    optional dependency consumed only by fmt's CLI. A user with just
+    ``xml + fmt`` installed must be able to call ``format_tool_document``
+    without ImportError.
+    """
+    import importlib
+    import sys
+
+    # Force re-import of fmt's format module from a clean state, then
+    # verify codemod is not loaded as a side effect.
+    for module_name in list(sys.modules):
+        if module_name.startswith("galaxy_tool_xml_codemod"):
+            del sys.modules[module_name]
+    import galaxy_tool_xml_fmt.format as fmt_module
+
+    importlib.reload(fmt_module)
+    fmt_module.format_tool_document(make_doc(_TINY_TOOL))
+    assert not any(
+        name.startswith("galaxy_tool_xml_codemod") for name in sys.modules
+    )

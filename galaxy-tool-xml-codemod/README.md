@@ -1,35 +1,67 @@
 # galaxy-tool-xml-codemod
 
 A LibCST-shaped framework for structural refactors of Galaxy tool XML.
-The second tier of a planned three-tier Galaxy refactoring architecture:
+The **structure** tier of a three-layer architecture:
 
-| Tier | Package | Role |
-|---|---|---|
-| 1 | `galaxy-tool-xml` | parse · profile-aware validate · typed view |
-| 2 | **`galaxy-tool-xml-codemod`** *(this repo)* | structural refactors |
-| 3 | `galaxy-tool-xml-fmt` *(planned)* | `black`-like opinionated formatter |
+| Tier | Layer | Package | Role |
+|---|---|---|---|
+| 1 | **parsing & validation** | `galaxy-tool-xml` | parse · profile-aware validate · typed view |
+| 2 | **structure** | **`galaxy-tool-xml-codemod`** *(this repo)* | structural refactors |
+| 3 | **formatting** | `galaxy-tool-xml-fmt` | cosmetic `black`-like formatter |
 
 ## Status
 
-**Pre-alpha — scope and contracts being firmed up.** The detailed design
-lives in `docs/architecture.md` (working copy mirrored from
-`galaxy-tool-xml/docs/codemod-architecture.md`). Open work items are
-tracked in `PLAN.md`.
+M1–M3.5 shipped: framework primitives (`Module`, `Cursor`,
+`CodemodCommand`), the two structural codemods (`ReorderParamAttributes`,
+`ReorderToolAttributes`), the `CANONICAL_CODEMODS` public contract
+consumed by fmt's CLI, and a `corpus_check.py codemod` subcommand that
+sweeps a codemod across the corpus and retains failures as regression
+fixtures.
+
+M4 (matcher language) and M5 (Cheetah reference resolver) are not yet
+implemented — see `PLAN.md`.
 
 ## Public API
 
-To be defined. Entry point will be `parse_module(source) -> Module`
-(the name mirrors LibCST's `parse_module`; the return type is our own
-and is **not** a LibCST drop-in).
+```python
+from pathlib import Path
+
+from galaxy_tool_xml_codemod.parse import parse_module
+from galaxy_tool_xml_codemod.canonical import CANONICAL_CODEMODS
+
+module = parse_module(Path("tool.xml"))
+for codemod_cls in CANONICAL_CODEMODS:
+    codemod_cls().apply(module)
+# module.document.tree now reflects the canonical structural form
+```
+
+| Symbol | Purpose |
+|---|---|
+| `parse.parse_module(source)` | Entry point — accepts `Path \| bytes \| ToolDocument`. |
+| `module.Module` | Frozen wrapper carrying `document`, `model`, `cursor`. |
+| `cursor.Cursor` | lxml-backed view with read + typed mutation primitives. |
+| `codemod.CodemodCommand` | Base for user-authored codemods (tag-PascalCase dispatch). |
+| `canonical.CANONICAL_CODEMODS` | The structural codemods fmt's CLI runs by default. |
+| `codemods.reorder_param_attributes.ReorderParamAttributes` | IUC `<param>` attribute order. |
+| `codemods.reorder_tool_attributes.ReorderToolAttributes` | Documented `<tool>` attribute prefix. |
+| `eligibility.corpus_test_profile` | Codemod-sweep validation-profile policy. |
 
 ## Setup
 
+From the workspace root:
+
 ```sh
-# install tier 1 in editable mode if developing both in parallel
-uv pip install -e ../galaxy-tool-xml
 uv sync
-uv run pytest
+uv run --package galaxy-tool-xml-codemod pytest galaxy-tool-xml-codemod/tests/
 ```
+
+## Relationship to fmt
+
+`galaxy-tool-xml-fmt`'s library does not depend on this package. Its
+**CLI** does: `pip install galaxy-tool-xml-fmt[canonical]` pulls in
+this codemod package, and the CLI then runs `CANONICAL_CODEMODS`
+before fmt's cosmetic rules. Without the `[canonical]` extra, fmt
+applies cosmetic rules only.
 
 ## Coding standards
 

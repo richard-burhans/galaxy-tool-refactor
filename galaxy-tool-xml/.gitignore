@@ -26,5 +26,3 @@ corpus/
 # Local, per-developer Claude Code settings
 .claude/settings.local.json
 
-# Local-only draft of the GCC poster abstract.
-gcc2026-abstract.txt

@@ -1815,12 +1815,323 @@ def _fmt_main(argv: list[str]) -> int:
 
 
 # =============================================================================
+# codemod subcommand
+# =============================================================================
+
+import importlib  # noqa: E402
+
+from galaxy_tool_xml_codemod.codemod import CodemodCommand  # noqa: E402
+from galaxy_tool_xml_codemod.eligibility import corpus_test_profile  # noqa: E402
+from galaxy_tool_xml_codemod.parse import parse_module  # noqa: E402
+
+_CODEMOD_REGRESSIONS = (
+    _REPO_ROOT / "galaxy-tool-xml-codemod" / "tests" / "data" / "regressions"
+)
+
+
+@dataclass
+class _CodemodSweepState:
+    """Mutable bookkeeping for one ``_codemod_main`` invocation.
+
+    ``ineligible_no_valid`` covers both "no profile at all validates" and
+    "declared profile is invalid and no strictly-newer profile validates"
+    — both are no-valid-anchor cases from the codemod-sweep perspective.
+    """
+
+    eligible: int = 0
+    ineligible_no_valid: int = 0
+    ineligible_non_tool: int = 0
+    ineligible_unparseable: int = 0
+    idempotent: int = 0
+    non_idempotent: int = 0
+    post_validate_failed: int = 0
+    crashed: int = 0
+    signatures: Counter[str] = field(default_factory=Counter)
+    known_fixture_paths: set[tuple[str, str]] = field(default_factory=set)
+    retained: list[tuple[str, str, Path, str, str]] = field(default_factory=list)
+
+
+def _resolve_codemod(spec: str) -> type[CodemodCommand]:
+    """Parse ``dotted.module:ClassName`` and return the ``CodemodCommand`` subclass.
+
+    Raises ``ValueError`` for any malformed spec, unimportable module,
+    missing attribute, or non-``CodemodCommand`` resolution. The CLI
+    main wraps this in a single try/except so the user sees a clean
+    error message rather than a traceback.
+    """
+    if ":" not in spec:
+        raise ValueError(
+            f"codemod spec must be 'dotted.module:ClassName', got {spec!r}"
+        )
+    module_name, class_name = spec.split(":", 1)
+    try:
+        module = importlib.import_module(module_name)
+    except ImportError as error:
+        raise ValueError(
+            f"cannot import codemod module {module_name!r}: {error}"
+        ) from error
+    obj = getattr(module, class_name, None)
+    if obj is None:
+        raise ValueError(
+            f"{spec!r}: module {module_name!r} has no attribute {class_name!r}"
+        )
+    if not isinstance(obj, type) or not issubclass(obj, CodemodCommand):
+        raise ValueError(
+            f"{spec!r} did not resolve to a CodemodCommand subclass"
+        )
+    return obj
+
+
+def _codemod_exercise(
+    path: Path, codemod: CodemodCommand
+) -> tuple[str, str, str]:
+    """Run ``codemod`` on ``path`` and classify the outcome.
+
+    Returns ``(status, signature, detail)``. Status is one of
+    ``"ok"``, ``"ineligible-unparseable"``, ``"ineligible-non-tool"``,
+    ``"ineligible-no-valid"``, ``"non-idempotent"``,
+    ``"post-validate-failed"``, ``"crash"``.
+
+    Eligibility filter:
+    - non-tool roots and unparseable inputs are skipped at the top;
+    - ``corpus_test_profile`` picks the validation profile per the
+      codemod-sweep policy (no declared → newest valid; declared
+      valid → declared; declared invalid → oldest strictly-newer that
+      validates; nothing → ineligible).
+
+    Idempotence is checked by re-parsing the codemod's serialised
+    output between the two passes (matching ``_fmt_exercise``) — a
+    weaker in-memory equality check would miss codemods whose output
+    round-trips to a different tree.
+    """
+    try:
+        parsed = parse_tool(path)
+        if parsed.document is None or not parsed.well_formed:
+            return "ineligible-unparseable", "", ""
+        if parsed.document.root.tag != "tool":
+            return "ineligible-non-tool", "", ""
+        # Pass the already-parsed document to corpus_test_profile so it
+        # doesn't re-parse the file per profile probe (~28 redundant
+        # reads per eligible tool otherwise).
+        profile = corpus_test_profile(parsed.document)
+        if profile is None:
+            return "ineligible-no-valid", "", ""
+        # Pass-1: codemod applied to the parsed input, then serialised.
+        # We keep ``document_one`` for post-codemod validation because it
+        # carries the source path — needed for macro ``<import>``
+        # resolution. A re-parse from bytes loses that path.
+        document_one = parse_module(path)
+        codemod.apply(document_one)
+        pass1_bytes = etree.tostring(document_one.document.tree)
+        # Pass-2: codemod applied again to a freshly re-parsed copy of
+        # pass-1 bytes — catches codemods whose output round-trips to a
+        # different tree. This is the idempotence check ONLY; the tree
+        # has no source path so we don't validate it directly.
+        document_two = parse_module(pass1_bytes)
+        codemod.apply(document_two)
+        pass2_bytes = etree.tostring(document_two.document.tree)
+        if pass1_bytes != pass2_bytes:
+            sig = f"non-idempotent:{type(codemod).__name__}"
+            return (
+                "non-idempotent",
+                sig,
+                _fmt_byte_diff_excerpt(pass1_bytes, pass2_bytes),
+            )
+        validation = validate_tool(document_one.document, profile=profile)
+        if not validation.valid:
+            sig = f"post-validate-failed:{type(codemod).__name__}@{profile}"
+            detail = "\n".join(str(e) for e in validation.errors[:5])
+            return "post-validate-failed", sig, detail
+    except Exception as exc:  # noqa: BLE001 — diagnostic sweep: every crash is a finding
+        return "crash", _signature(exc), traceback.format_exc()
+    return "ok", "", ""
+
+
+def _codemod_process_path(
+    path: Path,
+    *,
+    display_name: str,
+    repo_dir: Path,
+    version: str,
+    codemod: CodemodCommand,
+    state: _CodemodSweepState,
+) -> bool:
+    """Sweep one XML file; return ``True`` if it counted as an eligible tool.
+
+    Per-status counters and the signature histogram are only updated
+    when a fixture is genuinely *new* (not already in ``PROVENANCE.md``
+    from a prior sweep) so re-runs don't double-count earlier finds.
+    """
+    if not path.is_file():
+        return False
+    status, signature, detail = _codemod_exercise(path, codemod)
+    if status == "ineligible-unparseable":
+        state.ineligible_unparseable += 1
+        return False
+    if status == "ineligible-non-tool":
+        state.ineligible_non_tool += 1
+        return False
+    if status == "ineligible-no-valid":
+        state.ineligible_no_valid += 1
+        return False
+    state.eligible += 1
+    if status in {"ok", "post-validate-failed"}:
+        # Both branches reach this point only after the apply-twice check
+        # has succeeded, so they count toward the idempotent total.
+        state.idempotent += 1
+    elif status == "non-idempotent":
+        state.non_idempotent += 1
+    elif status == "crash":
+        state.crashed += 1
+    if status == "post-validate-failed":
+        # Track separately too — these failed validity but were idempotent.
+        state.post_validate_failed += 1
+    if status == "ok":
+        return True
+    relative = path.relative_to(repo_dir)
+    if (display_name, str(relative)) in state.known_fixture_paths:
+        return True
+    # Only after we've confirmed this is a new fixture do we update the
+    # signature histogram — keeps the headline counts honest on re-runs.
+    state.signatures[signature] += 1
+    state.known_fixture_paths.add((display_name, str(relative)))
+    dest = _retain(
+        path,
+        display_name.replace("/", "__"),
+        regressions_dir=_CODEMOD_REGRESSIONS,
+    )
+    state.retained.append((dest.name, display_name, relative, version, signature))
+    logger.warning(
+        "%s [%s] %s\n  %s\n  retained -> %s\n  %s",
+        status.upper(),
+        display_name,
+        signature,
+        relative,
+        dest,
+        detail.strip().replace("\n", "\n  "),
+    )
+    return True
+
+
+def _codemod_main(argv: list[str]) -> int:
+    """Sweep one codemod across the corpus and retain regression fixtures."""
+    parser = argparse.ArgumentParser(
+        prog="corpus_check.py codemod",
+        description=(
+            "Sweep the Galaxy tool corpus through one codemod and assert "
+            "idempotence (apply-twice = apply-once) plus post-codemod "
+            "validity. Tools that do not validate under any profile are "
+            "skipped (they're broken or exotic — out of scope for codemod "
+            "quality)."
+        ),
+    )
+    parser.add_argument(
+        "spec",
+        help=(
+            "codemod to run, as 'dotted.module:ClassName' "
+            "(e.g. "
+            "'galaxy_tool_xml_codemod.codemods.reorder_param_attributes:"
+            "ReorderParamAttributes')"
+        ),
+    )
+    parser.add_argument(
+        "--repo",
+        help="sweep only this repository (by name from corpus_sources.json)",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="stop after N eligible tools (0 sweeps everything)",
+    )
+    args = parser.parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+    # CLI error boundary: turn spec parsing / import errors into a clean
+    # error + non-zero exit code instead of a raw traceback.
+    try:
+        codemod_cls = _resolve_codemod(args.spec)
+    except ValueError as error:
+        logger.error("%s", error)
+        return 1
+
+    if args.repo is not None:
+        known_names = {name for name, _ in _corpus_sources()}
+        if args.repo not in known_names:
+            known = ", ".join(sorted(known_names))
+            logger.error("unknown --repo %r; known: %s", args.repo, known)
+            return 1
+
+    _CORPUS_ROOT.mkdir(parents=True, exist_ok=True)
+    _CODEMOD_REGRESSIONS.mkdir(parents=True, exist_ok=True)
+    # Reuse a single codemod instance across all tools — codemods are
+    # stateless by contract; one instantiation per sweep, not per tool.
+    codemod = codemod_cls()
+    state = _CodemodSweepState(
+        known_fixture_paths=_fmt_known_fixture_paths(
+            regressions_dir=_CODEMOD_REGRESSIONS
+        )
+    )
+    last_progress_log = 0
+    for _source_label, display_name, repo_dir, version in _iter_github_sources(
+        repo_filter=args.repo
+    ):
+        for path in sorted(repo_dir.rglob("*.xml")):
+            if args.limit and state.eligible >= args.limit:
+                break
+            _codemod_process_path(
+                path,
+                display_name=display_name,
+                repo_dir=repo_dir,
+                version=version,
+                codemod=codemod,
+                state=state,
+            )
+            # Log progress at every 500-tool boundary, but only ONCE per
+            # boundary — ineligible files don't bump state.eligible, so
+            # a `% 500 == 0` check would spam the log between rare tools.
+            if (
+                state.eligible
+                and state.eligible // 500 != last_progress_log // 500
+            ):
+                logger.info("... %d eligible tools", state.eligible)
+                last_progress_log = state.eligible
+        if args.limit and state.eligible >= args.limit:
+            break
+
+    logger.info(
+        "codemod %s: %d eligible (skipped %d no-valid-profile, "
+        "%d non-tool, %d unparseable); %d idempotent, %d non-idempotent, "
+        "%d post-validate-failed, %d crashed",
+        type(codemod).__name__,
+        state.eligible,
+        state.ineligible_no_valid,
+        state.ineligible_non_tool,
+        state.ineligible_unparseable,
+        state.idempotent,
+        state.non_idempotent,
+        state.post_validate_failed,
+        state.crashed,
+    )
+    for sig, count in state.signatures.most_common():
+        logger.info("  %6d  %s", count, sig)
+    if state.retained:
+        _append_provenance(state.retained, regressions_dir=_CODEMOD_REGRESSIONS)
+        logger.info(
+            "retained %d new regression fixture(s) under %s",
+            len(state.retained),
+            _CODEMOD_REGRESSIONS,
+        )
+    return 0
+
+
+# =============================================================================
 # Top-level dispatcher
 # =============================================================================
 
 
 def main(argv: list[str]) -> int:
-    """Dispatch to the ``validate`` or ``fmt`` subcommand."""
+    """Dispatch to the ``validate``, ``fmt``, or ``codemod`` subcommand."""
     parser = argparse.ArgumentParser(
         prog="corpus_check.py",
         description="Sweep Galaxy tool repositories through the galaxy-tool-xml ecosystem.",
@@ -1828,8 +2139,11 @@ def main(argv: list[str]) -> int:
     )
     parser.add_argument(
         "subcommand",
-        choices=("validate", "fmt"),
-        help="validate: API invariants sweep; fmt: formatter idempotence sweep",
+        choices=("validate", "fmt", "codemod"),
+        help=(
+            "validate: API invariants sweep; fmt: formatter idempotence "
+            "sweep; codemod: structural-codemod idempotence + validity sweep"
+        ),
     )
     # Parse only the subcommand, pass the rest to the subcommand's own parser.
     if not argv or argv[0] in ("-h", "--help"):
@@ -1838,7 +2152,9 @@ def main(argv: list[str]) -> int:
     args, remaining = parser.parse_known_args(argv)
     if args.subcommand == "validate":
         return _validate_main(remaining)
-    return _fmt_main(remaining)
+    if args.subcommand == "fmt":
+        return _fmt_main(remaining)
+    return _codemod_main(remaining)
 
 
 if __name__ == "__main__":

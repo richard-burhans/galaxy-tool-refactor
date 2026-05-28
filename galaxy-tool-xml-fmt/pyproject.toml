@@ -12,8 +12,15 @@ dependencies = [
     "lxml>=5",
 ]
 
+[project.optional-dependencies]
+# Install with: `uv pip install galaxy-tool-xml-fmt[canonical]`
+# Adds tier-2 structural codemods so the CLI emits fully-canonical XML.
+# Without this extra, fmt still works but only applies cosmetic rules.
+canonical = ["galaxy-tool-xml-codemod"]
+
 [tool.uv.sources]
 galaxy-tool-xml = { workspace = true }
+galaxy-tool-xml-codemod = { workspace = true }
 
 [project.scripts]
 galaxy-tool-xml-fmt = "galaxy_tool_xml_fmt.cli:main"

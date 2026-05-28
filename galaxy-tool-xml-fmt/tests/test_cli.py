@@ -15,6 +15,16 @@ _UNFORMATTED_TOOL = (
     b"</tool>"
 )
 
+# Tool whose <param> attributes are in non-canonical order — only the
+# canonical-pipeline (codemod extra) will reorder them. Used to pin
+# that the CLI runs CANONICAL_CODEMODS when the codemod extra is
+# installed.
+_PARAM_OUT_OF_ORDER = (
+    b"<tool id='t' name='T' version='0.1'>"
+    b"<inputs><param value='v' type='text' name='a'/></inputs>"
+    b"</tool>"
+)
+
 
 def _write(path: Path, content: bytes) -> Path:
     path.write_bytes(content)
@@ -102,3 +112,34 @@ def test_help_flag(flag: str) -> None:
     result = CliRunner().invoke(main, [flag])
     assert result.exit_code == 0
     assert "Format Galaxy tool XML" in result.output
+
+
+def test_cli_runs_canonical_codemods_when_extra_is_installed(
+    tmp_path: Path,
+) -> None:
+    """CLI reorders ``<param>`` attributes when the codemod extra is installed.
+
+    In the workspace, codemod is always installed via uv sync, so this
+    test pins the canonical-pipeline orchestration. fmt's cosmetic
+    rules alone do NOT reorder attributes — only the structural codemod
+    does.
+    """
+    file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
+    result = CliRunner().invoke(main, [str(file)])
+    assert result.exit_code == 0, result.output
+    output = file.read_bytes()
+    # IUC canonical order on <param>: name, type, value
+    name_idx = output.index(b"name=")
+    type_idx = output.index(b"type=")
+    value_idx = output.index(b"value=")
+    assert name_idx < type_idx < value_idx
+
+
+def test_cli_does_not_print_cosmetic_only_hint_when_extra_is_installed(
+    tmp_path: Path,
+) -> None:
+    """In the workspace dev install, the cosmetic-only hint must not appear."""
+    file = _write(tmp_path / "tool.xml", _UNFORMATTED_TOOL)
+    result = CliRunner().invoke(main, [str(file)])
+    assert "cosmetic rules only" not in result.output
+    assert "cosmetic rules only" not in (result.stderr or "")

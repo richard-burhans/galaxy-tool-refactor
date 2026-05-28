@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
 
 import pytest
 from galaxy_tool_xml.document import ToolDocument

@@ -1,23 +1,25 @@
 # galaxy-tool-xml-fmt
 
-A `black`-like opinionated formatter for Galaxy tool XML. The third
-tier of a three-tier Galaxy refactoring architecture:
+A `black`-like opinionated cosmetic formatter for Galaxy tool XML.
+The **formatting** tier of a three-layer Galaxy refactoring
+architecture:
 
-| Tier | Package | Role |
-|---|---|---|
-| 1 | `galaxy-tool-xml` | parse · profile-aware validate · typed view |
-| 2 | `galaxy-tool-xml-codemod` | structural refactors |
-| 3 | **`galaxy-tool-xml-fmt`** *(this repo)* | opinionated formatter |
+| Tier | Layer | Package | Role |
+|---|---|---|---|
+| 1 | **parsing & validation** | `galaxy-tool-xml` | parse · profile-aware validate · typed view |
+| 2 | **structure** | `galaxy-tool-xml-codemod` | structural refactors |
+| 3 | **formatting** | **`galaxy-tool-xml-fmt`** *(this repo)* | cosmetic formatter |
 
 ## Status
 
-**Pre-v0.1.** The format pipeline and five rules (GTX001–005) are
-implemented; the CLI is not yet built. See `PLAN.md` for what's done
-and what remains.
+The format pipeline and three cosmetic rules ship; the CLI is
+working. Structural canonicalisation (attribute reordering on
+`<tool>` and `<param>`) lives in tier 2 and is consumed via the
+optional `[canonical]` extra.
 
-The 2026-05-28 corpus sweep over 21 public Galaxy tool repositories
-checked 4,014 tools that validate under profile 26.1: 100% idempotent,
-0 crashes after the GTX004 comment-handling fix. Full numbers in
+The most recent corpus sweep checked 4,052 tools across 21 public
+Galaxy tool repositories with both cosmetic and structural pipelines:
+100% idempotent, 0 crashes. Full numbers in
 `docs/corpus_format_stats.md`.
 
 ## Role in the three-tier architecture
@@ -32,50 +34,85 @@ the project's opinion, even when the structural change was a no-op.
 The design rationale lives in `galaxy-tool-xml/docs/decisions.md`
 §3 (lxml-as-source-of-truth) and §9 (three-tier vision).
 
-## Rules currently shipping
+## Cosmetic rules shipping (library)
 
 | Code | Summary | Source |
 |---|---|---|
 | GTX001 | Canonical 4-space indentation | IUC tool-XML style |
-| GTX002 | Canonical `<param>` attribute order | IUC + galaxy-language-server |
 | GTX003 | One blank line between top-level `<tool>` children | editorial |
 | GTX004 | Collapse whitespace-only leaves to `<foo/>` form | editorial |
-| GTX005 | Canonical `<tool>` attribute order | Galaxy schema docs |
 
 D7 and D8 in `docs/decisions.md` cover two policies — always-double-
 quote attributes and one-line-per-element layout — that lxml's
 serializer enforces by default; both are locked in by tests but
 ship no GTX rule.
 
-## API
+The earlier GTX002 (`<param>` attribute order) and GTX005 (`<tool>`
+attribute order) were structural, not cosmetic, and have **moved**
+to `galaxy-tool-xml-codemod` as `ReorderParamAttributes` and
+`ReorderToolAttributes`. They're applied by the CLI when the
+`[canonical]` extra is installed (see "CLI modes" below).
+
+## Library API
 
 `format_tool_document(document: ToolDocument) -> bytes` (imported
-from `galaxy_tool_xml_fmt.format`). The function mutates the document's
-lxml tree in place and returns the canonical-form bytes.
+from `galaxy_tool_xml_fmt.format`). The function mutates the
+document's lxml tree in place with the cosmetic rules above and
+returns the canonical-form bytes. **No structural mutations** — to
+apply the canonical structural pipeline programmatically, run
+`galaxy_tool_xml_codemod.canonical.CANONICAL_CODEMODS` against the
+document yourself before calling `format_tool_document`.
 
-A `galaxy-tool-xml-fmt` CLI (mirroring `black`'s ergonomics — `--check`,
-`--diff`, recursive discovery) is in the plan but not yet shipped.
+## CLI modes
+
+```sh
+galaxy-tool-xml-fmt path/to/tool.xml
+```
+
+The CLI mirrors `black`'s ergonomics: positional FILE/DIR args
+(directories expand to `*.xml` recursively), `--check`, `--diff`,
+`--quiet`.
+
+Two modes, decided at runtime by whether the codemod package is
+installed:
+
+- **canonical** (with `[canonical]` extra) — runs
+  `CANONICAL_CODEMODS` from tier 2 first, then the cosmetic rules.
+  Default for the project's preferred workflow.
+- **cosmetic-only** (without the extra) — runs only fmt's cosmetic
+  rules; emits a one-line hint to stderr at startup.
 
 ## Setup
 
+From the workspace root:
+
 ```sh
-uv sync
+uv sync                    # workspace dev install (all three packages)
 uv run pytest
 ```
 
-The tier-1 dependency `galaxy-tool-xml` is pulled from GitHub by
-`pyproject.toml`. Once tier 1 is published to PyPI the source override
-in `[tool.uv.sources]` will be dropped.
+End-user install (cosmetic only):
+
+```sh
+pip install galaxy-tool-xml-fmt
+```
+
+End-user install (canonical pipeline):
+
+```sh
+pip install galaxy-tool-xml-fmt[canonical]
+```
 
 ## Corpus QA
 
-`scripts/corpus_check.py` shallow-clones the repositories listed in
-`corpus_sources.json` (gitignored under `corpus/`) and sweeps every
-tool that validates under profile 26.1 through the formatter,
-checking idempotence. Any failing tool is retained as a permanent
-regression fixture under `tests/data/regressions/`; the fast test
-suite replays those fixtures on every `pytest` run. Run
-`uv run python scripts/corpus_check.py --help` for the flags.
+Two relevant subcommands of `scripts/corpus_check.py`:
+
+- `corpus_check.py fmt` — sweeps fmt's cosmetic-pipeline idempotence.
+- `corpus_check.py codemod <dotted:Class>` — sweeps a structural
+  codemod (tier 2) and retains failures as fixtures under
+  `galaxy-tool-xml-codemod/tests/data/regressions/`.
+
+Run `uv run python -m scripts.corpus_check --help` for the flags.
 
 ## Coding standards
 

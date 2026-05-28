@@ -1,0 +1,16 @@
+<tool id="paramtool" name="Param Tool" version="1.0.0" profile="24.0">
+    <command><![CDATA[echo $input1 $input2]]></command>
+    <inputs>
+        <param value="x" type="text" name="input1" label="First"/>
+        <param type="integer" name="input2" value="0"/>
+        <conditional name="mode">
+            <param type="select" name="choice">
+                <option value="a">A</option>
+                <option value="b">B</option>
+            </param>
+        </conditional>
+    </inputs>
+    <outputs>
+        <data format="txt" name="out"/>
+    </outputs>
+</tool>

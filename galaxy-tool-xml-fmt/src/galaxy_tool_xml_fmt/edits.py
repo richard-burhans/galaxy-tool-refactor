@@ -52,19 +52,6 @@ class SetTail:
 
 
 @dataclass(frozen=True)
-class ReorderAttributes:
-    """Rewrite ``element.attrib`` so attribute names appear in ``names`` order.
-
-    ``names`` must be a permutation of the element's current attribute
-    names. If it is not, the edit is a no-op (defensive: a rule bug
-    must not silently drop attributes).
-    """
-
-    element: etree._Element
-    names: tuple[str, ...]
-
-
-@dataclass(frozen=True)
 class ClearText:
     """Set ``element.text`` to ``None`` if the current value is whitespace-only.
 
@@ -77,7 +64,7 @@ class ClearText:
     element: etree._Element
 
 
-Edit: TypeAlias = NoOp | SetText | SetTail | ReorderAttributes | ClearText
+Edit: TypeAlias = NoOp | SetText | SetTail | ClearText
 
 
 def apply_edits(edits: Iterable[Edit]) -> None:
@@ -89,13 +76,6 @@ def apply_edits(edits: Iterable[Edit]) -> None:
                 safe_set_text(element, value)
             case SetTail(element=element, value=value):
                 safe_set_tail(element, value)
-            case ReorderAttributes(element=element, names=names):
-                if set(names) != set(element.attrib):
-                    continue
-                values = [(name, element.attrib[name]) for name in names]
-                element.attrib.clear()
-                for name, value in values:
-                    element.attrib[name] = value
             case ClearText(element=element):
                 if not (element.text or "").strip():
                     element.text = None

@@ -1,0 +1,5 @@
+<tool id="minimal" name="Minimal Tool" version="1.0.0" profile="24.0">
+    <command><![CDATA[echo minimal]]></command>
+    <inputs/>
+    <outputs/>
+</tool>

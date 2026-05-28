@@ -8,3 +8,6 @@ __pycache__/
 .ruff_cache/
 dist/
 *.egg-info/
+
+# Local-only draft of the GCC poster abstract.
+gcc2026-abstract.txt

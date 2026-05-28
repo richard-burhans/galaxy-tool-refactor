@@ -310,6 +310,11 @@ dependencies = [
     { name = "lxml" },
 ]
 
+[package.optional-dependencies]
+canonical = [
+    { name = "galaxy-tool-xml-codemod" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "mypy" },
@@ -321,8 +326,10 @@ dev = [
 requires-dist = [
     { name = "click", specifier = ">=8" },
     { name = "galaxy-tool-xml", editable = "galaxy-tool-xml" },
+    { name = "galaxy-tool-xml-codemod", marker = "extra == 'canonical'", editable = "galaxy-tool-xml-codemod" },
     { name = "lxml", specifier = ">=5" },
 ]
+provides-extras = ["canonical"]
 
 [package.metadata.requires-dev]
 dev = [

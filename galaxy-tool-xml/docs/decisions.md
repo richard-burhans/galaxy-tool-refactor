@@ -205,20 +205,32 @@ this repo:
 
 ## 9. Three-tier vision (context)
 
-`galaxy-tool-xml` is tier 1 of a planned three-package architecture:
+`galaxy-tool-xml` is tier 1 (the **parsing & validation** layer) of a
+three-package architecture:
 
-| Tier | Package | Status | Job |
-|---|---|---|---|
-| 1 | `galaxy-tool-xml` | this repo | parse · validate · typed view; no serializer |
-| 2 | `galaxy-tool-codemod` (name TBD) | designed, not built | LibCST-shaped structural refactors |
-| 3 | `galaxy-tool-fmt` (name TBD) | designed, not built | `black`-like opinionated formatter; the only thing that writes XML |
+| Tier | Layer | Package | Status | Job |
+|---|---|---|---|---|
+| 1 | parsing & validation | `galaxy-tool-xml` | this repo | parse · validate · typed view; no serializer |
+| 2 | structure | `galaxy-tool-xml-codemod` | M1–M3.5 shipped (2026-05-28) | structural refactors via `CodemodCommand` + `CANONICAL_CODEMODS` |
+| 3 | formatting | `galaxy-tool-xml-fmt` | shipped (2026-05-28) | cosmetic `black`-like formatter; the only tier that writes XML |
 
 This split is *why* tier 1 has no serializer (Decision 3) and why it
-ships full per-version typed models (Decision 4): the converter in
-tier 2 needs a faithful view of *each* release to plan structural
+ships full per-version typed models (Decision 4): the structural layer
+in tier 2 needs a faithful view of *each* release to plan structural
 edits, and tier 3 owns trivia preservation downstream.
 
-Full design: `docs/codemod-architecture.md`.
+**Tier 3 → tier 2 is an optional dependency.** fmt's library is
+cosmetic-only and does not import codemod; the codemod package is
+declared as fmt's `[canonical]` extra, and fmt's CLI orchestrates
+both layers when the extra is installed. Minimal installs (xml + fmt)
+still get a working cosmetic formatter. See
+`galaxy-tool-xml-fmt/docs/decisions.md` §D10 and
+`galaxy-tool-xml-codemod/docs/decisions.md` §9 for the optional-extra
+split rationale.
+
+Full design: `docs/codemod-architecture.md` (the original architecture
+note; per-decision rationale on the implementation lives in each
+tier's own `docs/decisions.md`).
 
 ---
 

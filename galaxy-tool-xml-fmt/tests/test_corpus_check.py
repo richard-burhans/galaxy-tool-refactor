@@ -13,7 +13,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import scripts.corpus_check as corpus_check
-import pytest
 
 
 def test_provenance_round_trip(tmp_path: Path) -> None:
@@ -36,7 +35,8 @@ def test_provenance_handles_missing_file(tmp_path: Path) -> None:
     """A non-existent PROVENANCE.md returns the empty set, not an error."""
     fake_regressions = tmp_path / "regressions"
     fake_regressions.mkdir()
-    assert corpus_check._fmt_known_fixture_paths(regressions_dir=fake_regressions) == set()
+    known = corpus_check._fmt_known_fixture_paths(regressions_dir=fake_regressions)
+    assert known == set()
 
 
 def test_provenance_append_to_existing_does_not_duplicate(tmp_path: Path) -> None:

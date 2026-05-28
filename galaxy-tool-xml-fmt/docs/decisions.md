@@ -72,6 +72,13 @@ uv run pytest
 
 ## D2 (2026-05-27) — GTX002: `<param>` attribute ordering
 
+> **Superseded 2026-05-28 — see D10.** This rule has moved to
+> `galaxy-tool-xml-codemod` as `ReorderParamAttributes` (a structural
+> codemod, not a cosmetic rule). The history below is retained for
+> rationale on the priority slots; the implementation now lives in
+> tier 2 and is consumed via fmt's CLI when the `[canonical]` extra
+> is installed.
+
 ### Decision
 
 `<param>` elements have their attributes reordered to the canonical IUC
@@ -284,6 +291,14 @@ reports 4,014 / 4,014 idempotent (D9).
 ---
 
 ## D6 (2026-05-28) — GTX005: `<tool>` attribute ordering, and the shared `attribute_ordering` helper
+
+> **Superseded 2026-05-28 — see D10.** This rule and the
+> `attribute_ordering` helper have both moved to
+> `galaxy-tool-xml-codemod` (the helper to
+> `codemods/_attribute_ordering.py`; the rule to
+> `codemods/reorder_tool_attributes.py` as `ReorderToolAttributes`).
+> The history below is retained for the Galaxy-schema-docs citation
+> and the original priority-slot rationale.
 
 ### Decision
 
@@ -519,3 +534,73 @@ uv run python scripts/corpus_check.py
   authoritative did-it-change signal; the per-rule counts answer
   "which rule was even invoked".
 
+
+
+---
+
+## D10 (2026-05-28) — Structural rules moved to tier 2; fmt becomes cosmetic-only library + canonical-by-default CLI
+
+### Decision
+
+The two structural rules (former **GTX002** `<param>` attribute order
+and former **GTX005** `<tool>` attribute order) have been deleted from
+this package and re-implemented in `galaxy-tool-xml-codemod` as the
+`ReorderParamAttributes` and `ReorderToolAttributes` codemods. They
+are exposed via that package's `CANONICAL_CODEMODS` tuple.
+
+- **`format_tool_document` is now cosmetic-only.** It no longer imports
+  `galaxy-tool-xml-codemod`, runs only the three remaining cosmetic
+  rules (GTX001 indent, GTX003 blank line, GTX004 empty-element
+  shorthand), and works with just `galaxy-tool-xml + galaxy-tool-xml-fmt`
+  installed.
+- **`galaxy-tool-xml-codemod` is an optional `[canonical]` extra** of
+  this package, not a hard dependency. Declared as
+  `[project.optional-dependencies] canonical = ["galaxy-tool-xml-codemod"]`.
+- **The CLI orchestrates both layers.** `galaxy-tool-xml-fmt`'s CLI
+  uses `importlib.util.find_spec` (LBYL) to detect the optional
+  package and, when present, runs `CANONICAL_CODEMODS` before fmt's
+  cosmetic rules. When absent, the CLI emits a one-line stderr hint
+  and proceeds cosmetic-only.
+
+### Alternative
+
+Keep both rule classes in fmt with no tier-2 layer (the pre-2026-05-28
+state). Or, hard-depend on `galaxy-tool-xml-codemod` (the
+2026-05-28-morning state, since reverted).
+
+### Rationale
+
+The three-tier architecture in `galaxy-tool-xml/docs/decisions.md` §9
+positions the three packages as **independent siblings** of tier 1,
+not a linear dependency chain. A hard fmt→codemod dependency
+collapsed that, forcing every fmt consumer to pull in the
+structural-refactor framework even when they only wanted cosmetic
+formatting. The optional-extra split honours the original three-tier
+intent: each tier is consumable standalone; the project's preferred
+"format my tool" workflow is the orchestration the CLI performs, not
+a library contract.
+
+See also `galaxy-tool-xml-codemod/docs/decisions.md` §9 for the
+mirror entry on the codemod side, and §10 for the
+`MANDATORY_CODEMODS` → `CANONICAL_CODEMODS` rename that landed at the
+same time.
+
+### TDD record
+
+- `test_format_tool_document_does_not_import_codemod_package`
+  asserts the library import path stays codemod-free (no
+  `galaxy_tool_xml_codemod` modules loaded after
+  `format_tool_document`).
+- `test_cli_runs_canonical_codemods_when_extra_is_installed` pins
+  that the CLI does run `ReorderParamAttributes` in the workspace
+  install (the codemod package is always present under `uv sync`).
+- `test_cli_does_not_print_cosmetic_only_hint_when_extra_is_installed`
+  pins the absence of the stderr hint in the workspace dev path.
+
+### Reproduction
+
+```sh
+uv sync
+uv run --package galaxy-tool-xml-fmt pytest galaxy-tool-xml-fmt/tests/test_framework.py
+uv run --package galaxy-tool-xml-fmt pytest galaxy-tool-xml-fmt/tests/test_cli.py
+```
