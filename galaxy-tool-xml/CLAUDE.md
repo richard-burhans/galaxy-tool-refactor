@@ -21,9 +21,9 @@ Run these from the **workspace root** (`galaxy-tool-refactor/`):
 - `uv run --package galaxy-tool-xml pytest -m slow galaxy-tool-xml/tests/` — run the xsdata codegen sweep over every vendored XSD.
 - `uv run ruff check galaxy-tool-xml/src` — lint.
 - `uv run mypy --config-file galaxy-tool-xml/pyproject.toml galaxy-tool-xml/src` — type-check (strict).
-- `uv run python scripts/fetch_schemas.py` — download release XSDs (`--force` re-downloads all).
-- `uv run python scripts/regenerate.py` — regenerate the per-version typed models from every vendored XSD.
-- `uv run python scripts/corpus_check.py validate` — sweep public Galaxy tool repositories for crashes (maintainer QA).
+- `uv run python -m scripts.fetch_schemas` — download release XSDs (`--force` re-downloads all).
+- `uv run python -m scripts.regenerate` — regenerate the per-version typed models from every vendored XSD.
+- `uv run python -m scripts.corpus_check validate` — sweep public Galaxy tool repositories for crashes (maintainer QA).
 - `uv run galaxy-tool-xml validate <file>` / `suggest <file>` / `profiles` — the CLI.
 - `uv build --package galaxy-tool-xml` — build the wheel (the build hook generates the per-version models).
 

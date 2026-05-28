@@ -12,9 +12,11 @@ moved to `galaxy-tool-xml-codemod` as `ReorderParamAttributes` and
 layers when the extra is installed. See `docs/decisions.md` §D10 for
 the architecture split.
 
-The 2026-05-28 corpus sweep checked 4,052 tools across 21 public
-repos: 100% idempotent under both the cosmetic pipeline (this package)
-and the structural pipeline (each canonical codemod).
+The corpus sweep parsed 4,190 `<tool>` documents across 21 public repos;
+4,014 validated under profile `26.1` and were format-checked: 100%
+idempotent under both the cosmetic pipeline (this package) and the
+structural pipeline (each canonical codemod). See
+`docs/corpus_format_stats.md`.
 
 ## Design intent
 
@@ -110,7 +112,7 @@ stats and the latest sweep numbers live in `docs/corpus_format_stats.md`.
 
 1. `uv sync`, `uv run pytest`, `uv run ruff check .`, `uv run ruff
    format --check .`, `uv run mypy src` all clean.
-2. `uv run python scripts/corpus_check.py` reports 0 non-idempotent
+2. `uv run python -m scripts.corpus_check fmt` reports 0 non-idempotent
    and 0 crashed on the current `corpus_sources.json` snapshot.
 3. M2 ships: `galaxy-tool-xml-fmt FILE...` works end-to-end with
    `--check` and `--diff`.

@@ -242,8 +242,8 @@ subcommand that reproduces its numbers — re-run the cited command
 after a corpus refresh and update the entry rather than parroting
 older figures. Add new measurements here when a new question is asked.
 
-Run all measurements at once: `uv run python scripts/measure.py --all
---jobs 4`. List them: `uv run python scripts/measure.py --list`.
+Run all measurements at once: `uv run python -m scripts.measure --all
+--jobs 4`. List them: `uv run python -m scripts.measure --list`.
 
 ### 10.1 Tool `@id` vs. path (2026-05-27)
 
@@ -265,7 +265,7 @@ columns stay. The 2000-tool github-only sample reported in earlier
 versions of this section overstated parent-directory agreement because
 it predated the toolshed half of the corpus.
 
-**Reproduced by:** `uv run python scripts/measure.py tool-id-vs-path`
+**Reproduced by:** `uv run python -m scripts.measure tool-id-vs-path`
 
 ### 10.2 Corpus size and source mix (2026-05-27 sweep)
 
@@ -293,7 +293,7 @@ sources is credited to github (`(github=4,175, toolshed=5,235) =
 `combined_corpus_stats.md` includes 3,457 duplicate tool rows plus
 4,632 duplicate non-tool XMLs.
 
-**Reproduced by:** `uv run python scripts/measure.py corpus-size-source-mix`
+**Reproduced by:** `uv run python -m scripts.measure corpus-size-source-mix`
 
 ### 10.3 Validity-vector contiguity (2026-05-27 combined sweep)
 
@@ -312,7 +312,7 @@ would be unsound on a non-monotonic vector. The figure is reported via
 `combined_corpus_stats.md`'s *Validity-vector contiguity* table on
 every full sweep.
 
-**Reproduced by:** `uv run python scripts/measure.py validity-distribution`
+**Reproduced by:** `uv run python -m scripts.measure validity-distribution`
 
 ### 10.4 No-valid-profile taxonomy (2026-05-27 combined sweep)
 
@@ -351,7 +351,7 @@ public schema (strict). The rest split between minor type mismatches
 category is surfaced in `combined_corpus_stats.md` so future drift is
 visible.
 
-**Reproduced by:** `uv run python scripts/measure.py no-valid-profile-taxonomy`
+**Reproduced by:** `uv run python -m scripts.measure no-valid-profile-taxonomy`
 
 ### 10.5 Newest-valid-at-latest distribution (2026-05-27 combined sweep)
 
@@ -370,7 +370,7 @@ so the newest-first scan in `newest_valid_profile` is O(1) on nine out
 of ten calls. The 1.8% that validate only at an older profile is the
 population the per-release models exist to serve.
 
-**Reproduced by:** `uv run python scripts/measure.py validity-distribution`
+**Reproduced by:** `uv run python -m scripts.measure validity-distribution`
 
 ### 10.6 Macro usage (2026-05-27 combined sweep)
 
@@ -387,7 +387,7 @@ Justifies the prominence of macro handling in the API
 "common case" without macro handling. The library's `macro_handling`
 default of `"expand"` is the right one.
 
-**Reproduced by:** `uv run python scripts/measure.py macro-usage`
+**Reproduced by:** `uv run python -m scripts.measure macro-usage`
 
 ### 10.7 Profile-as-macro-placeholder (2026-05-27 combined sweep)
 
@@ -410,7 +410,7 @@ dominates.
 expansion would mis-classify ~1 in 6 tools. The corpus check expands
 before counting; the public abstract reports the expanded figure.
 
-**Reproduced by:** `uv run python scripts/measure.py macro-placeholder-profile`
+**Reproduced by:** `uv run python -m scripts.measure macro-placeholder-profile`
 
 ### 10.8 Expansion-failed `tool_id` fallback (2026-05-27 combined sweep)
 
@@ -431,7 +431,7 @@ the docstring example overstated how often that raw `@id` is a macro
 token. The example has been softened to "the raw `@id` literal, which
 may or may not contain a macro token".
 
-**Reproduced by:** `uv run python scripts/measure.py expansion-failed-ids`
+**Reproduced by:** `uv run python -m scripts.measure expansion-failed-ids`
 
 ### 10.9 Lenient-text-style field children (2026-05-27 combined sweep)
 
@@ -459,7 +459,7 @@ turns the crash into a silent skip (the lxml tree, which is the
 source of truth, keeps the markup verbatim). The cost is one
 class-method monkey-patch run at most once via `@cache`.
 
-**Reproduced by:** `uv run python scripts/measure.py lenient-text-fields`
+**Reproduced by:** `uv run python -m scripts.measure lenient-text-fields`
 
 ### 10.10 Corrections cutoff (2026-05-27 combined sweep)
 
@@ -485,7 +485,7 @@ cost of looser matches whose precision has not been hand-audited.
 The current `0.80` is defensible; a deliberate audit would be needed
 to support a change.
 
-**Reproduced by:** `uv run python scripts/measure.py corrections-cutoff`
+**Reproduced by:** `uv run python -m scripts.measure corrections-cutoff`
 
 ### 10.11 Cross-source presence (2026-05-27 combined sweep)
 
@@ -536,7 +536,7 @@ updated copy elsewhere. The 170 toolshed failures with a github
 sibling are exactly the population a future "is this maintained on
 github?" triage workflow would surface first.
 
-**Reproduced by:** `uv run python scripts/measure.py cross-source-presence`
+**Reproduced by:** `uv run python -m scripts.measure cross-source-presence`
 
 ---
 

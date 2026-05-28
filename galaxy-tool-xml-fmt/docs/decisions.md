@@ -515,7 +515,7 @@ Sweep commit pinned per-repo via `git rev-parse HEAD` and surfaced in
 snapshot will diff the per-repo `Version` column.
 
 ```sh
-uv run python scripts/corpus_check.py
+uv run python -m scripts.corpus_check fmt
 ```
 
 ### Rationale

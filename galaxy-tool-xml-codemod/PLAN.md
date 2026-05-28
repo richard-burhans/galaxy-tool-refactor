@@ -129,14 +129,21 @@ been ported as proper codemods (verb-noun naming, TDD):
 
 A second class of baked-in codemods will rewrite tool XML to conform to
 a newer Galaxy profile (e.g. migrate constructs deprecated between
-profile `21.05` and `26.01`). Opt-in (not part of `MANDATORY_CODEMODS`),
+profile `21.05` and `26.1`). Opt-in (not part of `CANONICAL_CODEMODS`),
 target-version-aware, likely grouped in `upgrades.py` alongside
-`mandatory.py`. No implementation planned in M1–M5; mentioned here so
+`canonical.py`. No implementation planned in M1–M5; mentioned here so
 the package layout leaves room.
 
 ## Open questions — resolved
 
 The following were open questions in the original design; decisions below.
+
+> **Note:** several of these design-time resolutions were revised during
+> M1–M3.5 — `MACRO_MODE` was removed pending a real consumer
+> (`docs/decisions.md` §8), the `remove` / `replace_with_siblings` /
+> `add_child` cursor mutators in §3 were deferred (see the M2 status
+> above), and profile-drift handling (§4) is not yet implemented. The
+> "Milestone status" section above is authoritative for what shipped.
 
 ### 1. `parse_module` signature
 

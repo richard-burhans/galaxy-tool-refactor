@@ -17,10 +17,11 @@ working. Structural canonicalisation (attribute reordering on
 `<tool>` and `<param>`) lives in tier 2 and is consumed via the
 optional `[canonical]` extra.
 
-The most recent corpus sweep checked 4,052 tools across 21 public
-Galaxy tool repositories with both cosmetic and structural pipelines:
-100% idempotent, 0 crashes. Full numbers in
-`docs/corpus_format_stats.md`.
+The most recent cosmetic-pipeline sweep parsed 4,190 `<tool>` documents
+across 21 public Galaxy tool repositories; 4,014 validated under profile
+`26.1` and were format-checked — 100% idempotent, 0 crashes. The
+structural (codemod) pipeline retained 0 regression fixtures over the
+same corpus. Full numbers in `docs/corpus_format_stats.md`.
 
 ## Role in the three-tier architecture
 

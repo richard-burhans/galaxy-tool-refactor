@@ -14,9 +14,9 @@ so the measurement can be tested or composed without I/O noise.
 
 Run::
 
-    uv run python scripts/measure.py --list               # list available
-    uv run python scripts/measure.py lenient-text-fields  # one measurement
-    uv run python scripts/measure.py --all                # every measurement
+    uv run python -m scripts.measure --list               # list available
+    uv run python -m scripts.measure lenient-text-fields  # one measurement
+    uv run python -m scripts.measure --all                # every measurement
 
 Companion to the project memory entries on
 ``use-corpus-for-questions`` and ``measurements-as-scripts``.
@@ -72,8 +72,8 @@ def _load_combined_data(*, path: Path | None = None) -> list[dict[str, object]]:
     resolved = path if path is not None else _combined_data_path()
     if not resolved.is_file():
         raise FileNotFoundError(
-            f"{resolved} not found; run `uv run python scripts/corpus_check.py "
-            f"--source combined` first."
+            f"{resolved} not found; run `uv run python -m scripts.corpus_check "
+            f"validate --source combined` first."
         )
     return json.loads(resolved.read_text(encoding="utf-8"))
 

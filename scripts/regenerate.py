@@ -2,8 +2,8 @@
 """Regenerate every per-version xsdata typed model from the vendored XSDs.
 
 A maintainer task: run on the ``uv.lock``-pinned toolchain via
-``uv run python scripts/regenerate.py``. Each vendored XSD is regenerated into
-its own package under ``src/galaxy_tool_xml/models/`` (``v16_10`` … ``v26_0``),
+``uv run python -m scripts.regenerate``. Each vendored XSD is regenerated into
+its own package under ``src/galaxy_tool_xml/models/`` (``v16_10`` … ``v26_1``),
 together with ``any_tool.py``.
 
 The generated packages are not committed — the hatchling build hook regenerates
