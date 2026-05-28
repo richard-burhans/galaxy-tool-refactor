@@ -22,9 +22,12 @@ with typed mutation primitives (``set_attribute``, ``delete_attribute``,
 ``attribute_names``), a ``Module`` wrapper, a ``parse_module`` entry
 point, and the bundled codemods exposed via the ordered
 ``CANONICAL_CODEMODS`` tuple consumed by fmt's CLI:
-``FixTypos`` → ``UpdateProfile`` → ``ReorderParamAttributes`` →
-``ReorderToolAttributes`` (the first two are validation-driven and
-override ``apply``; see ``docs/decisions.md`` §11–13).
+``FixTypos`` → ``UpgradeToLatest`` → ``ReorderParamAttributes`` →
+``ReorderToolAttributes``. ``FixTypos`` and ``UpgradeToLatest`` (which
+loops ``UpdateProfile`` + single-step ``upgrade_vN`` codemods from
+``upgrades.py``) are validation-driven and override ``apply``. The
+upgrade registry is grown empirically from ``corpus_check codemod``
+discovery sweeps; see ``docs/decisions.md`` §11–14.
 
 **Tier independence:** fmt's *library* (`format_tool_document`) does
 not depend on this package. fmt's *CLI* depends on it via the

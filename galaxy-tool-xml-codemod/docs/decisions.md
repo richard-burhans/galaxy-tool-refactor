@@ -278,3 +278,53 @@ reproducible command for any data-driven claim.
   galaxy_tool_xml_codemod.codemods.update_profile:UpdateProfile --limit 200`
   → eligible tools validate post-apply, 0 non-idempotent / crashed.
 
+
+## 14. Profile-version upgrades: `UpgradeToLatest` orchestrator + per-step codemods
+
+**Date:** 2026-05-28.
+
+- **What we chose:** A family of single-step upgrade codemods plus an
+  orchestrator. `upgrades.py` holds `UPGRADE_CODEMODS` (a dict mapping a
+  sticking version → the codemod that moves a tool one step past it) and
+  `UpgradeToLatest`, which loops: run `UpdateProfile` (declare newest valid);
+  if below the latest profile and a registered upgrade exists for the current
+  version, apply it; repeat — stopping at the latest profile, at a version with
+  no registered upgrade, or on a non-advancing round (`seen` guard +
+  version-count bound). `UpgradeToLatest` joins `CANONICAL_CODEMODS` in
+  `UpdateProfile`'s former slot (it subsumes `UpdateProfile`, running it each
+  round): `FixTypos → UpgradeToLatest → Reorder*`. The first upgrade codemod is
+  `Upgrade24_1` (§ below). The registry is grown **empirically**: the discovery
+  sweep reports tools that do not reach latest and the version they stick at.
+- **Discovery sweep:** the `codemod` sweep now tallies a post-apply profile
+  distribution (`_codemod_exercise` returns the landing profile;
+  `_CodemodSweepState.final_profiles`). Run with `UpgradeToLatest`, every bucket
+  below the latest profile is logged as a `STICKING POINT … need upgrade codemod
+  for <version>` — the prioritized to-write list. We keep looping
+  (sweep → write `upgrade_vN` → sweep) until every upgradeable tool reaches the
+  latest profile.
+- **`Upgrade24_1` (24.1 → 24.2):** empirically the only 24.2 delta corpus tools
+  trip on is the `format` attribute gaining a pattern facet — `FormatList`
+  (`<param>`, comma-separated `[a-z0-9._-]` tokens) and `Format` (`<data>`, a
+  single such token). 24.1-stuck tools fail on uppercase (`BAM`), spaces
+  (`fa, fasta`, `txt `), or empty values. The codemod normalizes every `format`
+  attribute (lowercase + strip whitespace per comma token) — semantics-
+  preserving (Galaxy datatype extensions are lowercase; whitespace was never
+  significant). It leaves what it cannot safely coerce: an empty value, or a
+  `<data>` comma-list (which `Format` forbids and there is no basis to pick one
+  datatype) — those stay stuck and the discovery sweep reports them.
+- **Alternative:** direct-to-latest monolithic upgrade codemods; or making
+  upgrades opt-in rather than canonical.
+- **Why:** Single-step codemods keyed by from-version match how Galaxy's schema
+  evolves (one release at a time) and keep each transform small and reviewable;
+  the orchestrator chains them. Per-codemod corpus eligibility hooks (§12) carry
+  over unchanged — `UpgradeToLatest`/`Upgrade24_1` use the default ("validates
+  somewhere"). The whole pipeline stays idempotent: after one pass a tool
+  validates at its newest reachable profile and declares it, so every codemod
+  no-ops on the next pass. The set is canonical (user decision): the default
+  "format my tool" workflow should bring a tool to the latest profile it can
+  reach — and `FixTypos`'s guard plus the no-op cases mean a current,
+  well-authored tool is untouched beyond attribute ordering.
+- **Reproduce:** `uv run python -m scripts.corpus_check codemod
+  galaxy_tool_xml_codemod.upgrades:UpgradeToLatest --limit 300` → 297 reached
+  latest, 3 stuck at 25.1 (next codemod to write); 0 non-idempotent /
+  post-validate-failed / crashed.

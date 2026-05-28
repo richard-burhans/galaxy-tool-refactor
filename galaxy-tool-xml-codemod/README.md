@@ -18,12 +18,17 @@ consumed by fmt's CLI, and a `corpus_check.py codemod` subcommand that
 sweeps a codemod across the corpus and retains failures as regression
 fixtures.
 
-Two validation-driven codemods also ship and now run in the canonical
-pipeline: `FixTypos` (repairs near-miss spelling typos so a
-well-formed-but-globally-invalid tool validates) and `UpdateProfile`
-(declares the newest profile the tool validates at, bump-up-only). The
-canonical order is `FixTypos → UpdateProfile → ReorderParamAttributes →
-ReorderToolAttributes`. See `docs/decisions.md` §11–13.
+Validation-driven codemods also ship and run in the canonical pipeline:
+`FixTypos` (repairs near-miss spelling typos so a
+well-formed-but-globally-invalid tool validates), `UpdateProfile`
+(declares the newest profile the tool validates at, bump-up-only), and
+`UpgradeToLatest` (loops `UpdateProfile` + single-step `upgrade_vN`
+codemods from `upgrades.py` to bring a tool to the latest profile). The
+canonical order is `FixTypos → UpgradeToLatest → ReorderParamAttributes →
+ReorderToolAttributes`. The upgrade registry is grown empirically: the
+`corpus_check codemod` sweep reports `STICKING POINT` versions still
+needing an `upgrade_vN`. First upgrade shipped: `Upgrade24_1` (24.1 →
+24.2). See `docs/decisions.md` §11–14.
 
 M4 (matcher language) and M5 (Cheetah reference resolver) are not yet
 implemented — see `PLAN.md`.
@@ -49,7 +54,10 @@ for codemod_cls in CANONICAL_CODEMODS:
 | `cursor.Cursor` | lxml-backed view with read + typed mutation primitives. |
 | `codemod.CodemodCommand` | Base for user-authored codemods (tag-PascalCase dispatch). |
 | `codemods.fix_typos.FixTypos` | Repair near-miss typos until a globally-invalid tool validates (canonical, runs first). |
-| `codemods.update_profile.UpdateProfile` | Declare the newest profile the tool validates at, bump-up-only (canonical). |
+| `codemods.update_profile.UpdateProfile` | Declare the newest profile the tool validates at, bump-up-only. |
+| `upgrades.UpgradeToLatest` | Loop UpdateProfile + single-step upgrades to reach the latest profile (canonical). |
+| `upgrades.UPGRADE_CODEMODS` | Registry: sticking version → its single-step upgrade codemod. |
+| `codemods.upgrade_24_1.Upgrade24_1` | Single-step 24.1 → 24.2 (normalize the `format` attribute). |
 | `codemods.reorder_param_attributes.ReorderParamAttributes` | IUC `<param>` attribute order. |
 | `codemods.reorder_tool_attributes.ReorderToolAttributes` | Documented `<tool>` attribute prefix. |
 | `canonical.CANONICAL_CODEMODS` | The full ordered set fmt's CLI runs by default. |

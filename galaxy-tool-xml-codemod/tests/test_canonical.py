@@ -11,7 +11,7 @@ from galaxy_tool_xml_codemod.codemods.reorder_param_attributes import (
 from galaxy_tool_xml_codemod.codemods.reorder_tool_attributes import (
     ReorderToolAttributes,
 )
-from galaxy_tool_xml_codemod.codemods.update_profile import UpdateProfile
+from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 
 
 def test_canonical_set_includes_both_attribute_reorder_codemods() -> None:
@@ -20,23 +20,28 @@ def test_canonical_set_includes_both_attribute_reorder_codemods() -> None:
     assert ReorderToolAttributes in CANONICAL_CODEMODS
 
 
-def test_canonical_set_includes_repair_and_profile_codemods() -> None:
-    """``FixTypos`` and ``UpdateProfile`` run as part of the canonical pipeline."""
+def test_canonical_set_includes_repair_and_upgrade_codemods() -> None:
+    """``FixTypos`` and ``UpgradeToLatest`` run as part of the canonical pipeline.
+
+    ``UpgradeToLatest`` subsumes ``UpdateProfile`` (it runs it internally each
+    round), so the profile step is represented by the orchestrator, not a
+    standalone ``UpdateProfile`` entry.
+    """
     assert FixTypos in CANONICAL_CODEMODS
-    assert UpdateProfile in CANONICAL_CODEMODS
+    assert UpgradeToLatest in CANONICAL_CODEMODS
 
 
-def test_canonical_order_repairs_then_profiles_then_reorders() -> None:
-    """FixTypos precedes UpdateProfile, and both precede the attribute reorderers.
+def test_canonical_order_repairs_then_upgrades_then_reorders() -> None:
+    """FixTypos precedes UpgradeToLatest, and both precede the attribute reorderers.
 
-    Order is load-bearing: typo repair must run before the profile is read off a
-    now-validatable tree, and the profile must be set before ``ReorderToolAttributes``
-    positions an added ``profile=`` attribute.
+    Order is load-bearing: typo repair must run before the tool is upgraded off a
+    now-validatable tree, and the profile must be settled (the upgrade loop
+    re-declares it) before ``ReorderToolAttributes`` positions ``profile=``.
     """
     order = {cls: i for i, cls in enumerate(CANONICAL_CODEMODS)}
-    assert order[FixTypos] < order[UpdateProfile]
-    assert order[UpdateProfile] < order[ReorderToolAttributes]
-    assert order[UpdateProfile] < order[ReorderParamAttributes]
+    assert order[FixTypos] < order[UpgradeToLatest]
+    assert order[UpgradeToLatest] < order[ReorderToolAttributes]
+    assert order[UpgradeToLatest] < order[ReorderParamAttributes]
 
 
 def test_canonical_codemods_are_all_codemod_commands() -> None:

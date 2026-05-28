@@ -1,0 +1,88 @@
+"""Tests for the ``Upgrade24_1`` codemod (single-step 24.1 -> 24.2 upgrade).
+
+The 24.1 -> 24.2 schema delta that real corpus tools trip on is the ``format``
+attribute gaining a pattern facet: ``FormatList`` (``<param>``) requires
+comma-separated ``[a-z0-9._-]`` tokens, ``Format`` (``<data>``) a single such
+token. ``Upgrade24_1`` normalizes ``format`` values — lowercase + strip
+whitespace around comma-separated tokens — which unsticks tools whose only
+problem is case/whitespace. Values it cannot safely coerce (empty, or a
+``<data>`` comma-list, which ``Format`` forbids) are left untouched.
+"""
+
+from __future__ import annotations
+
+from galaxy_tool_xml.binding import newest_valid_profile
+from lxml import etree
+
+from galaxy_tool_xml_codemod.codemods.upgrade_24_1 import Upgrade24_1
+from galaxy_tool_xml_codemod.parse import parse_module
+
+
+def _tool(*, param_fmt: str | None = None, data_fmt: str | None = None) -> bytes:
+    param = (
+        f'<param name="i" type="data" format="{param_fmt}"/>'
+        if param_fmt is not None
+        else ""
+    )
+    data = (
+        f'<data name="o" format="{data_fmt}"/>'
+        if data_fmt is not None
+        else '<data name="o"/>'
+    )
+    return (
+        '<tool id="m" name="M" version="1.0.0" profile="24.1">'
+        "<command><![CDATA[echo x]]></command>"
+        f"<inputs>{param}</inputs><outputs>{data}</outputs></tool>"
+    ).encode()
+
+
+def _apply(xml: bytes) -> etree._Element:
+    module = parse_module(xml)
+    Upgrade24_1().apply(module)
+    return module.document.root
+
+
+def _format_of(root: etree._Element, tag: str) -> str | None:
+    el = root.find(f".//{tag}[@format]")
+    return None if el is None else el.get("format")
+
+
+def test_lowercases_param_format_and_unsticks() -> None:
+    root = _apply(_tool(param_fmt="BAM"))
+    assert _format_of(root, "param") == "bam"
+    assert newest_valid_profile(etree.tostring(root)) not in (None, "24.1")
+
+
+def test_strips_spaces_in_param_format_list() -> None:
+    root = _apply(_tool(param_fmt="fa, fasta"))
+    assert _format_of(root, "param") == "fa,fasta"
+    assert newest_valid_profile(etree.tostring(root)) not in (None, "24.1")
+
+
+def test_trims_data_format() -> None:
+    root = _apply(_tool(data_fmt="txt "))
+    assert _format_of(root, "data") == "txt"
+    assert newest_valid_profile(etree.tostring(root)) not in (None, "24.1")
+
+
+def test_leaves_unfixable_data_comma_list_untouched() -> None:
+    """A ``<data>`` comma-list has no single-token coercion — left as-is."""
+    root = _apply(_tool(data_fmt="fasta,fastq"))
+    assert _format_of(root, "data") == "fasta,fastq"
+    assert newest_valid_profile(etree.tostring(root)) == "24.1"
+
+
+def test_noop_on_already_clean_format() -> None:
+    xml = _tool(param_fmt="bam")
+    module = parse_module(xml)
+    before = etree.tostring(module.document.root)
+    Upgrade24_1().apply(module)
+    assert etree.tostring(module.document.root) == before
+
+
+def test_is_idempotent() -> None:
+    module = parse_module(_tool(param_fmt="BAM"))
+    Upgrade24_1().apply(module)
+    once = etree.tostring(module.document.root)
+    Upgrade24_1().apply(module)
+    assert etree.tostring(module.document.root) == once
