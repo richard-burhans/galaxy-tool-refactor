@@ -18,10 +18,13 @@ This package supplies the **structural-refactor framework**: a
 ``CodemodCommand`` visitor base with tag-PascalCase dispatch
 (``visit_Param``, ``visit_Tool``, …), an ``lxml``-backed ``Cursor``
 with typed mutation primitives (``set_attribute``, ``delete_attribute``,
-``reorder_attributes``, ``attribute_names``), a ``Module`` wrapper, a
-``parse_module`` entry point, and two bundled codemods
-(``ReorderParamAttributes``, ``ReorderToolAttributes``) plus the
-``CANONICAL_CODEMODS`` tuple consumed by fmt's CLI.
+``rename_attribute``, ``rename_tag``, ``reorder_attributes``,
+``attribute_names``), a ``Module`` wrapper, a ``parse_module`` entry
+point, and the bundled codemods exposed via the ordered
+``CANONICAL_CODEMODS`` tuple consumed by fmt's CLI:
+``FixTypos`` → ``UpdateProfile`` → ``ReorderParamAttributes`` →
+``ReorderToolAttributes`` (the first two are validation-driven and
+override ``apply``; see ``docs/decisions.md`` §11–13).
 
 **Tier independence:** fmt's *library* (`format_tool_document`) does
 not depend on this package. fmt's *CLI* depends on it via the

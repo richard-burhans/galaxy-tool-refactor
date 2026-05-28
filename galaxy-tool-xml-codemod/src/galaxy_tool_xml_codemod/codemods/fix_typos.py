@@ -19,8 +19,10 @@ are load-bearing:
   ``None``; after a successful repair the tool validates somewhere, so a second
   run is an immediate no-op.
 
-``profile=`` is never written — only spellings change. See ``docs/decisions.md``
-for the opt-in-repair / ``apply``-override rationale.
+``profile=`` is never written — only spellings change; the sibling
+``UpdateProfile`` codemod owns the declared profile. ``FixTypos`` runs first in
+``CANONICAL_CODEMODS``. See ``docs/decisions.md`` §11 (this codemod) and §13
+(canonical ordering).
 """
 
 from __future__ import annotations

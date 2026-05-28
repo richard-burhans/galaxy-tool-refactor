@@ -18,9 +18,12 @@ consumed by fmt's CLI, and a `corpus_check.py codemod` subcommand that
 sweeps a codemod across the corpus and retains failures as regression
 fixtures.
 
-`FixTypos` (opt-in, not canonical) repairs near-miss spelling typos so a
-well-formed-but-globally-invalid tool validates — the first
-validation-driven codemod. See `docs/decisions.md` §11–12.
+Two validation-driven codemods also ship and now run in the canonical
+pipeline: `FixTypos` (repairs near-miss spelling typos so a
+well-formed-but-globally-invalid tool validates) and `UpdateProfile`
+(declares the newest profile the tool validates at, bump-up-only). The
+canonical order is `FixTypos → UpdateProfile → ReorderParamAttributes →
+ReorderToolAttributes`. See `docs/decisions.md` §11–13.
 
 M4 (matcher language) and M5 (Cheetah reference resolver) are not yet
 implemented — see `PLAN.md`.
@@ -45,10 +48,11 @@ for codemod_cls in CANONICAL_CODEMODS:
 | `module.Module` | Frozen wrapper carrying `document`, `model`, `cursor`. |
 | `cursor.Cursor` | lxml-backed view with read + typed mutation primitives. |
 | `codemod.CodemodCommand` | Base for user-authored codemods (tag-PascalCase dispatch). |
-| `canonical.CANONICAL_CODEMODS` | The structural codemods fmt's CLI runs by default. |
+| `codemods.fix_typos.FixTypos` | Repair near-miss typos until a globally-invalid tool validates (canonical, runs first). |
+| `codemods.update_profile.UpdateProfile` | Declare the newest profile the tool validates at, bump-up-only (canonical). |
 | `codemods.reorder_param_attributes.ReorderParamAttributes` | IUC `<param>` attribute order. |
 | `codemods.reorder_tool_attributes.ReorderToolAttributes` | Documented `<tool>` attribute prefix. |
-| `codemods.fix_typos.FixTypos` | Repair near-miss typos until a globally-invalid tool validates. |
+| `canonical.CANONICAL_CODEMODS` | The full ordered set fmt's CLI runs by default. |
 | `eligibility.corpus_test_profile` | Codemod-sweep validation-profile policy (sweep default). |
 
 ## Setup

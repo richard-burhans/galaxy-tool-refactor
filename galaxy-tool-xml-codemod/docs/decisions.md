@@ -183,10 +183,13 @@ reproducible command for any data-driven claim.
 
 **Date:** 2026-05-28.
 
-- **What we chose:** A new opt-in codemod `FixTypos`
-  (`codemods/fix_typos.py`) that rewrites near-miss typos so a
-  well-formed-but-globally-invalid tool validates. It is **not** in
-  `CANONICAL_CODEMODS`. It **overrides `apply`** instead of defining
+- **What we chose:** A new codemod `FixTypos` (`codemods/fix_typos.py`)
+  that rewrites near-miss typos so a well-formed-but-globally-invalid tool
+  validates. It runs **first** in `CANONICAL_CODEMODS` (see §13 — it was
+  briefly opt-in before the profile-update work folded it into the default
+  pipeline). Its `newest_valid_profile is None` guard means it only acts on
+  tools that validate nowhere, so making it canonical does not touch
+  already-valid tools. It **overrides `apply`** instead of defining
   `visit_<Tag>` methods: it deep-copies the root on entry, then for each
   vendored profile newest-to-oldest restores from that snapshot, applies
   the corrections Tier-1's `suggest_corrections(..., profile=V)` reports
@@ -238,4 +241,40 @@ reproducible command for any data-driven claim.
   40 eligible (5 repaired, 35 no-repair), 0 non-idempotent /
   post-validate-failed / crashed; the no-valid population is now swept
   (it was skipped wholesale before these hooks).
+
+## 13. `UpdateProfile` + a canonical pipeline ordered repair → profile → reorder
+
+**Date:** 2026-05-28.
+
+- **What we chose:** A new codemod `UpdateProfile`
+  (`codemods/update_profile.py`) that declares the newest profile the tool
+  actually validates at — adding `profile=` when absent, bumping it up when
+  a declared profile is older. It is **bump-up-only** (never lowers), a
+  no-op when already correct, when the tool validates nowhere, and when the
+  declared profile is not a parseable version (e.g. `@PROFILE@`). Both
+  `FixTypos` and `UpdateProfile` join `CANONICAL_CODEMODS`, in the order
+  `FixTypos → UpdateProfile → ReorderParamAttributes → ReorderToolAttributes`.
+  Like `FixTypos` it is document-level and validation-driven, so it
+  overrides `apply`; it needs no eligibility-hook override — the default
+  ("validates somewhere") is exactly its population.
+- **Alternative:** Always set `profile=` to `newest_valid_profile` even when
+  that lowers the declared version; or keep both codemods opt-in.
+- **Why:** The `profile` attribute is a runtime-compatibility contract, not
+  just a schema selector, so lowering it could falsely claim compatibility
+  with an older Galaxy — hence bump-up-only. The ordering is load-bearing:
+  `FixTypos` must run first so a repaired tree is validatable before
+  `UpdateProfile` reads its newest-valid profile, and `UpdateProfile` must
+  precede `ReorderToolAttributes` so a freshly-added `profile=` (appended at
+  the end by `set_attribute`) is moved into its documented slot. The two
+  attribute reorderers run last, once structure and profile are settled.
+  Making the set canonical (rather than opt-in) is a deliberate choice: the
+  default "format my tool" workflow should repair typos when nothing else
+  validates and keep the declared profile honest — and `FixTypos`'s guard
+  plus `UpdateProfile`'s no-op cases mean a well-authored tool is untouched
+  beyond attribute ordering. The whole pipeline stays idempotent: after one
+  pass the tool validates and declares its newest valid profile, so every
+  codemod no-ops on the second pass.
+- **Reproduce:** `uv run python -m scripts.corpus_check codemod
+  galaxy_tool_xml_codemod.codemods.update_profile:UpdateProfile --limit 200`
+  → eligible tools validate post-apply, 0 non-idempotent / crashed.
 
