@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from galaxy_tool_xml.binding import load_tool
+
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
+from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.cursor import Cursor
+from galaxy_tool_xml_codemod.eligibility import corpus_test_profile
 from galaxy_tool_xml_codemod.parse import parse_module
 
 
@@ -144,3 +148,51 @@ def test_traversal_visits_in_document_order(tool_with_params_path: Path) -> None
         "outputs",
         "data",
     ]
+
+
+# ---------------------------------------------------------------------------
+# Corpus-sweep eligibility hooks
+# ---------------------------------------------------------------------------
+
+_INVALID = (
+    b'<tool id="m" name="M" version="1.0.0" profile="24.0">'
+    b"<command><![CDATA[echo x]]></command>"
+    b'<inputs><param name="x" typ="text"/></inputs><outputs/></tool>'
+)
+
+
+def test_default_corpus_eligible_mirrors_corpus_test_profile(
+    minimal_tool_path: Path,
+) -> None:
+    """The base hook is eligible exactly when the sweep policy picks a profile."""
+    document = load_tool(minimal_tool_path)
+    assert CodemodCommand.corpus_eligible(document) is (
+        corpus_test_profile(document) is not None
+    )
+
+
+def test_default_corpus_validation_profile_mirrors_policy(
+    minimal_tool_path: Path,
+) -> None:
+    """The base validation profile defaults to the sweep policy's choice."""
+    document = load_tool(minimal_tool_path)
+    assert (
+        CodemodCommand.corpus_validation_profile(document)
+        == corpus_test_profile(document)
+    )
+
+
+def test_fix_typos_eligible_only_for_globally_invalid_tools(
+    minimal_tool_path: Path,
+) -> None:
+    """``FixTypos`` inverts eligibility: in scope iff nothing validates."""
+    assert FixTypos.corpus_eligible(load_tool(_INVALID)) is True
+    assert FixTypos.corpus_eligible(load_tool(minimal_tool_path)) is False
+
+
+def test_fix_typos_validation_profile_tracks_repair() -> None:
+    """Validation profile is ``None`` pre-repair, the stopped-at version after."""
+    module = parse_module(_INVALID)
+    assert FixTypos.corpus_validation_profile(module.document) is None
+    FixTypos().apply(module)
+    assert FixTypos.corpus_validation_profile(module.document) is not None

@@ -3,8 +3,9 @@
 M1 supplied read-only navigation (tag, attribute reads, child / parent
 traversal). M2 added the mutation primitives codemods need:
 ``set_attribute``, ``delete_attribute``, ``reorder_attributes``,
-``attribute_names``. All mutations apply immediately to the underlying
-lxml tree.
+``attribute_names``, plus the ``rename_tag`` / ``rename_attribute``
+primitives the typo-repair codemod relies on. All mutations apply
+immediately to the underlying lxml tree.
 
 ``children()`` returns **only real elements** — lxml Comment and
 ProcessingInstruction nodes are skipped, so codemods never have to
@@ -67,6 +68,39 @@ class Cursor:
         """Remove ``name`` if present; otherwise no-op."""
         if name in self._element.attrib:
             del self._element.attrib[name]
+
+    def rename_tag(self, new_tag: str, /) -> None:
+        """Rename this element's tag in place.
+
+        Children, attributes, ``text`` and ``tail`` are untouched — only the
+        tag name changes. ``new_tag`` must be a non-empty string; an empty tag
+        would corrupt the tree, so it is rejected loudly (LBYL) rather than
+        silently produced.
+        """
+        if not new_tag:
+            raise ValueError("rename_tag: new_tag must be a non-empty string")
+        self._element.tag = new_tag
+
+    def rename_attribute(self, old: str, new: str, /) -> None:
+        """Rename attribute ``old`` to ``new``, preserving its position and value.
+
+        ``ValueError`` is raised if ``old`` is absent or ``new`` is already
+        present — either case would silently drop or clobber an attribute,
+        which a codemod bug could otherwise hide. The slot index is preserved
+        by rebuilding the attribute dict (lxml ``_Attrib`` has no rename), the
+        same clear-and-rebuild pattern ``reorder_attributes`` uses.
+        """
+        attrib = self._element.attrib
+        if old not in attrib:
+            raise ValueError(f"rename_attribute: attribute {old!r} is not present")
+        if new in attrib:
+            raise ValueError(f"rename_attribute: attribute {new!r} already present")
+        snapshot = [
+            (new if name == old else name, value) for name, value in attrib.items()
+        ]
+        attrib.clear()
+        for name, value in snapshot:
+            attrib[name] = value
 
     def reorder_attributes(self, names: Sequence[str], /) -> None:
         """Rewrite the element's attribute order to match ``names``.

@@ -540,7 +540,28 @@ github?" triage workflow would surface first.
 
 ---
 
-## 11. Open items
+## 11. `suggest_corrections` accepts a `profile` override
+
+**Date:** 2026-05-28.
+
+- **What we chose:** `suggest_corrections(target, *, profile=None)`. By
+  default the tool's own declared profile drives the schema vocabulary
+  (unchanged behaviour); an explicit `profile` selects a different
+  release's vocabulary for the lockstep walk.
+- **Alternative:** Keep the function profile-implicit and have a caller
+  that wants a different vocabulary temporarily rewrite the tree's
+  `profile` attribute before calling.
+- **Why:** The Tier-2 `FixTypos` repair codemod probes each release
+  newest-to-oldest, asking "which typos would *this* profile's vocabulary
+  surface?" — it must drive the vocabulary without mutating the tool it is
+  about to repair. A keyword override is a one-line, backward-compatible
+  addition; the attribute-rewrite alternative is a mutation footgun.
+  `profile=None` preserves the exact prior behaviour, so no existing
+  caller changes.
+
+---
+
+## 12. Open items
 
 - **`source` column in the combined corpus data file.** Today the
   source is implicit (toolshed repos carry `/` in `repo`, github repos

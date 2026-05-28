@@ -220,12 +220,19 @@ def _walk(
                 )
 
 
-def suggest_corrections(target: Source | ToolDocument) -> list[Correction]:
+def suggest_corrections(
+    target: Source | ToolDocument, *, profile: str | None = None
+) -> list[Correction]:
     """Return near-miss typo suggestions for a tool.
 
     ``target`` is a source (path, ``bytes``, or binary stream) or an already
     parsed ``ToolDocument``. The un-expanded tree is walked; macro constructs
     are never flagged. Returns an empty list when the source cannot be parsed.
+
+    ``profile`` overrides the schema vocabulary used for the lockstep walk: by
+    default (``None``) the tool's own declared profile is used, but a caller
+    that wants to know which typos a *different* profile would surface — e.g. a
+    repair tool probing each release in turn — passes the target version here.
     """
     document = (
         target if isinstance(target, ToolDocument) else parse_tool(target).document
@@ -233,6 +240,7 @@ def suggest_corrections(target: Source | ToolDocument) -> list[Correction]:
     if document is None:
         return []
     corrections: list[Correction] = []
-    model_class = tool_class(resolve_profile(document.profile))
+    chosen = profile if profile is not None else document.profile
+    model_class = tool_class(resolve_profile(chosen))
     _walk(document.root, model_class, corrections)
     return corrections

@@ -18,6 +18,10 @@ consumed by fmt's CLI, and a `corpus_check.py codemod` subcommand that
 sweeps a codemod across the corpus and retains failures as regression
 fixtures.
 
+`FixTypos` (opt-in, not canonical) repairs near-miss spelling typos so a
+well-formed-but-globally-invalid tool validates — the first
+validation-driven codemod. See `docs/decisions.md` §11–12.
+
 M4 (matcher language) and M5 (Cheetah reference resolver) are not yet
 implemented — see `PLAN.md`.
 
@@ -44,7 +48,8 @@ for codemod_cls in CANONICAL_CODEMODS:
 | `canonical.CANONICAL_CODEMODS` | The structural codemods fmt's CLI runs by default. |
 | `codemods.reorder_param_attributes.ReorderParamAttributes` | IUC `<param>` attribute order. |
 | `codemods.reorder_tool_attributes.ReorderToolAttributes` | Documented `<tool>` attribute prefix. |
-| `eligibility.corpus_test_profile` | Codemod-sweep validation-profile policy. |
+| `codemods.fix_typos.FixTypos` | Repair near-miss typos until a globally-invalid tool validates. |
+| `eligibility.corpus_test_profile` | Codemod-sweep validation-profile policy (sweep default). |
 
 ## Setup
 

@@ -164,3 +164,75 @@ def test_reorder_attributes_preserves_values(minimal_tool_path: Path) -> None:
     cursor.reorder_attributes(("profile", "version", "name", "id"))
     for name, value in snapshot.items():
         assert cursor.get_attribute(name) == value
+
+
+# ---------------------------------------------------------------------------
+# Rename primitives (driven by the FixTypos codemod)
+# ---------------------------------------------------------------------------
+
+
+def test_rename_tag_changes_tag() -> None:
+    """``rename_tag`` rewrites the element's tag in place."""
+    from lxml import etree
+
+    cursor = Cursor(etree.fromstring(b"<parm/>"))
+    cursor.rename_tag("param")
+    assert cursor.tag == "param"
+
+
+def test_rename_tag_preserves_subtree_attrs_text_and_tail() -> None:
+    """``rename_tag`` keeps children, attributes, text and tail untouched."""
+    from lxml import etree
+
+    parser = etree.XMLParser(strip_cdata=False)
+    root = etree.fromstring(
+        b"<inputs><parm name='x' type='text'>hi<child/></parm>tail</inputs>",
+        parser=parser,
+    )
+    cursor = Cursor(root[0])
+    cursor.rename_tag("param")
+    renamed = root[0]
+    assert renamed.tag == "param"
+    assert renamed.get("name") == "x"
+    assert renamed.get("type") == "text"
+    assert renamed.text == "hi"
+    assert renamed.tail == "tail"
+    assert [child.tag for child in renamed] == ["child"]
+
+
+def test_rename_tag_rejects_empty() -> None:
+    """``rename_tag`` raises on an empty tag rather than corrupting the tree."""
+    from lxml import etree
+
+    cursor = Cursor(etree.fromstring(b"<parm/>"))
+    with pytest.raises(ValueError):
+        cursor.rename_tag("")
+
+
+def test_rename_attribute_preserves_position_and_value() -> None:
+    """``rename_attribute`` renames in place, keeping the slot index and value."""
+    from lxml import etree
+
+    root = etree.fromstring(b"<param name='x' typ='text' label='L'/>")
+    cursor = Cursor(root)
+    cursor.rename_attribute("typ", "type")
+    assert cursor.attribute_names() == ("name", "type", "label")
+    assert cursor.get_attribute("type") == "text"
+
+
+def test_rename_attribute_rejects_absent_old() -> None:
+    """``rename_attribute`` raises when the old name is not present."""
+    from lxml import etree
+
+    cursor = Cursor(etree.fromstring(b"<param name='x'/>"))
+    with pytest.raises(ValueError):
+        cursor.rename_attribute("nope", "type")
+
+
+def test_rename_attribute_rejects_present_new() -> None:
+    """``rename_attribute`` raises when the new name already exists (would clobber)."""
+    from lxml import etree
+
+    cursor = Cursor(etree.fromstring(b"<param typ='text' type='data'/>"))
+    with pytest.raises(ValueError):
+        cursor.rename_attribute("typ", "type")

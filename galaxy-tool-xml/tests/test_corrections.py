@@ -45,3 +45,26 @@ def test_corrections_use_the_declared_profile() -> None:
     old = head + b'"16.10">' + child + b"</tool>"
     assert "entry_points" in {c.suggested for c in suggest_corrections(recent)}
     assert "entry_points" not in {c.suggested for c in suggest_corrections(old)}
+
+
+def test_profile_override_uses_overridden_vocabulary() -> None:
+    """An explicit ``profile`` overrides the tool's declared profile vocabulary."""
+    child = b"<entry_pointx/>"
+    head = b'<tool id="t" name="T" version="1.0.0" profile="16.10">'
+    tool = head + child + b"</tool>"
+    # Under the tool's own (16.10) profile, ``entry_points`` is not vocabulary.
+    assert "entry_points" not in {c.suggested for c in suggest_corrections(tool)}
+    # Overriding to 26.0 brings ``entry_points`` into scope so the near-miss flags.
+    assert "entry_points" in {
+        c.suggested for c in suggest_corrections(tool, profile="26.0")
+    }
+
+
+def test_profile_none_matches_declared_profile() -> None:
+    """``profile=None`` preserves today's behaviour: use the tool's own profile."""
+    child = b"<entry_pointx/>"
+    tool = b'<tool id="t" name="T" version="1.0.0" profile="26.0">' + child + b"</tool>"
+    assert suggest_corrections(tool) == suggest_corrections(tool, profile=None)
+    assert "entry_points" in {
+        c.suggested for c in suggest_corrections(tool, profile=None)
+    }

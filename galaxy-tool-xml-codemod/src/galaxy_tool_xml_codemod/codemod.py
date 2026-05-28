@@ -31,8 +31,11 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 from galaxy_tool_xml_codemod.cursor import Cursor
+from galaxy_tool_xml_codemod.eligibility import corpus_test_profile
 
 if TYPE_CHECKING:
+    from galaxy_tool_xml.document import ToolDocument
+
     from galaxy_tool_xml_codemod.module import Module
 
 
@@ -69,3 +72,26 @@ class CodemodCommand:
             return
         for child in cursor.children():
             self._dispatch(child)
+
+    @classmethod
+    def corpus_eligible(cls, document: ToolDocument, /) -> bool:
+        """Whether a corpus sweep should run this codemod on *document*.
+
+        Default: eligible iff the codemod-sweep policy can pick a test profile
+        (i.e. the tool validates somewhere). A codemod that targets a different
+        population — e.g. ``FixTypos``, which repairs tools that validate
+        nowhere — overrides this. Evaluated on the pre-codemod document.
+        """
+        return corpus_test_profile(document) is not None
+
+    @classmethod
+    def corpus_validation_profile(cls, document: ToolDocument, /) -> str | None:
+        """The profile to validate the post-codemod document at.
+
+        Default mirrors the sweep policy. The sweep evaluates this *after*
+        ``apply``; for the structural codemods that leave the validating-profile
+        set unchanged it equals the pre-codemod choice, so behaviour is the same
+        as validating at the policy profile. Codemods that change which profiles
+        validate (``FixTypos``) override this to report the post-repair profile.
+        """
+        return corpus_test_profile(document)

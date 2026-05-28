@@ -1821,7 +1821,6 @@ def _fmt_main(argv: list[str]) -> int:
 import importlib  # noqa: E402
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand  # noqa: E402
-from galaxy_tool_xml_codemod.eligibility import corpus_test_profile  # noqa: E402
 from galaxy_tool_xml_codemod.parse import parse_module  # noqa: E402
 
 _CODEMOD_REGRESSIONS = (
@@ -1844,6 +1843,7 @@ class _CodemodSweepState:
     ineligible_unparseable: int = 0
     idempotent: int = 0
     non_idempotent: int = 0
+    no_repair: int = 0
     post_validate_failed: int = 0
     crashed: int = 0
     signatures: Counter[str] = field(default_factory=Counter)
@@ -1889,15 +1889,18 @@ def _codemod_exercise(
 
     Returns ``(status, signature, detail)``. Status is one of
     ``"ok"``, ``"ineligible-unparseable"``, ``"ineligible-non-tool"``,
-    ``"ineligible-no-valid"``, ``"non-idempotent"``,
+    ``"ineligible-no-valid"``, ``"non-idempotent"``, ``"no-repair"``,
     ``"post-validate-failed"``, ``"crash"``.
 
     Eligibility filter:
     - non-tool roots and unparseable inputs are skipped at the top;
-    - ``corpus_test_profile`` picks the validation profile per the
-      codemod-sweep policy (no declared → newest valid; declared
-      valid → declared; declared invalid → oldest strictly-newer that
-      validates; nothing → ineligible).
+    - the codemod's own ``corpus_eligible`` decides the rest. The default
+      (structural codemods) is eligible iff ``corpus_test_profile`` picks a
+      profile; a repair codemod like ``FixTypos`` inverts it to target tools
+      that validate at no profile. The post-codemod validity profile comes
+      from ``corpus_validation_profile`` evaluated after apply; ``None`` there
+      for an eligible tool means the codemod could not repair it (``no-repair``,
+      a legitimate outcome rather than a failure).
 
     Idempotence is checked by re-parsing the codemod's serialised
     output between the two passes (matching ``_fmt_exercise``) — a
@@ -1910,11 +1913,11 @@ def _codemod_exercise(
             return "ineligible-unparseable", "", ""
         if parsed.document.root.tag != "tool":
             return "ineligible-non-tool", "", ""
-        # Pass the already-parsed document to corpus_test_profile so it
-        # doesn't re-parse the file per profile probe (~28 redundant
-        # reads per eligible tool otherwise).
-        profile = corpus_test_profile(parsed.document)
-        if profile is None:
+        # Eligibility is the codemod's own policy (pre-codemod document):
+        # the default codemods stay on ``corpus_test_profile``; a repair
+        # codemod like FixTypos inverts it to target no-valid tools. The
+        # already-parsed document avoids a re-parse per profile probe.
+        if not type(codemod).corpus_eligible(parsed.document):
             return "ineligible-no-valid", "", ""
         # Pass-1: codemod applied to the parsed input, then serialised.
         # We keep ``document_one`` for post-codemod validation because it
@@ -1937,6 +1940,14 @@ def _codemod_exercise(
                 sig,
                 _fmt_byte_diff_excerpt(pass1_bytes, pass2_bytes),
             )
+        # Validate the POST-codemod document at the codemod's policy profile,
+        # evaluated after apply. For the structural codemods this equals the
+        # pre-codemod profile (they don't change which profiles validate); for
+        # FixTypos it is whatever profile the repaired tool now validates at,
+        # or ``None`` when the codemod could not bring it to validity.
+        profile = type(codemod).corpus_validation_profile(document_one.document)
+        if profile is None:
+            return "no-repair", "", ""
         validation = validate_tool(document_one.document, profile=profile)
         if not validation.valid:
             sig = f"post-validate-failed:{type(codemod).__name__}@{profile}"
@@ -1975,9 +1986,9 @@ def _codemod_process_path(
         state.ineligible_no_valid += 1
         return False
     state.eligible += 1
-    if status in {"ok", "post-validate-failed"}:
-        # Both branches reach this point only after the apply-twice check
-        # has succeeded, so they count toward the idempotent total.
+    if status in {"ok", "post-validate-failed", "no-repair"}:
+        # All three reach this point only after the apply-twice check has
+        # succeeded, so they count toward the idempotent total.
         state.idempotent += 1
     elif status == "non-idempotent":
         state.non_idempotent += 1
@@ -1986,7 +1997,11 @@ def _codemod_process_path(
     if status == "post-validate-failed":
         # Track separately too — these failed validity but were idempotent.
         state.post_validate_failed += 1
-    if status == "ok":
+    if status == "no-repair":
+        # Eligible + idempotent, but the codemod could not bring the tool to
+        # validity (e.g. FixTypos found no repairing typo). Not a fixture.
+        state.no_repair += 1
+    if status in {"ok", "no-repair"}:
         return True
     relative = path.relative_to(repo_dir)
     if (display_name, str(relative)) in state.known_fixture_paths:
@@ -2100,9 +2115,9 @@ def _codemod_main(argv: list[str]) -> int:
             break
 
     logger.info(
-        "codemod %s: %d eligible (skipped %d no-valid-profile, "
+        "codemod %s: %d eligible (skipped %d ineligible-by-policy, "
         "%d non-tool, %d unparseable); %d idempotent, %d non-idempotent, "
-        "%d post-validate-failed, %d crashed",
+        "%d no-repair, %d post-validate-failed, %d crashed",
         type(codemod).__name__,
         state.eligible,
         state.ineligible_no_valid,
@@ -2110,6 +2125,7 @@ def _codemod_main(argv: list[str]) -> int:
         state.ineligible_unparseable,
         state.idempotent,
         state.non_idempotent,
+        state.no_repair,
         state.post_validate_failed,
         state.crashed,
     )

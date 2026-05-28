@@ -179,3 +179,63 @@ reproducible command for any data-driven claim.
   output you'll get when you run `galaxy-tool-xml-fmt` with the
   `[canonical]` extra installed."
 
+## 11. `FixTypos` — a validation-driven repair codemod that overrides `apply`
+
+**Date:** 2026-05-28.
+
+- **What we chose:** A new opt-in codemod `FixTypos`
+  (`codemods/fix_typos.py`) that rewrites near-miss typos so a
+  well-formed-but-globally-invalid tool validates. It is **not** in
+  `CANONICAL_CODEMODS`. It **overrides `apply`** instead of defining
+  `visit_<Tag>` methods: it deep-copies the root on entry, then for each
+  vendored profile newest-to-oldest restores from that snapshot, applies
+  the corrections Tier-1's `suggest_corrections(..., profile=V)` reports
+  (through `Cursor` primitives only — `rename_attribute`, `rename_tag`,
+  `set_attribute`), and stops at the first profile that validates. If none
+  validates it restores the snapshot, leaving the document byte-identical.
+  It guards on `newest_valid_profile is None`, and never writes `profile=`.
+- **Alternative:** Force the repair into the `visit_<Tag>` walk, or add a
+  separate base class for validation-driven codemods.
+- **Why:** The repair loop is whole-document and validation-feedback
+  driven (try a profile, fix, re-validate, revert on miss) — it has no
+  per-element uniform action, so the visitor walk is the wrong shape.
+  `apply(module) -> None` is the only contract the sweep and fmt's CLI
+  depend on, so overriding it keeps `FixTypos` a first-class
+  `CodemodCommand` without a parallel hierarchy. The snapshot/revert lives
+  inside the codemod, not a shared harness, because it is the first and so
+  far only consumer — consistent with §8's "introduce shared machinery
+  when a real consumer arrives." The guard makes the codemod idempotent by
+  construction (after a repair the tool validates somewhere, so a re-run is
+  an immediate no-op). Leaving `profile=` untouched keeps the job narrow
+  (spelling, not version policy); the maintainer decides whether to bump
+  the declared profile. This codemod is also what pulled M2's deferred
+  `rename_tag` / `rename_attribute` mutation primitives into existence.
+
+## 12. Per-codemod corpus-sweep eligibility hooks
+
+**Date:** 2026-05-28.
+
+- **What we chose:** Two classmethods on `CodemodCommand` —
+  `corpus_eligible(document)` and `corpus_validation_profile(document)` —
+  that default to the existing `corpus_test_profile` policy and are
+  consulted by `scripts/corpus_check.py`'s `codemod` sweep.  `FixTypos`
+  overrides both: eligible iff `newest_valid_profile is None`, and the
+  post-apply validation profile is `newest_valid_profile` (the version the
+  repaired tool now validates at). The sweep gained a `no-repair` outcome
+  for an eligible tool the codemod could not bring to validity.
+- **Alternative:** Special-case `FixTypos` in `corpus_check.py` with an
+  `isinstance` branch, or a `--targets {valid,no-valid}` CLI flag.
+- **Why:** The default policy excludes exactly `FixTypos`'s target
+  population (tools that validate nowhere), so the sweep needed an
+  inversion. Putting the policy on the codemod class keeps `corpus_check.py`
+  codemod-agnostic (open/closed) and keeps the two structural codemods
+  byte-for-byte unchanged. The validation profile must be computed *after*
+  `apply`, because for `FixTypos` the validating version does not exist
+  until the repair runs. A `no-repair` result is a legitimate outcome, not
+  a regression, so it is counted but never retained as a fixture.
+- **Reproduce:** `uv run python -m scripts.corpus_check codemod
+  galaxy_tool_xml_codemod.codemods.fix_typos:FixTypos --limit 40` →
+  40 eligible (5 repaired, 35 no-repair), 0 non-idempotent /
+  post-validate-failed / crashed; the no-valid population is now swept
+  (it was skipped wholesale before these hooks).
+

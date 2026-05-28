@@ -22,6 +22,7 @@ from galaxy_tool_xml.binding import validate_tool
 from lxml import etree
 
 from galaxy_tool_xml_codemod.canonical import CANONICAL_CODEMODS
+from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.eligibility import corpus_test_profile
 from galaxy_tool_xml_codemod.parse import parse_module
 
@@ -69,4 +70,41 @@ def test_canonical_codemods_preserve_validity_on_fixture(tool_path: Path) -> Non
     module = parse_module(tool_path)
     for codemod_cls in CANONICAL_CODEMODS:
         codemod_cls().apply(module)
+    assert validate_tool(module.document, profile=profile).valid
+
+
+@pytest.mark.parametrize(
+    "tool_path",
+    _fixture_paths(),
+    ids=lambda path: path.parent.name,
+)
+def test_fix_typos_is_idempotent_on_fixture(tool_path: Path) -> None:
+    """Applying ``FixTypos`` twice must yield identical bytes on every fixture.
+
+    Runs on all fixtures, not only ``FixTypos``'s own: on a tool that already
+    validates the guard makes it a byte no-op, so idempotence must hold either
+    way.
+    """
+    module = parse_module(tool_path)
+    FixTypos().apply(module)
+    once = etree.tostring(module.document.tree)
+    FixTypos().apply(module)
+    twice = etree.tostring(module.document.tree)
+    assert once == twice
+
+
+@pytest.mark.parametrize(
+    "tool_path",
+    _fixture_paths(),
+    ids=lambda path: path.parent.name,
+)
+def test_fix_typos_repairs_or_cleanly_no_ops_on_fixture(tool_path: Path) -> None:
+    """An eligible fixture either validates after repair or is a clean no-repair."""
+    module = parse_module(tool_path)
+    if not FixTypos.corpus_eligible(module.document):
+        pytest.skip("fixture already validates — outside FixTypos's population")
+    FixTypos().apply(module)
+    profile = FixTypos.corpus_validation_profile(module.document)
+    if profile is None:
+        pytest.skip("fixture has no repairing typo (legitimate no-repair)")
     assert validate_tool(module.document, profile=profile).valid
