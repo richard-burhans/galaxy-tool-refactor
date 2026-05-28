@@ -24,7 +24,7 @@ specific owners.
 
 Usage::
 
-    uv run python scripts/fetch_toolshed.py [--limit N] [--force] \
+    uv run python -m scripts.fetch_toolshed [--limit N] [--force] \
         [--skip-owners OWNER,OWNER,...]
 """
 

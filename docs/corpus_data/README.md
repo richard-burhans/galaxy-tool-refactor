@@ -65,9 +65,9 @@ so the counts match the aggregate stats.
 ## Regeneration
 
 ```sh
-uv run python scripts/corpus_check.py --source github
-uv run python scripts/corpus_check.py --source toolshed
-uv run python scripts/corpus_check.py --source combined
+uv run python -m scripts.corpus_check validate --source github
+uv run python -m scripts.corpus_check validate --source toolshed
+uv run python -m scripts.corpus_check validate --source combined
 ```
 
 Each invocation refreshes the data files for that source together with
