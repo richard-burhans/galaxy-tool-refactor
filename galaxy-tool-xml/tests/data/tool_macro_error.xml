@@ -1,0 +1,10 @@
+<tool id="macro_error" name="Macro Error Tool" version="1.0.0" profile="24.0">
+    <macros>
+        <import>macros.xml</import>
+    </macros>
+    <command><![CDATA[echo error]]></command>
+    <inputs>
+        <expand macro="undefined_macro"/>
+    </inputs>
+    <outputs/>
+</tool>

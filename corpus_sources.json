@@ -1,0 +1,26 @@
+{
+  "_comment": "Source repositories for the Galaxy tool XML corpus. Consumed by scripts/corpus_check.py (and any future tool that needs the list). Edit this file rather than the script when adding, removing, or rerouting a repository. `name` is also the local clone directory under corpus/.",
+  "repositories": [
+    {"name": "tools-iuc", "url": "https://github.com/galaxyproject/tools-iuc"},
+    {"name": "bgruening-galaxytools", "url": "https://github.com/bgruening/galaxytools"},
+    {"name": "tools-devteam", "url": "https://github.com/galaxyproject/tools-devteam"},
+    {"name": "galaxy_blast", "url": "https://github.com/peterjc/galaxy_blast"},
+    {"name": "pico_galaxy", "url": "https://github.com/peterjc/pico_galaxy"},
+    {"name": "galaxy_mira", "url": "https://github.com/peterjc/galaxy_mira"},
+    {"name": "modENCODE-Galaxy", "url": "https://github.com/modENCODE-DCC/Galaxy"},
+    {"name": "biopython-galaxy_packages", "url": "https://github.com/biopython/galaxy_packages"},
+    {"name": "tools-galaxyp", "url": "https://github.com/galaxyproteomics/tools-galaxyp"},
+    {"name": "galaxy-csg", "url": "https://github.com/gregvonkuster/galaxy-csg"},
+    {"name": "earlham-galaxytools", "url": "https://github.com/EarlhamInst/earlham-galaxytools"},
+    {"name": "AAFC-BICoE-Galaxy", "url": "https://github.com/AAFC-BICoE/Galaxy"},
+    {"name": "einonm-galaxy-tools", "url": "https://gitlab.com/einonm/galaxy-tools"},
+    {"name": "phac-nml-galaxy_tools", "url": "https://github.com/phac-nml/galaxy_tools"},
+    {"name": "RECETOX-galaxytools", "url": "https://github.com/RECETOX/galaxytools"},
+    {"name": "tools-metabolomics", "url": "https://github.com/workflow4metabolomics/tools-metabolomics"},
+    {"name": "Galaxy-M", "url": "https://github.com/Viant-Metabolomics/Galaxy-M"},
+    {"name": "tools-artbio", "url": "https://github.com/ARTbio/tools-artbio"},
+    {"name": "tools-ecology", "url": "https://github.com/galaxyecology/tools-ecology"},
+    {"name": "fls-galaxy-tools", "url": "https://github.com/fls-bioinformatics-core/galaxy-tools"},
+    {"name": "larch-tools", "url": "https://github.com/MaterialsGalaxy/larch-tools"}
+  ]
+}

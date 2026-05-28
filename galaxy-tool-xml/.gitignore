@@ -1,0 +1,30 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Per-version xsdata models — generated at build time by hatch_build.py
+src/galaxy_tool_xml/models/v*/
+src/galaxy_tool_xml/models/any_tool.py
+
+# Dev-only corpus checkouts — public Galaxy tool repositories (and any
+# future toolshed snapshots) cloned by scripts/corpus_check.py for deep
+# testing and design decisions; never committed.
+corpus/
+
+# Local, per-developer Claude Code settings
+.claude/settings.local.json
+
+# Local-only draft of the GCC poster abstract.
+gcc2026-abstract.txt

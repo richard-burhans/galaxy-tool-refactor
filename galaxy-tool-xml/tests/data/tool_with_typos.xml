@@ -1,0 +1,8 @@
+<tool id="typos" name="Typo Tool" version="1.0.0" profile="26.0" tool_type="data_sourc">
+    <descriptionn>a tool with deliberate typos</descriptionn>
+    <command><![CDATA[echo typo]]></command>
+    <inputs>
+        <param name="input" type="text" optionall="true"/>
+    </inputs>
+    <outputs/>
+</tool>

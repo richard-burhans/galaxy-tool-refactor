@@ -1,0 +1,5 @@
+<tool id="old_profile" name="Old Profile Tool" version="1.0.0" profile="16.04">
+    <command><![CDATA[echo old]]></command>
+    <inputs/>
+    <outputs/>
+</tool>

@@ -1,0 +1,229 @@
+{
+  "latest": "26.1",
+  "schemas": {
+    "16.10": {
+      "commit": "267037fa7a3488cd4e24a5fce89eb84326669005",
+      "file": "galaxy-16.10.xsd",
+      "path_in_repo": "lib/galaxy/tools/xsd/galaxy.xsd",
+      "release_branch": "release_16.10",
+      "retrieved": "2026-05-22",
+      "version": "16.10"
+    },
+    "17.01": {
+      "commit": "61e6fd11424a9036573db2bf3ef9a8bee9d6b19a",
+      "file": "galaxy-17.01.xsd",
+      "path_in_repo": "lib/galaxy/tools/xsd/galaxy.xsd",
+      "release_branch": "release_17.01",
+      "retrieved": "2026-05-22",
+      "version": "17.01"
+    },
+    "17.05": {
+      "commit": "e0a06a36e22deb1a391bc3afd45c993f29052731",
+      "file": "galaxy-17.05.xsd",
+      "path_in_repo": "lib/galaxy/tools/xsd/galaxy.xsd",
+      "release_branch": "release_17.05",
+      "retrieved": "2026-05-22",
+      "version": "17.05"
+    },
+    "17.09": {
+      "commit": "b04b3d949baaf32c9a9d9127c5a61250ffb580dd",
+      "file": "galaxy-17.09.xsd",
+      "path_in_repo": "lib/galaxy/tools/xsd/galaxy.xsd",
+      "release_branch": "release_17.09",
+      "retrieved": "2026-05-22",
+      "version": "17.09"
+    },
+    "18.01": {
+      "commit": "9cdfd18f5027fdd0fec87a0982771c87d6a5640e",
+      "file": "galaxy-18.01.xsd",
+      "path_in_repo": "lib/galaxy/tools/xsd/galaxy.xsd",
+      "release_branch": "release_18.01",
+      "retrieved": "2026-05-22",
+      "version": "18.01"
+    },
+    "18.05": {
+      "commit": "0299798a4f4e6a08841d10acc8953c9b5dac3af9",
+      "file": "galaxy-18.05.xsd",
+      "path_in_repo": "lib/galaxy/tools/xsd/galaxy.xsd",
+      "release_branch": "release_18.05",
+      "retrieved": "2026-05-22",
+      "version": "18.05"
+    },
+    "18.09": {
+      "commit": "80aa2f8ea40813e162ec4caac552609b54d7d95d",
+      "file": "galaxy-18.09.xsd",
+      "path_in_repo": "lib/galaxy/tools/xsd/galaxy.xsd",
+      "release_branch": "release_18.09",
+      "retrieved": "2026-05-22",
+      "version": "18.09"
+    },
+    "19.01": {
+      "commit": "ed282c2818c3df0b548ed288e9a000f23ac91bcb",
+      "file": "galaxy-19.01.xsd",
+      "path_in_repo": "lib/galaxy/tools/xsd/galaxy.xsd",
+      "release_branch": "release_19.01",
+      "retrieved": "2026-05-22",
+      "version": "19.01"
+    },
+    "19.05": {
+      "commit": "d48c4a467853a92175a49e1ce8b1cdaf75c3af1d",
+      "file": "galaxy-19.05.xsd",
+      "path_in_repo": "lib/galaxy/tools/xsd/galaxy.xsd",
+      "release_branch": "release_19.05",
+      "retrieved": "2026-05-22",
+      "version": "19.05"
+    },
+    "19.09": {
+      "commit": "f0a269c1912fa5caba760cde32df415e8e2329b6",
+      "file": "galaxy-19.09.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_19.09",
+      "retrieved": "2026-05-22",
+      "version": "19.09"
+    },
+    "20.01": {
+      "commit": "ae59839ab0d098cb6838aae7182508cd33628053",
+      "file": "galaxy-20.01.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_20.01",
+      "retrieved": "2026-05-22",
+      "version": "20.01"
+    },
+    "20.05": {
+      "commit": "99b3d29e69c905996c6c26296a89650b7ee1755b",
+      "file": "galaxy-20.05.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_20.05",
+      "retrieved": "2026-05-22",
+      "version": "20.05"
+    },
+    "20.09": {
+      "commit": "13ab9430b369b6172621e34e3b3d4ca264a04356",
+      "file": "galaxy-20.09.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_20.09",
+      "retrieved": "2026-05-22",
+      "version": "20.09"
+    },
+    "21.01": {
+      "commit": "b1da9d832eb8e4155d4f194a9e17b4a6b41319c9",
+      "file": "galaxy-21.01.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_21.01",
+      "retrieved": "2026-05-22",
+      "version": "21.01"
+    },
+    "21.05": {
+      "commit": "9a9c4a8eb85211d627d5dbe3573656eb9c22e2e3",
+      "file": "galaxy-21.05.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_21.05",
+      "retrieved": "2026-05-22",
+      "version": "21.05"
+    },
+    "21.09": {
+      "commit": "0a039981bb2465064595f789c28a1ba1a765e7a9",
+      "file": "galaxy-21.09.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_21.09",
+      "retrieved": "2026-05-22",
+      "version": "21.09"
+    },
+    "22.01": {
+      "commit": "101d4a6d41e9118849f946f0418580d3121400d6",
+      "file": "galaxy-22.01.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_22.01",
+      "retrieved": "2026-05-22",
+      "version": "22.01"
+    },
+    "22.05": {
+      "commit": "3e511c1b2b970ad016e8575c5c6f947cc7648a31",
+      "file": "galaxy-22.05.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_22.05",
+      "retrieved": "2026-05-22",
+      "version": "22.05"
+    },
+    "23.0": {
+      "commit": "262d48a71166d2e778de1bdee839157c8385c6fc",
+      "file": "galaxy-23.0.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_23.0",
+      "retrieved": "2026-05-22",
+      "version": "23.0"
+    },
+    "23.1": {
+      "commit": "205e32f88445a161e376c2171403c75c2334a8d6",
+      "file": "galaxy-23.1.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_23.1",
+      "retrieved": "2026-05-22",
+      "version": "23.1"
+    },
+    "23.2": {
+      "commit": "7d4b3de58fd3627e930e9ed413b272f2f0ee1675",
+      "file": "galaxy-23.2.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_23.2",
+      "retrieved": "2026-05-22",
+      "version": "23.2"
+    },
+    "24.0": {
+      "commit": "e61a74b4fbddbc39720246a3221b4da6a2288d11",
+      "file": "galaxy-24.0.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_24.0",
+      "retrieved": "2026-05-22",
+      "version": "24.0"
+    },
+    "24.1": {
+      "commit": "7e216fda581e16bc3757a66cfc4ce91efe3c0d39",
+      "file": "galaxy-24.1.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_24.1",
+      "retrieved": "2026-05-22",
+      "version": "24.1"
+    },
+    "24.2": {
+      "commit": "7e8182b9efccd1e9ef2135c0e200f64f63d42a3d",
+      "file": "galaxy-24.2.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_24.2",
+      "retrieved": "2026-05-22",
+      "version": "24.2"
+    },
+    "25.0": {
+      "commit": "48c78404f68e4e081ae0dbc011c5dc99dbc66357",
+      "file": "galaxy-25.0.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_25.0",
+      "retrieved": "2026-05-22",
+      "version": "25.0"
+    },
+    "25.1": {
+      "commit": "ad8e40de4a42e80e4064716d5342ad0952f53ce2",
+      "file": "galaxy-25.1.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_25.1",
+      "retrieved": "2026-05-22",
+      "version": "25.1"
+    },
+    "26.0": {
+      "commit": "cb36b7065a5736135f6ec56b16aab792176fce55",
+      "file": "galaxy-26.0.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_26.0",
+      "retrieved": "2026-05-22",
+      "version": "26.0"
+    },
+    "26.1": {
+      "commit": "0040ec81df48eb2684447837627fb4f76d013263",
+      "file": "galaxy-26.1.xsd",
+      "path_in_repo": "lib/galaxy/tool_util/xsd/galaxy.xsd",
+      "release_branch": "release_26.1",
+      "retrieved": "2026-05-27",
+      "version": "26.1"
+    }
+  }
+}

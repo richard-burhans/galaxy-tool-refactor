@@ -1,0 +1,5 @@
+<tool id="no_profile" name="No Profile Tool" version="1.0.0">
+    <command><![CDATA[echo no profile]]></command>
+    <inputs/>
+    <outputs/>
+</tool>

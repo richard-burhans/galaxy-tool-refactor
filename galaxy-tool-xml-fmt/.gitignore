@@ -1,0 +1,25 @@
+# Build / dist artifacts
+build/
+dist/
+*.egg-info/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Tooling caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# uv
+.venv/
+uv.lock
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Corpus data copied in for idempotence testing (large, reproducible from parent repo)
+corpus/

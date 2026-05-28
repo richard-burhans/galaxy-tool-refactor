@@ -1,0 +1,7 @@
+<tool id="malformed" name="Malformed Tool" version="1.0.0">
+    <command>echo <oops></command>
+    <inputs>
+        <param name="a" type="text">
+        <param name="b" type="text">
+    </inputs>
+</tool>

@@ -1,0 +1,9 @@
+[tool.uv.workspace]
+members = ["galaxy-tool-xml", "galaxy-tool-xml-fmt", "galaxy-tool-xml-codemod"]
+
+[tool.pytest.ini_options]
+# importlib mode allows duplicate test-file basenames across packages.
+addopts = "--import-mode=importlib"
+markers = ["slow: xsdata codegen sweep over every vendored XSD"]
+# Workspace root on sys.path so all packages can import shared scripts.
+pythonpath = ["."]

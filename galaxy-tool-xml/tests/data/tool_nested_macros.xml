@@ -1,0 +1,10 @@
+<tool id="nested_macro_tool" name="Nested Macro Tool" version="1.0.0" profile="24.0">
+    <macros>
+        <import>nested_macros.xml</import>
+    </macros>
+    <command><![CDATA[echo nested]]></command>
+    <inputs>
+        <expand macro="inner_param"/>
+    </inputs>
+    <outputs/>
+</tool>

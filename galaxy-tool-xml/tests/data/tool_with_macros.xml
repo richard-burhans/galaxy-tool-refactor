@@ -1,0 +1,10 @@
+<tool id="macro_tool" name="Macro Tool" version="1.0.0" profile="24.0">
+    <macros>
+        <import>macros.xml</import>
+    </macros>
+    <command><![CDATA[echo macro]]></command>
+    <inputs>
+        <expand macro="input_param"/>
+    </inputs>
+    <outputs/>
+</tool>

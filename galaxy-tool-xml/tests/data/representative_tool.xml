@@ -1,0 +1,14 @@
+<tool id="representative" name="Representative Tool" version="1.0.0" profile="24.0">
+    <description>a representative tool exercising common constructs</description>
+    <!-- this comment must survive parsing intact -->
+    <command><![CDATA[
+echo "$input" > "$output"
+    ]]></command>
+    <inputs>
+        <param name="input" type="data" format="txt" label="Input dataset"/>
+    </inputs>
+    <outputs>
+        <data name="output" format="txt" label="Output dataset"/>
+    </outputs>
+    <help><![CDATA[Some **help** text in reStructuredText.]]></help>
+</tool>

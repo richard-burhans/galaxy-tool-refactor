@@ -1,0 +1,6 @@
+<tool id="invalid" name="Invalid Tool" version="1.0.0" profile="24.0">
+    <command><![CDATA[echo invalid]]></command>
+    <not_a_real_element/>
+    <inputs/>
+    <outputs/>
+</tool>

@@ -1,0 +1,3 @@
+<macros>
+    <import>nested_macros_inner.xml</import>
+</macros>

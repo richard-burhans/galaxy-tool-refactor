@@ -1,0 +1,545 @@
+# Decisions and Assumptions
+
+A maintainer-facing record of every non-obvious assumption this project
+relies on and every design decision driven by data, by an upstream
+constraint, or by an explicit user preference. Live document — extend
+when new evidence arrives or an assumption changes.
+
+The narrative architecture lives elsewhere: `CLAUDE.md` (current state),
+`README.md` (public API), `docs/per-version-models-plan.md` (the
+per-version model refactor), `docs/codemod-architecture.md` (tier-2
+design). This file is the **why** for the choices those docs reflect.
+
+Each entry should answer: *what we assume / chose · what the alternative
+was · what evidence or constraint settled it*.
+
+---
+
+## 1. Galaxy ecosystem (verified during planning)
+
+These are external facts about the Galaxy project that the library
+treats as given. Any change here is a real-world ecosystem change, not a
+refactor.
+
+| # | Assumption | Verified |
+|---|---|---|
+| 1.1 | The Galaxy tool XSD lives at `lib/galaxy/tool_util/xsd/galaxy.xsd`; releases before ~`20.09` shipped it at `lib/galaxy/tools/xsd/galaxy.xsd`. The old path is gone by `release_21.05`. | `scripts/fetch_schemas.py` tries the new path then the old; see `docs/per-version-models-plan.md` and `schema/PROVENANCE.md`. |
+| 1.2 | The XSD is self-contained (no `xs:import` / `xs:include`), declares **no** `targetNamespace`, root element `tool`, strict content models (`xs:all` / `xs:choice` of named elements, no wildcards). | Inspected at planning time; the namespace-free property is exposed to consumers via the no-namespace lxml tree. |
+| 1.3 | The XSD is **post-macro-expansion**: it does not define `<expand>`; it defines `<macros>` / `<import>` / `<token>` / `<xml>` / `<macro>` (the definition side only). Galaxy validates tools against the XSD **only after expanding macros**. | Confirmed against `tool_util/linters/xsd.py` in galaxyproject/galaxy. Drives the `macro_handling="expand"` default for `validate_tool`. |
+| 1.4 | Galaxy ships `release_*` branches (`release_13.01` … `release_26.1` as of 2026-05-27 — 28 of those branches ship the XSD); the suffix matches the `profile` attribute value. Not every branch ships the XSD. | `git/matching-refs/heads/release_` API call inside `scripts/fetch_schemas.py`. |
+| 1.5 | A missing `profile` attribute defaults to `"16.01"` *inside Galaxy*. **This project deliberately diverges**: a no-profile tool validates against the latest XSD (user choice). | Galaxy source + planning decision in `PLAN.md`. |
+| 1.6 | A tool's set of valid profiles is **not guaranteed to be contiguous** across vendored XSDs. | Corpus sweep observation — see §10. `newest_valid_profile` does a linear newest→oldest scan rather than a binary search, on the strength of this. |
+| 1.7 | `galaxy.util.xml_macros.load_with_references(path) -> (ElementTree, imported_paths)` is the canonical macro expander; it handles `<import>`, nested `<token>`, `<expand>` / `<macro>` / `<xml>`, and parameterised `<yield>` macros. Path-based, not in-memory. | Mirrored 1:1 in `macros.py`'s `expand_from_path` / `expand_from_tree`. |
+| 1.8 | `galaxy.util` is Galaxy's **internal** API — not a stability-guaranteed surface. The `galaxy-util` PyPI package is CalVer (currently `26.0`). | Confirmed against the project's own docs / release cadence. Drives the range pin (§2.4) and the macros.py isolation rule. |
+| 1.9 | The Galaxy ToolShed exposes content only over the **Mercurial wire protocol** — no tarball or raw-file endpoint on the public API. The API itself is HTTP/JSON, but file fetches require `hg clone`. | `scripts/fetch_toolshed.py` necessarily uses `hg`. |
+| 1.10 | A ToolShed repository's "version" is its tip changeset; the API does **not** list it on the repository envelope. It must be captured client-side via `hg id -i` after cloning. | Necessitated the manifest in `corpus/galaxy-toolshed/manifest.json`. |
+
+---
+
+## 2. Python ecosystem dependencies
+
+For each runtime dependency: pin, why, and what would break if a
+maintainer "tightened it up" naively.
+
+### 2.1 `xsdata[lxml] >= 26.2` — typed-model codegen + runtime parser
+
+- Build-time and runtime dependency.
+- 26.2 is the floor because the project drives codegen via the **API**
+  (`ResourceTransformer(config=GeneratorConfig()).process([uri])`) — the
+  signature settled at 26.2 (no `print` argument; positional list of
+  `file://` URIs).
+- See §5 for the codegen workarounds.
+
+### 2.2 `lxml >= 5` — declared explicitly
+
+- `galaxy-util` needs lxml for its XML code path but **does not
+  declare** it. Without our explicit declaration, `pip install
+  galaxy-tool-xml` could break on a fresh env where neither dep pulled
+  lxml in transitively.
+
+### 2.3 `click >= 8` — CLI
+
+- Standard pin. No workarounds.
+
+### 2.4 `galaxy-util >= 24, < 27` — macro expansion, range-pinned
+
+- Range, not floor, because `galaxy.util` is Galaxy's internal API
+  (Assumption 1.8). A wider open range would let a new Galaxy release
+  silently change the macro semantics underneath us.
+- All `galaxy.util` use is confined to `src/galaxy_tool_xml/macros.py`,
+  so the blast radius of a future incompatibility is one module.
+- Widen the upper bound only after `test_macros.py` runs green against
+  the candidate version.
+
+### 2.5 `packaging >= 23` — declared explicitly
+
+- `packaging` is only a *transitive* dep of `galaxy-util`. Our use of
+  `packaging.version.Version` in `profiles.py` is a direct dependency
+  and must be declared as such, so a `galaxy-util` minor release that
+  drops the transitive doesn't break us.
+
+### 2.6 Dev: `xsdata[cli]`, `pytest`, `ruff`, `mypy`, `mercurial`
+
+- `xsdata[cli]` brings the codegen toolchain (`ResourceTransformer` and
+  its deps, e.g. `toposort`) — required at build time too (see
+  `[build-system].requires`).
+- `mercurial` is invoked only by `scripts/fetch_toolshed.py`; the
+  pip-installed package brings its own `hg` binary, so the script does
+  **not** rely on a system Mercurial install.
+
+---
+
+## 3. Representation: lxml tree is the source of truth
+
+| Decision | Alternative | Why |
+|---|---|---|
+| **Mutable lxml tree** = source of truth; xsdata model = derived read-only view via `ToolDocument.model()`. | An xsdata-only representation, mutated through typed setters. | xsdata dataclasses cannot hold XML comments or preserve attribute order, so they cannot be the faithful representation. The downstream formatter (tier 3) needs that fidelity. |
+| **No serializer in the library.** Callers serialise the tree themselves. | Provide a default `ToolDocument.write()`. | Tier 3 (`galaxy-tool-fmt`) is the only thing that writes Galaxy XML to disk in the planned three-tier architecture; baking a formatter into tier 1 would prejudge that. |
+| **Parsing uses `strip_cdata=False` and reads `bytes`, never `str`.** | Decode to `str` first, or let CDATA collapse to text. | CDATA inside `<command>` / `<help>` carries shell scripting; collapsing it would silently change tool behaviour. Reading bytes lets lxml honour the XML encoding declaration. |
+| **Library modules never call `logging.basicConfig`.** Each uses `logging.getLogger(__name__)`; the CLI installs the handler. | Configure at import time. | Library import must have no side effects (dignified-python). |
+
+---
+
+## 4. Profile-aware validation and binding
+
+| Decision | Why |
+|---|---|
+| **Per-release vendored XSD** (~28 files, committed under `src/galaxy_tool_xml/schema/`). | The XSD evolves across releases; validating an old tool against the newest schema is misleading. |
+| **`validate_tool` resolves the XSD from the tool's `profile`** with `on_missing="nearest"` as default. `exact` and `latest` are the other modes. | Real-world tools declare any profile in the release range; "nearest" mirrors what Galaxy itself accepts. |
+| **`macro_handling` defaults to `"expand"`** (modes: `off` / `skip` / `strip` / `expand`). | Galaxy validates the post-expansion tool (Assumption 1.3); the default matches what Galaxy actually does. |
+| **`expand` writes a throwaway temp copy** — the `ToolDocument.tree` is **never** mutated by validation. | The formatter contract requires the tree to be untouched after parse; loss of comments / whitespace in the expanded tree doesn't matter because the tree is discarded after the validation call. |
+| **`newest_valid_profile` is a linear newest→oldest scan.** | Validity is not contiguous (Assumption 1.6); a valid/invalid probe at a single profile cannot distinguish "too old" from "too new", so binary search would be wrong. O(1) common case (modern tool validates at latest); worst case is one validation per vendored profile (28 at time of writing), and `compiled_schema` is `@cache`d. |
+| **No-profile tools validate against the latest XSD.** | Deliberate divergence from Galaxy's `"16.01"` default — explicit user choice in `PLAN.md`. |
+| **Binding (`ToolDocument.model()`) is profile-aware too.** A tool's tree is bound against the model for its resolved profile, overridable via `model(version=...)`. | The downstream codemod tool needs faithful typed views of *each* release (see `docs/per-version-models-plan.md`). |
+| **xsdata `ParserConfig` is lenient** (`fail_on_unknown_properties=False`, `fail_on_unknown_attributes=False`); schema-required fields the tree omits default to `None`. | Lets an un-expanded tool bind without raising; macro tokens absent from the post-expansion schema don't crash binding. |
+
+---
+
+## 5. Implementation workarounds (forced by upstream bugs)
+
+These are **not** preferences — each is a specific upstream defect with
+a recorded mitigation. Each should be revisited when the upstream
+project releases a fix.
+
+### 5.1 xsdata 26.2 circular-reference detector — `KeyError` on Galaxy 24.2+
+
+- **Symptom:** xsdata's nested-class circular-reference detector raises
+  `KeyError` on the Galaxy 24.2+ schema when inner classes are nested.
+- **Mitigation:** `_codegen.py` sets
+  `GeneratorConfig.output.unnest_classes = True`. Each XSD version is
+  generated in its own subprocess because xsdata caches the resolved
+  output path process-wide.
+- **Where:** `src/galaxy_tool_xml/_codegen.py`; the flag is unconditional
+  (harmless on older XSDs).
+- **Side effect:** The generated class taxonomy is flat top-level
+  (`Param`, `Conditional`, `ChangeFormatWhen`, etc.) — see `docs/codemod-architecture.md` §"Node taxonomy".
+
+### 5.2 libxml2 — non-deterministic content model on Galaxy 19.05–23.0
+
+- **Symptom:** Galaxy releases 19.05 through 23.0 shipped an XSD whose
+  `Output` type has a non-deterministic content model; libxml2 refuses
+  to compile it.
+- **Mitigation:** `profiles.compiled_schema` retries after applying
+  Galaxy's own release-23.1 fix (drop the redundant `Output` group) in
+  memory. The vendored XSD files on disk remain verbatim.
+- **Where:** `src/galaxy_tool_xml/profiles.py`.
+
+---
+
+## 6. Corpus stats system
+
+The maintainer-facing corpus sweep
+(`scripts/corpus_check.py`) and its supporting docs make several
+non-obvious choices, several of them recently revisited.
+
+| Decision | Why |
+|---|---|
+| **Two sources: `github` and `toolshed`; a `combined` sweep deduplicates by sha256 of file bytes.** | github captures the curated repositories; toolshed captures the long tail. Identical bytes is a stronger dedup signal than path or `@id` matching across repos. |
+| **A "tool" is a file whose XML root element is literally `<tool>`.** Other XML files (tool_conf, repository_dependencies, etc.) are filtered out of stats and out of the fine-grained data file. | The library's domain is `<tool>` files; counting anything else would distort every distribution. |
+| **`combined` mode dedup affects stats counters and invariant checks only; the fine-grained data file emits *all occurrences*.** | The Sources table in the markdown counts how many duplicates were *dropped from the aggregate stats*; the fine-grained data answers "which repo/path actually has this tool", and that's a per-occurrence question. |
+| **Toolshed `version` = tip changeset captured via `hg id -i` before `.hg/` is removed.** Recorded in a top-level manifest `corpus/galaxy-toolshed/manifest.json`; missing entries default to `"unknown"`. | The ToolShed API doesn't expose tip changesets (Assumption 1.10); `.hg/` is removed to save ~80% disk. The manifest is the single source of truth and is gitignored (the corpus itself is). |
+| **`tool_id` column = post-macro-expansion `@id`**, falling back to the raw `@id` (often a macro-token string) on expansion failure. | Driven by the 2000-tool survey (§10.1) — `@id` is present on 100% of tools and is the tool's logical identity, distinct from its file path. The expansion is free because `_expanded_attrs` already expands once and reads both `profile` and `id` from the result. |
+| **Fine-grained schema = (`repo`, `version`, `path`, `tool_id`, `sha256`)** for per-source files; **plus** (`profile_raw`, `profile_expanded`, `newest_valid`) and one `valid_<profile>` 0/1 flag per vendored profile (28 columns at time of writing) for the combined file. | User choice: keep per-source files minimal and put the cross-source profile analysis in the combined view. The per-profile validity flags expose the full validity vector so downstream consumers can reason about non-contiguity (§10.3) without re-running validation. |
+| **JSON + TSV, both formats every run.** JSON preserves schema column order via `dict` insertion order; TSV sanitises `\t` / `\n` / `\r` → space defensively. | Pandas / duckdb consume JSON; jq / awk / spreadsheets consume TSV. Both are tiny to write and worth shipping together. |
+| **Fine-grained data and markdown stats share one gate** (skipped on `--no-stats`, `--limit`, `--repo`). | Partial sweeps must never produce a truncated artifact. |
+| **Combined-mode duplicate rows reuse the first-seen `ToolStats` from a sha256→stats cache.** | Re-running `_exercise` on every duplicate would multiply the sweep time by ~2× without adding information (same bytes → same validity vector). |
+| **Tooling: `hg` and `git` binaries via subprocess; `urllib` for the GitHub REST API.** | Each script makes 2–3 calls per repo and the network dominates everything. PyGithub / GitPython / python-hglib would be heavyweight imports with no measurable benefit; the Mercurial Python API is explicitly *not* a stable surface. |
+| **Per-tool failure reasons categorized and surfaced in the combined stats markdown only.** Two new sections — *Macro-expansion failure reasons* (Group A) and *Tools with no valid vendored profile — reason breakdown* (Group A+B) — appear in `docs/combined_corpus_stats.md`. Tool-level reason fields (`expansion_failure_reason`, `no_valid_reason`) live on `ToolStats` but are not exposed in the fine-grained data files. | The aggregate breakdown answers "are these our bugs?" at a glance (the answer is *no* — see §10.4). The combined view is the right place because the breakdown is most informative when deduplicated across sources. Categorization runs only when needed (no-valid tools get one extra `validate_tool` call to pull the first error). |
+| **External links in `docs/corpus_data/failures/*.md` are plain markdown — no HTML anchors with `target="_blank"`.** | github.com's markdown sanitizer strips the `target` attribute from committed `.md` files, so the HTML form renders the same as plain markdown on the public web view (verified 2026-05-27 — change pushed, behavior confirmed, then reverted). The HTML form would still pay off under any non-GitHub renderer (MkDocs / Pages / IDE preview), but the project does not currently ship one, so the noise is unjustified. Revisit if a static-site build is added. |
+| **Combined-only `presence` column on every row** (`github_only` / `toolshed_only` / `both`), keyed by `tool_id`. Stamped post-sweep by `_stamp_presence`. Per-source artifacts do not carry the column (it would be constant). | Surfaces "is this tool also maintained on github?" as first-class data. Match key `tool_id` is what readers care about ("is the same logical tool present?") and is empirically equivalent to `(tool_id, basename)` at the corpus level (both produce 3,629 cross-source matches in the 2026-05-27 sweep — see §10.11). The sha256-based "Sources" Unique/Duplicates table already captures byte-identical presence; `presence` adds the logical-identity view. |
+| **No `[view]` link swap when only the `tool_id` matches.** A toolshed row with a github sibling keeps its `[view]` link pointed at the toolshed bytes; the sibling is surfaced as an *(also in github: …)* annotation on the `Repository` cell instead. | The recorded failure is a property of the toolshed bytes. The github sibling has *different* bytes and may not have the same failure (or may not fail at all); linking there would mislead the reader about what the row is reporting. Annotation gives the cross-reference without lying about provenance. |
+
+---
+
+## 7. Tooling and packaging
+
+| Decision | Why |
+|---|---|
+| `uv` as project manager, `hatchling` as build backend with a custom build hook. | The build hook generates one per-version model package per vendored XSD (28 at time of writing) at wheel and editable-install time (`docs/per-version-models-plan.md`); `uv_build` had no hook surface, so the backend moved. |
+| `ruff` lint + format; `mypy --strict`. Both exclude the generated `models/v*/` and `models/any_tool.py`. | Hand-written code is held to the standard; generated code isn't ours to fix. |
+| No CI (`v0.1`, deliberate). | A single maintainer + a fast local `pytest`/`ruff`/`mypy` triad is sufficient at this scale; CI is a later add. |
+| `.gitignore` excludes `src/galaxy_tool_xml/models/v*/`, `…/any_tool.py`, and the whole `corpus/` tree. Committed-but-generated: nothing in models; the `schema/` XSDs are committed. | Generated code regenerates deterministically from the committed XSDs + pinned xsdata; the corpus is reproducible from `corpus_sources.json` + the toolshed manifest. |
+
+---
+
+## 8. Coding standards
+
+**`dignified-python` governs** (vendored at `.claude/skills/dignified-python/`); `optimized-python` is installed
+as a reference. On conflict, dignified-python wins. Key applications in
+this repo:
+
+- LBYL over `try/except`. Exceptions only at the click error boundary
+  (chained `from e`) and where third-party APIs offer no LBYL form.
+- `pathlib.Path` with explicit `encoding="utf-8"` on every `read_text` /
+  `write_text`.
+- No import-time I/O; `@functools.cache` for module-state accessors
+  (`_corpus_sources`, `_toolshed_manifest`, `compiled_schema`, etc.).
+- Absolute imports, no re-exports, no `__all__`. Exception (sanctioned):
+  the xsdata-generated `models/v*/__init__.py` re-exports its module so
+  `from galaxy_tool_xml.models.v26_0 import Tool` works.
+- Keyword-only arguments after the first.
+- Hand-written code is checked by ruff + mypy; the generated `models/`
+  is excluded from both.
+
+---
+
+## 9. Three-tier vision (context)
+
+`galaxy-tool-xml` is tier 1 of a planned three-package architecture:
+
+| Tier | Package | Status | Job |
+|---|---|---|---|
+| 1 | `galaxy-tool-xml` | this repo | parse · validate · typed view; no serializer |
+| 2 | `galaxy-tool-codemod` (name TBD) | designed, not built | LibCST-shaped structural refactors |
+| 3 | `galaxy-tool-fmt` (name TBD) | designed, not built | `black`-like opinionated formatter; the only thing that writes XML |
+
+This split is *why* tier 1 has no serializer (Decision 3) and why it
+ships full per-version typed models (Decision 4): the converter in
+tier 2 needs a faithful view of *each* release to plan structural
+edits, and tier 3 owns trivia preservation downstream.
+
+Full design: `docs/codemod-architecture.md`.
+
+---
+
+## 10. Testing-derived measurements
+
+Each measurement records what was sampled, on what date, and what
+decision it informed. Every entry cites the exact `scripts/measure.py`
+subcommand that reproduces its numbers — re-run the cited command
+after a corpus refresh and update the entry rather than parroting
+older figures. Add new measurements here when a new question is asked.
+
+Run all measurements at once: `uv run python scripts/measure.py --all
+--jobs 4`. List them: `uv run python scripts/measure.py --list`.
+
+### 10.1 Tool `@id` vs. path (2026-05-27)
+
+Justifies emitting **both** `tool_id` and `path` columns in the
+fine-grained corpus data (§6).
+
+| Property | Result |
+|---|---|
+| Unique tools surveyed | 9,410 |
+| `@id` present on `<tool>` | 100.0% (9,410 / 9,410) |
+| `@id` contains a macro token (e.g. `@PROFILE@`) on the **expanded** tree | 0.0% — expansion resolves every macro `@id` before the column is recorded |
+| `@id` matches the file stem | 52.9% |
+| `@id` matches the parent directory name | 11.7% — much lower than the pre-toolshed 37.5% sample, since toolshed tools usually nest under `<owner>/<repo_name>/<tool>.xml` where the parent is the suite, not the tool |
+| `<tool>` files with no `@id` | 0 |
+
+**Conclusion:** path and `@id` agree on ~53% of tools by stem and only
+~12% by parent directory, so they carry distinct information. Both
+columns stay. The 2000-tool github-only sample reported in earlier
+versions of this section overstated parent-directory agreement because
+it predated the toolshed half of the corpus.
+
+**Reproduced by:** `uv run python scripts/measure.py tool-id-vs-path`
+
+### 10.2 Corpus size and source mix (2026-05-27 sweep)
+
+Snapshot of the corpus as observed by a full `corpus_check.py
+--source combined` run.
+
+| Measure | github | toolshed | combined |
+|---|---:|---:|---:|
+| Distinct repos that contributed `<tool>` files | 20 | 6,107 | 6,127 |
+| Repos swept (from `corpus_sources.json` / toolshed manifest) | 21 | 7,653 | 7,674 |
+| Combined rows in `combined_corpus_data.json` | 4,190 | 8,677 | 12,867 |
+| Unique tools after sha256 dedup (credited to first-seen source) | 4,175 | 5,235 | 9,410 |
+| Duplicate rows dropped from unique-tool counts | — | — | 3,457 |
+
+Empty repos (no `<tool>` files) account for the gap between "repos
+swept" and "distinct repos that contributed". The "aggregate
+duplicates dropped" figure quoted in the combined stats markdown
+counts every duplicate XML file, including non-tool XMLs
+(`tool_conf.xml`, `repository_dependencies.xml`, etc.) that the data
+file never sees.
+
+**Conclusion:** github is iterated first so a tool present in both
+sources is credited to github (`(github=4,175, toolshed=5,235) =
+9,410`). The 8,089 "duplicates dropped" in the Sources table of
+`combined_corpus_stats.md` includes 3,457 duplicate tool rows plus
+4,632 duplicate non-tool XMLs.
+
+**Reproduced by:** `uv run python scripts/measure.py corpus-size-source-mix`
+
+### 10.3 Validity-vector contiguity (2026-05-27 combined sweep)
+
+A non-trivial fraction of tools have a **non-contiguous** validity
+vector — they validate at some profile, fail at an intermediate one,
+and validate again later. Originally observed in
+`docs/per-version-models-plan.md` and confirmed by every sweep since.
+
+| Combined-sweep snapshot | Non-contiguous | Total unique | % |
+|---|---:|---:|---:|
+| 2026-05-27 | 243 | 9,410 | 2.58% |
+
+**Conclusion:** Assumption 1.6 holds. The `newest_valid_profile`
+implementation stays a linear newest-first scan (§4) — a binary search
+would be unsound on a non-monotonic vector. The figure is reported via
+`combined_corpus_stats.md`'s *Validity-vector contiguity* table on
+every full sweep.
+
+**Reproduced by:** `uv run python scripts/measure.py validity-distribution`
+
+### 10.4 No-valid-profile taxonomy (2026-05-27 combined sweep)
+
+Of the 9,410 unique tools, **761** (8.1%) do not validate against any
+of the 28 vendored XSDs. Every category traces to a genuine
+schema-noncompliant property of the tool, not a library bug.
+
+**Group A — macro expansion failed** (17 tools / 2.2% of the no-valid
+set): the post-expansion tree never reaches the XSD.
+
+| Reason | Count |
+|---|---:|
+| undefined macro reference in `<expand>` | 8 |
+| imported `macros.xml` file not on disk | 6 |
+| malformed XML in tool file (e.g. `--` inside a comment, unmatched tags) | 3 |
+
+**Group B — expansion ok, XSD rejects everywhere** (744 tools / 97.8%):
+
+| Reason | Count | % of no-valid |
+|---|---:|---:|
+| XSD does not declare attribute used by tool | 351 | 46.1% |
+| XSD does not allow element under this parent | 220 | 28.9% |
+| XSD does not allow element at all | 37 | 4.9% |
+| attribute value outside XSD's enumeration | 35 | 4.6% |
+| other XML syntax error (recovered tree, parser logged errors) | 35 | 4.6% |
+| invalid boolean (`"True"`/`"False"` vs `"true"`/`"false"`) | 33 | 4.3% |
+| other XSD type / pattern mismatch | 19 | 2.5% |
+| XSD-required attribute missing | 10 | 1.3% |
+| invalid character encoding (non-UTF-8 bytes) | 4 | 0.5% |
+
+**Conclusion:** ~75% of all no-valid tools (B1 + B2 = 571) use
+attributes or elements the public Galaxy XSD does not formally cover —
+a long-standing gap between Galaxy's runtime parser (lenient) and its
+public schema (strict). The rest split between minor type mismatches
+(booleans, enums, regex facets) and outright malformed input. Each
+category is surfaced in `combined_corpus_stats.md` so future drift is
+visible.
+
+**Reproduced by:** `uv run python scripts/measure.py no-valid-profile-taxonomy`
+
+### 10.5 Newest-valid-at-latest distribution (2026-05-27 combined sweep)
+
+Quantifies the "common case" referenced by `binding.py`'s
+`newest_valid_profile` and the `per-version-models-plan.md` ceiling
+discussion.
+
+| Result | Count | % |
+|---|---:|---:|
+| Validates at the latest vendored profile (currently 26.1) | 8,481 | 90.1% |
+| Validates at some older vendored profile | 168 | 1.8% |
+| Validates at no vendored profile | 761 | 8.1% |
+
+**Conclusion:** 90.1% of unique tools validate at the latest profile,
+so the newest-first scan in `newest_valid_profile` is O(1) on nine out
+of ten calls. The 1.8% that validate only at an older profile is the
+population the per-release models exist to serve.
+
+**Reproduced by:** `uv run python scripts/measure.py validity-distribution`
+
+### 10.6 Macro usage (2026-05-27 combined sweep)
+
+Justifies the prominence of macro handling in the API
+(`validate_tool`'s `macro_handling=` parameter, `expand_from_path`, the
+`macros.py` adapter) and the corresponding test fixtures.
+
+| | Tools | % |
+|---|---:|---:|
+| Uses macros (`<macros>` / `<expand>` / `<import>` / `<token>`) | 5,150 | 54.7% |
+| Macro-free | 4,260 | 45.3% |
+
+**Conclusion:** the macro path is the majority case — there is no
+"common case" without macro handling. The library's `macro_handling`
+default of `"expand"` is the right one.
+
+**Reproduced by:** `uv run python scripts/measure.py macro-usage`
+
+### 10.7 Profile-as-macro-placeholder (2026-05-27 combined sweep)
+
+How often a tool's literal `profile` attribute is a macro token (e.g.
+`@PROFILE@`, `@TOOL_PROFILE@`) rather than a literal version string.
+Drives the design choice in `corpus_check.py` to record **both**
+`profile_raw` and `profile_expanded`; only the expanded value is
+meaningful for distribution stats.
+
+| | Count | % |
+|---|---:|---:|
+| `profile` attribute is a macro placeholder | 1,496 | 15.9% |
+| `profile` attribute is a literal version or absent | 7,914 | 84.1% |
+
+Distinct placeholder values observed: `@GALAXY_VERSION@`, `@PROFILE@`,
+`@PROFILE_VERSION@`, `@TOOL_PROFILE@`, `@profile@`. `@PROFILE@`
+dominates.
+
+**Conclusion:** any stat keyed on `profile` without prior macro
+expansion would mis-classify ~1 in 6 tools. The corpus check expands
+before counting; the public abstract reports the expanded figure.
+
+**Reproduced by:** `uv run python scripts/measure.py macro-placeholder-profile`
+
+### 10.8 Expansion-failed `tool_id` fallback (2026-05-27 combined sweep)
+
+Earlier docstrings in `corpus_check.py` described the
+expansion-failure fallback as "typically a macro-token string like
+`bcftools_@EXECUTABLE@`". The 17 tools whose expansion fails today
+were checked against that claim.
+
+| | Count | % |
+|---|---:|---:|
+| Expansion-failed tools whose `tool_id` contains `@` | 0 | 0.0% |
+| Expansion-failed tools with a literal `tool_id` | 17 | 100.0% |
+
+**Conclusion:** the macro-token fallback path exists in code but is
+not currently exercised by any tool in the corpus. The fallback is
+still correct (it returns the raw `@id` whatever it looks like), but
+the docstring example overstated how often that raw `@id` is a macro
+token. The example has been softened to "the raw `@id` literal, which
+may or may not contain a macro token".
+
+**Reproduced by:** `uv run python scripts/measure.py expansion-failed-ids`
+
+### 10.9 Lenient-text-style field children (2026-05-27 combined sweep)
+
+Justifies `_patch_xsdata_primitive_node_leniency` in
+`src/galaxy_tool_xml/document.py`. The XSD declares fields like
+`<help>`, `<command>`, `<description>` as primitive `xs:string`
+content; without the patch, xsdata's `PrimitiveNode` raises on any
+element child found inside. The question: how often is this actually
+exercised?
+
+| Field | Occurrences | With element children | Rate |
+|---|---:|---:|---:|
+| `<help>` | 13,436 | 9 | 0.067% |
+| `<citation>` | 5,388 | 1 | 0.019% |
+| **TOTAL** (across all xs:string-content fields) | 63,585 | **10** | **0.016%** |
+
+Affected children include `<i>` (italics inside `<help>`), `<expand>`
+(unexpanded macro inside `<help>`), and one nested `<citation>`. The
+10 distinct affected tools are spread across toolshed only.
+
+**Conclusion:** rare in absolute terms (10 of ~13,000 parseable
+tools), but the failure mode is non-recoverable on the affected tool —
+without the patch, `.model()` would raise `XmlContextError`. The patch
+turns the crash into a silent skip (the lxml tree, which is the
+source of truth, keeps the markup verbatim). The cost is one
+class-method monkey-patch run at most once via `@cache`.
+
+**Reproduced by:** `uv run python scripts/measure.py lenient-text-fields`
+
+### 10.10 Corrections cutoff (2026-05-27 combined sweep)
+
+Justifies `_CUTOFF = 0.8` in `src/galaxy_tool_xml/corrections.py`.
+Sweeps the cutoff value over the 351 tools whose no-valid-profile
+reason is "XSD does not declare attribute used by tool" — the
+population most likely to harbour real attribute typos — and counts
+how many produce at least one attribute correction at each cutoff.
+
+| Cutoff | Tools with ≥1 attribute suggestion | Total attribute suggestions emitted |
+|---:|---:|---:|
+| 0.60 | 87 (24.8%) | 179 |
+| 0.70 | 72 (20.5%) | 144 |
+| 0.75 | 49 (14.0%) | 94 |
+| 0.80 (current default) | 49 (14.0%) | 93 |
+| 0.85 | 40 (11.4%) | 66 |
+| 0.90 | 11 (3.1%) | 20 |
+
+**Conclusion:** `0.80` sits on the conservative end of a small
+plateau (`0.75` → `0.80` adds zero new tools, only loosens
+suggestions). Dropping to `0.70` would catch 23 more tools but at the
+cost of looser matches whose precision has not been hand-audited.
+The current `0.80` is defensible; a deliberate audit would be needed
+to support a change.
+
+**Reproduced by:** `uv run python scripts/measure.py corrections-cutoff`
+
+### 10.11 Cross-source presence (2026-05-27 combined sweep)
+
+Justifies the `presence` column on every combined-data row and the
+*"Failures by source presence"* section in
+`docs/combined_corpus_stats.md`. Match key is `tool_id` (logical
+identity) — see §6 row on the column.
+
+**Overall presence**, keyed on `tool_id`, across 9,410 unique tools:
+
+| Bucket | Tools | % |
+|---|---:|---:|
+| `github_only`    | 248   | 2.6%  |
+| `toolshed_only`  | 4,401 | 46.8% |
+| `both`           | 4,761 | 50.6% |
+
+**Failing-tool presence**, across the 761 distinct failures:
+
+| Bucket | Tools | % |
+|---|---:|---:|
+| `github_only`    | 40  | 5.3%  |
+| `toolshed_only`  | 551 | 72.4% |
+| `both`           | 170 | 22.3% |
+
+**Failures × source cross-tab** — the same numbers the new stats
+section reports, deduped by sha256 to reconcile with the
+per-category index pages under `docs/corpus_data/failures/`:
+
+| Source | Failures | With sibling in other source |
+|---|---:|---:|
+| github   | 135 | 95 |
+| toolshed | 626 | 75 |
+
+**Match-key choice (sanity check):** the corpus has 3,629 cross-source
+matches under `tool_id` and the *same* 3,629 under
+`(tool_id, basename(path))`. Tightening the key gains nothing at the
+corpus level and gives only 9 fewer matches on the failure subset
+(122 vs 131); the simpler `tool_id` key wins. Byte-identical (`sha256`)
+matching is much stricter — 3,161 across the whole corpus, 43 on the
+failure subset — and is captured separately by the Sources Unique /
+Duplicates table in `docs/combined_corpus_stats.md`.
+
+**Conclusion:** about half the unique-tool population lives in both
+corpora by logical identity. Among the failing population, that share
+drops to 22% — most failing toolshed tools (72%) have no github
+sibling at all and are unlikely to be silently superseded by an
+updated copy elsewhere. The 170 toolshed failures with a github
+sibling are exactly the population a future "is this maintained on
+github?" triage workflow would surface first.
+
+**Reproduced by:** `uv run python scripts/measure.py cross-source-presence`
+
+---
+
+## 11. Open items
+
+- **`source` column in the combined corpus data file.** Today the
+  source is implicit (toolshed repos carry `/` in `repo`, github repos
+  don't). An explicit `source` column is a small future addition if
+  downstream consumers want it.
+- **CI** — out of scope for v0.1 (§7).
+- **Schema-error line numbers in `expand` / `strip` modes** point to
+  the transformed tree, not the original source file. Only
+  `macro_handling="off"` yields original-source line numbers. Inherent
+  to validating a post-transformation tree.
+- **Typo suggestions are now profile-bound** (via `corrections.py`'s
+  profile-aware vocabulary, per `docs/per-version-models-plan.md` §7).
+  A historical caveat in `PLAN.md` ("uses the latest schema's
+  vocabulary") is no longer applicable.
