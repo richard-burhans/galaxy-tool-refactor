@@ -1846,6 +1846,10 @@ class _CodemodSweepState:
     no_repair: int = 0
     post_validate_failed: int = 0
     crashed: int = 0
+    # Eligible tools the codemod actually changed (pass-1 bytes differ from the
+    # input). For FixTypos that's repairs; for UpdateProfile, profile add/bumps;
+    # for the reorderers, tools whose attribute order was not already canonical.
+    modified: int = 0
     signatures: Counter[str] = field(default_factory=Counter)
     known_fixture_paths: set[tuple[str, str]] = field(default_factory=set)
     retained: list[tuple[str, str, Path, str, str]] = field(default_factory=list)
@@ -1884,13 +1888,16 @@ def _resolve_codemod(spec: str) -> type[CodemodCommand]:
 
 def _codemod_exercise(
     path: Path, codemod: CodemodCommand
-) -> tuple[str, str, str]:
+) -> tuple[str, str, str, bool]:
     """Run ``codemod`` on ``path`` and classify the outcome.
 
-    Returns ``(status, signature, detail)``. Status is one of
+    Returns ``(status, signature, detail, modified)``. Status is one of
     ``"ok"``, ``"ineligible-unparseable"``, ``"ineligible-non-tool"``,
     ``"ineligible-no-valid"``, ``"non-idempotent"``, ``"no-repair"``,
-    ``"post-validate-failed"``, ``"crash"``.
+    ``"post-validate-failed"``, ``"crash"``. ``modified`` is ``True`` when the
+    codemod actually changed the tool (pass-1 bytes differ from the input) —
+    counts repairs (FixTypos), profile add/bumps (UpdateProfile), or real
+    attribute reorders. It is ``False`` for every ineligible / crash return.
 
     Eligibility filter:
     - non-tool roots and unparseable inputs are skipped at the top;
@@ -1910,22 +1917,27 @@ def _codemod_exercise(
     try:
         parsed = parse_tool(path)
         if parsed.document is None or not parsed.well_formed:
-            return "ineligible-unparseable", "", ""
+            return "ineligible-unparseable", "", "", False
         if parsed.document.root.tag != "tool":
-            return "ineligible-non-tool", "", ""
+            return "ineligible-non-tool", "", "", False
         # Eligibility is the codemod's own policy (pre-codemod document):
         # the default codemods stay on ``corpus_test_profile``; a repair
         # codemod like FixTypos inverts it to target no-valid tools. The
         # already-parsed document avoids a re-parse per profile probe.
         if not type(codemod).corpus_eligible(parsed.document):
-            return "ineligible-no-valid", "", ""
+            return "ineligible-no-valid", "", "", False
         # Pass-1: codemod applied to the parsed input, then serialised.
         # We keep ``document_one`` for post-codemod validation because it
         # carries the source path — needed for macro ``<import>``
         # resolution. A re-parse from bytes loses that path.
         document_one = parse_module(path)
+        before_bytes = etree.tostring(document_one.document.tree)
         codemod.apply(document_one)
         pass1_bytes = etree.tostring(document_one.document.tree)
+        # Did the codemod actually change anything? (atomic no-ops — e.g.
+        # FixTypos that found no repair, UpdateProfile on an already-correct
+        # profile — leave the bytes identical.)
+        modified = pass1_bytes != before_bytes
         # Pass-2: codemod applied again to a freshly re-parsed copy of
         # pass-1 bytes — catches codemods whose output round-trips to a
         # different tree. This is the idempotence check ONLY; the tree
@@ -1939,6 +1951,7 @@ def _codemod_exercise(
                 "non-idempotent",
                 sig,
                 _fmt_byte_diff_excerpt(pass1_bytes, pass2_bytes),
+                modified,
             )
         # Validate the POST-codemod document at the codemod's policy profile,
         # evaluated after apply. For the structural codemods this equals the
@@ -1947,15 +1960,15 @@ def _codemod_exercise(
         # or ``None`` when the codemod could not bring it to validity.
         profile = type(codemod).corpus_validation_profile(document_one.document)
         if profile is None:
-            return "no-repair", "", ""
+            return "no-repair", "", "", modified
         validation = validate_tool(document_one.document, profile=profile)
         if not validation.valid:
             sig = f"post-validate-failed:{type(codemod).__name__}@{profile}"
             detail = "\n".join(str(e) for e in validation.errors[:5])
-            return "post-validate-failed", sig, detail
+            return "post-validate-failed", sig, detail, modified
     except Exception as exc:  # noqa: BLE001 — diagnostic sweep: every crash is a finding
-        return "crash", _signature(exc), traceback.format_exc()
-    return "ok", "", ""
+        return "crash", _signature(exc), traceback.format_exc(), False
+    return "ok", "", "", modified
 
 
 def _codemod_process_path(
@@ -1975,7 +1988,7 @@ def _codemod_process_path(
     """
     if not path.is_file():
         return False
-    status, signature, detail = _codemod_exercise(path, codemod)
+    status, signature, detail, modified = _codemod_exercise(path, codemod)
     if status == "ineligible-unparseable":
         state.ineligible_unparseable += 1
         return False
@@ -1986,6 +1999,9 @@ def _codemod_process_path(
         state.ineligible_no_valid += 1
         return False
     state.eligible += 1
+    if modified:
+        # The codemod actually changed this tool (vs. an atomic no-op).
+        state.modified += 1
     if status in {"ok", "post-validate-failed", "no-repair"}:
         # All three reach this point only after the apply-twice check has
         # succeeded, so they count toward the idempotent total.
@@ -2116,13 +2132,14 @@ def _codemod_main(argv: list[str]) -> int:
 
     logger.info(
         "codemod %s: %d eligible (skipped %d ineligible-by-policy, "
-        "%d non-tool, %d unparseable); %d idempotent, %d non-idempotent, "
-        "%d no-repair, %d post-validate-failed, %d crashed",
+        "%d non-tool, %d unparseable); %d modified, %d idempotent, "
+        "%d non-idempotent, %d no-repair, %d post-validate-failed, %d crashed",
         type(codemod).__name__,
         state.eligible,
         state.ineligible_no_valid,
         state.ineligible_non_tool,
         state.ineligible_unparseable,
+        state.modified,
         state.idempotent,
         state.non_idempotent,
         state.no_repair,
