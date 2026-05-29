@@ -198,3 +198,18 @@ def test_fmt_repos_section_rolls_up_combined_by_source() -> None:
     assert "| 2 |" in rows["toolshed"] and "| 4 |" in rows["toolshed"]  # 2 repos, 1+3
     # the giant per-repo list must NOT be present
     assert not any("| owner/repo1 |" in line for line in out)
+
+
+def test_stat_tables_use_comma_thousands_separators() -> None:
+    """Generated stat-table integers render with comma thousands separators."""
+    state = corpus_check._FmtSweepState(parsed=12772, validated=8608, idempotent=8608)
+    summary = "\n".join(corpus_check._fmt_format_summary_table(state))
+    assert "12,772" in summary and "8,608" in summary
+    assert "12 772" not in summary  # not space-separated, not bare
+    sweeps = [
+        corpus_check._FmtRuleSweep(
+            code="GTX001", validated=8608, touched=8608, edits=863912
+        )
+    ]
+    fmt_tbl = "\n".join(corpus_check._rule_format_fmt_table(sweeps))
+    assert "8,608" in fmt_tbl and "863,912" in fmt_tbl

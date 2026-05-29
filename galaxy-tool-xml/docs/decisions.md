@@ -554,18 +554,18 @@ github?" triage workflow would surface first.
 ### 10.12 Upgrade headroom (2026-05-29 combined sweep)
 
 Sizes what the tier-4 `galaxy-tool-refactor upgrade` command does across the
-9 358 unique tools (latest profile `26.1`):
+9,358 unique tools (latest profile `26.1`):
 
-- **3 632 (38.8%)** *understated* — declare a literal profile older than the one
+- **3,632 (38.8%)** *understated* — declare a literal profile older than the one
   they validate at; `UpdateProfile` bumps the declaration up. This is the
   command's dominant effect.
-- **4 975 (53.2%)** carry a *macro-placeholder* profile (`@PROFILE@`-style) that
+- **4,975 (53.2%)** carry a *macro-placeholder* profile (`@PROFILE@`-style) that
   is left as-is.
 - **750 (8.0%)** validate at no profile — repair (`FixTypos`) territory before
   any upgrade is meaningful.
 - **1** overstated (declares newer than it validates; left as-is, bump-up-only).
 
-Structural headroom: of the **8 608** tools that validate somewhere, **8 440
+Structural headroom: of the **8,608** tools that validate somewhere, **8,440
 (98.0%)** already have their newest-valid profile at the latest; only **168
 (2.0%)** sit below latest and are candidates for a structural `upgrade_vN`. So
 the upgrade command is overwhelmingly a profile-declaration bump, with a small
@@ -586,7 +586,7 @@ single tool) is why the cursor walk is iterative rather than recursion-bounded.
 ### 10.14 Command interpreter mix (2026-05-29 combined sweep, heuristic)
 
 Heuristic first-interpreter classification of each tool's `<command>` across
-9 358 unique tools: **66.9%** wrap a binary directly (no recognised interpreter
+9,358 unique tools: **66.9%** wrap a binary directly (no recognised interpreter
 token), **18.2%** python, **7.2%** Rscript, **5.7%** shell, **1.5%** perl; 40
 tools carry no `<command>`. Most Galaxy tools shell out to a packaged binary
 rather than embedding an interpreter. A first-token scan, not a parser — a tool
