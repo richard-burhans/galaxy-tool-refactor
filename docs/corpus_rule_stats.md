@@ -29,9 +29,9 @@ Each rule applied alone to every validated tool, then applied again. *Tools touc
 
 | Rule | Tools validated | Tools touched | Edits | Non-idempotent | Crashed |
 |---|---:|---:|---:|---:|---:|
-| GTX001 | 8608 | 8608 | 863912 | 0 | 0 |
-| GTX003 | 8608 | 8608 | 69431 | 0 | 0 |
-| GTX004 | 8608 | 1405 | 2472 | 0 | 0 |
+| GTX001 | 8,608 | 8,608 | 863,912 | 0 | 0 |
+| GTX003 | 8,608 | 8,608 | 69,431 | 0 | 0 |
+| GTX004 | 8,608 | 1,405 | 2,472 | 0 | 0 |
 
 ## codemods (isolated)
 
@@ -39,21 +39,21 @@ Each codemod applied alone to every eligible tool, checked for idempotence and p
 
 | Rule | Codemod | Eligible | Modified | Idempotent | Non-idempotent | Post-validate-failed | No-repair | Crashed |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| GTX002 | ReorderParamAttributes | 8607 | 6075 | 8607 | 0 | 0 | 0 | 0 |
-| GTX005 | ReorderToolAttributes | 8607 | 1020 | 8607 | 0 | 0 | 0 | 0 |
+| GTX002 | ReorderParamAttributes | 8,607 | 6,075 | 8,607 | 0 | 0 | 0 | 0 |
+| GTX005 | ReorderToolAttributes | 8,607 | 1,020 | 8,607 | 0 | 0 | 0 | 0 |
 | GTX006 | FixTypos | 708 | 39 | 708 | 0 | 0 | 669 | 0 |
-| GTX007 | UpdateProfile | 8607 | 7122 | 8607 | 0 | 0 | 0 | 0 |
-| GTX008 | Upgrade19_01 | 8607 | 9 | 8607 | 0 | 0 | 0 | 0 |
-| GTX009 | Upgrade24_0 | 8607 | 1 | 8607 | 0 | 0 | 0 | 0 |
-| GTX010 | Upgrade24_1 | 8607 | 217 | 8607 | 0 | 0 | 4 | 0 |
-| GTX011 | Upgrade25_1 | 8607 | 5 | 8607 | 0 | 0 | 0 | 0 |
-| GTX012 | UpgradeToLatest | 8607 | 7126 | 8607 | 0 | 0 | 0 | 0 |
+| GTX007 | UpdateProfile | 8,607 | 7,122 | 8,607 | 0 | 0 | 0 | 0 |
+| GTX008 | Upgrade19_01 | 8,607 | 9 | 8,607 | 0 | 0 | 0 | 0 |
+| GTX009 | Upgrade24_0 | 8,607 | 1 | 8,607 | 0 | 0 | 0 | 0 |
+| GTX010 | Upgrade24_1 | 8,607 | 217 | 8,607 | 0 | 0 | 4 | 0 |
+| GTX011 | Upgrade25_1 | 8,607 | 5 | 8,607 | 0 | 0 | 0 | 0 |
+| GTX012 | UpgradeToLatest | 8,607 | 7,126 | 8,607 | 0 | 0 | 0 | 0 |
 
 ## Upgrade discovery (GTX012 `UpgradeToLatest`, isolated)
 
-Post-apply landing profile over the 8607 eligible tools. A tool below the latest profile (`26.1`) is a sticking point still needing an `upgrade_vN` codemod.
+Post-apply landing profile over the 8,607 eligible tools. A tool below the latest profile (`26.1`) is a sticking point still needing an `upgrade_vN` codemod.
 
-- reached latest (`26.1`): 8566
+- reached latest (`26.1`): 8,566
 - below latest: 41
 
 | Sticking version | Tools |

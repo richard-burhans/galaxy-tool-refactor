@@ -7,7 +7,7 @@ deliberate rather than defaulted. See `docs/decisions.md` §14 and `PLAN.md`
 ## Problem
 
 After `Upgrade24_1` (normalize `format`/`ftype`; drop empties), the combined
-discovery sweep reaches latest on 8 566 of 8 607 eligible tools. Of the 41 that
+discovery sweep reaches latest on 8,566 of 8,607 eligible tools. Of the 41 that
 remain below latest, **~18 are blocked only because a coercible `format`/`ftype`
 value lives in an imported macro file** rather than in the tool's own tree.
 

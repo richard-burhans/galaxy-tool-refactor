@@ -293,8 +293,8 @@ reproducible command for any data-driven claim.
 **Date:** 2026-05-28.
 
 > **Current state (2026-05-29).** Registry: `Upgrade19_01`, `Upgrade24_0`,
-> `Upgrade24_1`, `Upgrade25_1`. Combined sweep (8 607 eligible) reaches latest on
-> **8 566** (41 below); residual sticking points 24.1 (39, the macro-reachability
+> `Upgrade24_1`, `Upgrade25_1`. Combined sweep (8,607 eligible) reaches latest on
+> **8,566** (41 below); residual sticking points 24.1 (39, the macro-reachability
 > ceiling + uncoercible values) and 21.05 / 21.09 (1 each, tool bugs). The
 > dated bullets below are a historical → refreshed narrative; this summary is
 > the live total.
@@ -321,17 +321,17 @@ reproducible command for any data-driven claim.
   `codemod` subcommand gained `--source github|toolshed|combined` (combined is
   sha256-deduplicated) so discovery runs over the whole corpus. We keep looping
   (sweep → write `upgrade_vN` → sweep) until every upgradeable tool reaches
-  latest. The initial full combined sweep (8 648 eligible) reached latest on
-  8 575 with only `Upgrade24_1` (advancing 94; residual 24.1 (56), 19.01 (9),
+  latest. The initial full combined sweep (8,648 eligible) reached latest on
+  8,575 with only `Upgrade24_1` (advancing 94; residual 24.1 (56), 19.01 (9),
   25.1 (5), 21.05/21.09/24.0 (1 each)); after the ftype extension and
-  `Upgrade25_1` (below) it reaches latest on **8 583** — `Upgrade24_1` advances
+  `Upgrade25_1` (below) it reaches latest on **8,583** — `Upgrade24_1` advances
   97, `Upgrade25_1` advances 5, leaving residual 24.1 (53), 19.01 (9),
   21.05/21.09/24.0 (1 each); 0 non-idempotent / post-validate-failed / crashed
   throughout.
   - **Refreshed 2026-05-29** (after deprecated-directory tools were excluded
     from the corpus — the discovery filter is `galaxy-tool-xml/docs/decisions.md`
     §6, refreshed measurements §10): the combined
-    sweep now reports **8 607 eligible**, reaching latest on **8 542** (65 below
+    sweep now reports **8,607 eligible**, reaching latest on **8,542** (65 below
     latest). The 41-tool drop was entirely tools that already validated at
     latest — `Upgrade24_1` still advances 97, `Upgrade25_1` still 5, and the
     residual is unchanged (24.1 (53), 19.01 (9), 21.05/21.09/24.0 (1 each)), so
@@ -341,7 +341,7 @@ reproducible command for any data-driven claim.
     from `ucsb-phylogenetics/ucsb_phylogenetics`) stuck on 19.05 making `name`
     required on output `<data>`. `Upgrade19_01` (§ below) synthesizes a
     deterministic, collision-free `name` (`output`, `output2`, …) on every
-    unnamed output `<data>`; the combined sweep now reaches latest on **8 551**
+    unnamed output `<data>`; the combined sweep now reaches latest on **8,551**
     (56 below latest) — `Upgrade19_01` advances 9, `Upgrade24_1` 97,
     `Upgrade25_1` 5, leaving residual 24.1 (53), 21.05/21.09/24.0 (1 each).
     Still 0 non-idempotent / no-repair / post-validate-failed / crashed.
@@ -349,7 +349,7 @@ reproducible command for any data-driven claim.
     `kat_filter`) stuck on 24.1 forbidding `<filter>` inside a `<collection>`'s
     child `<data>`. `Upgrade24_0` (§ below) hoists an all-or-nothing identical
     child filter up to the `<collection>` (it pulled in the deferred
-    `Cursor.add_child` primitive); the sweep now reaches latest on **8 552**
+    `Cursor.add_child` primitive); the sweep now reaches latest on **8,552**
     (55 below) — per-step 9 / 1 / 97 / 5 from 19.01 / 24.0 / 24.1 / 25.1,
     leaving residual 24.1 (53), 21.05/21.09 (1 each). Still 0 non-idempotent /
     no-repair / post-validate-failed / crashed.
@@ -361,7 +361,7 @@ reproducible command for any data-driven claim.
     junk (`?`, `plain text`, `$var`); ~9 single-token-context comma-lists; 2
     macro-file empties. Only the first is safely auto-fixable in the single-file
     model, so `Upgrade24_1` now *drops* a value that normalizes to empty (rather
-    than leaving it). The sweep now reaches latest on **8 566** (41 below) —
+    than leaving it). The sweep now reaches latest on **8,566** (41 below) —
     `Upgrade24_1` advances 111, leaving residual 24.1 (39), 21.05/21.09 (1 each).
     The macro-reachability ceiling (~18 tools) needs cross-file normalization —
     a separate architectural decision, written up in
@@ -418,7 +418,7 @@ reproducible command for any data-driven claim.
   galaxy_tool_xml_codemod.upgrades:UpgradeToLatest --source combined` → the
   full combined-corpus discovery run (numbers above), reporting each remaining
   `STICKING POINT` and the per-`upgrade_vN` advance counts.
-- **Empirical growth (full combined sweep, 8 648 eligible):** `Upgrade24_1`
+- **Empirical growth (full combined sweep, 8,648 eligible):** `Upgrade24_1`
   was extended to also normalize `ftype` (24.2 pattern-restricts it like
   `format`); `Upgrade25_1` (25.1 → 26.0) drops the obsolete top-level
   `<trackster_conf>` element, which pulled in the deferred `Cursor.remove()`
