@@ -73,6 +73,15 @@ class CodemodCommand:
         for child in cursor.children():
             self._dispatch(child)
 
+    def upgrade_steps_applied(self) -> tuple[str, ...]:
+        """From-versions whose upgrade the last ``apply`` advanced the tool past.
+
+        Empty for every codemod except an upgrade orchestrator like
+        ``UpgradeToLatest``; the corpus sweep reads it to keep per-step upgrade
+        statistics (how many tools each ``upgrade_vN`` codemod advanced).
+        """
+        return ()
+
     @classmethod
     def corpus_eligible(cls, document: ToolDocument, /) -> bool:
         """Whether a corpus sweep should run this codemod on *document*.

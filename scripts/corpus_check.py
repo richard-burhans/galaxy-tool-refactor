@@ -1856,8 +1856,23 @@ class _CodemodSweepState:
     # upgrade sweep (UpgradeToLatest) the sub-latest buckets are the sticking
     # points still needing an upgrade codemod — the discovery signal.
     final_profiles: Counter[str] = field(default_factory=Counter)
+    # Per-step upgrade tally: how many tools each ``upgrade_vN`` codemod
+    # advanced, keyed by the from-version it upgraded.
+    upgrade_steps: Counter[str] = field(default_factory=Counter)
     known_fixture_paths: set[tuple[str, str]] = field(default_factory=set)
     retained: list[tuple[str, str, Path, str, str]] = field(default_factory=list)
+
+
+@dataclass
+class _CodemodOutcome:
+    """The classified result of running one codemod on one tool."""
+
+    status: str
+    signature: str = ""
+    detail: str = ""
+    modified: bool = False
+    profile: str | None = None
+    upgrade_steps: tuple[str, ...] = ()
 
 
 def _resolve_codemod(spec: str) -> type[CodemodCommand]:
@@ -1891,21 +1906,19 @@ def _resolve_codemod(spec: str) -> type[CodemodCommand]:
     return obj
 
 
-def _codemod_exercise(
-    path: Path, codemod: CodemodCommand
-) -> tuple[str, str, str, bool]:
+def _codemod_exercise(path: Path, codemod: CodemodCommand) -> _CodemodOutcome:
     """Run ``codemod`` on ``path`` and classify the outcome.
 
-    Returns ``(status, signature, detail, modified, profile)``. Status is one
-    of ``"ok"``, ``"ineligible-unparseable"``, ``"ineligible-non-tool"``,
-    ``"ineligible-no-valid"``, ``"non-idempotent"``, ``"no-repair"``,
-    ``"post-validate-failed"``, ``"crash"``. ``modified`` is ``True`` when the
-    codemod actually changed the tool (pass-1 bytes differ from the input) —
-    counts repairs (FixTypos), profile add/bumps (UpdateProfile), upgrades, or
-    real attribute reorders. It is ``False`` for every ineligible / crash
-    return. ``profile`` is the post-apply validation profile (the version the
-    tool ends up at) or ``None`` when not applicable — the discovery signal for
-    upgrade sweeps.
+    Status is one of ``"ok"``, ``"ineligible-unparseable"``,
+    ``"ineligible-non-tool"``, ``"ineligible-no-valid"``, ``"non-idempotent"``,
+    ``"no-repair"``, ``"post-validate-failed"``, ``"crash"``. ``modified`` is
+    ``True`` when the codemod actually changed the tool (pass-1 bytes differ
+    from the input) — repairs (FixTypos), profile add/bumps (UpdateProfile),
+    upgrades, or real attribute reorders. ``profile`` is the post-apply
+    validation profile (the version the tool ends up at) or ``None`` — the
+    discovery signal for upgrade sweeps. ``upgrade_steps`` is the from-versions
+    an upgrade orchestrator advanced the tool through (empty otherwise), for
+    per-step upgrade stats.
 
     Eligibility filter:
     - non-tool roots and unparseable inputs are skipped at the top;
@@ -1925,15 +1938,15 @@ def _codemod_exercise(
     try:
         parsed = parse_tool(path)
         if parsed.document is None or not parsed.well_formed:
-            return "ineligible-unparseable", "", "", False, None
+            return _CodemodOutcome("ineligible-unparseable")
         if parsed.document.root.tag != "tool":
-            return "ineligible-non-tool", "", "", False, None
+            return _CodemodOutcome("ineligible-non-tool")
         # Eligibility is the codemod's own policy (pre-codemod document):
         # the default codemods stay on ``corpus_test_profile``; a repair
         # codemod like FixTypos inverts it to target no-valid tools. The
         # already-parsed document avoids a re-parse per profile probe.
         if not type(codemod).corpus_eligible(parsed.document):
-            return "ineligible-no-valid", "", "", False, None
+            return _CodemodOutcome("ineligible-no-valid")
         # Pass-1: codemod applied to the parsed input, then serialised.
         # We keep ``document_one`` for post-codemod validation because it
         # carries the source path — needed for macro ``<import>``
@@ -1946,6 +1959,8 @@ def _codemod_exercise(
         # FixTypos that found no repair, UpdateProfile on an already-correct
         # profile — leave the bytes identical.)
         modified = pass1_bytes != before_bytes
+        # Captured now, before pass-2 overwrites the orchestrator's state.
+        upgrade_steps = codemod.upgrade_steps_applied()
         # Pass-2: codemod applied again to a freshly re-parsed copy of
         # pass-1 bytes — catches codemods whose output round-trips to a
         # different tree. This is the idempotence check ONLY; the tree
@@ -1955,12 +1970,12 @@ def _codemod_exercise(
         pass2_bytes = etree.tostring(document_two.document.tree)
         if pass1_bytes != pass2_bytes:
             sig = f"non-idempotent:{type(codemod).__name__}"
-            return (
+            return _CodemodOutcome(
                 "non-idempotent",
                 sig,
                 _fmt_byte_diff_excerpt(pass1_bytes, pass2_bytes),
-                modified,
-                None,
+                modified=modified,
+                upgrade_steps=upgrade_steps,
             )
         # Validate the POST-codemod document at the codemod's policy profile,
         # evaluated after apply. For the structural codemods this equals the
@@ -1972,15 +1987,26 @@ def _codemod_exercise(
         # not bring the tool to validity at all.
         profile = type(codemod).corpus_validation_profile(document_one.document)
         if profile is None:
-            return "no-repair", "", "", modified, None
+            return _CodemodOutcome(
+                "no-repair", modified=modified, upgrade_steps=upgrade_steps
+            )
         validation = validate_tool(document_one.document, profile=profile)
         if not validation.valid:
             sig = f"post-validate-failed:{type(codemod).__name__}@{profile}"
             detail = "\n".join(str(e) for e in validation.errors[:5])
-            return "post-validate-failed", sig, detail, modified, profile
+            return _CodemodOutcome(
+                "post-validate-failed",
+                sig,
+                detail,
+                modified=modified,
+                profile=profile,
+                upgrade_steps=upgrade_steps,
+            )
     except Exception as exc:  # noqa: BLE001 — diagnostic sweep: every crash is a finding
-        return "crash", _signature(exc), traceback.format_exc(), False, None
-    return "ok", "", "", modified, profile
+        return _CodemodOutcome("crash", _signature(exc), traceback.format_exc())
+    return _CodemodOutcome(
+        "ok", modified=modified, profile=profile, upgrade_steps=upgrade_steps
+    )
 
 
 def _codemod_process_path(
@@ -2000,7 +2026,8 @@ def _codemod_process_path(
     """
     if not path.is_file():
         return False
-    status, signature, detail, modified, profile = _codemod_exercise(path, codemod)
+    outcome = _codemod_exercise(path, codemod)
+    status = outcome.status
     if status == "ineligible-unparseable":
         state.ineligible_unparseable += 1
         return False
@@ -2011,12 +2038,15 @@ def _codemod_process_path(
         state.ineligible_no_valid += 1
         return False
     state.eligible += 1
-    if modified:
+    if outcome.modified:
         # The codemod actually changed this tool (vs. an atomic no-op).
         state.modified += 1
-    if profile is not None:
+    if outcome.profile is not None:
         # Post-apply landing profile — the discovery distribution.
-        state.final_profiles[profile] += 1
+        state.final_profiles[outcome.profile] += 1
+    for from_version in outcome.upgrade_steps:
+        # Per-step upgrade tally — how many tools each upgrade_vN advanced.
+        state.upgrade_steps[from_version] += 1
     if status in {"ok", "post-validate-failed", "no-repair"}:
         # All three reach this point only after the apply-twice check has
         # succeeded, so they count toward the idempotent total.
@@ -2039,22 +2069,24 @@ def _codemod_process_path(
         return True
     # Only after we've confirmed this is a new fixture do we update the
     # signature histogram — keeps the headline counts honest on re-runs.
-    state.signatures[signature] += 1
+    state.signatures[outcome.signature] += 1
     state.known_fixture_paths.add((display_name, str(relative)))
     dest = _retain(
         path,
         display_name.replace("/", "__"),
         regressions_dir=_CODEMOD_REGRESSIONS,
     )
-    state.retained.append((dest.name, display_name, relative, version, signature))
+    state.retained.append(
+        (dest.name, display_name, relative, version, outcome.signature)
+    )
     logger.warning(
         "%s [%s] %s\n  %s\n  retained -> %s\n  %s",
         status.upper(),
         display_name,
-        signature,
+        outcome.signature,
         relative,
         dest,
-        detail.strip().replace("\n", "\n  "),
+        outcome.detail.strip().replace("\n", "\n  "),
     )
     return True
 
@@ -2081,8 +2113,17 @@ def _codemod_main(argv: list[str]) -> int:
         ),
     )
     parser.add_argument(
+        "--source",
+        choices=("github", "toolshed", "combined"),
+        default="github",
+        help=(
+            "corpus to sweep: 'github' (corpus_sources.json clones), 'toolshed' "
+            "(corpus/galaxy-toolshed/), or 'combined' (both, sha256-deduplicated)"
+        ),
+    )
+    parser.add_argument(
         "--repo",
-        help="sweep only this repository (by name from corpus_sources.json)",
+        help="sweep only this repository (by name); --source github only",
     )
     parser.add_argument(
         "--limit",
@@ -2101,12 +2142,23 @@ def _codemod_main(argv: list[str]) -> int:
         logger.error("%s", error)
         return 1
 
+    if args.repo is not None and args.source != "github":
+        logger.error("--repo is only supported with --source github, not %r", args.source)
+        return 1
     if args.repo is not None:
         known_names = {name for name, _ in _corpus_sources()}
         if args.repo not in known_names:
             known = ", ".join(sorted(known_names))
             logger.error("unknown --repo %r; known: %s", args.repo, known)
             return 1
+
+    sources = ("github", "toolshed") if args.source == "combined" else (args.source,)
+    if "toolshed" in sources and not _TOOLSHED_ROOT.exists():
+        logger.error(
+            "no toolshed corpus at %s; populate it via scripts/fetch_toolshed.py",
+            _TOOLSHED_ROOT.relative_to(_REPO_ROOT),
+        )
+        return 1
 
     _CORPUS_ROOT.mkdir(parents=True, exist_ok=True)
     _CODEMOD_REGRESSIONS.mkdir(parents=True, exist_ok=True)
@@ -2118,13 +2170,22 @@ def _codemod_main(argv: list[str]) -> int:
             regressions_dir=_CODEMOD_REGRESSIONS
         )
     )
+    # Dedup identical tools by content hash so a tool present in both sources
+    # (the corpus is ~46% cross-source duplicates) is swept and counted once.
+    seen_sha: set[str] = set()
     last_progress_log = 0
-    for _source_label, display_name, repo_dir, version in _iter_github_sources(
-        repo_filter=args.repo
+    for _source_label, display_name, repo_dir, version in _iter_sources(
+        sources, repo_filter=args.repo
     ):
         for path in sorted(repo_dir.rglob("*.xml")):
             if args.limit and state.eligible >= args.limit:
                 break
+            if not path.is_file():
+                continue
+            sha = hashlib.sha256(path.read_bytes()).hexdigest()
+            if sha in seen_sha:
+                continue
+            seen_sha.add(sha)
             _codemod_process_path(
                 path,
                 display_name=display_name,
@@ -2185,6 +2246,10 @@ def _codemod_main(argv: list[str]) -> int:
             ver,
             ver,
         )
+    if state.upgrade_steps:
+        logger.info("per-step upgrades (tools advanced by each upgrade_vN):")
+        for ver in sorted(state.upgrade_steps, key=Version):
+            logger.info("  %6d  upgraded from %s", state.upgrade_steps[ver], ver)
     if state.retained:
         _append_provenance(state.retained, regressions_dir=_CODEMOD_REGRESSIONS)
         logger.info(

@@ -190,6 +190,11 @@ def test_fix_typos_eligible_only_for_globally_invalid_tools(
     assert FixTypos.corpus_eligible(load_tool(minimal_tool_path)) is False
 
 
+def test_base_upgrade_steps_applied_is_empty() -> None:
+    """A non-orchestrator codemod reports no upgrade steps."""
+    assert FixTypos().upgrade_steps_applied() == ()
+
+
 def test_fix_typos_validation_profile_tracks_repair() -> None:
     """Validation profile is ``None`` pre-repair, the stopped-at version after."""
     module = parse_module(_INVALID)

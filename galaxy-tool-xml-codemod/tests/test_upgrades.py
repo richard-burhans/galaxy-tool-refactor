@@ -78,3 +78,26 @@ def test_is_idempotent() -> None:
     once = etree.tostring(module.document.root)
     UpgradeToLatest().apply(module)
     assert etree.tostring(module.document.root) == once
+
+
+def test_upgrade_steps_applied_reports_advanced_versions() -> None:
+    """The orchestrator records each from-version its upgrade actually advanced."""
+    module = parse_module(_tool(profile="24.1", param_fmt="BAM"))
+    upgrade = UpgradeToLatest()
+    upgrade.apply(module)
+    assert upgrade.upgrade_steps_applied() == ("24.1",)
+
+
+def test_upgrade_steps_empty_when_already_latest() -> None:
+    module = parse_module(_tool(profile=latest_profile()))
+    upgrade = UpgradeToLatest()
+    upgrade.apply(module)
+    assert upgrade.upgrade_steps_applied() == ()
+
+
+def test_upgrade_steps_empty_when_stuck_without_advancing() -> None:
+    """A step that runs but does not advance the tool is not counted."""
+    module = parse_module(_tool(profile="24.1", data_fmt="fasta,fastq"))
+    upgrade = UpgradeToLatest()
+    upgrade.apply(module)
+    assert upgrade.upgrade_steps_applied() == ()

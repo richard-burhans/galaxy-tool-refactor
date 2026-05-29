@@ -295,13 +295,19 @@ reproducible command for any data-driven claim.
   round): `FixTypos → UpgradeToLatest → Reorder*`. The first upgrade codemod is
   `Upgrade24_1` (§ below). The registry is grown **empirically**: the discovery
   sweep reports tools that do not reach latest and the version they stick at.
-- **Discovery sweep:** the `codemod` sweep now tallies a post-apply profile
-  distribution (`_codemod_exercise` returns the landing profile;
-  `_CodemodSweepState.final_profiles`). Run with `UpgradeToLatest`, every bucket
-  below the latest profile is logged as a `STICKING POINT … need upgrade codemod
-  for <version>` — the prioritized to-write list. We keep looping
-  (sweep → write `upgrade_vN` → sweep) until every upgradeable tool reaches the
-  latest profile.
+- **Discovery sweep:** the `codemod` sweep tallies a post-apply profile
+  distribution (`_CodemodSweepState.final_profiles`) and a per-step upgrade
+  count (`upgrade_steps`, fed by `CodemodCommand.upgrade_steps_applied()` which
+  `UpgradeToLatest` overrides to report the from-versions it advanced). Run with
+  `UpgradeToLatest`, every bucket below the latest profile is logged as a
+  `STICKING POINT … need upgrade codemod for <version>` (the prioritized
+  to-write list) and each `upgrade_vN` reports how many tools it advanced. The
+  `codemod` subcommand gained `--source github|toolshed|combined` (combined is
+  sha256-deduplicated) so discovery runs over the whole corpus. We keep looping
+  (sweep → write `upgrade_vN` → sweep) until every upgradeable tool reaches
+  latest. First full combined sweep (8 648 eligible): 8 575 reached latest,
+  `Upgrade24_1` advanced 94; residual sticking points 24.1 (56), 19.01 (9),
+  25.1 (5), 21.05/21.09/24.0 (1 each); 0 non-idempotent / crashed.
 - **`Upgrade24_1` (24.1 → 24.2):** empirically the only 24.2 delta corpus tools
   trip on is the `format` attribute gaining a pattern facet — `FormatList`
   (`<param>`, comma-separated `[a-z0-9._-]` tokens) and `Format` (`<data>`, a
