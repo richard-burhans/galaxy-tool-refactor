@@ -165,7 +165,10 @@ discovery sweep keeps reporting them):
     `<import>`ed file, and codemods mutate only the tool's own tree. Closing
     this needs **cross-file / macro-aware normalization** — an architectural
     decision (a shared macro file is used by sibling tools; the framework and
-    fmt's write path are single-file today), not a one-step codemod.
+    fmt's write path are single-file today), not a one-step codemod. Options and
+    recommendation are written up in `docs/macro-aware-normalization.md`
+    (recommendation: keep reporting these; don't reach into shared macro files
+    from the per-tool pipeline).
   - **~11 — non-datatype junk** (`?`, `fasta|fastq`, `plain text`,
     `$output_type`, `Unlabeled data file`): no safe coercion.
   - **~9 — single-token-context comma-list** (`<data format="fasta,fastq">`):
