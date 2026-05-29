@@ -40,6 +40,7 @@ from pathlib import Path
 from lxml import etree
 
 from scripts._shared import PROFILE_NONE as _PROFILE_NONE
+from scripts._shared import iter_tool_xmls as _iter_tool_xmls
 from scripts._shared import row_source as _row_source
 from scripts._shared import unique_by_sha as _unique_by_sha
 
@@ -93,11 +94,8 @@ def _validity_columns(rows: list[dict[str, object]]) -> tuple[str, ...]:
 
 
 def _iter_corpus_tool_xmls(corpus_root: Path) -> Iterable[Path]:
-    """Yield every XML file under ``corpus_root`` excluding Mercurial metadata."""
-    for path in corpus_root.rglob("*.xml"):
-        if ".hg/" in str(path):
-            continue
-        yield path
+    """Yield every corpus XML, skipping Mercurial metadata and deprecated dirs."""
+    yield from _iter_tool_xmls(corpus_root)
 
 
 def _parse_tool_root(path: Path) -> etree._Element | None:
@@ -237,6 +235,11 @@ class _CrossSourcePresenceResult:
     github_failures_with_toolshed_twin: int
     toolshed_failures_total: int
     toolshed_failures_with_github_sibling: int
+    # Match-key sanity check (§10.11 / §6): for each candidate match key,
+    # (all-corpus matches, failure-subset matches) — distinct key values that
+    # appear in both github and toolshed rows. Justifies keying ``presence`` on
+    # ``tool_id`` rather than the tighter ``(tool_id, basename)`` or ``sha256``.
+    match_key_counts: dict[str, tuple[int, int]]
 
 
 @dataclass
@@ -785,6 +788,47 @@ def _run_macro_usage(args: argparse.Namespace) -> None:
 # toolshed, or both, and how that splits across the failure population.
 
 
+# Candidate match keys for the cross-source sanity check, ordered loosest →
+# strictest. Each maps a combined-data row to the value compared across sources.
+_MATCH_KEYS: dict[str, Callable[[dict[str, object]], object]] = {
+    "tool_id": lambda row: row.get("tool_id"),
+    "(tool_id, basename)": lambda row: (
+        row.get("tool_id"),
+        str(row.get("path")).rsplit("/", 1)[-1],
+    ),
+    "sha256": lambda row: row.get("sha256"),
+}
+
+
+def _cross_source_key_matches(
+    rows: list[dict[str, object]],
+    *,
+    key: Callable[[dict[str, object]], object],
+) -> tuple[int, int]:
+    """Return ``(all_corpus, failure_subset)`` cross-source match counts for *key*.
+
+    A match is a distinct *key* value present in both a github row and a toolshed
+    row (full row set, **not** sha-deduped — byte-identical copies must still
+    count as the same logical tool present in both sources). The failure-subset
+    count is the number of failing-tool key values that appear anywhere in the
+    opposite source, not only among other failures.
+    """
+    github: set[object] = set()
+    toolshed: set[object] = set()
+    failing: set[object] = set()
+    for row in rows:
+        value = key(row)
+        source = _row_source(row.get("repo"))
+        if source == "github":
+            github.add(value)
+        elif source == "toolshed":
+            toolshed.add(value)
+        if row.get("expansion_failure_reason") or row.get("no_valid_reason"):
+            failing.add(value)
+    both = github & toolshed
+    return len(both), len(failing & both)
+
+
 def _measure_cross_source_presence(
     *, rows: list[dict[str, object]]
 ) -> _CrossSourcePresenceResult:
@@ -811,6 +855,10 @@ def _measure_cross_source_presence(
     ts_failures = [row for row in failing_rows if _row_source(row.get("repo")) == "toolshed"]
     gh_both = sum(1 for row in gh_failures if row.get("presence") == "both")
     ts_both = sum(1 for row in ts_failures if row.get("presence") == "both")
+    match_key_counts = {
+        label: _cross_source_key_matches(rows, key=key)
+        for label, key in _MATCH_KEYS.items()
+    }
     return _CrossSourcePresenceResult(
         n_unique_tools=len(unique),
         n_failing_tools=len(failing_rows),
@@ -820,6 +868,7 @@ def _measure_cross_source_presence(
         github_failures_with_toolshed_twin=gh_both,
         toolshed_failures_total=len(ts_failures),
         toolshed_failures_with_github_sibling=ts_both,
+        match_key_counts=match_key_counts,
     )
 
 
@@ -847,6 +896,10 @@ def _report_cross_source_presence(measurement: _CrossSourcePresenceResult) -> No
     print("\nFailures × source cross-tab:")
     print(f"  github failures total:     {gh_total}; with toolshed twin: {gh_both}")
     print(f"  toolshed failures total:   {ts_total}; with github sibling: {ts_both}")
+    print("\nMatch-key sanity check (distinct keys present in both sources):")
+    print(f"  {'key':<20s} {'all-corpus':>11s} {'failure subset':>15s}")
+    for label, (all_corpus, failure_subset) in measurement.match_key_counts.items():
+        print(f"  {label:<20s} {all_corpus:>11d} {failure_subset:>15d}")
 
 
 def _run_cross_source_presence(args: argparse.Namespace) -> None:

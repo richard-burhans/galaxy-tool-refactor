@@ -1,6 +1,6 @@
 # XSD-required attribute missing on tool element
 
-10 unique tool(s) fall into this category. Each link goes to the source-repository view of the tool at the version captured by the combined sweep.
+10 unique tool(s) fall into this category.
 
 | Repository | tool_id | Path | Version | Source |
 |---|---|---|---|---|

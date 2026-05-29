@@ -284,9 +284,9 @@ bytes, and the comment was permanently lost.
 
 GTX004 now skips any node whose `.tag` is not a `str`. The behaviour
 is covered by `test_whitespace_only_xml_comment_is_preserved` in
-`tests/test_rule_empty_element.py` and by the 12 fixtures replayed
-under `tests/test_regressions.py`. Post-fix, the 2026-05-28 sweep
-reports 4,014 / 4,014 idempotent (D9).
+`tests/test_rule_empty_element.py` and by the regression fixtures
+replayed under `tests/test_regressions.py`. Post-fix, the 2026-05-28
+sweep reports 4,014 / 4,014 idempotent (D9).
 
 ---
 
@@ -503,10 +503,18 @@ Partial sweeps (`--limit`, `--repo`) do not regenerate it.
 
 The initial run before the GTX004 comment-skip refinement (D5) found
 12 non-idempotent tools, all variants of the same bug: whitespace-only
-XML comments were being clobbered by GTX004. Those 12 fixtures are
+XML comments were being clobbered by GTX004. Those fixtures are
 retained as permanent regression coverage (`tests/test_regressions.py`)
 even though they now pass — they encode the bug class so we don't
 regress it.
+
+**Refreshed 2026-05-29** (after deprecated-directory tools were
+excluded from the corpus — see `galaxy-tool-xml/docs/decisions.md`
+§10): the re-sweep parses **4,095** `<tool>` documents, of which
+**3,933** validate under 26.1 and are all idempotent (0 non-idempotent,
+0 crashed). One of the 12 retained fixtures (`tools-galaxyp__dia_umpire`)
+originated from a `deprecated/` directory and was dropped, leaving **11**
+regression fixtures; the remaining 11 still pass.
 
 ### Reproducibility
 

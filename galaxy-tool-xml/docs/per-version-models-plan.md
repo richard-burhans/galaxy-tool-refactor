@@ -196,7 +196,7 @@ guaranteed contiguous — the corpus sweep finds real tools with gaps — so a
 newest-first scan that stops at the first pass is the only correct approach (a
 valid/invalid probe cannot tell "too old" from "too new", and binary search
 would need that). The scan is O(1) when the tool validates at the latest profile
-— the common case (90.1% of unique tools in the 2026-05-27 combined sweep;
+— the common case (90.2% of unique tools in the 2026-05-29 combined sweep;
 see `docs/decisions.md` §10.5). The worst case is 28 validations, and
 `compiled_schema` is `@cache`d so repeated calls across tools never recompile.
 

@@ -1,6 +1,6 @@
 # XSD does not allow element under this parent
 
-220 unique tool(s) fall into this category. Each link goes to the source-repository view of the tool at the version captured by the combined sweep.
+217 unique tool(s) fall into this category.
 
 | Repository | tool_id | Path | Version | Source |
 |---|---|---|---|---|
@@ -20,11 +20,11 @@
 | cpt/cpt_compare_gbk | `edu.tamu.cpt.gbk.gbk_compare` | `cpt_gbk_compare/gbk_compare.xml` | `fc603e665d75` | [view](https://toolshed.g2.bx.psu.edu/view/cpt/cpt_compare_gbk) |
 | cpt/cpt_gbk_compare | `edu.tamu.cpt.gbk.gbk_compare` | `gbk_compare.xml` | `b0ab633db780` | [view](https://toolshed.g2.bx.psu.edu/view/cpt/cpt_gbk_compare) |
 | crique/phylogenetic_analysis (also in github: tools-iuc) | `phyml` | `phyml.xml` | `ac4a2f2b998b` | [view](https://toolshed.g2.bx.psu.edu/view/crique/phylogenetic_analysis) |
-| curtish/bwa_tools_mini (also in github: tools-devteam) | `bwa_color_wrapper` | `bwa_color_wrapper.xml` | `11eda1d95d84` | [view](https://toolshed.g2.bx.psu.edu/view/curtish/bwa_tools_mini) |
+| curtish/bwa_tools_mini | `bwa_color_wrapper` | `bwa_color_wrapper.xml` | `11eda1d95d84` | [view](https://toolshed.g2.bx.psu.edu/view/curtish/bwa_tools_mini) |
 | damion/ffp_phylogeny | `ffp_phylogeny` | `ffp_phylogeny.xml` | `79a4a86981d3` | [view](https://toolshed.g2.bx.psu.edu/view/damion/ffp_phylogeny) |
 | davidmurphy/codonlogo | `codonlogo` | `Codonlogo.xml` | `981eb8c3a756` | [view](https://toolshed.g2.bx.psu.edu/view/davidmurphy/codonlogo) |
 | davidvanzessen/argalaxy_tools | `complete_immunerepertoire_igg` | `complete_immunerepertoire.xml` | `f38a058e1a74` | [view](https://toolshed.g2.bx.psu.edu/view/davidvanzessen/argalaxy_tools) |
-| devteam/bwa_wrappers (also in github: tools-devteam) | `bwa_color_wrapper` | `bwa_color_wrapper.xml` | `b4427dbb6ced` | [view](https://toolshed.g2.bx.psu.edu/view/devteam/bwa_wrappers) |
+| devteam/bwa_wrappers | `bwa_color_wrapper` | `bwa_color_wrapper.xml` | `b4427dbb6ced` | [view](https://toolshed.g2.bx.psu.edu/view/devteam/bwa_wrappers) |
 | devteam/gi2taxonomy (also in github: tools-devteam) | `Fetch Taxonomic Ranks` | `gi2taxonomy.xml` | `7b1b03c4465d` | [view](https://toolshed.g2.bx.psu.edu/view/devteam/gi2taxonomy) |
 | devteam/t2ps (also in github: tools-devteam) | `Draw_phylogram` | `t2ps_wrapper.xml` | `4d9910e996f7` | [view](https://toolshed.g2.bx.psu.edu/view/devteam/t2ps) |
 | edward-kirton/blast | `dustmasker` | `blast/dustmasker.xml` | `f3ac34855f5e` | [view](https://toolshed.g2.bx.psu.edu/view/edward-kirton/blast) |
@@ -174,9 +174,6 @@
 | takakoron/merge_snpsindels_files | `Merge_DNA_polymorphism_files_docker` | `Merge_SNPsInDels_files_docker.xml` | `5da57f040f2e` | [view](https://toolshed.g2.bx.psu.edu/view/takakoron/merge_snpsindels_files) |
 | testing/testing4 | `id_gtf2fasta` | `testing4/gtf2fasta.xml` | `3406cf04baac` | [view](https://toolshed.g2.bx.psu.edu/view/testing/testing4) |
 | timpalpant/java_genomics_toolkit | `matrix2png` | `galaxy-conf/matrix2png.xml` | `b43c420a6135` | [view](https://toolshed.g2.bx.psu.edu/view/timpalpant/java_genomics_toolkit) |
-| tools-artbio | `ont_fast5_api_multi_to_single_fast5` | `deprecated/ont_fast5_api/multi_to_single_fast5.xml` | `fcb46aafd088` | [view](https://github.com/ARTbio/tools-artbio/blob/fcb46aafd088f10c4a1c7f00a29dfd443d11c8c3/deprecated/ont_fast5_api/multi_to_single_fast5.xml) |
-| tools-artbio | `ont_fast5_api_single_to_multi_fast5` | `deprecated/ont_fast5_api/single_to_multi_fast5.xml` | `fcb46aafd088` | [view](https://github.com/ARTbio/tools-artbio/blob/fcb46aafd088f10c4a1c7f00a29dfd443d11c8c3/deprecated/ont_fast5_api/single_to_multi_fast5.xml) |
-| tools-devteam | `bwa_color_wrapper` | `deprecated/tools/bwa_wrappers/bwa_color_wrapper.xml` | `5d53a79839c6` | [view](https://github.com/galaxyproject/tools-devteam/blob/5d53a79839c6d9b7c1f13e8f5bd9f65d69d96a46/deprecated/tools/bwa_wrappers/bwa_color_wrapper.xml) |
 | tools-devteam | `Fetch Taxonomic Ranks` | `tool_collections/taxonomy/gi2taxonomy/gi2taxonomy.xml` | `5d53a79839c6` | [view](https://github.com/galaxyproject/tools-devteam/blob/5d53a79839c6d9b7c1f13e8f5bd9f65d69d96a46/tool_collections/taxonomy/gi2taxonomy/gi2taxonomy.xml) |
 | tools-devteam | `Draw_phylogram` | `tool_collections/taxonomy/t2ps/t2ps_wrapper.xml` | `5d53a79839c6` | [view](https://github.com/galaxyproject/tools-devteam/blob/5d53a79839c6d9b7c1f13e8f5bd9f65d69d96a46/tool_collections/taxonomy/t2ps/t2ps_wrapper.xml) |
 | tools-devteam | `t2t_report` | `tool_collections/taxonomy/t2t_report/t2t_report.xml` | `5d53a79839c6` | [view](https://github.com/galaxyproject/tools-devteam/blob/5d53a79839c6d9b7c1f13e8f5bd9f65d69d96a46/tool_collections/taxonomy/t2t_report/t2t_report.xml) |

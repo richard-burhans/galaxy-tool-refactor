@@ -68,6 +68,7 @@ from lxml import etree
 from packaging.version import Version
 
 from scripts._shared import PROFILE_NONE as _PROFILE_NONE
+from scripts._shared import iter_tool_xmls as _iter_tool_xmls
 from scripts._shared import row_source as _row_source
 from scripts._shared import unique_by_sha as _unique_by_sha
 
@@ -1303,7 +1304,7 @@ def _validate_main(argv: list[str]) -> int:
         sources_to_walk, repo_filter=args.repo
     ):
         repo_tool_count = 0
-        for path in sorted(repo_dir.rglob("*.xml")):
+        for path in sorted(_iter_tool_xmls(repo_dir)):
             if args.limit and tools >= args.limit:
                 break
             if not _validate_process_path(
@@ -1759,7 +1760,7 @@ def _fmt_main(argv: list[str]) -> int:
         repo_filter=args.repo
     ):
         repo_tool_count = 0
-        for path in sorted(repo_dir.rglob("*.xml")):
+        for path in sorted(_iter_tool_xmls(repo_dir)):
             if args.limit and tools >= args.limit:
                 break
             if not _fmt_process_path(
@@ -2175,7 +2176,7 @@ def _codemod_main(argv: list[str]) -> int:
     for _source_label, display_name, repo_dir, version in _iter_sources(
         sources, repo_filter=args.repo
     ):
-        for path in sorted(repo_dir.rglob("*.xml")):
+        for path in sorted(_iter_tool_xmls(repo_dir)):
             if args.limit and state.eligible >= args.limit:
                 break
             if not path.is_file():

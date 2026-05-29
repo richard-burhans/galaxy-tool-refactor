@@ -166,7 +166,7 @@ non-obvious choices, several of them recently revisited.
 | **Tooling: `hg` and `git` binaries via subprocess; `urllib` for the GitHub REST API.** | Each script makes 2–3 calls per repo and the network dominates everything. PyGithub / GitPython / python-hglib would be heavyweight imports with no measurable benefit; the Mercurial Python API is explicitly *not* a stable surface. |
 | **Per-tool failure reasons categorized and surfaced in the combined stats markdown only.** Two new sections — *Macro-expansion failure reasons* (Group A) and *Tools with no valid vendored profile — reason breakdown* (Group A+B) — appear in `docs/combined_corpus_stats.md`. Tool-level reason fields (`expansion_failure_reason`, `no_valid_reason`) live on `ToolStats` but are not exposed in the fine-grained data files. | The aggregate breakdown answers "are these our bugs?" at a glance (the answer is *no* — see §10.4). The combined view is the right place because the breakdown is most informative when deduplicated across sources. Categorization runs only when needed (no-valid tools get one extra `validate_tool` call to pull the first error). |
 | **External links in `docs/corpus_data/failures/*.md` are plain markdown — no HTML anchors with `target="_blank"`.** | github.com's markdown sanitizer strips the `target` attribute from committed `.md` files, so the HTML form renders the same as plain markdown on the public web view (verified 2026-05-27 — change pushed, behavior confirmed, then reverted). The HTML form would still pay off under any non-GitHub renderer (MkDocs / Pages / IDE preview), but the project does not currently ship one, so the noise is unjustified. Revisit if a static-site build is added. |
-| **Combined-only `presence` column on every row** (`github_only` / `toolshed_only` / `both`), keyed by `tool_id`. Stamped post-sweep by `_stamp_presence`. Per-source artifacts do not carry the column (it would be constant). | Surfaces "is this tool also maintained on github?" as first-class data. Match key `tool_id` is what readers care about ("is the same logical tool present?") and is empirically equivalent to `(tool_id, basename)` at the corpus level (both produce 3,629 cross-source matches in the 2026-05-27 sweep — see §10.11). The sha256-based "Sources" Unique/Duplicates table already captures byte-identical presence; `presence` adds the logical-identity view. |
+| **Combined-only `presence` column on every row** (`github_only` / `toolshed_only` / `both`), keyed by `tool_id`. Stamped post-sweep by `_stamp_presence`. Per-source artifacts do not carry the column (it would be constant). | Surfaces "is this tool also maintained on github?" as first-class data. Match key `tool_id` is what readers care about ("is the same logical tool present?") and is empirically near-equivalent to `(tool_id, basename)` at the corpus level (3,569 vs 3,568 cross-source matches in the 2026-05-29 sweep — see §10.11). The sha256-based "Sources" Unique/Duplicates table already captures byte-identical presence; `presence` adds the logical-identity view. |
 | **No `[view]` link swap when only the `tool_id` matches.** A toolshed row with a github sibling keeps its `[view]` link pointed at the toolshed bytes; the sibling is surfaced as an *(also in github: …)* annotation on the `Repository` cell instead. | The recorded failure is a property of the toolshed bytes. The github sibling has *different* bytes and may not have the same failure (or may not fail at all); linking there would mislead the reader about what the row is reporting. Annotation gives the cross-reference without lying about provenance. |
 
 ---
@@ -246,18 +246,18 @@ older figures. Add new measurements here when a new question is asked.
 Run all measurements at once: `uv run python -m scripts.measure --all
 --jobs 4`. List them: `uv run python -m scripts.measure --list`.
 
-### 10.1 Tool `@id` vs. path (2026-05-27)
+### 10.1 Tool `@id` vs. path (2026-05-29)
 
 Justifies emitting **both** `tool_id` and `path` columns in the
 fine-grained corpus data (§6).
 
 | Property | Result |
 |---|---|
-| Unique tools surveyed | 9,410 |
-| `@id` present on `<tool>` | 100.0% (9,410 / 9,410) |
+| Unique tools surveyed | 9,358 |
+| `@id` present on `<tool>` | 100.0% (9,358 / 9,358) |
 | `@id` contains a macro token (e.g. `@PROFILE@`) on the **expanded** tree | 0.0% — expansion resolves every macro `@id` before the column is recorded |
-| `@id` matches the file stem | 52.9% |
-| `@id` matches the parent directory name | 11.7% — much lower than the pre-toolshed 37.5% sample, since toolshed tools usually nest under `<owner>/<repo_name>/<tool>.xml` where the parent is the suite, not the tool |
+| `@id` matches the file stem | 53.0% |
+| `@id` matches the parent directory name | 11.6% — much lower than the pre-toolshed 37.5% sample, since toolshed tools usually nest under `<owner>/<repo_name>/<tool>.xml` where the parent is the suite, not the tool |
 | `<tool>` files with no `@id` | 0 |
 
 **Conclusion:** path and `@id` agree on ~53% of tools by stem and only
@@ -268,7 +268,7 @@ it predated the toolshed half of the corpus.
 
 **Reproduced by:** `uv run python -m scripts.measure tool-id-vs-path`
 
-### 10.2 Corpus size and source mix (2026-05-27 sweep)
+### 10.2 Corpus size and source mix (2026-05-29 sweep)
 
 Snapshot of the corpus as observed by a full `corpus_check.py
 --source combined` run.
@@ -277,9 +277,9 @@ Snapshot of the corpus as observed by a full `corpus_check.py
 |---|---:|---:|---:|
 | Distinct repos that contributed `<tool>` files | 20 | 6,107 | 6,127 |
 | Repos swept (from `corpus_sources.json` / toolshed manifest) | 21 | 7,653 | 7,674 |
-| Combined rows in `combined_corpus_data.json` | 4,190 | 8,677 | 12,867 |
-| Unique tools after sha256 dedup (credited to first-seen source) | 4,175 | 5,235 | 9,410 |
-| Duplicate rows dropped from unique-tool counts | — | — | 3,457 |
+| Combined rows in `combined_corpus_data.json` | 4,095 | 8,677 | 12,772 |
+| Unique tools after sha256 dedup (credited to first-seen source) | 4,080 | 5,278 | 9,358 |
+| Duplicate rows dropped from unique-tool counts | — | — | 3,414 |
 
 Empty repos (no `<tool>` files) account for the gap between "repos
 swept" and "distinct repos that contributed". The "aggregate
@@ -289,14 +289,14 @@ counts every duplicate XML file, including non-tool XMLs
 file never sees.
 
 **Conclusion:** github is iterated first so a tool present in both
-sources is credited to github (`(github=4,175, toolshed=5,235) =
-9,410`). The 8,089 "duplicates dropped" in the Sources table of
-`combined_corpus_stats.md` includes 3,457 duplicate tool rows plus
-4,632 duplicate non-tool XMLs.
+sources is credited to github (`(github=4,080, toolshed=5,278) =
+9,358`). The 7,975 "duplicates dropped" in the Sources table of
+`combined_corpus_stats.md` includes 3,414 duplicate tool rows plus
+4,561 duplicate non-tool XMLs.
 
 **Reproduced by:** `uv run python -m scripts.measure corpus-size-source-mix`
 
-### 10.3 Validity-vector contiguity (2026-05-27 combined sweep)
+### 10.3 Validity-vector contiguity (2026-05-29 combined sweep)
 
 A non-trivial fraction of tools have a **non-contiguous** validity
 vector — they validate at some profile, fail at an intermediate one,
@@ -305,7 +305,7 @@ and validate again later. Originally observed in
 
 | Combined-sweep snapshot | Non-contiguous | Total unique | % |
 |---|---:|---:|---:|
-| 2026-05-27 | 207 | 9,410 | 2.2% |
+| 2026-05-29 | 203 | 9,358 | 2.2% |
 
 **Conclusion:** Assumption 1.6 holds. The `newest_valid_profile`
 implementation stays a linear newest-first scan (§4) — a binary search
@@ -315,36 +315,36 @@ every full sweep.
 
 **Reproduced by:** `uv run python -m scripts.measure validity-distribution`
 
-### 10.4 No-valid-profile taxonomy (2026-05-27 combined sweep)
+### 10.4 No-valid-profile taxonomy (2026-05-29 combined sweep)
 
-Of the 9,410 unique tools, **761** (8.1%) do not validate against any
+Of the 9,358 unique tools, **750** (8.0%) do not validate against any
 of the 28 vendored XSDs. Every category traces to a genuine
 schema-noncompliant property of the tool, not a library bug.
 
-**Group A — macro expansion failed** (17 tools / 2.2% of the no-valid
+**Group A — macro expansion failed** (12 tools / 1.6% of the no-valid
 set): the post-expansion tree never reaches the XSD.
 
 | Reason | Count |
 |---|---:|
 | undefined macro reference in `<expand>` | 8 |
-| imported `macros.xml` file not on disk | 6 |
+| imported `macros.xml` file not on disk | 1 |
 | malformed XML in tool file (e.g. `--` inside a comment, unmatched tags) | 3 |
 
-**Group B — expansion ok, XSD rejects everywhere** (744 tools / 97.8%):
+**Group B — expansion ok, XSD rejects everywhere** (738 tools / 98.4%):
 
 | Reason | Count | % of no-valid |
 |---|---:|---:|
-| XSD does not declare attribute used by tool | 351 | 46.1% |
-| XSD does not allow element under this parent | 220 | 28.9% |
+| XSD does not declare attribute used by tool | 348 | 46.4% |
+| XSD does not allow element under this parent | 217 | 28.9% |
 | XSD does not allow element at all | 37 | 4.9% |
-| attribute value outside XSD's enumeration | 35 | 4.6% |
-| other XML syntax error (recovered tree, parser logged errors) | 35 | 4.6% |
-| invalid boolean (`"True"`/`"False"` vs `"true"`/`"false"`) | 33 | 4.3% |
+| attribute value outside XSD's enumeration | 35 | 4.7% |
+| other XML syntax error (recovered tree, parser logged errors) | 35 | 4.7% |
+| invalid boolean (`"True"`/`"False"` vs `"true"`/`"false"`) | 33 | 4.4% |
 | other XSD type / pattern mismatch | 19 | 2.5% |
 | XSD-required attribute missing | 10 | 1.3% |
 | invalid character encoding (non-UTF-8 bytes) | 4 | 0.5% |
 
-**Conclusion:** ~75% of all no-valid tools (B1 + B2 = 571) use
+**Conclusion:** ~75% of all no-valid tools (B1 + B2 = 565) use
 attributes or elements the public Galaxy XSD does not formally cover —
 a long-standing gap between Galaxy's runtime parser (lenient) and its
 public schema (strict). The rest split between minor type mismatches
@@ -354,7 +354,7 @@ visible.
 
 **Reproduced by:** `uv run python -m scripts.measure no-valid-profile-taxonomy`
 
-### 10.5 Newest-valid-at-latest distribution (2026-05-27 combined sweep)
+### 10.5 Newest-valid-at-latest distribution (2026-05-29 combined sweep)
 
 Quantifies the "common case" referenced by `binding.py`'s
 `newest_valid_profile` and the `per-version-models-plan.md` ceiling
@@ -362,18 +362,18 @@ discussion.
 
 | Result | Count | % |
 |---|---:|---:|
-| Validates at the latest vendored profile (currently 26.1) | 8,481 | 90.1% |
+| Validates at the latest vendored profile (currently 26.1) | 8,440 | 90.2% |
 | Validates at some older vendored profile | 168 | 1.8% |
-| Validates at no vendored profile | 761 | 8.1% |
+| Validates at no vendored profile | 750 | 8.0% |
 
-**Conclusion:** 90.1% of unique tools validate at the latest profile,
+**Conclusion:** 90.2% of unique tools validate at the latest profile,
 so the newest-first scan in `newest_valid_profile` is O(1) on nine out
 of ten calls. The 1.8% that validate only at an older profile is the
 population the per-release models exist to serve.
 
 **Reproduced by:** `uv run python -m scripts.measure validity-distribution`
 
-### 10.6 Macro usage (2026-05-27 combined sweep)
+### 10.6 Macro usage (2026-05-29 combined sweep)
 
 Justifies the prominence of macro handling in the API
 (`validate_tool`'s `macro_handling=` parameter, `expand_from_path`, the
@@ -381,8 +381,8 @@ Justifies the prominence of macro handling in the API
 
 | | Tools | % |
 |---|---:|---:|
-| Uses macros (`<macros>` / `<expand>` / `<import>` / `<token>`) | 5,150 | 54.7% |
-| Macro-free | 4,260 | 45.3% |
+| Uses macros (`<macros>` / `<expand>` / `<import>` / `<token>`) | 5,125 | 54.8% |
+| Macro-free | 4,233 | 45.2% |
 
 **Conclusion:** the macro path is the majority case — there is no
 "common case" without macro handling. The library's `macro_handling`
@@ -390,7 +390,7 @@ default of `"expand"` is the right one.
 
 **Reproduced by:** `uv run python -m scripts.measure macro-usage`
 
-### 10.7 Profile-as-macro-placeholder (2026-05-27 combined sweep)
+### 10.7 Profile-as-macro-placeholder (2026-05-29 combined sweep)
 
 How often a tool's literal `profile` attribute is a macro token (e.g.
 `@PROFILE@`, `@TOOL_PROFILE@`) rather than a literal version string.
@@ -400,8 +400,8 @@ meaningful for distribution stats.
 
 | | Count | % |
 |---|---:|---:|
-| `profile` attribute is a macro placeholder | 1,496 | 15.9% |
-| `profile` attribute is a literal version or absent | 7,914 | 84.1% |
+| `profile` attribute is a macro placeholder | 1,486 | 15.9% |
+| `profile` attribute is a literal version or absent | 7,872 | 84.1% |
 
 Distinct placeholder values observed: `@GALAXY_VERSION@`, `@PROFILE@`,
 `@PROFILE_VERSION@`, `@TOOL_PROFILE@`, `@profile@`. `@PROFILE@`
@@ -413,17 +413,17 @@ before counting; the public abstract reports the expanded figure.
 
 **Reproduced by:** `uv run python -m scripts.measure macro-placeholder-profile`
 
-### 10.8 Expansion-failed `tool_id` fallback (2026-05-27 combined sweep)
+### 10.8 Expansion-failed `tool_id` fallback (2026-05-29 combined sweep)
 
 Earlier docstrings in `corpus_check.py` described the
 expansion-failure fallback as "typically a macro-token string like
-`bcftools_@EXECUTABLE@`". The 17 tools whose expansion fails today
+`bcftools_@EXECUTABLE@`". The 12 tools whose expansion fails today
 were checked against that claim.
 
 | | Count | % |
 |---|---:|---:|
 | Expansion-failed tools whose `tool_id` contains `@` | 0 | 0.0% |
-| Expansion-failed tools with a literal `tool_id` | 17 | 100.0% |
+| Expansion-failed tools with a literal `tool_id` | 12 | 100.0% |
 
 **Conclusion:** the macro-token fallback path exists in code but is
 not currently exercised by any tool in the corpus. The fallback is
@@ -434,7 +434,7 @@ may or may not contain a macro token".
 
 **Reproduced by:** `uv run python -m scripts.measure expansion-failed-ids`
 
-### 10.9 Lenient-text-style field children (2026-05-27 combined sweep)
+### 10.9 Lenient-text-style field children (2026-05-29 combined sweep)
 
 Justifies `_patch_xsdata_primitive_node_leniency` in
 `src/galaxy_tool_xml/document.py`. The XSD declares fields like
@@ -445,15 +445,15 @@ exercised?
 
 | Field | Occurrences | With element children | Rate |
 |---|---:|---:|---:|
-| `<help>` | 13,436 | 9 | 0.067% |
-| `<citation>` | 5,388 | 1 | 0.019% |
-| **TOTAL** (across all xs:string-content fields) | 63,585 | **10** | **0.016%** |
+| `<help>` | 13,286 | 7 | 0.053% |
+| `<citation>` | 5,349 | 1 | 0.019% |
+| **TOTAL** (across all xs:string-content fields) | 63,022 | **8** | **0.013%** |
 
 Affected children include `<i>` (italics inside `<help>`), `<expand>`
 (unexpanded macro inside `<help>`), and one nested `<citation>`. The
-10 distinct affected tools are spread across toolshed only.
+8 distinct affected tools are spread across toolshed only.
 
-**Conclusion:** rare in absolute terms (10 of ~13,000 parseable
+**Conclusion:** rare in absolute terms (8 of ~13,000 parseable
 tools), but the failure mode is non-recoverable on the affected tool —
 without the patch, `.model()` would raise `XmlContextError`. The patch
 turns the crash into a silent skip (the lxml tree, which is the
@@ -462,22 +462,22 @@ class-method monkey-patch run at most once via `@cache`.
 
 **Reproduced by:** `uv run python -m scripts.measure lenient-text-fields`
 
-### 10.10 Corrections cutoff (2026-05-27 combined sweep)
+### 10.10 Corrections cutoff (2026-05-29 combined sweep)
 
 Justifies `_CUTOFF = 0.8` in `src/galaxy_tool_xml/corrections.py`.
-Sweeps the cutoff value over the 351 tools whose no-valid-profile
+Sweeps the cutoff value over the 348 tools whose no-valid-profile
 reason is "XSD does not declare attribute used by tool" — the
 population most likely to harbour real attribute typos — and counts
 how many produce at least one attribute correction at each cutoff.
 
 | Cutoff | Tools with ≥1 attribute suggestion | Total attribute suggestions emitted |
 |---:|---:|---:|
-| 0.60 | 87 (24.8%) | 179 |
-| 0.70 | 72 (20.5%) | 144 |
-| 0.75 | 49 (14.0%) | 94 |
-| 0.80 (current default) | 49 (14.0%) | 93 |
-| 0.85 | 40 (11.4%) | 66 |
-| 0.90 | 11 (3.1%) | 20 |
+| 0.60 | 87 (25.0%) | 179 |
+| 0.70 | 72 (20.7%) | 144 |
+| 0.75 | 49 (14.1%) | 94 |
+| 0.80 (current default) | 49 (14.1%) | 93 |
+| 0.85 | 40 (11.5%) | 66 |
+| 0.90 | 11 (3.2%) | 20 |
 
 **Conclusion:** `0.80` sits on the conservative end of a small
 plateau (`0.75` → `0.80` adds zero new tools, only loosens
@@ -488,28 +488,28 @@ to support a change.
 
 **Reproduced by:** `uv run python -m scripts.measure corrections-cutoff`
 
-### 10.11 Cross-source presence (2026-05-27 combined sweep)
+### 10.11 Cross-source presence (2026-05-29 combined sweep)
 
 Justifies the `presence` column on every combined-data row and the
 *"Failures by source presence"* section in
 `docs/combined_corpus_stats.md`. Match key is `tool_id` (logical
 identity) — see §6 row on the column.
 
-**Overall presence**, keyed on `tool_id`, across 9,410 unique tools:
+**Overall presence**, keyed on `tool_id`, across 9,358 unique tools:
 
 | Bucket | Tools | % |
 |---|---:|---:|
-| `github_only`    | 248   | 2.6%  |
-| `toolshed_only`  | 4,401 | 46.8% |
-| `both`           | 4,761 | 50.6% |
+| `github_only`    | 227   | 2.4%  |
+| `toolshed_only`  | 4,465 | 47.7% |
+| `both`           | 4,666 | 49.9% |
 
-**Failing-tool presence**, across the 761 distinct failures:
+**Failing-tool presence**, across the 750 distinct failures:
 
 | Bucket | Tools | % |
 |---|---:|---:|
-| `github_only`    | 40  | 5.3%  |
-| `toolshed_only`  | 551 | 72.4% |
-| `both`           | 170 | 22.3% |
+| `github_only`    | 38  | 5.1%  |
+| `toolshed_only`  | 560 | 74.7% |
+| `both`           | 152 | 20.3% |
 
 **Failures × source cross-tab** — the same numbers the new stats
 section reports, deduped by sha256 to reconcile with the
@@ -517,24 +517,26 @@ per-category index pages under `docs/corpus_data/failures/`:
 
 | Source | Failures | With sibling in other source |
 |---|---:|---:|
-| github   | 135 | 95 |
-| toolshed | 626 | 75 |
+| github   | 123 | 85 |
+| toolshed | 627 | 67 |
 
-**Match-key choice (sanity check):** the corpus has 3,629 cross-source
-matches under `tool_id` and the *same* 3,629 under
+**Match-key choice (sanity check):** the corpus has 3,569 cross-source
+matches under `tool_id` and essentially the same (3,568) under
 `(tool_id, basename(path))`. Tightening the key gains nothing at the
-corpus level and gives only 9 fewer matches on the failure subset
-(122 vs 131); the simpler `tool_id` key wins. Byte-identical (`sha256`)
-matching is much stricter — 3,161 across the whole corpus, 43 on the
+corpus level and gives only 7 fewer matches on the failure subset
+(124 vs 131); the simpler `tool_id` key wins. Byte-identical (`sha256`)
+matching is much stricter — 3,118 across the whole corpus, 40 on the
 failure subset — and is captured separately by the Sources Unique /
-Duplicates table in `docs/combined_corpus_stats.md`.
+Duplicates table in `docs/combined_corpus_stats.md`. These match-key
+counts are emitted by the *Match-key sanity check* block of the
+`cross-source-presence` measurement below.
 
 **Conclusion:** about half the unique-tool population lives in both
 corpora by logical identity. Among the failing population, that share
-drops to 22% — most failing toolshed tools (72%) have no github
+drops to 20% — most failing toolshed tools (75%) have no github
 sibling at all and are unlikely to be silently superseded by an
-updated copy elsewhere. The 170 toolshed failures with a github
-sibling are exactly the population a future "is this maintained on
+updated copy elsewhere. The 152 failures present in both sources are
+exactly the population a future "is this maintained on
 github?" triage workflow would surface first.
 
 **Reproduced by:** `uv run python -m scripts.measure cross-source-presence`
