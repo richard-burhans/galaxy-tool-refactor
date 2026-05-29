@@ -328,6 +328,14 @@ reproducible command for any data-driven claim.
     (56 below latest) — `Upgrade19_01` advances 9, `Upgrade24_1` 97,
     `Upgrade25_1` 5, leaving residual 24.1 (53), 21.05/21.09/24.0 (1 each).
     Still 0 non-idempotent / no-repair / post-validate-failed / crashed.
+  - **`Upgrade24_0` added (24.0 → 24.1).** The lone 24.0 tool (`phac-nml`
+    `kat_filter`) stuck on 24.1 forbidding `<filter>` inside a `<collection>`'s
+    child `<data>`. `Upgrade24_0` (§ below) hoists an all-or-nothing identical
+    child filter up to the `<collection>` (it pulled in the deferred
+    `Cursor.add_child` primitive); the sweep now reaches latest on **8 552**
+    (55 below) — per-step 9 / 1 / 97 / 5 from 19.01 / 24.0 / 24.1 / 25.1,
+    leaving residual 24.1 (53), 21.05/21.09 (1 each). Still 0 non-idempotent /
+    no-repair / post-validate-failed / crashed.
 - **`Upgrade24_1` (24.1 → 24.2):** empirically the only 24.2 delta corpus tools
   trip on is the `format` attribute gaining a pattern facet — `FormatList`
   (`<param>`, comma-separated `[a-z0-9._-]` tokens) and `Format` (`<data>`, a
@@ -348,6 +356,20 @@ reproducible command for any data-driven claim.
   identity, not a recovery of author intent — which is the reason it was a
   judgment call (a one-repo corpus signal); the placeholder is safe because
   nothing references it, and it carries every one of the 9 tools to latest.
+- **`Upgrade24_0` (24.0 → 24.1):** 24.1 stopped allowing `<filter>` inside a
+  `<collection>`'s child `<data>` (a collection element admits only `actions` /
+  `change_format`); a top-level output `<data><filter>` is still fine. The lone
+  corpus tool (`kat_filter`) had a `paired` collection whose two `<data>`
+  children carried the *same* filter — which is an all-or-nothing condition on
+  the whole collection — so the codemod hoists one filter to the `<collection>`
+  and drops the per-`<data>` ones (semantics-preserving). It refuses the cases
+  where the restructure would not be equivalent: child filters that differ, a
+  partially-filtered collection, or a collection that already has its own
+  `<filter>` — those stay stuck and are reported. This was the first consumer of
+  the previously-deferred `Cursor.add_child` primitive (the hoisted filter is a
+  new element). Like 19.01 it was a judgment call on a one-tool corpus signal,
+  taken because the restructure is clean and the tool is real (present in both
+  github and toolshed).
 - **Alternative:** direct-to-latest monolithic upgrade codemods; or making
   upgrades opt-in rather than canonical.
 - **Why:** Single-step codemods keyed by from-version match how Galaxy's schema
@@ -368,12 +390,14 @@ reproducible command for any data-driven claim.
   was extended to also normalize `ftype` (24.2 pattern-restricts it like
   `format`); `Upgrade25_1` (25.1 → 26.0) drops the obsolete top-level
   `<trackster_conf>` element, which pulled in the deferred `Cursor.remove()`
-  primitive; `Upgrade19_01` (19.01 → 19.05) then names unnamed output `<data>`.
-  The remaining sticking points are documented in `PLAN.md` as
-  needed-but-deferred — each requires a semantic decision (restructure a
-  `<collection>`'s filtered `<data>` for 24.0; macro-token / empty /
-  multi-format handling for the 24.1 residual), so they are reported by the
-  discovery sweep rather than auto-fixed.
+  primitive; `Upgrade19_01` (19.01 → 19.05) names unnamed output `<data>`; and
+  `Upgrade24_0` (24.0 → 24.1) hoists identical collection-child filters (pulling
+  in the deferred `Cursor.add_child` primitive). The remaining sticking points
+  are documented in `PLAN.md` as needed-but-deferred — the 24.1 residual needs
+  macro-token / empty / multi-format handling, and the 21.05 / 21.09 singletons
+  are tool bugs (an unsupported `has_size/@delta_frac`; an `output_collection`
+  `type="pdf"`/`"tabular"`), so they are reported by the discovery sweep rather
+  than auto-fixed.
 - **Declined — collection-type whitespace normalization (`Upgrade22_1`).** The
   22.01 schema pattern-restricted `collection_type`/`type` to a `(list|paired)`
   grammar (broadened at 25.0 to add `paired_or_unpaired`/`record`). A codemod
