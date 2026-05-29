@@ -7,10 +7,11 @@ remain in this package (GTX001 indent, GTX003 blank line,
 GTX004 empty-element shorthand); the former structural rules GTX002
 (`<param>` attribute order) and GTX005 (`<tool>` attribute order) have
 moved to `galaxy-tool-xml-codemod` as `ReorderParamAttributes` and
-`ReorderToolAttributes`. The codemod package is an optional
-`[canonical]` extra of this package; fmt's CLI orchestrates both
-layers when the extra is installed. See `docs/decisions.md` §D10 for
-the architecture split.
+`ReorderToolAttributes`. This package — library **and** CLI — is now
+cosmetic-only; the former `[canonical]` extra was removed and all
+cross-tier orchestration moved to the tier-4 app
+(`galaxy-tool-refactor`). See `docs/decisions.md` §D12 (which
+supersedes the §D10 optional-extra split).
 
 The corpus sweep parsed 4,095 `<tool>` documents across 21 public repos;
 3,933 validated under profile `26.1` and were format-checked: 100%
@@ -81,11 +82,12 @@ configured.
 
 ### M2 — CLI ✅
 
-`galaxy-tool-xml-fmt FILE...` writes canonical formatting back to each
+`galaxy-tool-xml-fmt FILE...` writes cosmetic formatting back to each
 file in place. Mirrors `black`'s ergonomics: `--check`, `--diff`,
-`--quiet`, recursive directory discovery. The CLI also performs
-optional structural canonicalisation via `[canonical]` extra (see
-`docs/decisions.md` §D10).
+`--quiet`, recursive directory discovery. The CLI is **cosmetic-only**;
+structural canonicalisation and profile upgrades are the tier-4 app's
+job (`galaxy-tool-refactor format` / `upgrade`). See `docs/decisions.md`
+§D12 (which superseded the §D10 optional-extra design).
 
 ### M3 — Attribute / element ordering rules → moved to codemod tier
 

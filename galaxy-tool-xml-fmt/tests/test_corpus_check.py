@@ -111,6 +111,27 @@ def test_rule_stats_fmt_table_renders_a_row() -> None:
     assert any("| GTX001 |" in line and "| 99 |" in line for line in table)
 
 
+def test_rule_stats_page_has_reference_table_above_isolation_tables() -> None:
+    """The GTX glossary must precede both isolated-rule tables, covering all 12."""
+    lines = corpus_check._rule_stats_lines(
+        profile="26.1",
+        fmt_sweeps=[corpus_check._FmtRuleSweep(code="GTX001", validated=1)],
+        codemod_rows=[
+            ("GTX002", "ReorderParamAttributes", corpus_check._CodemodSweepState())
+        ],
+        upgrade_state=None,
+    )
+    ref = lines.index("## Rule reference")
+    fmt_tbl = lines.index("## fmt rules (isolated)")
+    codemod_tbl = lines.index("## codemods (isolated)")
+    assert ref < fmt_tbl < codemod_tbl
+    expected = {cls.meta.code for cls in all_rules()} | {
+        cls.meta.code for cls in coded_codemods()
+    }
+    glossary = "\n".join(lines[ref:fmt_tbl])
+    assert all(code in glossary for code in expected)
+
+
 def test_rule_stats_upgrade_discovery_lists_sticking_points() -> None:
     """UpgradeToLatest's isolated discovery shows reach + sticking-point rows."""
     from galaxy_tool_xml.profiles import latest_profile

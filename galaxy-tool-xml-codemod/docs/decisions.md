@@ -179,6 +179,15 @@ reproducible command for any data-driven claim.
   output you'll get when you run `galaxy-tool-xml-fmt` with the
   `[canonical]` extra installed."
 
+> **Update 2026-05-29 (§9 + §10):** the `[canonical]` extra was removed
+> and fmt's CLI reverted to cosmetic-only; cross-tier orchestration now
+> lives in the tier-4 app (`galaxy-tool-refactor-cli`), whose `format`
+> command runs `CANONICAL_CODEMODS` and `upgrade` command runs
+> `AUTO_UPGRADE_CODEMODS`. The §9 independence principle (fmt never
+> depends on codemod) and the §10 `CANONICAL_CODEMODS` name both still
+> hold — only the *mechanism* (where the tuple is consumed) changed. See
+> §16 and `galaxy-tool-xml-fmt/docs/decisions.md` §D12.
+
 ## 11. `FixTypos` — a validation-driven repair codemod that overrides `apply`
 
 **Date:** 2026-05-28.

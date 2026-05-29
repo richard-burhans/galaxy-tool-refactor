@@ -3,9 +3,12 @@
 ## Status
 
 **M1–M3.5 shipped** (2026-05-28). M4 (matcher language) and M5
-(Cheetah reference resolver) remain. fmt's CLI now consumes this
-package's `CANONICAL_CODEMODS` tuple via an optional `[canonical]`
-extra; fmt's library is cosmetic-only and does not depend on codemod.
+(Cheetah reference resolver) remain. The tier-4 app
+(`galaxy-tool-refactor-cli`) consumes this package's pipeline contracts —
+`CANONICAL_CODEMODS` (its `format` command) and `AUTO_UPGRADE_CODEMODS`
+(its `upgrade` command); fmt's library and CLI are cosmetic-only and do
+not depend on codemod (the former `[canonical]` extra was removed — see
+`galaxy-tool-xml-fmt/docs/decisions.md` §D12).
 
 The original architecture lives in `docs/architecture.md` (a working
 copy forked from `galaxy-tool-xml/docs/codemod-architecture.md`); it
@@ -102,10 +105,11 @@ been ported as proper codemods (verb-noun naming, TDD):
   (was fmt GTX002). Lifts `_IUC_PRIORITY` verbatim.
 - `codemods/reorder_tool_attributes.py::ReorderToolAttributes`
   (was fmt GTX005). Lifts `_TOOL_PRIORITY` verbatim.
-- `canonical.py` exposes `CANONICAL_CODEMODS: tuple[type[CodemodCommand], ...]`.
-  fmt's CLI consumes it as an **optional** dependency via the
-  `[canonical]` extra; fmt's library is unaffected (see decisions.md
-  §§9–10).
+- `canonical.py` exposes `CANONICAL_CODEMODS` and `AUTO_UPGRADE_CODEMODS`
+  (`tuple[type[CodemodCommand], ...]`). The tier-4 app
+  (`galaxy-tool-refactor-cli`) consumes them; fmt is cosmetic-only and does
+  not depend on codemod (see decisions.md §16 and
+  `galaxy-tool-xml-fmt/docs/decisions.md` §D12).
 - `scripts/corpus_check.py` has a `codemod` subcommand that drives one
   codemod across the corpus, asserts idempotence (re-parsing bytes
   between passes) + post-codemod `validate_tool`, and retains
