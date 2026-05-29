@@ -16,13 +16,19 @@ Tools fail with uppercase (``BAM``, ``TXT``), surrounding/embedded spaces
 (``fa, fasta``, ``txt ``), or empty values. This codemod normalizes every
 ``format`` / ``ftype`` attribute — lowercase each comma-separated token and
 strip its whitespace — which is a semantics-preserving fix (Galaxy datatype
-extensions are lowercase, and whitespace was never significant). Values it
-cannot safely coerce into the pattern are left untouched, so the tool stays
-stuck and the discovery sweep reports it:
+extensions are lowercase, and whitespace was never significant). A value with
+no coercible token (``format=""``, all-whitespace, or only commas) is
+*dropped*: an empty datatype restriction is no restriction, and ``""`` violates
+the pattern, so removing the attribute both fixes validation and preserves
+behaviour. What it still cannot safely coerce is left untouched, so the tool
+stays stuck and the discovery sweep reports it:
 
-- an empty value normalizes to empty (no change);
 - a ``<data>`` comma-list (e.g. ``fasta,fastq``) cannot become a single
-  ``Format`` token without guessing which datatype to keep, so it is left.
+  ``Format`` token without guessing which datatype to keep, so it is left;
+- a non-datatype value (``?``, ``plain text``, a Cheetah ``$var``) has no
+  coercion;
+- a coercible value living in an imported macro file is unreachable here (this
+  codemod mutates only the tool's own tree) — see ``docs/decisions.md`` §14.
 
 It only does structural normalization; ``UpdateProfile`` (run by the
 ``UpgradeToLatest`` loop) re-declares ``profile=`` afterwards. See
@@ -49,9 +55,10 @@ def _normalize_format(value: str, /) -> str:
     """Lowercase and strip whitespace from each comma-separated token.
 
     Empty tokens are dropped, so ``"fa, fasta"`` → ``"fa,fasta"`` and ``"BAM"``
-    → ``"bam"``. An all-empty value returns ``""`` unchanged (nothing safe to
-    do); a ``<data>`` comma-list round-trips unchanged too — neither is coerced
-    into the pattern here.
+    → ``"bam"``. A value with no non-empty tokens (``""``, all-whitespace, or
+    only commas) returns ``""`` — the caller drops the attribute. A ``<data>``
+    comma-list round-trips unchanged (not coerced into the single-token pattern
+    here).
     """
     tokens = [token.strip().lower() for token in value.split(",")]
     return ",".join(token for token in tokens if token)
@@ -70,5 +77,10 @@ class Upgrade24_1(CodemodCommand):
                 if value is None:
                     continue
                 normalized = _normalize_format(value)
-                if normalized != value:
+                if not normalized:
+                    # No coercible token (empty, all-whitespace, only commas):
+                    # an empty datatype restriction is no restriction, and ""
+                    # violates the 24.2 pattern — drop the attribute.
+                    cursor.delete_attribute(attribute)
+                elif normalized != value:
                     cursor.set_attribute(attribute, normalized)

@@ -138,7 +138,9 @@ reports each `STICKING POINT <version>` where real tools stall.
 **Shipped:**
 
 - `Upgrade24_1` (24.1 → 24.2): normalize `format` / `ftype` to the new
-  lowercase-token pattern. Advances ~97 corpus tools.
+  lowercase-token pattern, and drop a value that normalizes to empty
+  (`format=""` restricts nothing and violates the pattern). Advances 111
+  corpus tools (97 by normalization + 14 by empty-drop).
 - `Upgrade25_1` (25.1 → 26.0): drop the obsolete top-level
   `<trackster_conf>` element.
 - `Upgrade19_01` (19.01 → 19.05): synthesize a deterministic, collision-free
@@ -156,10 +158,19 @@ investigation** (each needs a semantic decision, so not auto-fixed; the
 orchestrator leaves these tools at their best reachable profile and the
 discovery sweep keeps reporting them):
 
-- **24.1 residual (~53 tools)** — `format`/`ftype` values that are macro
-  tokens (`@format@`, `@intypes@`), empty (`format=""`), or a `<data>`
-  comma-list (a single-token `Format` cannot hold a list). Needs
-  macro-aware handling and a rule for empty / multi-format values.
+- **24.1 residual (39 tools, after `Upgrade24_1` dropped reachable empty
+  `format`/`ftype` — see Shipped above and §14).** The remaining 39 split into:
+  - **~18 — coercible value in an imported macro file.** The value (`Rdata`,
+    `GTiff`, `GenBank`) would normalize clean, but it lives in a `<macros>`
+    `<import>`ed file, and codemods mutate only the tool's own tree. Closing
+    this needs **cross-file / macro-aware normalization** — an architectural
+    decision (a shared macro file is used by sibling tools; the framework and
+    fmt's write path are single-file today), not a one-step codemod.
+  - **~11 — non-datatype junk** (`?`, `fasta|fastq`, `plain text`,
+    `$output_type`, `Unlabeled data file`): no safe coercion.
+  - **~9 — single-token-context comma-list** (`<data format="fasta,fastq">`):
+    `Format` holds one token; picking one would drop the others.
+  - **2 — empty value in a macro file**: same macro-reachability problem.
 - **21.09 → 22.01 (1 tool)** — 22.01 pattern-restricted `output_collection/@type`
   and `param/@collection_type` to a `(list|paired)` grammar (25.0 later broadened
   it to add `paired_or_unpaired`/`record`). The sticking tool
