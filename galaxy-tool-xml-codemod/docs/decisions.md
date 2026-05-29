@@ -355,6 +355,15 @@ reproducible command for any data-driven claim.
   name for 19.01; restructure a `<collection>`'s filtered `<data>` for 24.0;
   macro-token / empty / multi-format handling for the 24.1 residual), so they
   are reported by the discovery sweep rather than auto-fixed.
+- **Declined — collection-type whitespace normalization (`Upgrade22_1`).** The
+  22.01 schema pattern-restricted `collection_type`/`type` to a `(list|paired)`
+  grammar (broadened at 25.0 to add `paired_or_unpaired`/`record`). A codemod
+  mirroring `Upgrade24_1`'s `format`/`ftype` whitespace fix was sized at exactly
+  **one** corpus tool (`qiime2_core__tools__import_fastq`, `"list, list:paired"`),
+  which is itself excluded from the sweep by the eligibility anchor — so it was
+  not built (`Upgrade24_1` advances ~97; the bar is not one). Reproduced-by:
+  `scripts/measure.py collection-type-normalization` (+ `test_measure.py`'s
+  drift-guard against the latest XSD grammar); rationale in `PLAN.md`.
 - **Runtime missing-upgrade reporting:** the discovery sweep only sees corpus
   tools. So `UpgradeToLatest` also reports at runtime — `logger.warning` plus a
   `missing_upgrade()` accessor — whenever it stalls at a sub-latest profile

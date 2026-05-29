@@ -156,11 +156,28 @@ discovery sweep keeps reporting them):
 - **24.0 → 24.1 (1 tool)** — `<filter>` inside a `<collection>`'s `<data>`
   is no longer allowed (only `actions`/`change_format`). Top-level `<data>`
   filters are fine; the collection case needs structural restructuring.
-- **21.09 → 22.01 (1 tool)** — `output_collection/@type` and
-  `param/@collection_type` got a `(list|paired)` pattern; the tool uses
-  `type="pdf"`/`type="tabular"` (wrong) plus a space in `collection_type`.
+- **21.09 → 22.01 (1 tool)** — 22.01 pattern-restricted `output_collection/@type`
+  and `param/@collection_type` to a `(list|paired)` grammar (25.0 later broadened
+  it to add `paired_or_unpaired`/`record`). The sticking tool
+  (`pdaug_peptide_cd_spectral_analysis`) uses `output_collection type="pdf"` /
+  `type="tabular"` — datatypes where a collection structure belongs, not coercible.
 - **21.05 → 21.09 (1 tool)** — `has_size/@delta_frac` removed; no obvious
-  equivalent.
+  equivalent. The attribute is rejected at every profile ≥ 21.09 (still at
+  latest), so it is a tool bug, not a one-step version delta.
+
+**Considered and declined — collection-type whitespace normalization.** A
+`Upgrade22_1` codemod analogous to `Upgrade24_1`'s `format`/`ftype` whitespace
+normalization could strip stray whitespace from `collection_type`/`type` values
+(e.g. `"list, list:paired"` → `"list,list:paired"`). Sized against the full
+combined corpus (`measure.py collection-type-normalization`): exactly **1**
+corpus value is whitespace-fixable (`qiime2_core__tools__import_fastq`), and that
+tool is excluded from the codemod sweep anyway — it declares profile `22.05` but
+only validates up to 21.09, so the eligibility anchor (`corpus_test_profile_for`,
+which scans the declared profile forward) drops it. Versus `Upgrade24_1`'s ~97
+tools, a one-tool codemod (that also requires relaxing the eligibility anchor to
+even exercise it) does not earn its keep. Not built. The other corpus
+pattern-violations are not whitespace (the `pdf`/`tabular` values above);
+`paired_or_unpaired` is correct schema evolution (valid 25.0+), not a violation.
 
 ## Open questions — resolved
 

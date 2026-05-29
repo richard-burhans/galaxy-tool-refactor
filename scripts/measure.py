@@ -28,6 +28,7 @@ import argparse
 import hashlib
 import json
 import logging
+import re
 import subprocess
 import sys
 from collections import Counter, defaultdict
@@ -54,6 +55,12 @@ def _repo_root() -> Path:
 
 def _corpus_root() -> Path:
     return _repo_root() / "corpus"
+
+
+def _display_path(path: Path) -> str:
+    """Render *path* repo-relative (clickable) when it lives under the repo."""
+    root = _repo_root()
+    return str(path.relative_to(root)) if path.is_relative_to(root) else str(path)
 
 
 def _combined_data_path() -> Path:
@@ -257,6 +264,22 @@ class _ParamTypesResult:
     n_tools_parsed: int
     n_params_total: int
     type_counts: Counter[str]
+
+
+@dataclass
+class _CollectionTypeNormalizationResult:
+    n_unique_tools: int
+    n_unparseable_skipped: int
+    n_values_total: int
+    n_already_valid: int
+    n_whitespace_fixable: int
+    n_other_violation: int
+    # (tool_path, attr, raw_value, normalized_value) for each fixable value.
+    fixable_exemplars: list[tuple[str, str, str, str]]
+    # ((tag, attr, value), count) for values that violate the grammar even
+    # after whitespace normalization (e.g. a datatype where a collection
+    # structure belongs).
+    other_violation_values: list[tuple[tuple[str, str, str], int]]
 
 
 # --- measurements ---------------------------------------------------------------
@@ -1074,6 +1097,153 @@ def _run_param_types(args: argparse.Namespace) -> None:
     _report_param_types(_measure_param_types(corpus_root=args.corpus_root))
 
 
+# --- measurement: collection-type-normalization ---------------------------------
+#
+# Sizes a hypothetical `Upgrade22_1`-style codemod that would whitespace-
+# normalize collection-structure attribute values, the way Upgrade24_1 already
+# normalizes ftype/format (codemod docs/decisions.md §14). The 22.01 schema
+# pattern-restricted `collection_type`/`type` to a `(list|paired|…)` grammar;
+# 25.0 broadened the grammar to admit `paired_or_unpaired`/`record`. A tool can
+# therefore stick below latest if such a value carries stray whitespace
+# (`"list, list:paired"`). This measures how many corpus values are
+# whitespace-fixable vs. genuinely-wrong, to judge whether the codemod earns
+# its keep.
+
+# Token grammar for collection-type-family attributes, transcribed from the
+# latest vendored XSD's ``CollectionType`` (colon-only) and ``CollectionTypeList``
+# (comma-or-colon) simpleTypes. ``test_measure.py`` guards this against schema
+# regen drift. ``type`` (on ``<collection>``/``<output_collection>``) is
+# colon-only; ``collection_type`` may also use commas.
+_COLLECTION_TYPE_MEMBERS: tuple[str, ...] = (
+    "list",
+    "paired",
+    "paired_or_unpaired",
+    "record",
+)
+
+# Values carrying a macro placeholder or Cheetah template marker — skipped,
+# since the corpus walk does not expand macros (same limitation as param-types).
+_TEMPLATE_MARKER = re.compile(r"[@${}#]")
+
+
+@cache
+def _collection_type_patterns() -> dict[str, re.Pattern[str]]:
+    """Compile the per-attribute collection-type grammars from the member list.
+
+    Keyed by attribute name: ``type`` is colon-only; ``collection_type`` also
+    permits commas (the XSD ``CollectionTypeList`` form).
+    """
+    members = "|".join(_COLLECTION_TYPE_MEMBERS)
+    return {
+        "type": re.compile(rf"^({members})([:]({members}))*$"),
+        "collection_type": re.compile(rf"^({members})([:,]({members}))*$"),
+    }
+
+
+def _collection_type_candidates(
+    element: etree._Element,
+) -> Iterable[tuple[str, re.Pattern[str]]]:
+    """Yield ``(attr, pattern)`` for collection-structure attrs on *element*.
+
+    ``collection_type`` is collection-typed on any element; ``type`` only on
+    ``<collection>``/``<output_collection>`` (elsewhere it is a param/data type).
+    """
+    patterns = _collection_type_patterns()
+    if element.tag in ("collection", "output_collection"):
+        yield "type", patterns["type"]
+    yield "collection_type", patterns["collection_type"]
+
+
+def _measure_collection_type_normalization(
+    *, corpus_root: Path
+) -> _CollectionTypeNormalizationResult:
+    """Classify every literal collection-structure attribute value in the corpus."""
+    seen_sha: set[str] = set()
+    n_tools = 0
+    n_skipped = 0
+    n_already = 0
+    n_fixable = 0
+    n_other = 0
+    fixable_exemplars: list[tuple[str, str, str, str]] = []
+    other_values: Counter[tuple[str, str, str]] = Counter()
+
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        sha = hashlib.sha256(path.read_bytes()).hexdigest()
+        if sha in seen_sha:
+            continue
+        seen_sha.add(sha)
+        root = _parse_tool_root(path)
+        if root is None:
+            n_skipped += 1
+            continue
+        n_tools += 1
+        for element in root.iter():
+            if not isinstance(element.tag, str):
+                continue
+            for attr, pattern in _collection_type_candidates(element):
+                value = element.get(attr)
+                if value is None or _TEMPLATE_MARKER.search(value):
+                    continue
+                if pattern.match(value):
+                    n_already += 1
+                    continue
+                normalized = re.sub(r"\s+", "", value)
+                if normalized and pattern.match(normalized):
+                    n_fixable += 1
+                    if len(fixable_exemplars) < 20:
+                        fixable_exemplars.append(
+                            (_display_path(path), attr, value, normalized)
+                        )
+                else:
+                    n_other += 1
+                    other_values[(element.tag, attr, value)] += 1
+
+    return _CollectionTypeNormalizationResult(
+        n_unique_tools=n_tools,
+        n_unparseable_skipped=n_skipped,
+        n_values_total=n_already + n_fixable + n_other,
+        n_already_valid=n_already,
+        n_whitespace_fixable=n_fixable,
+        n_other_violation=n_other,
+        fixable_exemplars=fixable_exemplars,
+        other_violation_values=other_values.most_common(),
+    )
+
+
+def _report_collection_type_normalization(
+    measurement: _CollectionTypeNormalizationResult,
+) -> None:
+    print("\n=== collection-type-normalization ===")
+    print(
+        f"Unique tools parsed (sha256-deduped): {measurement.n_unique_tools}; "
+        f"unparseable skipped: {measurement.n_unparseable_skipped}"
+    )
+    total = measurement.n_values_total
+    print(
+        f"Literal collection-structure attr values ({total} total, "
+        f"macro/template values skipped):"
+    )
+    print(f"  already valid at latest:        {measurement.n_already_valid}")
+    print(f"  whitespace-fixable:             {measurement.n_whitespace_fixable}")
+    print(f"  other (not whitespace-fixable): {measurement.n_other_violation}")
+    if measurement.fixable_exemplars:
+        print("\nWhitespace-fixable values:")
+        for tool_path, attr, raw, normalized in measurement.fixable_exemplars:
+            print(f"  {tool_path}\n    {attr}: {raw!r} -> {normalized!r}")
+    if measurement.other_violation_values:
+        print("\nOther violations (value × occurrences):")
+        for (tag, attr, value), count in measurement.other_violation_values:
+            print(f"  {count:4d}  <{tag} {attr}={value!r}>")
+
+
+def _run_collection_type_normalization(args: argparse.Namespace) -> None:
+    _report_collection_type_normalization(
+        _measure_collection_type_normalization(corpus_root=args.corpus_root)
+    )
+
+
 # --- passthrough: corpus-check --------------------------------------------------
 #
 # corpus_check.py is the canonical (and slow) sweep step. Exposing it here as a
@@ -1110,6 +1280,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "lenient-text-fields": _run_lenient_text_fields,
     "corrections-cutoff": _run_corrections_cutoff,
     "param-types": _run_param_types,
+    "collection-type-normalization": _run_collection_type_normalization,
 }
 
 _PASSTHROUGH: dict[str, Callable[[argparse.Namespace, list[str]], int]] = {
