@@ -69,6 +69,7 @@ from packaging.version import Version
 
 from scripts._shared import PROFILE_NONE as _PROFILE_NONE
 from scripts._shared import row_source as _row_source
+from scripts._shared import unique_by_sha as _unique_by_sha
 
 logger = logging.getLogger("corpus_check")
 
@@ -860,14 +861,7 @@ def _stamp_presence(rows: list[dict[str, str | int | None]]) -> None:
 
 def _format_presence_failures(rows: list[dict[str, str | int | None]]) -> list[str]:
     """Render the ``Failures by source presence`` section for the combined view."""
-    seen: set[str] = set()
-    unique: list[dict[str, str | int | None]] = []
-    for row in rows:
-        sha = row.get("sha256")
-        if not isinstance(sha, str) or sha in seen:
-            continue
-        seen.add(sha)
-        unique.append(row)
+    unique = _unique_by_sha(rows)
     failures = [
         row
         for row in unique
@@ -987,13 +981,8 @@ def _write_failure_details(
         tool_id: tuple(sorted(repos))
         for tool_id, repos in github_siblings_unsorted.items()
     }
-    seen: set[str] = set()
     by_reason: dict[str, list[dict[str, str | int | None]]] = {}
-    for row in rows:
-        sha = row.get("sha256")
-        if not isinstance(sha, str) or sha in seen:
-            continue
-        seen.add(sha)
+    for row in _unique_by_sha(rows):
         for reason in (
             row.get("expansion_failure_reason"),
             row.get("no_valid_reason"),
@@ -1406,7 +1395,6 @@ def _validate_main(argv: list[str]) -> int:
 # fmt subcommand
 # =============================================================================
 
-from galaxy_tool_xml_fmt import format as _format_pipeline  # noqa: E402, F401
 from galaxy_tool_xml_fmt.edits import apply_edits  # noqa: E402
 from galaxy_tool_xml_fmt.format import all_rules  # noqa: E402
 from galaxy_tool_xml_fmt.serializer import to_bytes  # noqa: E402

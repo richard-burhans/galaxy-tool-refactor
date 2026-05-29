@@ -12,23 +12,25 @@ The **structure** tier of a three-layer architecture:
 ## Status
 
 M1–M3.5 shipped: framework primitives (`Module`, `Cursor`,
-`CodemodCommand`), the two structural codemods (`ReorderParamAttributes`,
-`ReorderToolAttributes`), the `CANONICAL_CODEMODS` public contract
-consumed by fmt's CLI, and a `corpus_check.py codemod` subcommand that
-sweeps a codemod across the corpus and retains failures as regression
-fixtures.
+`CodemodCommand`), the `corpus_check.py codemod` sweep (retains failures
+as regression fixtures), and the `CANONICAL_CODEMODS` public contract
+consumed by fmt's CLI. That contract now runs four codemods, in order:
 
-Validation-driven codemods also ship and run in the canonical pipeline:
-`FixTypos` (repairs near-miss spelling typos so a
-well-formed-but-globally-invalid tool validates), `UpdateProfile`
-(declares the newest profile the tool validates at, bump-up-only), and
-`UpgradeToLatest` (loops `UpdateProfile` + single-step `upgrade_vN`
-codemods from `upgrades.py` to bring a tool to the latest profile). The
-canonical order is `FixTypos → UpgradeToLatest → ReorderParamAttributes →
-ReorderToolAttributes`. The upgrade registry is grown empirically: the
-`corpus_check codemod` sweep reports `STICKING POINT` versions still
-needing an `upgrade_vN`. First upgrade shipped: `Upgrade24_1` (24.1 →
-24.2). See `docs/decisions.md` §11–14.
+`FixTypos → UpgradeToLatest → ReorderParamAttributes → ReorderToolAttributes`
+
+- `FixTypos` — repair near-miss spelling typos so a
+  well-formed-but-globally-invalid tool validates;
+- `UpgradeToLatest` — loop `UpdateProfile` (declare the newest profile the
+  tool validates at, bump-up-only) + single-step `upgrade_vN` codemods from
+  `upgrades.py` to bring a tool to the latest profile (`UpdateProfile` is a
+  building block run *inside* this loop, not a separate canonical entry);
+- `ReorderParamAttributes` / `ReorderToolAttributes` — IUC `<param>` and
+  documented `<tool>` attribute order.
+
+The upgrade registry is grown empirically: the `corpus_check codemod`
+sweep reports `STICKING POINT` versions still needing an `upgrade_vN`, and
+each `upgrade_vN`'s advance count. Upgrades shipped: `Upgrade24_1`
+(24.1 → 24.2), `Upgrade25_1` (25.1 → 26.0). See `docs/decisions.md` §11–14.
 
 M4 (matcher language) and M5 (Cheetah reference resolver) are not yet
 implemented — see `PLAN.md`.
@@ -54,8 +56,8 @@ for codemod_cls in CANONICAL_CODEMODS:
 | `cursor.Cursor` | lxml-backed view with read + typed mutation primitives. |
 | `codemod.CodemodCommand` | Base for user-authored codemods (tag-PascalCase dispatch). |
 | `codemods.fix_typos.FixTypos` | Repair near-miss typos until a globally-invalid tool validates (canonical, runs first). |
-| `codemods.update_profile.UpdateProfile` | Declare the newest profile the tool validates at, bump-up-only. |
-| `upgrades.UpgradeToLatest` | Loop UpdateProfile + single-step upgrades to reach the latest profile (canonical). |
+| `upgrades.UpgradeToLatest` | Canonical. Loop UpdateProfile + single-step upgrades to reach the latest profile. |
+| `codemods.update_profile.UpdateProfile` | Declare the newest profile the tool validates at, bump-up-only. Building block run *inside* `UpgradeToLatest` — not itself a `CANONICAL_CODEMODS` member. |
 | `upgrades.UPGRADE_CODEMODS` | Registry: sticking version → its single-step upgrade codemod. |
 | `codemods.upgrade_24_1.Upgrade24_1` | Single-step 24.1 → 24.2 (normalize `format` / `ftype`). |
 | `codemods.upgrade_25_1.Upgrade25_1` | Single-step 25.1 → 26.0 (drop obsolete `<trackster_conf>`). |

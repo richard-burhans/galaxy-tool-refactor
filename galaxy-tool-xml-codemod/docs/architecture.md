@@ -1,5 +1,11 @@
 # A LibCST-shaped codemod tool over `galaxy-tool-xml`
 
+> **Historical design note — predates implementation.** This is a working
+> copy of the original tier-2 design (package names "(name TBD)", "does not
+> preserve whitespace", etc. reflect that draft). The shipped shape is
+> recorded in `docs/decisions.md` and `PLAN.md`; consult those for current
+> behaviour. Retained for design rationale.
+
 ## Context
 
 The Galaxy tool tooling is being designed as **three separate packages**, each

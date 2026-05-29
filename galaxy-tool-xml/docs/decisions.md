@@ -225,8 +225,9 @@ declared as fmt's `[canonical]` extra, and fmt's CLI orchestrates
 both layers when the extra is installed. Minimal installs (xml + fmt)
 still get a working cosmetic formatter. See
 `galaxy-tool-xml-fmt/docs/decisions.md` §D10 and
-`galaxy-tool-xml-codemod/docs/decisions.md` §9 for the optional-extra
-split rationale.
+`galaxy-tool-xml-codemod/docs/decisions.md` §9 (the split) + §10 (the
+`MANDATORY_CODEMODS` → `CANONICAL_CODEMODS` rename) for the
+optional-extra rationale.
 
 Full design: `docs/codemod-architecture.md` (the original architecture
 note; per-decision rationale on the implementation lives in each
@@ -304,7 +305,7 @@ and validate again later. Originally observed in
 
 | Combined-sweep snapshot | Non-contiguous | Total unique | % |
 |---|---:|---:|---:|
-| 2026-05-27 | 243 | 9,410 | 2.58% |
+| 2026-05-27 | 207 | 9,410 | 2.2% |
 
 **Conclusion:** Assumption 1.6 holds. The `newest_valid_profile`
 implementation stays a linear newest-first scan (§4) — a binary search

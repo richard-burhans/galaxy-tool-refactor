@@ -1,5 +1,12 @@
 # Per-version xsdata models for galaxy-tool-xml
 
+> **Status: IMPLEMENTED — historical design plan.** This describes the
+> per-version model refactor as proposed; it has since shipped. The
+> "Context" below is the *pre-refactor* state (a single model from the
+> then-latest XSD, `galaxy-26.0`); the latest vendored profile is now
+> `26.1` (28 XSDs). For the current state see `CLAUDE.md`, `README.md`,
+> and `docs/decisions.md` §4 / §10. Retained for design rationale.
+
 ## Context
 
 `galaxy-tool-xml` generates one xsdata typed-model package

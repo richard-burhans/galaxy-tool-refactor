@@ -41,6 +41,7 @@ from lxml import etree
 
 from scripts._shared import PROFILE_NONE as _PROFILE_NONE
 from scripts._shared import row_source as _row_source
+from scripts._shared import unique_by_sha as _unique_by_sha
 
 logger = logging.getLogger("measure")
 
@@ -76,19 +77,6 @@ def _load_combined_data(*, path: Path | None = None) -> list[dict[str, object]]:
             f"validate --source combined` first."
         )
     return json.loads(resolved.read_text(encoding="utf-8"))
-
-
-def _unique_by_sha(rows: list[dict[str, object]]) -> list[dict[str, object]]:
-    """Mirror the failure-page first-sha-wins dedup so counts reconcile."""
-    seen: set[str] = set()
-    unique: list[dict[str, object]] = []
-    for row in rows:
-        sha = row.get("sha256")
-        if not isinstance(sha, str) or sha in seen:
-            continue
-        seen.add(sha)
-        unique.append(row)
-    return unique
 
 
 def _validity_columns(rows: list[dict[str, object]]) -> tuple[str, ...]:

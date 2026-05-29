@@ -68,6 +68,12 @@ Edit: TypeAlias = NoOp | SetText | SetTail | ClearText
 
 
 def apply_edits(edits: Iterable[Edit]) -> None:
+    """Apply each edit to its element, dispatching by variant.
+
+    The single place trivia mutations land: ``SetText`` / ``SetTail`` go through
+    the CDATA-safe setters, ``ClearText`` empties a whitespace-only leaf, and
+    ``NoOp`` is skipped.
+    """
     for edit in edits:
         match edit:
             case NoOp():

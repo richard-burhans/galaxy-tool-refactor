@@ -1,5 +1,10 @@
 # A LibCST-shaped codemod tool over `galaxy-tool-xml`
 
+> **Historical design note — predates implementation.** The original tier-2
+> design (placeholder package names, pre-implementation assumptions). The tool
+> shipped as `galaxy-tool-xml-codemod`; its current shape lives in that
+> package's `docs/decisions.md` and `PLAN.md`. Retained for design rationale.
+
 ## Context
 
 The Galaxy tool tooling is being designed as **three separate packages**, each

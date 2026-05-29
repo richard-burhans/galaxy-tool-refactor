@@ -195,8 +195,7 @@ def _walk(
     """Descend the tree and the model classes together, collecting corrections."""
     _check_attributes(element, model_class, corrections)
     vocabulary = _vocabulary(model_class)
-    # Hoisted out of the child loop: list(dict) only depends on the model class,
-    # which is invariant across this element's children.
+    # Bound once: the element vocabulary is the same for every child here.
     element_names = list(vocabulary.elements)
     for child in element:
         if not isinstance(child.tag, str):

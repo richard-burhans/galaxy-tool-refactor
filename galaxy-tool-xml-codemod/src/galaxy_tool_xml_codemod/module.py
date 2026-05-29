@@ -37,4 +37,9 @@ class Module:
 
     @property
     def cursor(self) -> Cursor:
+        """A fresh root ``Cursor``, re-derived from the live document each access.
+
+        Not cached, for the same reason as ``model``: a codemod that mutated the
+        tree must always see the current root, never a stale cursor.
+        """
         return Cursor(self.document.root)
