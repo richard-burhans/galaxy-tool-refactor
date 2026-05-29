@@ -19,8 +19,8 @@ as regression fixtures), and two ordered pipeline contracts run by the
 tier-4 app (`galaxy-tool-refactor-cli`):
 
 - **`CANONICAL_CODEMODS`** = `FixTypos → ReorderParamAttributes →
-  ReorderToolAttributes` — the safe canonical/format pipeline (the app's
-  `format` command). Never changes `profile=`.
+  ReorderToolAttributes → ReorderToolChildren` — the safe canonical/format
+  pipeline (the app's `format` command). Never changes `profile=`.
 - **`AUTO_UPGRADE_CODEMODS`** = `FixTypos → UpgradeToLatest` — the opt-in
   profile-upgrade pipeline (the app's `upgrade` command).
 
@@ -33,10 +33,12 @@ The codemods:
   `upgrades.py` to bring a tool to the latest profile (`UpdateProfile` is a
   building block run *inside* this loop, not a separate pipeline entry);
 - `ReorderParamAttributes` / `ReorderToolAttributes` — IUC `<param>` and
-  documented `<tool>` attribute order.
+  documented `<tool>` attribute order;
+- `ReorderToolChildren` — IUC `<tool>` child-element order (best-practice #52);
+  validity-safe because the `<tool>` content model is order-free (`xs:all`).
 
-Every bundled codemod carries a `RuleMeta` GTX code (GTX002, GTX005–GTX012);
-`catalog.coded_codemods()` enumerates them. See `docs/decisions.md` §15–16.
+Every bundled codemod carries a `RuleMeta` GTX code (GTX002, GTX005–GTX013);
+`catalog.coded_codemods()` enumerates them. See `docs/decisions.md` §15–17.
 
 The upgrade registry is grown empirically: the `corpus_check codemod`
 sweep reports `STICKING POINT` versions still needing an `upgrade_vN`, and
@@ -74,6 +76,7 @@ for codemod_cls in CANONICAL_CODEMODS:
 | `codemods.upgrade_25_1.Upgrade25_1` | Single-step 25.1 → 26.0 (drop obsolete `<trackster_conf>`). |
 | `codemods.reorder_param_attributes.ReorderParamAttributes` | IUC `<param>` attribute order. |
 | `codemods.reorder_tool_attributes.ReorderToolAttributes` | Documented `<tool>` attribute prefix. |
+| `codemods.reorder_tool_children.ReorderToolChildren` | IUC `<tool>` child-element order (#52). |
 | `canonical.CANONICAL_CODEMODS` | Ordered canonical/format pipeline (the app's `format` command). |
 | `canonical.AUTO_UPGRADE_CODEMODS` | Ordered opt-in upgrade pipeline (the app's `upgrade` command). |
 | `catalog.coded_codemods` | Every GTX-coded codemod, sorted by code (for the rule registry). |

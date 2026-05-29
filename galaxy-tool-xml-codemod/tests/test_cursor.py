@@ -292,3 +292,68 @@ def test_add_child_rejects_empty_tag() -> None:
 
     with pytest.raises(ValueError):
         Cursor(etree.fromstring(b"<outputs/>")).add_child("")
+
+
+# ---------------------------------------------------------------------------
+# reorder_children (driven by the ReorderToolChildren codemod)
+# ---------------------------------------------------------------------------
+
+
+def test_reorder_children_applies_canonical_order() -> None:
+    """Child elements are placed in the requested canonical tag order."""
+    from lxml import etree
+
+    root = etree.fromstring(b"<tool><help/><inputs/><description/><command/></tool>")
+    Cursor(root).reorder_children(("description", "command", "inputs", "help"))
+    assert [child.tag for child in root] == [
+        "description",
+        "command",
+        "inputs",
+        "help",
+    ]
+
+
+def test_reorder_children_keeps_unknowns_stably_after_known() -> None:
+    """Tags absent from the order keep their relative position, after the known."""
+    from lxml import etree
+
+    root = etree.fromstring(b"<tool><zeta/><help/><alpha/><command/></tool>")
+    Cursor(root).reorder_children(("command", "help"))
+    assert [child.tag for child in root] == ["command", "help", "zeta", "alpha"]
+
+
+def test_reorder_children_is_noop_when_already_ordered() -> None:
+    """When the order is unchanged, the same element objects stay in place."""
+    from lxml import etree
+
+    root = etree.fromstring(b"<tool><description/><command/><help/></tool>")
+    before = list(root)
+    Cursor(root).reorder_children(("description", "command", "help"))
+    assert list(root) == before
+
+
+def test_reorder_children_skips_when_comment_present() -> None:
+    """A free-floating comment makes reordering a no-op (can't be done safely)."""
+    from lxml import etree
+
+    parser = etree.XMLParser(strip_cdata=False)
+    root = etree.fromstring(
+        b"<tool><help/><!-- c --><description/></tool>", parser=parser
+    )
+    Cursor(root).reorder_children(("description", "help"))
+    assert [child.tag for child in root if isinstance(child.tag, str)] == [
+        "help",
+        "description",
+    ]
+
+
+def test_reorder_children_is_idempotent() -> None:
+    """A second reorder with the same order produces byte-identical output."""
+    from lxml import etree
+
+    root = etree.fromstring(b"<tool><help/><inputs/><description/></tool>")
+    cursor = Cursor(root)
+    cursor.reorder_children(("description", "inputs", "help"))
+    once = etree.tostring(root)
+    cursor.reorder_children(("description", "inputs", "help"))
+    assert etree.tostring(root) == once

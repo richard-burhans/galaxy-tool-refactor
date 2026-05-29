@@ -18,13 +18,16 @@ This package supplies the **structural-refactor framework**: a
 ``CodemodCommand`` visitor base with tag-PascalCase dispatch
 (``visit_Param``, ``visit_Tool``, …), an ``lxml``-backed ``Cursor``
 with typed mutation primitives (``set_attribute``, ``delete_attribute``,
-``rename_attribute``, ``rename_tag``, ``reorder_attributes``, ``remove``,
-``add_child``, ``attribute_names``), a ``Module`` wrapper, a ``parse_module`` entry
+``rename_attribute``, ``rename_tag``, ``reorder_attributes``,
+``reorder_children``, ``remove``, ``add_child``, ``attribute_names``), a
+``Module`` wrapper, a ``parse_module`` entry
 point, and the bundled codemods exposed via two ordered pipeline
 contracts in ``canonical.py``:
 
 - ``CANONICAL_CODEMODS`` = ``FixTypos`` → ``ReorderParamAttributes`` →
-  ``ReorderToolAttributes`` (the safe canonical/format pipeline).
+  ``ReorderToolAttributes`` → ``ReorderToolChildren`` (the safe
+  canonical/format pipeline; ``ReorderToolChildren`` = GTX013, IUC #52
+  element order, validity-safe because ``<tool>`` is ``xs:all``).
 - ``AUTO_UPGRADE_CODEMODS`` = ``FixTypos`` → ``UpgradeToLatest`` (the
   opt-in profile-upgrade pipeline).
 
@@ -32,7 +35,9 @@ contracts in ``canonical.py``:
 single-step ``upgrade_vN`` codemods from ``upgrades.py``) are
 validation-driven and override ``apply``. The upgrade registry is grown
 empirically from ``corpus_check codemod`` discovery sweeps; see
-``docs/decisions.md`` §11–14, and §16 for the canonical/upgrade split.
+``docs/decisions.md`` §11–14, §16 for the canonical/upgrade split, and
+§17–18 for the element-order codemod (GTX013) + the `codemod` sweep's
+`--source combined` default.
 
 **Tier independence:** this package does not depend on fmt. The
 user-facing orchestration — running these pipelines and writing output

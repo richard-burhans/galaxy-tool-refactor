@@ -107,8 +107,8 @@ standalone; none runs the end-to-end workflow. The app
 (tier 3) and owns both commands:
 
 - `galaxy-tool-refactor format` — `CANONICAL_CODEMODS` (repair +
-  attribute order) then fmt's cosmetic rules. Safe, idempotent; never
-  changes `profile=`.
+  attribute order + `<tool>` child-element order) then fmt's cosmetic
+  rules. Safe, idempotent; never changes `profile=`.
 - `galaxy-tool-refactor upgrade` — `AUTO_UPGRADE_CODEMODS` (repair, then
   iterative profile upgrade) then cosmetic formatting. Opt-in, semantic.
 
@@ -124,4 +124,6 @@ fmt-CLI-cosmetic-only reversal, and the `CANONICAL_CODEMODS` /
 `AUTO_UPGRADE_CODEMODS` split; and
 `galaxy-tool-refactor-rules/docs/decisions.md` §D1 (+ codemod §15,
 fmt §D11) for the shared `RuleMeta` extraction and the cross-tier
-GTX registry.
+GTX registry; and `docs/iuc_best_practices.md` (+ codemod §17) for the
+IUC best-practices coverage map and the `<tool>` element-order codemod
+(GTX013).

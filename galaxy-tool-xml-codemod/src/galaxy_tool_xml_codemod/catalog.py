@@ -18,6 +18,9 @@ from galaxy_tool_xml_codemod.codemods.reorder_param_attributes import (
 from galaxy_tool_xml_codemod.codemods.reorder_tool_attributes import (
     ReorderToolAttributes,
 )
+from galaxy_tool_xml_codemod.codemods.reorder_tool_children import (
+    ReorderToolChildren,
+)
 from galaxy_tool_xml_codemod.codemods.update_profile import UpdateProfile
 from galaxy_tool_xml_codemod.codemods.upgrade_19_01 import Upgrade19_01
 from galaxy_tool_xml_codemod.codemods.upgrade_24_0 import Upgrade24_0
@@ -32,6 +35,7 @@ def coded_codemods() -> tuple[type[CodemodCommand], ...]:
         FixTypos,
         ReorderParamAttributes,
         ReorderToolAttributes,
+        ReorderToolChildren,
         UpdateProfile,
         Upgrade19_01,
         Upgrade24_0,

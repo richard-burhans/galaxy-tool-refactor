@@ -18,6 +18,9 @@ command, run before fmt's cosmetic rules). Front-to-back:
    lets the rest of the pipeline see a validatable tree.
 2. ``ReorderParamAttributes`` / ``ReorderToolAttributes`` — tidy attribute order
    once the tree is settled.
+3. ``ReorderToolChildren`` — reorder the root ``<tool>``'s child elements to the
+   IUC convention (element-level tidying after attribute-level). Validity-safe:
+   the schema's ``<tool>`` content model is order-free (``xs:all``).
 
 It deliberately does **not** change ``profile=`` or apply version migrations —
 that is the upgrade pipeline's job.
@@ -45,12 +48,16 @@ from galaxy_tool_xml_codemod.codemods.reorder_param_attributes import (
 from galaxy_tool_xml_codemod.codemods.reorder_tool_attributes import (
     ReorderToolAttributes,
 )
+from galaxy_tool_xml_codemod.codemods.reorder_tool_children import (
+    ReorderToolChildren,
+)
 from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 
 CANONICAL_CODEMODS: tuple[type[CodemodCommand], ...] = (
     FixTypos,
     ReorderParamAttributes,
     ReorderToolAttributes,
+    ReorderToolChildren,
 )
 
 AUTO_UPGRADE_CODEMODS: tuple[type[CodemodCommand], ...] = (

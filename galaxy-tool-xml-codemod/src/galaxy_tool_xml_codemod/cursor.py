@@ -130,6 +130,37 @@ class Cursor:
             child.text = text
         return Cursor(child)
 
+    def reorder_children(self, order: Sequence[str], /) -> None:
+        """Reorder this element's child *elements* to the canonical tag ``order``.
+
+        Children whose tag appears in ``order`` are placed in that order;
+        tags not in ``order`` keep their original relative position, after the
+        known ones (a stable sort by ``(rank, original index)`` — no
+        alphabetical guess, unlike ``reorder_attributes``). When the resulting
+        order equals the current one, no mutation is performed, so an
+        already-ordered element never churns.
+
+        Unlike ``reorder_attributes``, this *skips* (no-op) rather than raises
+        when the element has any non-element child (Comment /
+        ProcessingInstruction): ``children()`` hides those nodes, so a caller
+        cannot see them, and moving elements past a free-floating comment would
+        silently re-associate it with the wrong element. A comment is a normal
+        tree state, not a codemod bug, so the safe response is to leave the
+        element untouched. lxml moves an existing child when it is re-appended;
+        each element's ``tail`` travels with it, so inter-element whitespace is
+        left for the cosmetic formatter to re-normalise.
+        """
+        nodes = list(self._element)
+        if any(not _is_element(node) for node in nodes):
+            return
+        rank = {tag: index for index, tag in enumerate(order)}
+        sentinel = len(order)
+        reordered = sorted(nodes, key=lambda node: rank.get(str(node.tag), sentinel))
+        if all(before is after for before, after in zip(nodes, reordered, strict=True)):
+            return
+        for node in reordered:
+            self._element.append(node)
+
     def reorder_attributes(self, names: Sequence[str], /) -> None:
         """Rewrite the element's attribute order to match ``names``.
 

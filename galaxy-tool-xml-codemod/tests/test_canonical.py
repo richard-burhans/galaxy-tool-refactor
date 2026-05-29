@@ -14,6 +14,9 @@ from galaxy_tool_xml_codemod.codemods.reorder_param_attributes import (
 from galaxy_tool_xml_codemod.codemods.reorder_tool_attributes import (
     ReorderToolAttributes,
 )
+from galaxy_tool_xml_codemod.codemods.reorder_tool_children import (
+    ReorderToolChildren,
+)
 from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 
 
@@ -21,6 +24,22 @@ def test_canonical_set_includes_both_attribute_reorder_codemods() -> None:
     """Both structural attribute-reorder codemods are in the canonical set."""
     assert ReorderParamAttributes in CANONICAL_CODEMODS
     assert ReorderToolAttributes in CANONICAL_CODEMODS
+
+
+def test_canonical_set_includes_element_reorder_codemod() -> None:
+    """The element-order codemod (GTX013) is in the canonical set."""
+    assert ReorderToolChildren in CANONICAL_CODEMODS
+
+
+def test_canonical_reorders_attributes_before_elements() -> None:
+    """Attribute-level reorders run before the element-level reorder.
+
+    Order is a convention, not load-bearing (the reorders are independent), but
+    the pipeline keeps attribute tidying ahead of element tidying.
+    """
+    order = {cls: i for i, cls in enumerate(CANONICAL_CODEMODS)}
+    assert order[ReorderToolAttributes] < order[ReorderToolChildren]
+    assert order[ReorderParamAttributes] < order[ReorderToolChildren]
 
 
 def test_canonical_set_repairs_but_does_not_upgrade() -> None:
