@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import importlib.resources
+import json
 from pathlib import Path
 
 import pytest
+from lxml import etree
 from scripts.measure import (
+    _COLLECTION_TYPE_MEMBERS,
     _MATCH_KEYS,
+    _collection_type_patterns,
     _cross_source_key_matches,
+    _measure_collection_type_normalization,
     _measure_param_types,
     _ParamTypesResult,
 )
@@ -116,3 +122,85 @@ def test_tool_id_basename_matches_track_tool_id() -> None:
 def test_sha256_matches_only_byte_identical() -> None:
     # Only tool B is byte-identical across sources (s3); A's copies differ.
     assert _cross_source_key_matches(_MATCH_ROWS, key=_MATCH_KEYS["sha256"]) == (1, 1)
+
+
+# --- collection-type-normalization (codemod docs/decisions.md §14) ---------------
+
+_XS = "{http://www.w3.org/2001/XMLSchema}"
+
+
+def _latest_xsd_pattern(simple_type: str) -> str:
+    """Return the ``xs:pattern`` value of a named simpleType in the latest XSD."""
+    from galaxy_tool_xml.profiles import latest_profile
+
+    schema_dir = importlib.resources.files("galaxy_tool_xml") / "schema"
+    manifest = json.loads((schema_dir / "manifest.json").read_text(encoding="utf-8"))
+    xsd_file = manifest["schemas"][latest_profile()]["file"]
+    root = etree.fromstring((schema_dir / xsd_file).read_bytes())
+    pattern = root.find(f"{_XS}simpleType[@name='{simple_type}']//{_XS}pattern")
+    assert pattern is not None, f"no pattern under simpleType {simple_type!r}"
+    value = pattern.get("value")
+    assert value is not None
+    return value
+
+
+def test_collection_type_grammar_matches_latest_xsd() -> None:
+    # Drift guard: if a schema regen changes the collection-type grammar, the
+    # _COLLECTION_TYPE_MEMBERS constant (and this measurement) must be updated.
+    patterns = _collection_type_patterns()
+    # The compiled patterns differ from the XSD's only by the ^...$ anchors.
+    assert _latest_xsd_pattern("CollectionType") == patterns["type"].pattern.strip("^$")
+    assert (
+        _latest_xsd_pattern("CollectionTypeList")
+        == patterns["collection_type"].pattern.strip("^$")
+    )
+    # And the member set the constant encodes is exactly the XSD's.
+    members = "|".join(_COLLECTION_TYPE_MEMBERS)
+    assert f"({members})" in _latest_xsd_pattern("CollectionType")
+
+
+@pytest.fixture()
+def collection_corpus(tmp_path: Path) -> Path:
+    """Synthetic corpus exercising every collection-type classification bucket."""
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # Whitespace-fixable: comma value with a stray space (the qiime2 shape).
+    (repo / "fixable.xml").write_text(
+        '<tool><inputs><param collection_type="list, list:paired" name="a"/>'
+        "</inputs></tool>",
+        encoding="utf-8",
+    )
+    # Already valid: paired_or_unpaired (25.0+ member) on a <collection type>,
+    # and a bare list on a param collection_type.
+    (repo / "valid.xml").write_text(
+        '<tool><outputs><collection type="paired_or_unpaired" name="c"/></outputs>'
+        '<inputs><param collection_type="list" name="b"/></inputs></tool>',
+        encoding="utf-8",
+    )
+    # Other violation: a datatype where a collection structure belongs.
+    (repo / "other.xml").write_text(
+        '<tool><tests><test><output_collection type="pdf" name="d"/></test>'
+        "</tests></tool>",
+        encoding="utf-8",
+    )
+    # Skipped value: an unexpanded macro token is not a literal grammar value.
+    (repo / "template.xml").write_text(
+        '<tool><inputs><param collection_type="@COLLECTION_TYPE@" name="e"/>'
+        "</inputs></tool>",
+        encoding="utf-8",
+    )
+    # Skipped file: non-<tool> root.
+    (repo / "not_a_tool.xml").write_text("<data/>", encoding="utf-8")
+    return tmp_path
+
+
+def test_collection_type_normalization_buckets(collection_corpus: Path) -> None:
+    result = _measure_collection_type_normalization(corpus_root=collection_corpus)
+    assert result.n_unique_tools == 4  # fixable, valid, other, template
+    assert result.n_unparseable_skipped == 1  # not_a_tool.xml
+    assert result.n_already_valid == 2  # paired_or_unpaired + bare list
+    assert result.n_whitespace_fixable == 1
+    assert result.n_other_violation == 1  # pdf
+    assert result.n_values_total == 4
+    assert result.fixable_exemplars[0][2:] == ("list, list:paired", "list,list:paired")
+    assert result.other_violation_values[0] == (("output_collection", "type", "pdf"), 1)
