@@ -141,6 +141,10 @@ reports each `STICKING POINT <version>` where real tools stall.
   lowercase-token pattern. Advances ~97 corpus tools.
 - `Upgrade25_1` (25.1 → 26.0): drop the obsolete top-level
   `<trackster_conf>` element.
+- `Upgrade19_01` (19.01 → 19.05): synthesize a deterministic, collision-free
+  `name` (`output`, `output2`, …) on unnamed output `<data>` (19.05 made it
+  required). Advances 9 corpus tools (one repo). The name is an unreferenced
+  placeholder, so the synthesis breaks nothing; see `docs/decisions.md` §14.
 
 **Needed — reported by the full combined sweep, deferred for
 investigation** (each needs a semantic decision, so not auto-fixed; the
@@ -151,8 +155,6 @@ discovery sweep keeps reporting them):
   tokens (`@format@`, `@intypes@`), empty (`format=""`), or a `<data>`
   comma-list (a single-token `Format` cannot hold a list). Needs
   macro-aware handling and a rule for empty / multi-format values.
-- **19.01 → 19.05 (9 tools)** — `<data>` now requires `name=`. Auto-fix
-  would mean inventing output names — unsafe.
 - **24.0 → 24.1 (1 tool)** — `<filter>` inside a `<collection>`'s `<data>`
   is no longer allowed (only `actions`/`change_format`). Top-level `<data>`
   filters are fine; the collection case needs structural restructuring.
