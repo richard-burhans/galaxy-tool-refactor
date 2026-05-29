@@ -44,6 +44,7 @@ What each GTX rule does, across both tiers. *fmt*-tier rules are the cosmetic ru
 | GTX010 | codemod | Upgrade a tool stuck at profile 24.1 toward 24.2 (normalize format). |
 | GTX011 | codemod | Upgrade a tool stuck at profile 25.1 toward 26.0 (drop `<trackster_conf>`). |
 | GTX012 | codemod | Iteratively upgrade a tool toward the latest profile. |
+| GTX013 | codemod | Reorder `<tool>` child elements to the IUC convention. |
 
 ## Pass 1 rule triggers (raw input → canonical)
 

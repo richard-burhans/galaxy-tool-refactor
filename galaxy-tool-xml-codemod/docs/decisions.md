@@ -510,3 +510,62 @@ reproducible command for any data-driven claim.
   coverage on retained fixtures.
 - **Reproduced-by:** `uv run --package galaxy-tool-xml-codemod pytest
   galaxy-tool-xml-codemod/tests/test_canonical.py`.
+
+## 17. `ReorderToolChildren` (GTX013) + the `Cursor.reorder_children` primitive
+
+**Date:** 2026-05-29.
+
+- **What we chose:** a new structural codemod, `ReorderToolChildren` (GTX013),
+  reorders the root `<tool>`'s child elements to the IUC convention
+  (best-practice #52: `description, macros, edam_topics, edam_operations,
+  xrefs, parallelism, requirements, code, stdio, version_command, command,
+  environment_variables, configfiles, inputs, request_param_translation,
+  outputs, tests, help, citations`). It is added to `CANONICAL_CODEMODS` (after
+  the two attribute reorders), so the app's `format` command applies it. Tags
+  outside the convention keep their relative position after the known ones.
+- **Why it is validity-safe.** The Galaxy schema's `<tool>` content model is
+  **`xs:all`** (order-free), not `xs:sequence` — verified against
+  `galaxy-tool-xml/.../schema/galaxy-26.1.xsd`. Child-element order is therefore
+  not XSD-enforced; reordering can never regress validity, and the IUC order is
+  a pure convention. The codemod's real invariant is idempotence, proven over
+  the corpus.
+- **New primitive `Cursor.reorder_children(order)`.** A stable sort of the
+  element children by `(rank-in-order, original-index)`; tags absent from
+  `order` get a sentinel rank so they sort last, stably (no alphabetical guess,
+  unlike `reorder_attributes` — there is no meaningful alphabetical order for
+  elements). Re-appends each element via lxml, which *moves* an existing child;
+  each element's `tail` travels with it, so inter-element whitespace is left
+  for the cosmetic formatter to re-normalise. Returns early (no mutation) when
+  the order is already correct, so already-clean tools never churn.
+- **Comment-skip, not raise.** Unlike `reorder_attributes` (§7, raises on
+  anomaly), `reorder_children` *skips* (no-op) when the element has any
+  non-element child (Comment / ProcessingInstruction). Rationale:
+  `Cursor.children()` deliberately hides those nodes, so only the primitive has
+  raw-node visibility; and reordering elements past a free-floating comment
+  would silently re-associate it with the wrong element. A comment is a normal
+  tree state, not a codemod bug, so the safe response is to leave the element
+  untouched. The cross-tier coverage map records this in
+  `../../docs/iuc_best_practices.md`.
+- **Corpus result (combined, 8,607 eligible tools):** 4,640 modified, 8,607
+  idempotent, 0 non-idempotent, 0 post-validate-failed, 0 crashed — clean. So
+  ~54% of validatable tools have out-of-order `<tool>` children today.
+- **Reproduced-by:** `uv run --package galaxy-tool-xml-codemod pytest
+  galaxy-tool-xml-codemod/tests/test_reorder_tool_children.py
+  galaxy-tool-xml-codemod/tests/test_cursor.py`; corpus gate `uv run python -m
+  scripts.corpus_check codemod
+  galaxy_tool_xml_codemod.codemods.reorder_tool_children:ReorderToolChildren`
+  (now defaults to `--source combined`, see §18).
+
+## 18. `corpus_check codemod` defaults to `--source combined`
+
+**Date:** 2026-05-29.
+
+- **What we chose:** the `codemod` subcommand's `--source` now defaults to
+  `combined` (github + toolshed, sha256-deduplicated), matching `fmt` and
+  `rules`. Previously it defaulted to `github` (the ~3,957-tool cohort).
+  `validate` keeps its `github` default (it drives the per-source stat pages).
+- **Why:** a codemod's idempotence/validity invariants should be checked
+  against the widest available corpus by default; the narrower github cohort
+  was an artifact, not an intent. Consistency across the three rule-sweeping
+  subcommands removes a footgun (a green github-only sweep reading as full
+  coverage). Combined is ~8,607 eligible tools vs ~3,957 for github.

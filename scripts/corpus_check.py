@@ -2276,10 +2276,11 @@ def _codemod_main(argv: list[str]) -> int:
     parser.add_argument(
         "--source",
         choices=("github", "toolshed", "combined"),
-        default="github",
+        default="combined",
         help=(
             "corpus to sweep: 'github' (corpus_sources.json clones), 'toolshed' "
-            "(corpus/galaxy-toolshed/), or 'combined' (both, sha256-deduplicated)"
+            "(corpus/galaxy-toolshed/), or 'combined' (both, sha256-deduplicated). "
+            "Default: combined."
         ),
     )
     parser.add_argument(

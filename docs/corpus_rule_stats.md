@@ -22,6 +22,7 @@ What each GTX rule does, across both tiers. The isolation tables below report ho
 | GTX010 | codemod | Upgrade a tool stuck at profile 24.1 toward 24.2 (normalize format). |
 | GTX011 | codemod | Upgrade a tool stuck at profile 25.1 toward 26.0 (drop `<trackster_conf>`). |
 | GTX012 | codemod | Iteratively upgrade a tool toward the latest profile. |
+| GTX013 | codemod | Reorder `<tool>` child elements to the IUC convention. |
 
 ## fmt rules (isolated)
 
@@ -48,6 +49,7 @@ Each codemod applied alone to every eligible tool, checked for idempotence and p
 | GTX010 | Upgrade24_1 | 8,607 | 217 | 8,607 | 0 | 0 | 4 | 0 |
 | GTX011 | Upgrade25_1 | 8,607 | 5 | 8,607 | 0 | 0 | 0 | 0 |
 | GTX012 | UpgradeToLatest | 8,607 | 7,126 | 8,607 | 0 | 0 | 0 | 0 |
+| GTX013 | ReorderToolChildren | 8,607 | 4,640 | 8,607 | 0 | 0 | 0 | 0 |
 
 ## Upgrade discovery (GTX012 `UpgradeToLatest`, isolated)
 

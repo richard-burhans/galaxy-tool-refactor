@@ -15,6 +15,7 @@ _EXPECTED_CODES = {
     "GTX010",  # Upgrade24_1
     "GTX011",  # Upgrade25_1
     "GTX012",  # UpgradeToLatest
+    "GTX013",  # ReorderToolChildren
 }
 
 
