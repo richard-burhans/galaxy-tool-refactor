@@ -6,6 +6,7 @@ Exports:
   ``row_source`` — map a row's ``repo`` value to ``"github"`` / ``"toolshed"`` /
       ``None`` (``None`` when ``repo`` is not a string).
   ``unique_by_sha`` — de-duplicate corpus rows by ``sha256`` (first wins).
+  ``sha256_of`` — hex sha256 of a file's bytes (the corpus dedup key).
   ``is_deprecated_path`` — True if a path lives under a deprecated directory.
   ``iter_tool_xmls`` — yield every ``*.xml`` under a root, skipping Mercurial
       metadata and deprecated directories (the single corpus-discovery filter).
@@ -13,6 +14,7 @@ Exports:
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import TypeVar
@@ -47,6 +49,16 @@ def unique_by_sha(rows: Iterable[_RowT]) -> list[_RowT]:
         seen.add(sha)
         unique.append(row)
     return unique
+
+
+def sha256_of(path: Path, /) -> str:
+    """Return the hex sha256 of *path*'s bytes — the corpus dedup key.
+
+    The single content-hash helper shared by ``corpus_check`` and ``measure``;
+    both dedup tools by this digest, so their unique-tool counts reconcile (see
+    ``unique_by_sha``, which dedups already-computed digests on rows).
+    """
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def is_deprecated_path(path: Path) -> bool:

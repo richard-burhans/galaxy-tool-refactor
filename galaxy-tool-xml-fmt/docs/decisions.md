@@ -509,8 +509,9 @@ even though they now pass — they encode the bug class so we don't
 regress it.
 
 **Refreshed 2026-05-29** (after deprecated-directory tools were
-excluded from the corpus — see `galaxy-tool-xml/docs/decisions.md`
-§10): the re-sweep parses **4,095** `<tool>` documents, of which
+excluded from the corpus — the discovery filter is
+`galaxy-tool-xml/docs/decisions.md` §6, refreshed measurements §10):
+the re-sweep parses **4,095** `<tool>` documents, of which
 **3,933** validate under 26.1 and are all idempotent (0 non-idempotent,
 0 crashed). One of the 12 retained fixtures (`tools-galaxyp__dia_umpire`)
 originated from a `deprecated/` directory and was dropped, leaving **11**
