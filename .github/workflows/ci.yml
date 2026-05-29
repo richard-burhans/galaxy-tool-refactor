@@ -1,0 +1,58 @@
+name: CI
+
+# Runs the workspace QA gate on every PR and on pushes to main: install all
+# five packages, lint (ruff), type-check (mypy, per-package strict configs), and
+# run the five test suites. No corpus is needed — the unit/regression tests use
+# synthetic data and committed fixtures; the slow xsdata-codegen sweep stays
+# behind the `slow` marker and is not run here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync workspace
+        # Installs all five packages + dev deps; the galaxy-tool-xml build hook
+        # regenerates the per-version xsdata models from the vendored XSDs.
+        run: uv sync
+
+      - name: Ruff
+        run: >
+          uv run ruff check
+          galaxy-tool-refactor-rules/src galaxy-tool-refactor-rules/tests
+          galaxy-tool-xml/src galaxy-tool-xml/tests
+          galaxy-tool-xml-codemod/src galaxy-tool-xml-codemod/tests
+          galaxy-tool-xml-fmt/src galaxy-tool-xml-fmt/tests
+          galaxy-tool-refactor-cli/src galaxy-tool-refactor-cli/tests
+          scripts
+
+      - name: Mypy (strict, per package)
+        run: |
+          uv run mypy --config-file galaxy-tool-refactor-rules/pyproject.toml galaxy-tool-refactor-rules/src
+          uv run mypy --config-file galaxy-tool-xml/pyproject.toml         galaxy-tool-xml/src
+          uv run mypy --config-file galaxy-tool-xml-codemod/pyproject.toml galaxy-tool-xml-codemod/src
+          uv run mypy --config-file galaxy-tool-xml-fmt/pyproject.toml     galaxy-tool-xml-fmt/src
+          uv run mypy --config-file galaxy-tool-refactor-cli/pyproject.toml galaxy-tool-refactor-cli/src
+
+      - name: Tests
+        run: |
+          uv run --package galaxy-tool-refactor-rules pytest galaxy-tool-refactor-rules/tests/
+          uv run --package galaxy-tool-xml            pytest galaxy-tool-xml/tests/
+          uv run --package galaxy-tool-xml-codemod    pytest galaxy-tool-xml-codemod/tests/
+          uv run --package galaxy-tool-xml-fmt        pytest galaxy-tool-xml-fmt/tests/
+          uv run --package galaxy-tool-refactor-cli   pytest galaxy-tool-refactor-cli/tests/

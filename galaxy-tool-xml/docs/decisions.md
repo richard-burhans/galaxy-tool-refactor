@@ -619,11 +619,14 @@ that merely mentions an interpreter in a comment is counted as that interpreter.
 
 ## 12. Open items
 
-- **`source` column in the combined corpus data file.** Today the
-  source is implicit (toolshed repos carry `/` in `repo`, github repos
-  don't). An explicit `source` column is a small future addition if
-  downstream consumers want it.
-- **CI** — out of scope for v0.1 (§7).
+- **`source` column in the combined corpus data file.** ✅ Added
+  2026-05-29 — `combined_corpus_data.{json,tsv}` now carries an explicit
+  `source` (`github` / `toolshed`) column, derived per-row via
+  `_row_source`. Combined-only; per-source files omit it (it would be
+  constant there).
+- **CI** — ✅ added 2026-05-29: `.github/workflows/ci.yml` runs `uv sync`
+  + ruff + mypy + the five package test suites on every PR/push (no
+  corpus needed; the slow xsdata-codegen sweep stays `-m slow`).
 - **Schema-error line numbers in `expand` / `strip` modes** point to
   the transformed tree, not the original source file. Only
   `macro_handling="off"` yields original-source line numbers. Inherent

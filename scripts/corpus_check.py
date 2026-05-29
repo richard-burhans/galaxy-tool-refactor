@@ -115,6 +115,7 @@ _FINE_GRAINED_PROFILE_COLUMNS = (
     "newest_valid",
     "expansion_failure_reason",
     "no_valid_reason",
+    "source",
     "presence",
 )
 _FAILURE_DETAILS_SUBDIR = "failures"
@@ -577,6 +578,9 @@ def _make_row(
         "has_macros": 1 if stats.has_macros else 0,
         "expansion_failure_reason": stats.expansion_failure_reason,
         "no_valid_reason": stats.no_valid_reason,
+        # Explicit source ("github"/"toolshed") — only projected into the
+        # combined data file (it would be constant in per-source files).
+        "source": _row_source(display_name) or "",
     }
     for profile, ok in zip(available_profiles(), stats.validity, strict=True):
         row[_validity_column(profile)] = 1 if ok else 0
