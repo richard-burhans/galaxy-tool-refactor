@@ -613,3 +613,88 @@ uv sync
 uv run --package galaxy-tool-xml-fmt pytest galaxy-tool-xml-fmt/tests/test_framework.py
 uv run --package galaxy-tool-xml-fmt pytest galaxy-tool-xml-fmt/tests/test_cli.py
 ```
+
+## D11 (2026-05-29) — `RuleMeta` extracted to the shared `galaxy-tool-refactor-rules` package
+
+### Decision
+
+The `RuleMeta` descriptor, previously defined in this package's `rules.py`, now
+lives in a new dependency-free package `galaxy-tool-refactor-rules` (tier 0.5).
+`rules.py` imports it; the three rule modules import it from there. The `Rule`
+ABC, the `Edit` union, and `apply_edits` stay here — they are lxml/edit-specific
+and not shared.
+
+This realises §D1 §Layout's plan ("a shared rule-engine package will be
+extracted only when a second consumer materialises"): the codemod tier is now
+that consumer, carrying the same `meta: ClassVar[RuleMeta]` on every codemod so
+the GTX registry spans both tiers (GTX001–GTX012). The fmt stat page's new
+"Rule reference" table is generated from that cross-tier metadata.
+
+### Rationale
+
+Only the metadata is genuinely shared, and it is pure data (no lxml). Putting it
+in a zero-dependency package lets both fmt and codemod depend on it without
+either depending on the other — the tier independence from §D10 is preserved,
+because the shared package is a primitive like tier 1, not the structural
+framework. fmt gains a hard dependency on `galaxy-tool-refactor-rules`, which is
+fine: it is metadata-only and does not pull in codemod.
+
+### Reproduction
+
+```sh
+uv sync
+uv run --package galaxy-tool-xml-fmt pytest galaxy-tool-xml-fmt/tests/test_framework.py
+uv run --package galaxy-tool-refactor-rules pytest galaxy-tool-refactor-rules/tests/
+```
+
+## D12 (2026-05-29) — fmt CLI reverts to cosmetic-only; orchestration moves to the app tier
+
+### Decision
+
+This reverses the CLI half of §D10. The orchestration that ran tier-2 codemods
+before fmt's cosmetic rules has moved to a new top-level app tier
+(`galaxy-tool-refactor-cli`, the `galaxy-tool-refactor` CLI). Consequently:
+
+- **`galaxy-tool-xml-fmt`'s CLI is cosmetic-only again.** `cli.py` no longer
+  detects or runs `CANONICAL_CODEMODS`; it parses → `format_tool_document` →
+  writes. The cosmetic-only startup hint is gone (there is nothing optional to
+  hint about).
+- **The `[canonical]` extra is removed**, along with fmt's `galaxy-tool-xml-codemod`
+  workspace source. fmt now depends only on `galaxy-tool-refactor-rules` and
+  `galaxy-tool-xml`.
+- **A shared CLI engine was extracted** to `cli_support.py` (public): file
+  walking, `--check` / `--diff` / `--quiet`, drift detection, per-file error
+  isolation, and the summary, parameterised by a transform
+  (`Callable[[ToolDocument], TransformOutcome]`) and action verbs. Both this
+  package's cosmetic CLI and the app's `format`/`upgrade` commands use it, so the
+  plumbing is written once.
+
+The library (`format_tool_document`) was already codemod-free under §D10 and is
+unchanged; only the CLI surface moved.
+
+### Rationale
+
+§D10 made fmt's CLI the canonical-by-default orchestrator via an optional extra.
+Splitting `upgrade` out from `format` (see
+`galaxy-tool-refactor-cli/docs/decisions.md` §D1) needed a home that could both
+run codemods *and* serialize — i.e. a tier above fmt. Once that app tier exists,
+it is the natural single home for *all* orchestration, so fmt returns to being a
+single-purpose cosmetic formatter and the optional-extra machinery is no longer
+needed. The three-tier independence §D10 protected is preserved (fmt's library
+still doesn't depend on codemod); orchestration simply lives one tier up.
+
+### TDD record
+
+- The two §D10 CLI tests (`…runs_canonical_codemods…`,
+  `…cosmetic_only_hint…`) were removed; `galaxy-tool-xml-fmt`'s CLI test now
+  asserts it does *not* reorder attributes (that's the app's `format` command).
+- Canonical-format and upgrade behaviour is covered by the app's
+  `galaxy-tool-refactor-cli/tests/test_cli.py`.
+
+### Reproduction
+
+```sh
+uv sync
+uv run --package galaxy-tool-xml-fmt      pytest galaxy-tool-xml-fmt/tests/test_cli.py
+uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/
+```

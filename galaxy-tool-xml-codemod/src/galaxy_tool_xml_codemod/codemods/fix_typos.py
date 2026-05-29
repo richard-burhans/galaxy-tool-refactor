@@ -28,8 +28,9 @@ are load-bearing:
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
+from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_xml.binding import newest_valid_profile, validate_tool
 from galaxy_tool_xml.corrections import Correction, suggest_corrections
 from galaxy_tool_xml.document import ToolDocument
@@ -128,6 +129,12 @@ def _apply_correction(element: etree._Element, correction: Correction, /) -> Non
 
 class FixTypos(CodemodCommand):
     """Repair near-miss spelling typos so a globally-invalid tool validates."""
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTX006",
+        summary="Repair near-miss spelling typos so a globally-invalid tool validates.",
+        since="0.0.1",
+    )
 
     def apply(self, module: Module, /) -> None:
         document = module.document

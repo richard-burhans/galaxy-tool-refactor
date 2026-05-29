@@ -542,6 +542,49 @@ github?" triage workflow would surface first.
 
 **Reproduced by:** `uv run python -m scripts.measure cross-source-presence`
 
+### 10.12 Upgrade headroom (2026-05-29 combined sweep)
+
+Sizes what the tier-4 `galaxy-tool-refactor upgrade` command does across the
+9 358 unique tools (latest profile `26.1`):
+
+- **3 632 (38.8%)** *understated* — declare a literal profile older than the one
+  they validate at; `UpdateProfile` bumps the declaration up. This is the
+  command's dominant effect.
+- **4 975 (53.2%)** carry a *macro-placeholder* profile (`@PROFILE@`-style) that
+  is left as-is.
+- **750 (8.0%)** validate at no profile — repair (`FixTypos`) territory before
+  any upgrade is meaningful.
+- **1** overstated (declares newer than it validates; left as-is, bump-up-only).
+
+Structural headroom: of the **8 608** tools that validate somewhere, **8 440
+(98.0%)** already have their newest-valid profile at the latest; only **168
+(2.0%)** sit below latest and are candidates for a structural `upgrade_vN`. So
+the upgrade command is overwhelmingly a profile-declaration bump, with a small
+structural-migration tail.
+
+**Reproduced by:** `uv run python -m scripts.measure upgrade-headroom`
+
+### 10.13 Element cardinality (2026-05-29 combined sweep)
+
+Per-unique-tool occurrence of the structures codemods traverse: `<test>` in
+**71.0%** (max 49 in one tool), `<requirement>` **39.7%**, `<conditional>`
+**37.5%** (max **378** in one tool), `<collection>` **10.1%**,
+`<output_collection>` **6.9%**. The deep `<conditional>` nesting (hundreds in a
+single tool) is why the cursor walk is iterative rather than recursion-bounded.
+
+**Reproduced by:** `uv run python -m scripts.measure element-cardinality`
+
+### 10.14 Command interpreter mix (2026-05-29 combined sweep, heuristic)
+
+Heuristic first-interpreter classification of each tool's `<command>` across
+9 358 unique tools: **66.9%** wrap a binary directly (no recognised interpreter
+token), **18.2%** python, **7.2%** Rscript, **5.7%** shell, **1.5%** perl; 40
+tools carry no `<command>`. Most Galaxy tools shell out to a packaged binary
+rather than embedding an interpreter. A first-token scan, not a parser — a tool
+that merely mentions an interpreter in a comment is counted as that interpreter.
+
+**Reproduced by:** `uv run python -m scripts.measure command-language`
+
 ---
 
 ## 11. `suggest_corrections` accepts a `profile` override
@@ -580,3 +623,34 @@ github?" triage workflow would surface first.
   profile-aware vocabulary, per `docs/per-version-models-plan.md` §7).
   A historical caveat in `PLAN.md` ("uses the latest schema's
   vocabulary") is no longer applicable.
+
+## 13. `corpus_check rules` per-rule isolation sweep + deterministic stat ordering
+
+**Date:** 2026-05-29.
+
+- **What we chose:** a fourth `corpus_check` subcommand, `rules`, that runs
+  **every** GTX rule *in isolation* (no other rules) across the corpus and
+  writes `docs/corpus_rule_stats.md`. fmt rules (GTX001/003/004) are gated on
+  validation and checked for **idempotence + no-crash only** — a rule like
+  GTX003 run without GTX001 emits valid-but-non-canonical output, which is
+  expected; we only assert it is stable and does not raise. Codemods
+  (GTX002, GTX005–GTX012) reuse the existing `codemod` exercise (idempotence +
+  post-codemod validity + eligibility), and `UpgradeToLatest` (GTX012)
+  additionally surfaces its reach / sticking-point / per-step-advance discovery
+  as upgrade QA. Failures retain to the owning tier's regression fixtures.
+- **Why:** the `fmt` sweep runs all fmt rules together and the `codemod` sweep
+  runs one codemod at a time; neither gave a single, persisted per-rule QA view
+  across both tiers. Isolating each rule pinpoints which rule owns a regression
+  and keeps the GTX registry honest. The upgrade characterization lives here as
+  QA (the `UpgradeToLatest` row) rather than as a separate user-facing page,
+  since `corpus_check codemod` already isolates it and `measure.py
+  upgrade-headroom` (§10.12) sizes the addressable population.
+- **Deterministic stat ordering:** `_profile_sort_key` previously gave
+  version-equal but string-distinct labels (`20.5`/`20.05`, `24.0`/`24.00`,
+  `24.1`/`24.01`) identical keys, so their rows reshuffled on every sweep
+  (counts unchanged) and churned the committed artifact. The key is now total —
+  a raw-string tiebreak after the numeric parts (nested so a numeric prefix like
+  `24` vs `24.0` never compares an int against the string). Regeneration is now
+  idempotent.
+- **Reproduced by:** `uv run python -m scripts.corpus_check rules`;
+  determinism pinned by `test_corpus_check.py`'s `_profile_sort_key` tests.

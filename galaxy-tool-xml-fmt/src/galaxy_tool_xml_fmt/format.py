@@ -3,10 +3,10 @@
 ``format_tool_document`` applies fmt's cosmetic rules (indentation,
 blank lines, empty-element shorthand) and serialises. It does **not**
 perform structural canonicalisation — that's tier 2 (``galaxy-tool-xml-codemod``)'s
-``CANONICAL_CODEMODS``, which fmt's CLI runs as a prelude when the
-codemod package is installed (declared as the ``canonical`` extra).
-This module has no dependency on the codemod package — minimal
-installs (xml + fmt) get cosmetic-only formatting.
+``CANONICAL_CODEMODS``. This package has no dependency on the codemod
+package; minimal installs (xml + fmt) get cosmetic-only formatting. The
+``galaxy-tool-refactor`` app (``galaxy-tool-refactor-cli``) composes the
+codemod and fmt tiers for the full canonical / upgrade workflows.
 """
 
 from __future__ import annotations
@@ -43,8 +43,7 @@ def format_tool_document(document: ToolDocument) -> bytes:
     tree in order, then serialises the result. The input document is
     mutated in-place; callers that need the original tree should pass a
     copy. **No structural canonicalisation** — for the full canonical
-    pipeline use the CLI (``galaxy-tool-xml-fmt <file>``) with the
-    ``canonical`` extra installed, or apply
+    pipeline use the ``galaxy-tool-refactor format`` app command, or apply
     ``galaxy_tool_xml_codemod.canonical.CANONICAL_CODEMODS`` yourself
     before calling this function.
 

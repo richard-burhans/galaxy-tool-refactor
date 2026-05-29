@@ -1247,6 +1247,265 @@ def _run_collection_type_normalization(args: argparse.Namespace) -> None:
     )
 
 
+# --- measurement: upgrade-headroom ----------------------------------------------
+#
+# Sizes what the tier-4 `galaxy-tool-refactor upgrade` command addresses, read
+# straight from the combined data: declared profile vs newest-valid vs latest.
+# No pipeline run needed — the columns already encode each tool's standing.
+
+
+def _version_tuple(value: object) -> tuple[int, ...] | None:
+    """Return a dotted version string as an int tuple, or ``None`` if not numeric.
+
+    ``"20.05"`` and ``"20.5"`` both yield ``(20, 5)`` (numerically equal); a
+    macro placeholder like ``"@PROFILE@"`` or a missing value yields ``None``.
+    """
+    if not isinstance(value, str):
+        return None
+    parts = value.split(".")
+    if not parts or not all(part.isdigit() for part in parts):
+        return None
+    return tuple(int(part) for part in parts)
+
+
+@dataclass
+class _UpgradeHeadroomResult:
+    """Per-tool classification of upgrade-addressability across the corpus."""
+
+    n_unique_tools: int
+    latest_profile: str
+    declaration_buckets: list[tuple[str, int]]
+    n_with_valid_profile: int
+    n_at_latest: int
+    n_below_latest: int
+
+
+def _measure_upgrade_headroom(*, rows: list[dict[str, object]]) -> _UpgradeHeadroomResult:
+    """Classify unique tools by what `upgrade` would do to each.
+
+    Declaration buckets mirror ``UpdateProfile``: a tool that validates nowhere
+    needs repair first; a macro-placeholder profile is left alone; a missing or
+    too-old declaration is added/bumped to the newest valid; an accurate or
+    already-newer declaration is unchanged. The structural split counts tools
+    whose newest-valid profile is below the latest vendored profile — the
+    population a single-step ``upgrade_vN`` could advance.
+    """
+    unique = _unique_by_sha(rows)
+    columns = _validity_columns(rows)
+    latest = columns[-1] if columns else ""
+    latest_key = _version_tuple(latest)
+    buckets: Counter[str] = Counter()
+    n_with_valid = n_at_latest = n_below_latest = 0
+    for row in unique:
+        newest = row.get("newest_valid")
+        if newest in (None, "", _PROFILE_NONE):
+            buckets["no valid profile (repair first)"] += 1
+            continue
+        n_with_valid += 1
+        newest_key = _version_tuple(newest)
+        if newest_key is not None and latest_key is not None:
+            if newest_key == latest_key:
+                n_at_latest += 1
+            elif newest_key < latest_key:
+                n_below_latest += 1
+        declared = row.get("profile_expanded")
+        declared_key = _version_tuple(declared)
+        if declared is None or declared == "":
+            buckets["no declaration (would be added)"] += 1
+        elif declared_key is None:
+            buckets["macro-placeholder declaration (left as-is)"] += 1
+        elif newest_key is None:
+            buckets["non-vendored newest-valid (skipped)"] += 1
+        elif declared_key < newest_key:
+            buckets["understated (declaration bumped up)"] += 1
+        elif declared_key == newest_key:
+            buckets["accurate (declaration unchanged)"] += 1
+        else:
+            buckets["overstated (left as-is, bump-up-only)"] += 1
+    return _UpgradeHeadroomResult(
+        n_unique_tools=len(unique),
+        latest_profile=latest,
+        declaration_buckets=buckets.most_common(),
+        n_with_valid_profile=n_with_valid,
+        n_at_latest=n_at_latest,
+        n_below_latest=n_below_latest,
+    )
+
+
+def _report_upgrade_headroom(measurement: _UpgradeHeadroomResult) -> None:
+    total = measurement.n_unique_tools
+    print("\n=== upgrade-headroom ===")
+    print(f"Unique tools (sha256 dedup):  {total}")
+    print(f"Latest vendored profile:      {measurement.latest_profile}")
+    print("\nDeclaration change `galaxy-tool-refactor upgrade` would make:")
+    for label, count in measurement.declaration_buckets:
+        pct = count / total * 100 if total else 0
+        print(f"  {count:5d}  ({pct:4.1f}%)  {label}")
+    valid = measurement.n_with_valid_profile
+    at_pct = measurement.n_at_latest / valid * 100 if valid else 0
+    below_pct = measurement.n_below_latest / valid * 100 if valid else 0
+    print(f"\nStructural headroom (of {valid} tools that validate somewhere):")
+    print(f"  {measurement.n_at_latest:5d}  ({at_pct:4.1f}%)  newest-valid is the latest profile")
+    print(
+        f"  {measurement.n_below_latest:5d}  ({below_pct:4.1f}%)  "
+        f"newest-valid below latest (upgrade_vN candidate)"
+    )
+
+
+def _run_upgrade_headroom(args: argparse.Namespace) -> None:
+    _report_upgrade_headroom(
+        _measure_upgrade_headroom(rows=_load_combined_data(path=args.data))
+    )
+
+
+# --- measurement: element-cardinality -------------------------------------------
+#
+# How many <test>/<requirement>/<conditional>/<collection>/<output_collection>
+# elements a tool carries — characterises the structures codemods must traverse.
+
+
+_CARDINALITY_TAGS = (
+    "test",
+    "requirement",
+    "conditional",
+    "collection",
+    "output_collection",
+)
+
+
+@dataclass
+class _ElementCardinalityResult:
+    """Per-tag occurrence stats across unique corpus tools."""
+
+    n_unique_tools: int
+    # (tag, tools_with_at_least_one, total_occurrences, max_in_one_tool)
+    per_tag: list[tuple[str, int, int, int]]
+
+
+def _measure_element_cardinality(*, corpus_root: Path) -> _ElementCardinalityResult:
+    """Count selected element occurrences per unique tool (sha256 dedup)."""
+    seen: set[str] = set()
+    n_tools = 0
+    with_tag: Counter[str] = Counter()
+    total: Counter[str] = Counter()
+    max_in_one: Counter[str] = Counter()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        n_tools += 1
+        for tag in _CARDINALITY_TAGS:
+            count = sum(1 for _ in root.iter(tag))
+            if count:
+                with_tag[tag] += 1
+                total[tag] += count
+                max_in_one[tag] = max(max_in_one[tag], count)
+    per_tag = [
+        (tag, with_tag[tag], total[tag], max_in_one[tag]) for tag in _CARDINALITY_TAGS
+    ]
+    return _ElementCardinalityResult(n_unique_tools=n_tools, per_tag=per_tag)
+
+
+def _report_element_cardinality(measurement: _ElementCardinalityResult) -> None:
+    total = measurement.n_unique_tools
+    print("\n=== element-cardinality ===")
+    print(f"Unique tools (sha256 dedup): {total}")
+    print(f"\n  {'element':<18}{'tools >=1':>10}{'(%)':>8}{'total':>9}{'max/tool':>10}")
+    for tag, with_tag, occurrences, max_one in measurement.per_tag:
+        pct = with_tag / total * 100 if total else 0
+        print(f"  <{tag:<17}{with_tag:>10}{pct:>7.1f}%{occurrences:>9}{max_one:>10}")
+
+
+def _run_element_cardinality(args: argparse.Namespace) -> None:
+    _report_element_cardinality(
+        _measure_element_cardinality(corpus_root=args.corpus_root)
+    )
+
+
+# --- measurement: command-language ----------------------------------------------
+#
+# Heuristic interpreter classification of each tool's <command>. Galaxy commands
+# are Cheetah-templated shell, often wrapping another interpreter; this scans the
+# command text for the first recognised interpreter token (precedence below). It
+# is a heuristic, not a parser — a command that merely mentions "python" in a
+# comment is counted as python.
+
+
+_LANGUAGE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("python", re.compile(r"\bpython[0-9.]*\b")),
+    ("Rscript", re.compile(r"\bRscript\b")),
+    ("perl", re.compile(r"\bperl\b")),
+    ("shell", re.compile(r"\b(?:bash|/bin/sh|\bsh)\b")),
+)
+
+
+def _classify_command_language(text: str) -> str:
+    """Return a heuristic interpreter label for one <command> body."""
+    for label, pattern in _LANGUAGE_PATTERNS:
+        if pattern.search(text):
+            return label
+    return "other"
+
+
+@dataclass
+class _CommandLanguageResult:
+    """Heuristic interpreter-bucket counts across unique corpus tools."""
+
+    n_unique_tools: int
+    n_without_command: int
+    buckets: list[tuple[str, int]]
+
+
+def _measure_command_language(*, corpus_root: Path) -> _CommandLanguageResult:
+    """Bucket each unique tool's first <command> by detected interpreter."""
+    seen: set[str] = set()
+    n_tools = 0
+    n_without = 0
+    buckets: Counter[str] = Counter()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        n_tools += 1
+        command = root.find("command")
+        if command is None:
+            n_without += 1
+            continue
+        buckets[_classify_command_language("".join(command.itertext()))] += 1
+    return _CommandLanguageResult(
+        n_unique_tools=n_tools,
+        n_without_command=n_without,
+        buckets=buckets.most_common(),
+    )
+
+
+def _report_command_language(measurement: _CommandLanguageResult) -> None:
+    total = measurement.n_unique_tools
+    print("\n=== command-language (heuristic) ===")
+    print(f"Unique tools (sha256 dedup): {total}")
+    print(f"Tools with no <command>:     {measurement.n_without_command}")
+    print("\nDetected interpreter (first token wins; heuristic, not a parser):")
+    for label, count in measurement.buckets:
+        pct = count / total * 100 if total else 0
+        print(f"  {count:5d}  ({pct:4.1f}%)  {label}")
+
+
+def _run_command_language(args: argparse.Namespace) -> None:
+    _report_command_language(_measure_command_language(corpus_root=args.corpus_root))
+
+
 # --- passthrough: corpus-check --------------------------------------------------
 #
 # corpus_check.py is the canonical (and slow) sweep step. Exposing it here as a
@@ -1284,6 +1543,9 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "corrections-cutoff": _run_corrections_cutoff,
     "param-types": _run_param_types,
     "collection-type-normalization": _run_collection_type_normalization,
+    "upgrade-headroom": _run_upgrade_headroom,
+    "element-cardinality": _run_element_cardinality,
+    "command-language": _run_command_language,
 }
 
 _PASSTHROUGH: dict[str, Callable[[argparse.Namespace, list[str]], int]] = {
@@ -1375,8 +1637,10 @@ def _build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=_corpus_root(),
         help=(
-            "Directory holding the swept corpus; used by lenient-text-fields. "
-            "Default: %(default)s."
+            "Directory holding the swept corpus; used by the corpus-walking "
+            "measurements (lenient-text-fields, param-types, macro-usage, "
+            "collection-type-normalization, element-cardinality, "
+            "command-language). Default: %(default)s."
         ),
     )
     parser.add_argument(

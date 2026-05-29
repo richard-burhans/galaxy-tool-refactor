@@ -1,5 +1,11 @@
 [tool.uv.workspace]
-members = ["galaxy-tool-xml", "galaxy-tool-xml-fmt", "galaxy-tool-xml-codemod"]
+members = [
+    "galaxy-tool-refactor-rules",
+    "galaxy-tool-refactor-cli",
+    "galaxy-tool-xml",
+    "galaxy-tool-xml-fmt",
+    "galaxy-tool-xml-codemod",
+]
 
 [tool.pytest.ini_options]
 # importlib mode allows duplicate test-file basenames across packages.

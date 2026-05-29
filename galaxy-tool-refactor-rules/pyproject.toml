@@ -1,0 +1,37 @@
+[project]
+name = "galaxy-tool-refactor-rules"
+version = "0.1.0"
+description = "Shared rule-metadata vocabulary for the galaxy-tool-refactor tiers (tier 0.5)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Richard Burhans" }]
+# Intentionally dependency-free: this package is a pure metadata descriptor plus
+# a markdown render helper. It must stay free of lxml / tier-2 / tier-3 imports
+# so both fmt and codemod can depend on it without coupling the tiers together.
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[tool.ruff]
+src = ["src"]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "PTH"]
+
+[tool.mypy]
+files = ["src"]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

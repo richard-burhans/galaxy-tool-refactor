@@ -7,20 +7,15 @@ requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Richard Burhans" }]
 dependencies = [
+    "galaxy-tool-refactor-rules",
     "galaxy-tool-xml",
     "click>=8",
     "lxml>=5",
 ]
 
-[project.optional-dependencies]
-# Install with: `uv pip install galaxy-tool-xml-fmt[canonical]`
-# Adds tier-2 structural codemods so the CLI emits fully-canonical XML.
-# Without this extra, fmt still works but only applies cosmetic rules.
-canonical = ["galaxy-tool-xml-codemod"]
-
 [tool.uv.sources]
+galaxy-tool-refactor-rules = { workspace = true }
 galaxy-tool-xml = { workspace = true }
-galaxy-tool-xml-codemod = { workspace = true }
 
 [project.scripts]
 galaxy-tool-xml-fmt = "galaxy_tool_xml_fmt.cli:main"

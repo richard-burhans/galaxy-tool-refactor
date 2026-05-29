@@ -20,8 +20,10 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, ClassVar
 
+from galaxy_tool_refactor_rules.meta import RuleMeta
+
 from galaxy_tool_xml_fmt.edits import ClearText, Edit
-from galaxy_tool_xml_fmt.rules import Rule, RuleMeta
+from galaxy_tool_xml_fmt.rules import Rule
 
 if TYPE_CHECKING:
     from lxml import etree
@@ -31,7 +33,7 @@ class EmptyElementShorthand(Rule):
     meta: ClassVar[RuleMeta] = RuleMeta(
         code="GTX004",
         summary="Collapse empty-with-whitespace leaves to <foo/> form.",
-        since="0.1.0",
+        since="0.0.1",
         order=20,
     )
 

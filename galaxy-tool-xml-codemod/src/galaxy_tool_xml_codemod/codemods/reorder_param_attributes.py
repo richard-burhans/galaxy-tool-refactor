@@ -10,6 +10,10 @@ list sort alphabetically after the known ones — matches
 
 from __future__ import annotations
 
+from typing import ClassVar
+
+from galaxy_tool_refactor_rules.meta import RuleMeta
+
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
 from galaxy_tool_xml_codemod.codemods._attribute_ordering import canonical_order
 from galaxy_tool_xml_codemod.cursor import Cursor
@@ -33,6 +37,13 @@ _IUC_PRIORITY: dict[str, int] = {
 
 class ReorderParamAttributes(CodemodCommand):
     """Reorder every ``<param>`` element's attributes to the IUC convention."""
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTX002",
+        summary="Reorder every <param> element's attributes to the IUC convention.",
+        since="0.0.1",
+        cite="https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html",
+    )
 
     def visit_Param(self, cursor: Cursor) -> None:
         cursor.reorder_attributes(

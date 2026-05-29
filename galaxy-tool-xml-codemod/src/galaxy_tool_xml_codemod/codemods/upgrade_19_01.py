@@ -20,7 +20,9 @@ re-declares ``profile=`` afterwards. See ``docs/decisions.md`` §14.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
+
+from galaxy_tool_refactor_rules.meta import RuleMeta
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
 from galaxy_tool_xml_codemod.cursor import Cursor
@@ -41,6 +43,15 @@ def _unused_output_name(used: set[str], /) -> str:
 
 class Upgrade19_01(CodemodCommand):
     """Upgrade a tool stuck at profile 19.01 toward 19.05 (name output ``<data>``)."""
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTX008",
+        summary=(
+            "Upgrade a tool stuck at profile 19.01 toward 19.05"
+            " (name output <data>)."
+        ),
+        since="0.0.1",
+    )
 
     def apply(self, module: Module, /) -> None:
         outputs = module.document.root.find("outputs")

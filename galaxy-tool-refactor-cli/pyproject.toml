@@ -1,0 +1,47 @@
+[project]
+name = "galaxy-tool-refactor-cli"
+version = "0.1.0"
+description = "Top-level CLI app that composes the Galaxy tool refactoring tiers (format + upgrade)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Richard Burhans" }]
+dependencies = [
+    "galaxy-tool-xml",
+    "galaxy-tool-xml-codemod",
+    "galaxy-tool-xml-fmt",
+    "click>=8",
+]
+
+[project.scripts]
+galaxy-tool-refactor = "galaxy_tool_refactor_cli.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[tool.ruff]
+src = ["src"]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "PTH"]
+
+[tool.mypy]
+files = ["src"]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv.sources]
+galaxy-tool-xml = { workspace = true }
+galaxy-tool-xml-codemod = { workspace = true }
+galaxy-tool-xml-fmt = { workspace = true }

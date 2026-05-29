@@ -28,8 +28,9 @@ afterwards. See ``docs/decisions.md`` §14.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
+from galaxy_tool_refactor_rules.meta import RuleMeta
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
@@ -50,6 +51,15 @@ def _child_data(collection: etree._Element, /) -> list[etree._Element]:
 
 class Upgrade24_0(CodemodCommand):
     """Upgrade a tool stuck at profile 24.0 toward 24.1 (hoist collection filters)."""
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTX009",
+        summary=(
+            "Upgrade a tool stuck at profile 24.0 toward 24.1"
+            " (hoist collection filters)."
+        ),
+        since="0.0.1",
+    )
 
     def apply(self, module: Module, /) -> None:
         for collection in module.document.root.iter("collection"):

@@ -438,3 +438,66 @@ reproducible command for any data-driven claim.
   silently left below latest. A version that *has* a codemod which merely
   can't advance a particular tool is not reported as missing (that's an
   incomplete codemod / unfixable tool, not an absent one).
+
+## 15. Codemods carry `RuleMeta` metadata + GTX codes; `coded_codemods()` catalog
+
+**Date:** 2026-05-29.
+
+- **What we chose:** Every bundled codemod now carries a
+  `meta: ClassVar[RuleMeta]` GTX descriptor, mirroring the formatter tier. The
+  descriptor type is imported from the shared, dependency-free
+  `galaxy-tool-refactor-rules` package (tier 0.5), so the fmt and codemod tiers
+  expose one uniform rule-metadata vocabulary. The two attribute-reorder
+  codemods keep their existing codes (`GTX002`, `GTX005`); the validation-driven
+  and upgrade codemods get new codes `GTX006`–`GTX012`
+  (`FixTypos`, `UpdateProfile`, `Upgrade19_01`, `Upgrade24_0`, `Upgrade24_1`,
+  `Upgrade25_1`, `UpgradeToLatest`).
+- **Why every codemod, not just the style rules:** the GTX namespace is now the
+  project-wide registry of *every* tool-XML transformation, not only the
+  IUC-style ones. A complete registry is what makes the cross-tier "Rule
+  reference" table on the corpus-format stat page meaningful.
+- **`catalog.coded_codemods()`** returns all GTX-coded codemods sorted by code.
+  It is deliberately distinct from `CANONICAL_CODEMODS` (canonical.py): that
+  tuple is the *ordered pipeline* fmt's CLI runs and omits the single-step
+  `upgrade_vN` codemods (which `UpgradeToLatest` drives internally), whereas the
+  catalog is the *full enumeration* for documentation/registry use.
+- **Ordering note:** `RuleMeta.order` is unused here — codemod execution order is
+  the `CANONICAL_CODEMODS` tuple and the `UPGRADE_CODEMODS` registry, not the
+  metadata field (which the formatter tier uses). Codes are globally unique
+  across both tiers, asserted by a test in fmt's corpus-check suite (it can
+  import both tiers). See `galaxy-tool-xml-fmt/docs/decisions.md` §D11 and
+  `galaxy-tool-refactor-rules/docs/decisions.md` §D1.
+- **Reproduced-by:** `uv run --package galaxy-tool-xml-codemod pytest
+  galaxy-tool-xml-codemod/tests/test_catalog.py`.
+
+## 16. `CANONICAL_CODEMODS` narrowed; `AUTO_UPGRADE_CODEMODS` added
+
+**Date:** 2026-05-29.
+
+- **What we chose:** profile upgrade is no longer part of the canonical
+  (format) pipeline. `CANONICAL_CODEMODS` is now `(FixTypos,
+  ReorderParamAttributes, ReorderToolAttributes)` — `UpgradeToLatest` was
+  removed from it. A second ordered contract, `AUTO_UPGRADE_CODEMODS =
+  (FixTypos, UpgradeToLatest)`, defines the opt-in upgrade pipeline. Both live
+  in `canonical.py`; the app tier (`galaxy-tool-refactor-cli`) consumes them —
+  `format` runs the canonical set, `upgrade` runs the upgrade set.
+- **Why:** profile upgrade is semantic and fallible (it changes `profile=`,
+  applies lossy migrations, and can stall), unlike the safe/idempotent
+  canonical transforms. It should be opt-in, not folded into "format my tool".
+  Rationale and the user-facing split are in
+  `galaxy-tool-refactor-cli/docs/decisions.md` §D1; the fmt CLI's matching
+  return to cosmetic-only is `galaxy-tool-xml-fmt/docs/decisions.md` §D12.
+- **`FixTypos` is in both pipelines.** It stays in the canonical pipeline
+  (repair is safe and useful) and leads the upgrade pipeline as a precondition:
+  `UpgradeToLatest` no-ops on a tool that validates nowhere, so a
+  broken-and-outdated tool must be repaired before it can upgrade. `FixTypos` is
+  idempotent, so its presence in both is harmless. `UpdateProfile` and the
+  single-step `Upgrade*` codemods are not listed in either tuple directly —
+  `UpgradeToLatest` orchestrates them (per §13–14), and the GTX catalog
+  (`coded_codemods()`, §15) still enumerates all of them.
+- **Coverage:** `test_canonical.py` pins both contracts' membership and order;
+  `test_regressions.py` gained an `AUTO_UPGRADE_CODEMODS` idempotence replay so
+  removing upgrade from the canonical replay does not lose upgrade-path
+  coverage on retained fixtures.
+- **Reproduced-by:** `uv run --package galaxy-tool-xml-codemod pytest
+  galaxy-tool-xml-codemod/tests/test_canonical.py`.

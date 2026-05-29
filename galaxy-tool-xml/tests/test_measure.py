@@ -11,11 +11,17 @@ from lxml import etree
 from scripts.measure import (
     _COLLECTION_TYPE_MEMBERS,
     _MATCH_KEYS,
+    _PROFILE_NONE,
+    _classify_command_language,
     _collection_type_patterns,
     _cross_source_key_matches,
     _measure_collection_type_normalization,
+    _measure_command_language,
+    _measure_element_cardinality,
     _measure_param_types,
+    _measure_upgrade_headroom,
     _ParamTypesResult,
+    _version_tuple,
 )
 
 
@@ -204,3 +210,118 @@ def test_collection_type_normalization_buckets(collection_corpus: Path) -> None:
     assert result.n_values_total == 4
     assert result.fixable_exemplars[0][2:] == ("list, list:paired", "list,list:paired")
     assert result.other_violation_values[0] == (("output_collection", "type", "pdf"), 1)
+
+
+# --- upgrade-headroom -----------------------------------------------------------
+
+
+def _hrow(sha: str, newest: object, declared: object) -> dict[str, object]:
+    """One synthetic combined row; valid_* columns make latest == 26.0."""
+    return {
+        "valid_19.01": 0,
+        "valid_24.0": 0,
+        "valid_26.0": 0,
+        "sha256": sha,
+        "newest_valid": newest,
+        "profile_expanded": declared,
+    }
+
+
+def _headroom_rows() -> list[dict[str, object]]:
+    return [
+        _hrow("a", "26.0", "26.0"),
+        _hrow("b", "26.0", "20.01"),
+        _hrow("c", "24.0", "24.0"),
+        _hrow("d", _PROFILE_NONE, None),
+        _hrow("e", "26.0", None),
+        _hrow("f", "26.0", "@PROFILE@"),
+    ]
+
+
+def test_upgrade_headroom_declaration_buckets() -> None:
+    result = _measure_upgrade_headroom(rows=_headroom_rows())
+    buckets = dict(result.declaration_buckets)
+    assert result.latest_profile == "26.0"
+    assert result.n_unique_tools == 6
+    assert buckets["accurate (declaration unchanged)"] == 2  # a, c
+    assert buckets["understated (declaration bumped up)"] == 1  # b
+    assert buckets["no declaration (would be added)"] == 1  # e
+    assert buckets["macro-placeholder declaration (left as-is)"] == 1  # f
+    assert buckets["no valid profile (repair first)"] == 1  # d
+
+
+def test_upgrade_headroom_structural_split() -> None:
+    result = _measure_upgrade_headroom(rows=_headroom_rows())
+    assert result.n_with_valid_profile == 5  # a, b, c, e, f
+    assert result.n_at_latest == 4  # a, b, e, f
+    assert result.n_below_latest == 1  # c
+
+
+def test_version_tuple_equates_zero_padded_versions() -> None:
+    assert _version_tuple("20.5") == _version_tuple("20.05") == (20, 5)
+    assert _version_tuple("@PROFILE@") is None
+    assert _version_tuple(None) is None
+
+
+# --- element-cardinality --------------------------------------------------------
+
+
+def test_element_cardinality_counts_per_tag(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    (repo / "a.xml").write_text(
+        "<tool><requirements><requirement>r</requirement></requirements>"
+        "<inputs><conditional name='c'/></inputs>"
+        "<tests><test/><test/></tests></tool>",
+        encoding="utf-8",
+    )
+    (repo / "b.xml").write_text(
+        "<tool><outputs><collection name='o'/></outputs></tool>",
+        encoding="utf-8",
+    )
+    result = _measure_element_cardinality(corpus_root=tmp_path)
+    per_tag = {row[0]: row[1:] for row in result.per_tag}
+    assert result.n_unique_tools == 2
+    assert per_tag["test"] == (1, 2, 2)
+    assert per_tag["requirement"] == (1, 1, 1)
+    assert per_tag["conditional"] == (1, 1, 1)
+    assert per_tag["collection"] == (1, 1, 1)
+
+
+def test_element_cardinality_dedups_identical_tools(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    body = "<tool><tests><test/></tests></tool>"
+    (repo / "a.xml").write_text(body, encoding="utf-8")
+    (repo / "dup.xml").write_text(body, encoding="utf-8")
+    result = _measure_element_cardinality(corpus_root=tmp_path)
+    assert result.n_unique_tools == 1
+
+
+# --- command-language -----------------------------------------------------------
+
+
+def test_classify_command_language_precedence() -> None:
+    assert _classify_command_language("python '$__tool_directory__/x.py'") == "python"
+    assert _classify_command_language("Rscript foo.R") == "Rscript"
+    assert _classify_command_language("perl foo.pl") == "perl"
+    assert _classify_command_language("bash -c 'echo hi'") == "shell"
+    assert _classify_command_language("samtools view in.bam") == "other"
+
+
+def test_command_language_buckets_and_missing(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    (repo / "py.xml").write_text(
+        "<tool><command><![CDATA[python run.py]]></command></tool>", encoding="utf-8"
+    )
+    (repo / "sh.xml").write_text(
+        "<tool><command>bash do.sh</command></tool>", encoding="utf-8"
+    )
+    (repo / "none.xml").write_text("<tool><inputs/></tool>", encoding="utf-8")
+    result = _measure_command_language(corpus_root=tmp_path)
+    buckets = dict(result.buckets)
+    assert result.n_unique_tools == 3
+    assert result.n_without_command == 1
+    assert buckets["python"] == 1
+    assert buckets["shell"] == 1

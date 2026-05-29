@@ -118,6 +118,7 @@ _FMT_REGRESSIONS = (
     _REPO_ROOT / "galaxy-tool-xml-fmt" / "tests" / "data" / "regressions"
 )
 _FMT_STATS_FILE = _REPO_ROOT / "docs" / "corpus_format_stats.md"
+_RULE_STATS_FILE = _REPO_ROOT / "docs" / "corpus_rule_stats.md"
 
 
 # =============================================================================
@@ -733,28 +734,41 @@ def _validate_process_path(
     return True
 
 
-def _profile_sort_key(profile: str) -> tuple[int, ...]:
-    """Sort key: sentinels first, then numeric profiles oldest→newest."""
+def _profile_sort_key(profile: str) -> tuple[int, tuple[int, ...], str]:
+    """Sort key: sentinels first, then numeric profiles oldest→newest.
+
+    The raw profile string is the final tiebreak so version-equal but
+    string-distinct labels (``20.5`` vs ``20.05``, ``24.0`` vs ``24.00``) get a
+    deterministic, total order — otherwise their numeric keys tie and the row
+    order depends on dict iteration, churning the regenerated stats. The numeric
+    parts are nested in their own tuple so a shorter version that is a numeric
+    prefix of another (``24`` vs ``24.0``) never compares an int against the raw
+    string.
+    """
     if profile == _PROFILE_NONE:
-        return (0,)
+        return (0, (), profile)
     if profile == _PROFILE_EXPANSION_FAILED:
-        return (0, 1)
+        return (0, (1,), profile)
     parts = profile.split(".")
     if all(part.isdigit() for part in parts):
-        return (1, *(int(part) for part in parts))
-    return (2,)
+        return (1, tuple(int(part) for part in parts), profile)
+    return (2, (), profile)
 
 
-def _profile_sort_key_newest_first(profile: str) -> tuple[int, ...]:
-    """Sort key: numeric profiles newest→oldest, sentinels last."""
+def _profile_sort_key_newest_first(profile: str) -> tuple[int, tuple[int, ...], str]:
+    """Sort key: numeric profiles newest→oldest, sentinels last.
+
+    Like ``_profile_sort_key`` but reversed for numeric profiles; the raw string
+    is still the final tiebreak so version-equal labels are deterministic.
+    """
     if profile == _PROFILE_NONE:
-        return (2,)
+        return (2, (), profile)
     if profile == _PROFILE_EXPANSION_FAILED:
-        return (2, 1)
+        return (2, (1,), profile)
     parts = profile.split(".")
     if all(part.isdigit() for part in parts):
-        return (0, *(-int(part) for part in parts))
-    return (1,)
+        return (0, tuple(-int(part) for part in parts), profile)
+    return (1, (), profile)
 
 
 def _bar(value: int, max_value: int, *, width: int = 30) -> str:
@@ -1396,8 +1410,14 @@ def _validate_main(argv: list[str]) -> int:
 # fmt subcommand
 # =============================================================================
 
+from galaxy_tool_refactor_rules.meta import RuleMeta  # noqa: E402
+from galaxy_tool_refactor_rules.reference import (  # noqa: E402
+    render_rule_reference_table,
+)
+from galaxy_tool_xml_codemod.catalog import coded_codemods  # noqa: E402
 from galaxy_tool_xml_fmt.edits import apply_edits  # noqa: E402
 from galaxy_tool_xml_fmt.format import all_rules  # noqa: E402
+from galaxy_tool_xml_fmt.rules import Rule  # noqa: E402
 from galaxy_tool_xml_fmt.serializer import to_bytes  # noqa: E402
 
 
@@ -1583,6 +1603,36 @@ def _fmt_process_path(
     return True
 
 
+def _fmt_format_rule_reference_table() -> list[str]:
+    """Render the cross-tier GTX rule glossary as markdown.
+
+    fmt-tier rules (``all_rules()``) and codemod-tier rules
+    (``coded_codemods()``) share the ``RuleMeta`` vocabulary, so the glossary is
+    generated from live metadata rather than hand-maintained. The codemod-tier
+    rows are listed for reference only: they are structural transforms run by
+    the canonical pipeline, so they never fire in this cosmetic format sweep and
+    do not appear in the trigger tables below.
+    """
+    entries: list[tuple[RuleMeta, str]] = [
+        (rule_cls.meta, "fmt") for rule_cls in all_rules()
+    ]
+    entries.extend((codemod_cls.meta, "codemod") for codemod_cls in coded_codemods())
+    lines = [
+        "## Rule reference",
+        "",
+        (
+            "What each GTX rule does, across both tiers. *fmt*-tier rules are the "
+            "cosmetic rules swept on this page; *codemod*-tier rules are "
+            "structural transforms (run by the canonical pipeline) listed here "
+            "for reference — they do not fire in this sweep, so they do not "
+            "appear in the trigger tables below."
+        ),
+        "",
+    ]
+    lines.extend(render_rule_reference_table(entries))
+    return lines
+
+
 def _fmt_format_rule_table(
     title: str,
     intro: str,
@@ -1675,6 +1725,8 @@ def _fmt_write_stats(
         lines.append(f"| {name} | `{commit[:12]}` | {count} |")
     lines.append("")
     lines.extend(_fmt_format_summary_table(state))
+    lines.append("")
+    lines.extend(_fmt_format_rule_reference_table())
     lines.append("")
     lines.extend(
         _fmt_format_rule_table(
@@ -1822,6 +1874,7 @@ import importlib  # noqa: E402
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand  # noqa: E402
 from galaxy_tool_xml_codemod.parse import parse_module  # noqa: E402
+from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest  # noqa: E402
 
 _CODEMOD_REGRESSIONS = (
     _REPO_ROOT / "galaxy-tool-xml-codemod" / "tests" / "data" / "regressions"
@@ -2260,12 +2313,448 @@ def _codemod_main(argv: list[str]) -> int:
 
 
 # =============================================================================
+# rules subcommand — per-rule isolation QA
+# =============================================================================
+#
+# Runs EACH rule alone (no other rules), across the corpus, to isolate
+# per-rule misbehaviour: fmt rules are checked for idempotence + no-crash only
+# (a rule like GTX003 run without GTX001 emits valid-but-non-canonical output —
+# that's expected; we only assert it is stable and does not raise); codemods
+# reuse the full codemod exercise (idempotence + post-codemod validity), and
+# ``UpgradeToLatest`` additionally surfaces its reach / sticking-point / per-step
+# discovery as upgrade QA. Failures are retained as regression fixtures in the
+# owning tier's regressions dir. Writes docs/corpus_rule_stats.md.
+
+
+@dataclass
+class _FmtRuleSweep:
+    """Per-rule bookkeeping for one fmt rule swept in isolation."""
+
+    code: str
+    validated: int = 0
+    touched: int = 0
+    edits: int = 0
+    non_idempotent: int = 0
+    crashed: int = 0
+    signatures: Counter[str] = field(default_factory=Counter)
+    known_fixture_paths: set[tuple[str, str]] = field(default_factory=set)
+    retained: list[tuple[str, str, Path, str, str]] = field(default_factory=list)
+
+
+def _fmt_rule_apply(tree: etree._ElementTree, rule_cls: type[Rule]) -> int:
+    """Apply ONE fmt rule to *tree* in place; return its edit count."""
+    edits = list(rule_cls().apply(tree))
+    apply_edits(edits)
+    return len(edits)
+
+
+def _fmt_rule_exercise(
+    path: Path, rule_cls: type[Rule], *, profile: str
+) -> tuple[str, str, str, int]:
+    """Isolate one fmt rule on one tool: idempotence + no-crash only.
+
+    Returns ``(status, signature, detail, pass1_edit_count)``. Status is one of
+    ``skip-unparseable`` / ``skip-non-tool`` / ``skip-no-validate`` / ``ok`` /
+    ``non-idempotent`` / ``crash``. Gated on validation under *profile* to match
+    the fmt sweep's population.
+    """
+    try:
+        result = parse_tool(path)
+        if result.document is None:
+            return "skip-unparseable", "", "", 0
+        if result.document.root.tag != "tool":
+            return "skip-non-tool", "", "", 0
+        if not validate_tool(path, profile=profile).valid:
+            return "skip-no-validate", "", "", 0
+        document_one = parse_tool(path).document
+        if document_one is None:
+            return "skip-unparseable", "", "", 0
+        edits = _fmt_rule_apply(document_one.tree, rule_cls)
+        pass1_bytes = to_bytes(document_one.tree)
+        document_two = load_tool(pass1_bytes)
+        _fmt_rule_apply(document_two.tree, rule_cls)
+        pass2_bytes = to_bytes(document_two.tree)
+        if pass1_bytes != pass2_bytes:
+            sig = f"non-idempotent:{rule_cls.meta.code}"
+            return (
+                "non-idempotent",
+                sig,
+                _fmt_byte_diff_excerpt(pass1_bytes, pass2_bytes),
+                edits,
+            )
+        return "ok", "", "", edits
+    except Exception as exc:  # noqa: BLE001 — diagnostic sweep: every crash is a finding
+        return "crash", _signature(exc), traceback.format_exc(), 0
+
+
+def _fmt_rule_process_path(
+    path: Path,
+    *,
+    display_name: str,
+    repo_dir: Path,
+    version: str,
+    profile: str,
+    rule_cls: type[Rule],
+    sweep: _FmtRuleSweep,
+) -> None:
+    """Sweep one file through one isolated fmt rule and update ``sweep``."""
+    if not path.is_file():
+        return
+    status, signature, detail, edits = _fmt_rule_exercise(
+        path, rule_cls, profile=profile
+    )
+    if status in {"skip-unparseable", "skip-non-tool", "skip-no-validate"}:
+        return
+    sweep.validated += 1
+    if edits:
+        sweep.touched += 1
+        sweep.edits += edits
+    if status == "ok":
+        return
+    if status == "non-idempotent":
+        sweep.non_idempotent += 1
+    elif status == "crash":
+        sweep.crashed += 1
+    relative = path.relative_to(repo_dir)
+    if (display_name, str(relative)) in sweep.known_fixture_paths:
+        return
+    sweep.signatures[signature] += 1
+    sweep.known_fixture_paths.add((display_name, str(relative)))
+    dest = _retain(
+        path, display_name.replace("/", "__"), regressions_dir=_FMT_REGRESSIONS
+    )
+    sweep.retained.append((dest.name, display_name, relative, version, signature))
+    logger.warning(
+        "%s [%s] %s\n  %s\n  retained -> %s", status.upper(), display_name, signature,
+        relative, dest,
+    )
+
+
+def _sweep_fmt_rule(
+    rule_cls: type[Rule],
+    *,
+    sources: tuple[str, ...],
+    repo_filter: str | None,
+    limit: int,
+    profile: str,
+) -> _FmtRuleSweep:
+    """Sweep the corpus through one isolated fmt rule."""
+    sweep = _FmtRuleSweep(
+        code=rule_cls.meta.code,
+        known_fixture_paths=_fmt_known_fixture_paths(regressions_dir=_FMT_REGRESSIONS),
+    )
+    seen_sha: set[str] = set()
+    for _source_label, display_name, repo_dir, version in _iter_sources(
+        sources, repo_filter=repo_filter
+    ):
+        for path in sorted(_iter_tool_xmls(repo_dir)):
+            if limit and sweep.validated >= limit:
+                break
+            if not path.is_file():
+                continue
+            sha = _sha256_of(path)
+            if sha in seen_sha:
+                continue
+            seen_sha.add(sha)
+            _fmt_rule_process_path(
+                path,
+                display_name=display_name,
+                repo_dir=repo_dir,
+                version=version,
+                profile=profile,
+                rule_cls=rule_cls,
+                sweep=sweep,
+            )
+        if limit and sweep.validated >= limit:
+            break
+    return sweep
+
+
+def _sweep_codemod_isolated(
+    codemod_cls: type[CodemodCommand],
+    *,
+    sources: tuple[str, ...],
+    repo_filter: str | None,
+    limit: int,
+) -> _CodemodSweepState:
+    """Sweep the corpus through one isolated codemod (reuses the codemod exercise)."""
+    codemod = codemod_cls()
+    state = _CodemodSweepState(
+        known_fixture_paths=_fmt_known_fixture_paths(
+            regressions_dir=_CODEMOD_REGRESSIONS
+        )
+    )
+    seen_sha: set[str] = set()
+    for _source_label, display_name, repo_dir, version in _iter_sources(
+        sources, repo_filter=repo_filter
+    ):
+        for path in sorted(_iter_tool_xmls(repo_dir)):
+            if limit and state.eligible >= limit:
+                break
+            if not path.is_file():
+                continue
+            sha = _sha256_of(path)
+            if sha in seen_sha:
+                continue
+            seen_sha.add(sha)
+            _codemod_process_path(
+                path,
+                display_name=display_name,
+                repo_dir=repo_dir,
+                version=version,
+                codemod=codemod,
+                state=state,
+            )
+        if limit and state.eligible >= limit:
+            break
+    return state
+
+
+def _rule_format_fmt_table(sweeps: list[_FmtRuleSweep]) -> list[str]:
+    """Render the isolated fmt-rule results as a markdown table."""
+    lines = [
+        "## fmt rules (isolated)",
+        "",
+        (
+            "Each rule applied alone to every validated tool, then applied again. "
+            "*Tools touched* emitted at least one edit; *non-idempotent* / "
+            "*crashed* are retained as fmt regression fixtures."
+        ),
+        "",
+        "| Rule | Tools validated | Tools touched | Edits | Non-idempotent | Crashed |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for sweep in sorted(sweeps, key=lambda s: s.code):
+        lines.append(
+            f"| {sweep.code} | {sweep.validated} | {sweep.touched} | {sweep.edits} | "
+            f"{sweep.non_idempotent} | {sweep.crashed} |"
+        )
+    return lines
+
+
+def _rule_format_codemod_table(rows: list[tuple[str, str, _CodemodSweepState]]) -> list[str]:
+    """Render the isolated codemod results as a markdown table."""
+    lines = [
+        "## codemods (isolated)",
+        "",
+        (
+            "Each codemod applied alone to every eligible tool, checked for "
+            "idempotence and post-codemod validity. *Non-idempotent*, "
+            "*post-validate-failed*, and crashes are retained as codemod "
+            "regression fixtures; *no-repair* (the codemod legitimately could not "
+            "act) is not a failure."
+        ),
+        "",
+        (
+            "| Rule | Codemod | Eligible | Modified | Idempotent | Non-idempotent | "
+            "Post-validate-failed | No-repair | Crashed |"
+        ),
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for code, name, state in sorted(rows, key=lambda r: r[0]):
+        lines.append(
+            f"| {code} | {name} | {state.eligible} | {state.modified} | "
+            f"{state.idempotent} | {state.non_idempotent} | "
+            f"{state.post_validate_failed} | {state.no_repair} | {state.crashed} |"
+        )
+    return lines
+
+
+def _rule_format_upgrade_discovery(state: _CodemodSweepState) -> list[str]:
+    """Render UpgradeToLatest's isolated reach / sticking-point / per-step QA."""
+    latest = latest_profile()
+    stuck = {
+        ver: count
+        for ver, count in state.final_profiles.items()
+        if ver != latest and Version(ver) < Version(latest)
+    }
+    lines = [
+        "## Upgrade discovery (GTX012 `UpgradeToLatest`, isolated)",
+        "",
+        (
+            f"Post-apply landing profile over the {state.eligible} eligible tools. "
+            f"A tool below the latest profile (`{latest}`) is a sticking point "
+            f"still needing an `upgrade_vN` codemod."
+        ),
+        "",
+        f"- reached latest (`{latest}`): {state.final_profiles.get(latest, 0)}",
+        f"- below latest: {sum(stuck.values())}",
+    ]
+    if stuck:
+        lines.append("")
+        lines.append("| Sticking version | Tools |")
+        lines.append("|---|---:|")
+        for ver in sorted(stuck, key=Version):
+            lines.append(f"| {ver} | {stuck[ver]} |")
+    if state.upgrade_steps:
+        lines.append("")
+        lines.append("Per-step advances (tools each `upgrade_vN` moved past):")
+        lines.append("")
+        lines.append("| From version | Tools advanced |")
+        lines.append("|---|---:|")
+        for ver in sorted(state.upgrade_steps, key=Version):
+            lines.append(f"| {ver} | {state.upgrade_steps[ver]} |")
+    return lines
+
+
+def _rule_write_stats(
+    *,
+    profile: str,
+    fmt_sweeps: list[_FmtRuleSweep],
+    codemod_rows: list[tuple[str, str, _CodemodSweepState]],
+    upgrade_state: _CodemodSweepState | None,
+) -> None:
+    """Write the per-rule isolation statistics artifact to ``docs/``."""
+    _RULE_STATS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    lines: list[str] = [
+        "# Corpus per-rule isolation statistics",
+        "",
+        (
+            f"Generated by `python -m scripts.corpus_check rules` on "
+            f"{date.today().isoformat()}. Each GTX rule is run **in isolation** "
+            f"(no other rules) across the github corpus to surface per-rule "
+            f"misbehaviour. fmt rules are gated on validation under profile "
+            f"`{profile}` and checked for idempotence + no-crash only; codemods "
+            f"use their own eligibility and are checked for idempotence + "
+            f"post-codemod validity. Failures are retained as regression "
+            f"fixtures in the owning tier."
+        ),
+        "",
+        (
+            "Regenerated by every full run of `corpus_check.py rules` unless "
+            "`--no-stats` is given; partial sweeps (`--limit` or `--repo`) do "
+            "not regenerate it."
+        ),
+        "",
+    ]
+    lines.extend(_rule_format_fmt_table(fmt_sweeps))
+    lines.append("")
+    lines.extend(_rule_format_codemod_table(codemod_rows))
+    if upgrade_state is not None:
+        lines.append("")
+        lines.extend(_rule_format_upgrade_discovery(upgrade_state))
+    lines.append("")
+    _RULE_STATS_FILE.write_text("\n".join(lines), encoding="utf-8")
+
+
+def _rules_main(argv: list[str]) -> int:
+    """Sweep every rule in isolation across the corpus; write per-rule stats."""
+    parser = argparse.ArgumentParser(
+        prog="python -m scripts.corpus_check rules",
+        description=(
+            "Run each GTX rule (fmt + codemod) in isolation across the corpus, "
+            "retaining failures as regression fixtures and writing "
+            "docs/corpus_rule_stats.md."
+        ),
+    )
+    parser.add_argument(
+        "--source",
+        choices=("github", "toolshed", "combined"),
+        default="github",
+        help="corpus to sweep (default: github, matching the fmt sweep)",
+    )
+    parser.add_argument(
+        "--repo", help="sweep only this repository (by name); --source github only"
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="stop each rule after N tools (0 sweeps everything)",
+    )
+    parser.add_argument(
+        "--profile",
+        default=latest_profile(),
+        help="validation gating profile for fmt rules (default: latest vendored)",
+    )
+    parser.add_argument(
+        "--no-stats",
+        action="store_true",
+        help="do not (re)write docs/corpus_rule_stats.md",
+    )
+    args = parser.parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+    if args.repo is not None and args.source != "github":
+        logger.error("--repo is only supported with --source github, not %r", args.source)
+        return 1
+    if args.repo is not None:
+        known_names = {name for name, _ in _corpus_sources()}
+        if args.repo not in known_names:
+            logger.error("unknown --repo %r; known: %s", args.repo, ", ".join(sorted(known_names)))
+            return 1
+
+    sources = ("github", "toolshed") if args.source == "combined" else (args.source,)
+    if "toolshed" in sources and not _TOOLSHED_ROOT.exists():
+        logger.error(
+            "no toolshed corpus at %s; populate it via scripts/fetch_toolshed.py",
+            _TOOLSHED_ROOT.relative_to(_REPO_ROOT),
+        )
+        return 1
+
+    _CORPUS_ROOT.mkdir(parents=True, exist_ok=True)
+    _FMT_REGRESSIONS.mkdir(parents=True, exist_ok=True)
+    _CODEMOD_REGRESSIONS.mkdir(parents=True, exist_ok=True)
+
+    fmt_sweeps: list[_FmtRuleSweep] = []
+    for rule_cls in all_rules():
+        logger.info("isolating fmt rule %s ...", rule_cls.meta.code)
+        sweep = _sweep_fmt_rule(
+            rule_cls,
+            sources=sources,
+            repo_filter=args.repo,
+            limit=args.limit,
+            profile=args.profile,
+        )
+        logger.info(
+            "  %s: %d validated, %d touched, %d edits, %d non-idempotent, %d crashed",
+            sweep.code, sweep.validated, sweep.touched, sweep.edits,
+            sweep.non_idempotent, sweep.crashed,
+        )
+        if sweep.retained:
+            _append_provenance(sweep.retained, regressions_dir=_FMT_REGRESSIONS)
+        fmt_sweeps.append(sweep)
+
+    codemod_rows: list[tuple[str, str, _CodemodSweepState]] = []
+    upgrade_state: _CodemodSweepState | None = None
+    for codemod_cls in coded_codemods():
+        name = codemod_cls.__name__
+        logger.info("isolating codemod %s (%s) ...", codemod_cls.meta.code, name)
+        state = _sweep_codemod_isolated(
+            codemod_cls, sources=sources, repo_filter=args.repo, limit=args.limit
+        )
+        logger.info(
+            "  %s: %d eligible, %d modified, %d non-idempotent, "
+            "%d post-validate-failed, %d crashed",
+            codemod_cls.meta.code, state.eligible, state.modified,
+            state.non_idempotent, state.post_validate_failed, state.crashed,
+        )
+        if state.retained:
+            _append_provenance(state.retained, regressions_dir=_CODEMOD_REGRESSIONS)
+        if codemod_cls is UpgradeToLatest:
+            upgrade_state = state
+        codemod_rows.append((codemod_cls.meta.code, name, state))
+
+    if args.no_stats or args.limit or args.repo is not None:
+        logger.info("partial or --no-stats run: not regenerating corpus_rule_stats.md")
+        return 0
+    _rule_write_stats(
+        profile=args.profile,
+        fmt_sweeps=fmt_sweeps,
+        codemod_rows=codemod_rows,
+        upgrade_state=upgrade_state,
+    )
+    logger.info("per-rule stats -> %s", _RULE_STATS_FILE.relative_to(_REPO_ROOT))
+    return 0
+
+
+# =============================================================================
 # Top-level dispatcher
 # =============================================================================
 
 
 def main(argv: list[str]) -> int:
-    """Dispatch to the ``validate``, ``fmt``, or ``codemod`` subcommand."""
+    """Dispatch to the ``validate``, ``fmt``, ``codemod``, or ``rules`` subcommand."""
     parser = argparse.ArgumentParser(
         prog="python -m scripts.corpus_check",
         description="Sweep Galaxy tool repositories through the galaxy-tool-xml ecosystem.",
@@ -2273,10 +2762,11 @@ def main(argv: list[str]) -> int:
     )
     parser.add_argument(
         "subcommand",
-        choices=("validate", "fmt", "codemod"),
+        choices=("validate", "fmt", "codemod", "rules"),
         help=(
             "validate: API invariants sweep; fmt: formatter idempotence "
-            "sweep; codemod: structural-codemod idempotence + validity sweep"
+            "sweep; codemod: one structural-codemod idempotence + validity "
+            "sweep; rules: per-rule isolation QA sweep (every rule alone)"
         ),
     )
     # Parse only the subcommand, pass the rest to the subcommand's own parser.
@@ -2288,7 +2778,9 @@ def main(argv: list[str]) -> int:
         return _validate_main(remaining)
     if args.subcommand == "fmt":
         return _fmt_main(remaining)
-    return _codemod_main(remaining)
+    if args.subcommand == "codemod":
+        return _codemod_main(remaining)
+    return _rules_main(remaining)
 
 
 if __name__ == "__main__":
