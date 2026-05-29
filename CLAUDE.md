@@ -55,7 +55,7 @@ uv run mypy --config-file galaxy-tool-refactor-cli/pyproject.toml galaxy-tool-re
 uv run python -m scripts.corpus_check validate [--source github|toolshed|combined] [--limit N]
 
 # Tier-3 invariants (cosmetic formatting): sweep format()→format() idempotence.
-uv run python -m scripts.corpus_check fmt [--repo NAME] [--limit N]
+uv run python -m scripts.corpus_check fmt [--source github|toolshed|combined] [--repo NAME] [--limit N]
 
 # Tier-2 invariants (one structural codemod at a time): sweep idempotence + post-codemod validity.
 uv run python -m scripts.corpus_check codemod <dotted.module>:<ClassName> [--repo NAME] [--limit N]

@@ -19,11 +19,11 @@ The format pipeline and three cosmetic rules ship; the cosmetic-only
 live in tier 2 and are run by the tier-4 app
 (`galaxy-tool-refactor`), not by this package's CLI.
 
-The most recent cosmetic-pipeline sweep parsed 4,095 `<tool>` documents
-across 21 public Galaxy tool repositories; 3,933 validated under profile
-`26.1` and were format-checked — 100% idempotent, 0 crashes. The
-structural (codemod) pipeline retained 0 regression fixtures over the
-same corpus. Full numbers in `docs/corpus_format_stats.md`.
+The most recent cosmetic-pipeline sweep ran over the combined corpus
+(github + toolshed, sha256-deduplicated): 9,358 unique `<tool>` documents,
+of which 8,608 validate under at least one vendored profile and were
+format-checked — 100% idempotent, 0 crashes, 0 regression fixtures
+retained. Full numbers in `docs/corpus_format_stats.md`.
 
 ## Role in the architecture
 

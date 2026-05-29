@@ -43,8 +43,8 @@ Usage::
     uv run python -m scripts.corpus_check validate [--source github|toolshed|combined] \\
         [--repo NAME] [--limit N] [--no-stats] [--include-raw-profile]
 
-    uv run python -m scripts.corpus_check fmt [--repo NAME] [--limit N] \\
-        [--no-stats] [--profile VERSION]
+    uv run python -m scripts.corpus_check fmt [--source github|toolshed|combined] \\
+        [--repo NAME] [--limit N] [--no-stats] [--profile VERSION]
 
     uv run python -m scripts.corpus_check codemod <dotted.module>:<ClassName> \\
         [--source github|toolshed|combined] [--repo NAME] [--limit N]
@@ -1474,8 +1474,24 @@ def _format_with_stats(document: ToolDocument) -> tuple[bytes, Counter[str]]:
     return to_bytes(tree), rule_edits
 
 
+def _fmt_in_scope(path: Path, *, profile: str | None) -> bool:
+    """Whether a parsed ``<tool>`` belongs in fmt's sweep population.
+
+    fmt only sweeps *valid* tools — running the formatter over never-valid XML
+    amplifies noise (fmt ``docs/decisions.md`` §D9). ``profile is None`` (the
+    default) gates on validity under **any** vendored profile
+    (``newest_valid_profile`` finds one); a specific ``profile`` pins the gate to
+    validation at exactly that release (the legacy ``--profile`` behaviour). §D9
+    anticipated relaxing the original latest-only cohort to any-valid. Shared by
+    the ``fmt`` and ``rules`` sweeps — same fmt-population policy, one home.
+    """
+    if profile is None:
+        return newest_valid_profile(path) is not None
+    return validate_tool(path, profile=profile).valid
+
+
 def _fmt_exercise(
-    path: Path, *, profile: str
+    path: Path, *, profile: str | None
 ) -> tuple[str, str, str, _FormatOutcome | None]:
     """Run the formatter over one XML file and check every invariant."""
     try:
@@ -1484,7 +1500,7 @@ def _fmt_exercise(
             return "skip-unparseable", "", "", None
         if result.document.root.tag != "tool":
             return "skip-non-tool", "", "", None
-        if not validate_tool(path, profile=profile).valid:
+        if not _fmt_in_scope(path, profile=profile):
             return "skip-no-validate", "", "", None
         document_one = parse_tool(path).document
         if document_one is None:
@@ -1565,7 +1581,7 @@ def _fmt_process_path(
     display_name: str,
     repo_dir: Path,
     version: str,
-    profile: str,
+    profile: str | None,
     state: _FmtSweepState,
 ) -> bool:
     """Sweep one XML file and update ``state``; return ``True`` if it counted as a tool."""
@@ -1672,6 +1688,45 @@ def _fmt_format_rule_table(
     return lines
 
 
+def _fmt_format_repos_section(
+    repos: list[tuple[str, str, int]], *, source: str
+) -> list[str]:
+    """Render the repositories section.
+
+    For ``github`` (a small, named set) list every repo with its pinned commit.
+    For ``toolshed`` / ``combined`` that would be thousands of single-tool
+    repositories, so emit a compact per-source rollup instead (toolshed display
+    names carry an ``owner/`` slash; github names do not). The full per-repo
+    list stays available via ``--source github``.
+    """
+    if source == "github":
+        lines = [
+            "## Repositories",
+            "",
+            "| Repository | Version | Tool documents |",
+            "|---|---|---:|",
+        ]
+        for name, commit, count in sorted(repos):
+            lines.append(f"| {name} | `{commit[:12]}` | {count} |")
+        return lines
+    github = [(name, count) for name, _version, count in repos if "/" not in name]
+    toolshed = [(name, count) for name, _version, count in repos if "/" in name]
+    return [
+        "## Repositories",
+        "",
+        (
+            "Per-source rollup — the combined sweep spans thousands of "
+            "single-tool toolshed repositories, so the full per-repo list is "
+            "omitted here (run `--source github` for it)."
+        ),
+        "",
+        "| Source | Repositories | Tool documents |",
+        "|---|---:|---:|",
+        f"| github | {len(github)} | {sum(count for _name, count in github)} |",
+        f"| toolshed | {len(toolshed)} | {sum(count for _name, count in toolshed)} |",
+    ]
+
+
 def _fmt_format_summary_table(state: _FmtSweepState) -> list[str]:
     """Render the headline counts as a markdown table."""
     return [
@@ -1682,7 +1737,7 @@ def _fmt_format_summary_table(state: _FmtSweepState) -> list[str]:
         f"| Parsed as `<tool>` | {state.parsed} |",
         f"| Unparseable XML (skipped) | {state.unparseable} |",
         f"| Non-tool root (skipped) | {state.non_tool} |",
-        f"| Validated under gating profile | {state.validated} |",
+        f"| Validated (in fmt scope) | {state.validated} |",
         f"| Formatted without crashing | {state.formatted_ok} |",
         f"| **Idempotent** | **{state.idempotent}** |",
         f"| Non-idempotent | {state.non_idempotent} |",
@@ -1704,21 +1759,29 @@ def _fmt_format_signatures_table(signatures: Counter[str]) -> list[str]:
 
 def _fmt_write_stats(
     *,
-    profile: str,
+    profile: str | None,
+    source: str,
     repos: list[tuple[str, str, int]],
     state: _FmtSweepState,
 ) -> None:
     """Write the corpus-format statistics artifact to ``docs/``."""
     _FMT_STATS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    gate = f"profile `{profile}`" if profile else "any vendored profile"
+    source_note = (
+        "the combined corpus (github + toolshed, sha256-deduplicated)"
+        if source == "combined"
+        else f"the {source} corpus"
+    )
     lines: list[str] = [
         "# Corpus format statistics",
         "",
         (
             f"Generated by `python -m scripts.corpus_check fmt` on "
-            f"{date.today().isoformat()}, gated on validation under profile "
-            f"`{profile}`. Swept {state.parsed} tool documents across "
+            f"{date.today().isoformat()} over {source_note}, gated on "
+            f"validation under {gate}. "
+            f"Swept {state.parsed} tool documents across "
             f"{len(repos)} repositories; "
-            f"{state.validated} validated under `{profile}` and were "
+            f"{state.validated} validated ({gate}) and were "
             f"format-checked."
         ),
         "",
@@ -1728,13 +1791,8 @@ def _fmt_write_stats(
             "do not regenerate it."
         ),
         "",
-        "## Repositories",
-        "",
-        "| Repository | Version | Tool documents |",
-        "|---|---|---:|",
     ]
-    for name, commit, count in sorted(repos):
-        lines.append(f"| {name} | `{commit[:12]}` | {count} |")
+    lines.extend(_fmt_format_repos_section(repos, source=source))
     lines.append("")
     lines.extend(_fmt_format_summary_table(state))
     lines.append("")
@@ -1797,16 +1855,29 @@ def _fmt_main(argv: list[str]) -> int:
         help="don't regenerate docs/corpus_format_stats.md",
     )
     parser.add_argument(
-        "--profile",
-        default=latest_profile(),
+        "--source",
+        choices=("github", "toolshed", "combined"),
+        default="combined",
         help=(
-            "gating profile: tools that don't validate under this profile "
-            f"are skipped (default: {latest_profile()})"
+            "corpus to sweep: 'github', 'toolshed', or 'combined' (both, "
+            "sha256-deduplicated). Default: combined."
+        ),
+    )
+    parser.add_argument(
+        "--profile",
+        default=None,
+        help=(
+            "gating profile: if given, sweep only tools that validate under "
+            "this exact profile; default (omitted) sweeps every tool that "
+            "validates under ANY vendored profile (fmt decisions §D9)"
         ),
     )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
+    if args.repo is not None and args.source != "github":
+        logger.error("--repo is only supported with --source github, not %r", args.source)
+        return 1
     if args.repo is not None:
         known_names = {name for name, _ in _corpus_sources()}
         if args.repo not in known_names:
@@ -1814,19 +1885,36 @@ def _fmt_main(argv: list[str]) -> int:
             logger.error("unknown --repo %r; known: %s", args.repo, known)
             return 1
 
+    sources = ("github", "toolshed") if args.source == "combined" else (args.source,)
+    if "toolshed" in sources and not _TOOLSHED_ROOT.exists():
+        logger.error(
+            "no toolshed corpus at %s; populate it via scripts/fetch_toolshed.py",
+            _TOOLSHED_ROOT.relative_to(_REPO_ROOT),
+        )
+        return 1
+
     _CORPUS_ROOT.mkdir(parents=True, exist_ok=True)
     state = _FmtSweepState(
         known_fixture_paths=_fmt_known_fixture_paths(regressions_dir=_FMT_REGRESSIONS)
     )
     repo_tool_counts: list[tuple[str, str, int]] = []
     tools = 0
-    for _source_label, display_name, repo_dir, version in _iter_github_sources(
-        repo_filter=args.repo
+    # Dedup identical tools by content hash so a tool present in both sources
+    # (the corpus is ~46% cross-source duplicates) is swept and counted once.
+    seen_sha: set[str] = set()
+    for _source_label, display_name, repo_dir, version in _iter_sources(
+        sources, repo_filter=args.repo
     ):
         repo_tool_count = 0
         for path in sorted(_iter_tool_xmls(repo_dir)):
             if args.limit and tools >= args.limit:
                 break
+            if not path.is_file():
+                continue
+            sha = _sha256_of(path)
+            if sha in seen_sha:
+                continue
+            seen_sha.add(sha)
             if not _fmt_process_path(
                 path,
                 display_name=display_name,
@@ -1848,7 +1936,7 @@ def _fmt_main(argv: list[str]) -> int:
         "swept %d tools; %d validated@%s; %d idempotent; %d non-idempotent; %d crashed",
         tools,
         state.validated,
-        args.profile,
+        args.profile or "any-profile",
         state.idempotent,
         state.non_idempotent,
         state.crashed,
@@ -1871,7 +1959,12 @@ def _fmt_main(argv: list[str]) -> int:
             _FMT_STATS_FILE.relative_to(_REPO_ROOT),
         )
         return 0
-    _fmt_write_stats(profile=args.profile, repos=repo_tool_counts, state=state)
+    _fmt_write_stats(
+        profile=args.profile,
+        source=args.source,
+        repos=repo_tool_counts,
+        state=state,
+    )
     logger.info(
         "corpus stats -> %s", _FMT_STATS_FILE.relative_to(_REPO_ROOT)
     )
@@ -2361,14 +2454,15 @@ def _fmt_rule_apply(tree: etree._ElementTree, rule_cls: type[Rule]) -> int:
 
 
 def _fmt_rule_exercise(
-    path: Path, rule_cls: type[Rule], *, profile: str
+    path: Path, rule_cls: type[Rule], *, profile: str | None
 ) -> tuple[str, str, str, int]:
     """Isolate one fmt rule on one tool: idempotence + no-crash only.
 
     Returns ``(status, signature, detail, pass1_edit_count)``. Status is one of
     ``skip-unparseable`` / ``skip-non-tool`` / ``skip-no-validate`` / ``ok`` /
-    ``non-idempotent`` / ``crash``. Gated on validation under *profile* to match
-    the fmt sweep's population.
+    ``non-idempotent`` / ``crash``. Gated on the same fmt-population policy as
+    the ``fmt`` sweep (``_fmt_in_scope``): any-valid by default, or a pinned
+    ``profile``.
     """
     try:
         result = parse_tool(path)
@@ -2376,7 +2470,7 @@ def _fmt_rule_exercise(
             return "skip-unparseable", "", "", 0
         if result.document.root.tag != "tool":
             return "skip-non-tool", "", "", 0
-        if not validate_tool(path, profile=profile).valid:
+        if not _fmt_in_scope(path, profile=profile):
             return "skip-no-validate", "", "", 0
         document_one = parse_tool(path).document
         if document_one is None:
@@ -2405,7 +2499,7 @@ def _fmt_rule_process_path(
     display_name: str,
     repo_dir: Path,
     version: str,
-    profile: str,
+    profile: str | None,
     rule_cls: type[Rule],
     sweep: _FmtRuleSweep,
 ) -> None:
@@ -2448,7 +2542,7 @@ def _sweep_fmt_rule(
     sources: tuple[str, ...],
     repo_filter: str | None,
     limit: int,
-    profile: str,
+    profile: str | None,
 ) -> _FmtRuleSweep:
     """Sweep the corpus through one isolated fmt rule."""
     sweep = _FmtRuleSweep(
@@ -2635,21 +2729,28 @@ def _rule_format_reference_table() -> list[str]:
 
 def _rule_stats_lines(
     *,
-    profile: str,
+    profile: str | None,
+    source: str,
     fmt_sweeps: list[_FmtRuleSweep],
     codemod_rows: list[tuple[str, str, _CodemodSweepState]],
     upgrade_state: _CodemodSweepState | None,
 ) -> list[str]:
     """Build the per-rule isolation stats markdown (pure; no I/O)."""
+    fmt_gate = f"profile `{profile}`" if profile else "any vendored profile"
+    corpus_note = (
+        "the combined corpus (github + toolshed, sha256-deduplicated)"
+        if source == "combined"
+        else f"the {source} corpus"
+    )
     lines: list[str] = [
         "# Corpus per-rule isolation statistics",
         "",
         (
             f"Generated by `python -m scripts.corpus_check rules` on "
             f"{date.today().isoformat()}. Each GTX rule is run **in isolation** "
-            f"(no other rules) across the github corpus to surface per-rule "
-            f"misbehaviour. fmt rules are gated on validation under profile "
-            f"`{profile}` and checked for idempotence + no-crash only; codemods "
+            f"(no other rules) across {corpus_note} to surface per-rule "
+            f"misbehaviour. fmt rules are gated on validation under {fmt_gate} "
+            f"and checked for idempotence + no-crash only; codemods "
             f"use their own eligibility and are checked for idempotence + "
             f"post-codemod validity. Failures are retained as regression "
             f"fixtures in the owning tier."
@@ -2676,7 +2777,8 @@ def _rule_stats_lines(
 
 def _rule_write_stats(
     *,
-    profile: str,
+    profile: str | None,
+    source: str,
     fmt_sweeps: list[_FmtRuleSweep],
     codemod_rows: list[tuple[str, str, _CodemodSweepState]],
     upgrade_state: _CodemodSweepState | None,
@@ -2685,6 +2787,7 @@ def _rule_write_stats(
     _RULE_STATS_FILE.parent.mkdir(parents=True, exist_ok=True)
     lines = _rule_stats_lines(
         profile=profile,
+        source=source,
         fmt_sweeps=fmt_sweeps,
         codemod_rows=codemod_rows,
         upgrade_state=upgrade_state,
@@ -2705,8 +2808,8 @@ def _rules_main(argv: list[str]) -> int:
     parser.add_argument(
         "--source",
         choices=("github", "toolshed", "combined"),
-        default="github",
-        help="corpus to sweep (default: github, matching the fmt sweep)",
+        default="combined",
+        help="corpus to sweep (default: combined — github + toolshed, deduped)",
     )
     parser.add_argument(
         "--repo", help="sweep only this repository (by name); --source github only"
@@ -2719,8 +2822,12 @@ def _rules_main(argv: list[str]) -> int:
     )
     parser.add_argument(
         "--profile",
-        default=latest_profile(),
-        help="validation gating profile for fmt rules (default: latest vendored)",
+        default=None,
+        help=(
+            "fmt-rule validity gate: if given, only tools valid under this exact "
+            "profile; default (omitted) gates on validity under ANY vendored "
+            "profile"
+        ),
     )
     parser.add_argument(
         "--no-stats",
@@ -2795,6 +2902,7 @@ def _rules_main(argv: list[str]) -> int:
         return 0
     _rule_write_stats(
         profile=args.profile,
+        source=args.source,
         fmt_sweeps=fmt_sweeps,
         codemod_rows=codemod_rows,
         upgrade_state=upgrade_state,
