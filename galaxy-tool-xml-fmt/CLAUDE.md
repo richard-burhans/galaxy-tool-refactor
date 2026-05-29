@@ -80,8 +80,12 @@ Run these from the **workspace root** (`galaxy-tool-refactor/`):
 - `galaxy-tool-xml/docs/decisions.md` §3 (representation), §9
   (three-tier vision)
 - `galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/canonical.py` —
-  the `CANONICAL_CODEMODS` contract the CLI runs as a prelude
-- `src/galaxy_tool_xml_fmt/cli.py` — the orchestrator with the
-  optional-codemod try-import
+  the `CANONICAL_CODEMODS` / `AUTO_UPGRADE_CODEMODS` contracts the tier-4
+  app runs (this package's CLI does not)
+- `src/galaxy_tool_xml_fmt/cli.py` — the cosmetic-only CLI (thin wrapper
+  over `cli_support`); `src/galaxy_tool_xml_fmt/cli_support.py` — the
+  shared file-walking / drift-detection engine the app CLI also uses
+- `galaxy-tool-refactor-cli/` — the tier-4 app that orchestrates codemods
+  + fmt (`format` / `upgrade`)
 - `../docs/corpus_data/combined_corpus_data.json` — the real-world
   distribution of tool XML idioms the formatter must preserve idempotently

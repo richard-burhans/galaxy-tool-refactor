@@ -549,6 +549,12 @@ uv run python -m scripts.corpus_check fmt
 
 ## D10 (2026-05-28) — Structural rules moved to tier 2; fmt becomes cosmetic-only library + canonical-by-default CLI
 
+> **Partially superseded 2026-05-29 — see D12.** The library half stands
+> (fmt's library is cosmetic-only and codemod-free). The CLI half was
+> reversed: the `[canonical]` extra was removed and fmt's CLI reverted to
+> cosmetic-only; cross-tier orchestration moved to the tier-4 app
+> (`galaxy-tool-refactor-cli`). Read the "CLI" claims below as historical.
+
 ### Decision
 
 The two structural rules (former **GTX002** `<param>` attribute order

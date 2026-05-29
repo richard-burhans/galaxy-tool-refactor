@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Sweep public Galaxy tool repositories through the galaxy-tool-xml ecosystem.
 
-A maintainer QA tool with three subcommands:
+A maintainer QA tool with four subcommands:
 
 ``validate`` — sweep the corpus through the galaxy-tool-xml API and check the
 library's invariants on each tool:
@@ -27,6 +27,14 @@ library's invariants on each tool:
   ``STICKING POINT`` versions still needing an upgrade codemod, and the
   per-codemod upgrade counts (how many tools each ``upgrade_vN`` advanced).
 
+``rules`` — sweep the corpus through **every** GTX rule in isolation (one rule
+at a time, no others) and write ``docs/corpus_rule_stats.md``:
+
+* fmt rules (GTX001/003/004) — idempotence + no-crash only (a rule run without
+  its usual predecessors emits valid-but-non-canonical output, which is fine);
+* codemods (GTX002, GTX005–GTX012) — idempotence + post-codemod validity, with
+  ``UpgradeToLatest``'s reach / sticking-point / per-step discovery as upgrade QA.
+
 Each distinct violation in any subcommand is retained under the relevant
 package's ``tests/data/regressions/`` as a permanent regression fixture.
 
@@ -40,6 +48,10 @@ Usage::
 
     uv run python -m scripts.corpus_check codemod <dotted.module>:<ClassName> \\
         [--source github|toolshed|combined] [--repo NAME] [--limit N]
+
+    uv run python -m scripts.corpus_check rules \\
+        [--source github|toolshed|combined] [--repo NAME] [--limit N] \\
+        [--profile VERSION] [--no-stats]
 
 GitHub-source repositories are shallow-cloned into the gitignored ``corpus/``
 directory and reused on later runs. A repository that cannot be cloned is
@@ -2597,15 +2609,38 @@ def _rule_format_upgrade_discovery(state: _CodemodSweepState) -> list[str]:
     return lines
 
 
-def _rule_write_stats(
+def _rule_format_reference_table() -> list[str]:
+    """Render the cross-tier GTX glossary for the rule-stats page.
+
+    Same descriptor table as the fmt stat page's reference, but with an intro
+    framed for this page (the isolation tables below cover every rule, so the
+    fmt page's "do not appear below" caveat does not apply here).
+    """
+    entries: list[tuple[RuleMeta, str]] = [
+        (rule_cls.meta, "fmt") for rule_cls in all_rules()
+    ]
+    entries.extend((codemod_cls.meta, "codemod") for codemod_cls in coded_codemods())
+    lines = [
+        "## Rule reference",
+        "",
+        (
+            "What each GTX rule does, across both tiers. The isolation tables "
+            "below report how each rule behaves when run alone."
+        ),
+        "",
+    ]
+    lines.extend(render_rule_reference_table(entries))
+    return lines
+
+
+def _rule_stats_lines(
     *,
     profile: str,
     fmt_sweeps: list[_FmtRuleSweep],
     codemod_rows: list[tuple[str, str, _CodemodSweepState]],
     upgrade_state: _CodemodSweepState | None,
-) -> None:
-    """Write the per-rule isolation statistics artifact to ``docs/``."""
-    _RULE_STATS_FILE.parent.mkdir(parents=True, exist_ok=True)
+) -> list[str]:
+    """Build the per-rule isolation stats markdown (pure; no I/O)."""
     lines: list[str] = [
         "# Corpus per-rule isolation statistics",
         "",
@@ -2627,6 +2662,8 @@ def _rule_write_stats(
         ),
         "",
     ]
+    lines.extend(_rule_format_reference_table())
+    lines.append("")
     lines.extend(_rule_format_fmt_table(fmt_sweeps))
     lines.append("")
     lines.extend(_rule_format_codemod_table(codemod_rows))
@@ -2634,6 +2671,24 @@ def _rule_write_stats(
         lines.append("")
         lines.extend(_rule_format_upgrade_discovery(upgrade_state))
     lines.append("")
+    return lines
+
+
+def _rule_write_stats(
+    *,
+    profile: str,
+    fmt_sweeps: list[_FmtRuleSweep],
+    codemod_rows: list[tuple[str, str, _CodemodSweepState]],
+    upgrade_state: _CodemodSweepState | None,
+) -> None:
+    """Write the per-rule isolation statistics artifact to ``docs/``."""
+    _RULE_STATS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    lines = _rule_stats_lines(
+        profile=profile,
+        fmt_sweeps=fmt_sweeps,
+        codemod_rows=codemod_rows,
+        upgrade_state=upgrade_state,
+    )
     _RULE_STATS_FILE.write_text("\n".join(lines), encoding="utf-8")
 
 
