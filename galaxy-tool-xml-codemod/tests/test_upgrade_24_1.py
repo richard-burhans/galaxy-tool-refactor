@@ -72,6 +72,22 @@ def test_leaves_unfixable_data_comma_list_untouched() -> None:
     assert newest_valid_profile(etree.tostring(root)) == "24.1"
 
 
+def test_lowercases_ftype_in_test_output() -> None:
+    """24.2 also pattern-restricts ``ftype``; uppercase test ftypes are normalized."""
+    xml = (
+        b'<tool id="m" name="M" version="1.0.0" profile="24.1">'
+        b"<command><![CDATA[echo x]]></command><inputs/>"
+        b'<outputs><data name="o"/></outputs>'
+        b'<tests><test><output name="o" ftype="TXT"/></test></tests></tool>'
+    )
+    module = parse_module(xml)
+    Upgrade24_1().apply(module)
+    output = module.document.root.find(".//output[@ftype]")
+    assert output is not None
+    assert output.get("ftype") == "txt"
+    assert newest_valid_profile(module.document) not in (None, "24.1")
+
+
 def test_noop_on_already_clean_format() -> None:
     xml = _tool(param_fmt="bam")
     module = parse_module(xml)

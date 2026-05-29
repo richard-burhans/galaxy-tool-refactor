@@ -8,13 +8,17 @@ In 24.1 ``format`` was a free ``xs:string``; 24.2 types it:
   (comma-separated lowercase datatype tokens, no spaces);
 - ``<data format>`` → ``Format``: ``[0-9a-z._-]+`` (a single such token).
 
-Tools fail with uppercase (``BAM``), surrounding/embedded spaces
+24.2 applies the same lowercase-token pattern to the ``ftype`` attribute (test
+``<param>`` / ``<output>`` / collection ``<element>`` datatypes), so this
+codemod normalizes both ``format`` and ``ftype``.
+
+Tools fail with uppercase (``BAM``, ``TXT``), surrounding/embedded spaces
 (``fa, fasta``, ``txt ``), or empty values. This codemod normalizes every
-``format`` attribute — lowercase each comma-separated token and strip its
-whitespace — which is a semantics-preserving fix (Galaxy datatype extensions
-are lowercase, and whitespace was never significant). Values it cannot safely
-coerce into the pattern are left untouched, so the tool stays stuck and the
-discovery sweep reports it:
+``format`` / ``ftype`` attribute — lowercase each comma-separated token and
+strip its whitespace — which is a semantics-preserving fix (Galaxy datatype
+extensions are lowercase, and whitespace was never significant). Values it
+cannot safely coerce into the pattern are left untouched, so the tool stays
+stuck and the discovery sweep reports it:
 
 - an empty value normalizes to empty (no change);
 - a ``<data>`` comma-list (e.g. ``fasta,fastq``) cannot become a single
@@ -34,6 +38,11 @@ from galaxy_tool_xml_codemod.cursor import Cursor
 
 if TYPE_CHECKING:
     from galaxy_tool_xml_codemod.module import Module
+
+# Attributes 24.2 newly pattern-restricts to lowercase datatype tokens:
+# ``format`` (param: FormatList, data: Format) and ``ftype`` (test
+# ``<param>``/``<output>``/collection ``<element>`` datatype, same pattern).
+_DATATYPE_ATTRIBUTES = ("format", "ftype")
 
 
 def _normalize_format(value: str, /) -> str:
@@ -55,9 +64,11 @@ class Upgrade24_1(CodemodCommand):
         for element in module.document.root.iter():
             if not isinstance(element.tag, str):
                 continue  # comment / processing instruction
-            value = element.get("format")
-            if value is None:
-                continue
-            normalized = _normalize_format(value)
-            if normalized != value:
-                Cursor(element).set_attribute("format", normalized)
+            cursor = Cursor(element)
+            for attribute in _DATATYPE_ATTRIBUTES:
+                value = element.get(attribute)
+                if value is None:
+                    continue
+                normalized = _normalize_format(value)
+                if normalized != value:
+                    cursor.set_attribute(attribute, normalized)
