@@ -5,8 +5,10 @@ attribute gaining a pattern facet: ``FormatList`` (``<param>``) requires
 comma-separated ``[a-z0-9._-]`` tokens, ``Format`` (``<data>``) a single such
 token. ``Upgrade24_1`` normalizes ``format`` values — lowercase + strip
 whitespace around comma-separated tokens — which unsticks tools whose only
-problem is case/whitespace. Values it cannot safely coerce (empty, or a
-``<data>`` comma-list, which ``Format`` forbids) are left untouched.
+problem is case/whitespace. A value that normalizes to empty (``format=""`` or
+all-whitespace) is *dropped*: an empty datatype restriction is no restriction,
+and ``""`` violates the pattern. A ``<data>`` comma-list (which ``Format``
+forbids) has no single-token coercion and is left untouched.
 """
 
 from __future__ import annotations
@@ -70,6 +72,37 @@ def test_leaves_unfixable_data_comma_list_untouched() -> None:
     root = _apply(_tool(data_fmt="fasta,fastq"))
     assert _format_of(root, "data") == "fasta,fastq"
     assert newest_valid_profile(etree.tostring(root)) == "24.1"
+
+
+def test_deletes_empty_param_format_and_unsticks() -> None:
+    """An empty ``format`` restricts nothing and violates the pattern — dropped."""
+    root = _apply(_tool(param_fmt=""))
+    param = root.find(".//param")
+    assert param is not None
+    assert param.get("format") is None
+    assert newest_valid_profile(etree.tostring(root)) not in (None, "24.1")
+
+
+def test_deletes_format_that_normalizes_to_empty() -> None:
+    """A whitespace/comma-only value normalizes to empty and is dropped."""
+    root = _apply(_tool(data_fmt=" , "))
+    data = root.find(".//data[@name='o']")
+    assert data is not None
+    assert data.get("format") is None
+
+
+def test_deletes_empty_ftype_in_test_output() -> None:
+    xml = (
+        b'<tool id="m" name="M" version="1.0.0" profile="24.1">'
+        b"<command><![CDATA[echo x]]></command><inputs/>"
+        b'<outputs><data name="o"/></outputs>'
+        b'<tests><test><output name="o" ftype=""/></test></tests></tool>'
+    )
+    module = parse_module(xml)
+    Upgrade24_1().apply(module)
+    output = module.document.root.find(".//output")
+    assert output is not None
+    assert output.get("ftype") is None
 
 
 def test_lowercases_ftype_in_test_output() -> None:

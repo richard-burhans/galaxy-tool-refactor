@@ -336,6 +336,19 @@ reproducible command for any data-driven claim.
     (55 below) — per-step 9 / 1 / 97 / 5 from 19.01 / 24.0 / 24.1 / 25.1,
     leaving residual 24.1 (53), 21.05/21.09 (1 each). Still 0 non-idempotent /
     no-repair / post-validate-failed / crashed.
+  - **`Upgrade24_1` extended to drop empty `format`/`ftype`.** Investigating the
+    53-tool 24.1 residual (all `format`/`ftype` pattern violations) split it into:
+    14 tools with a reachable empty `format=""`/`ftype=""`; ~18 with a coercible
+    value (`Rdata`, `GTiff`, `GenBank`) living in an **imported macro file** this
+    codemod can't reach (it mutates only the tool's own tree); ~11 non-datatype
+    junk (`?`, `plain text`, `$var`); ~9 single-token-context comma-lists; 2
+    macro-file empties. Only the first is safely auto-fixable in the single-file
+    model, so `Upgrade24_1` now *drops* a value that normalizes to empty (rather
+    than leaving it). The sweep now reaches latest on **8 566** (41 below) —
+    `Upgrade24_1` advances 111, leaving residual 24.1 (39), 21.05/21.09 (1 each).
+    The macro-reachability ceiling (~18 tools) needs cross-file normalization —
+    a separate architectural decision, noted in `PLAN.md`. Still 0 non-idempotent
+    / no-repair / post-validate-failed / crashed.
 - **`Upgrade24_1` (24.1 → 24.2):** empirically the only 24.2 delta corpus tools
   trip on is the `format` attribute gaining a pattern facet — `FormatList`
   (`<param>`, comma-separated `[a-z0-9._-]` tokens) and `Format` (`<data>`, a
