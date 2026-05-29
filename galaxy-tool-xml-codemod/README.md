@@ -57,7 +57,8 @@ for codemod_cls in CANONICAL_CODEMODS:
 | `codemods.update_profile.UpdateProfile` | Declare the newest profile the tool validates at, bump-up-only. |
 | `upgrades.UpgradeToLatest` | Loop UpdateProfile + single-step upgrades to reach the latest profile (canonical). |
 | `upgrades.UPGRADE_CODEMODS` | Registry: sticking version → its single-step upgrade codemod. |
-| `codemods.upgrade_24_1.Upgrade24_1` | Single-step 24.1 → 24.2 (normalize the `format` attribute). |
+| `codemods.upgrade_24_1.Upgrade24_1` | Single-step 24.1 → 24.2 (normalize `format` / `ftype`). |
+| `codemods.upgrade_25_1.Upgrade25_1` | Single-step 25.1 → 26.0 (drop obsolete `<trackster_conf>`). |
 | `codemods.reorder_param_attributes.ReorderParamAttributes` | IUC `<param>` attribute order. |
 | `codemods.reorder_tool_attributes.ReorderToolAttributes` | Documented `<tool>` attribute prefix. |
 | `canonical.CANONICAL_CODEMODS` | The full ordered set fmt's CLI runs by default. |

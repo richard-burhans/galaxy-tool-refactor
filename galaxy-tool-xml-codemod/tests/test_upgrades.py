@@ -9,6 +9,7 @@ sweep surfaces).
 
 from __future__ import annotations
 
+import pytest
 from galaxy_tool_xml.binding import newest_valid_profile
 from galaxy_tool_xml.profiles import latest_profile
 from lxml import etree
@@ -101,3 +102,32 @@ def test_upgrade_steps_empty_when_stuck_without_advancing() -> None:
     upgrade = UpgradeToLatest()
     upgrade.apply(module)
     assert upgrade.upgrade_steps_applied() == ()
+
+
+def test_reports_missing_upgrade_codemod(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A sub-latest sticking version with no registered upgrade is reported.
+
+    Covers tools not in the corpus: if the canonical pipeline ever hits a
+    profile it has no ``upgrade_vN`` for, it must surface it (warn + expose)
+    so the missing codemod gets written.
+    """
+    # Patch the exact globals dict ``UpgradeToLatest.apply`` reads, not a module
+    # looked up by name — another test may have dropped and re-imported the
+    # codemod package, leaving the class bound to a different module object.
+    monkeypatch.setitem(UpgradeToLatest.apply.__globals__, "UPGRADE_CODEMODS", {})
+    module = parse_module(_tool(profile="24.1", param_fmt="BAM"))
+    upgrade = UpgradeToLatest()
+    with caplog.at_level("WARNING"):
+        upgrade.apply(module)
+    assert upgrade.missing_upgrade() == "24.1"
+    assert any("24.1" in record.message for record in caplog.records)
+
+
+def test_no_missing_upgrade_when_latest_reached() -> None:
+    """Reaching the latest profile leaves no missing-upgrade report."""
+    module = parse_module(_tool(profile="24.1", param_fmt="BAM"))
+    upgrade = UpgradeToLatest()
+    upgrade.apply(module)
+    assert upgrade.missing_upgrade() is None

@@ -125,14 +125,40 @@ been ported as proper codemods (verb-noun naming, TDD):
 - M5 is gated on M1-M4 being usable end-to-end; first ship of v1 can
   cover XML-only refactors and grow into Cheetah later.
 
-### Future — profile-upgrade codemods (deferred)
+### Profile-version upgrades — shipped + grown empirically
 
-A second class of baked-in codemods will rewrite tool XML to conform to
-a newer Galaxy profile (e.g. migrate constructs deprecated between
-profile `21.05` and `26.1`). Opt-in (not part of `CANONICAL_CODEMODS`),
-target-version-aware, likely grouped in `upgrades.py` alongside
-`canonical.py`. No implementation planned in M1–M5; mentioned here so
-the package layout leaves room.
+A class of single-step upgrade codemods rewrites tool XML to conform to
+the next vendored profile, driven by `upgrades.py`'s `UpgradeToLatest`
+orchestrator (in `CANONICAL_CODEMODS`). The registry `UPGRADE_CODEMODS`
+is grown empirically: the `corpus_check codemod --source combined` sweep
+reports each `STICKING POINT <version>` where real tools stall.
+
+**Shipped:**
+
+- `Upgrade24_1` (24.1 → 24.2): normalize `format` / `ftype` to the new
+  lowercase-token pattern. Advances ~97 corpus tools.
+- `Upgrade25_1` (25.1 → 26.0): drop the obsolete top-level
+  `<trackster_conf>` element.
+
+**Needed — reported by the full combined sweep, deferred for
+investigation** (each needs a semantic decision, so not auto-fixed; the
+orchestrator leaves these tools at their best reachable profile and the
+discovery sweep keeps reporting them):
+
+- **24.1 residual (~53 tools)** — `format`/`ftype` values that are macro
+  tokens (`@format@`, `@intypes@`), empty (`format=""`), or a `<data>`
+  comma-list (a single-token `Format` cannot hold a list). Needs
+  macro-aware handling and a rule for empty / multi-format values.
+- **19.01 → 19.05 (9 tools)** — `<data>` now requires `name=`. Auto-fix
+  would mean inventing output names — unsafe.
+- **24.0 → 24.1 (1 tool)** — `<filter>` inside a `<collection>`'s `<data>`
+  is no longer allowed (only `actions`/`change_format`). Top-level `<data>`
+  filters are fine; the collection case needs structural restructuring.
+- **21.09 → 22.01 (1 tool)** — `output_collection/@type` and
+  `param/@collection_type` got a `(list|paired)` pattern; the tool uses
+  `type="pdf"`/`type="tabular"` (wrong) plus a space in `collection_type`.
+- **21.05 → 21.09 (1 tool)** — `has_size/@delta_frac` removed; no obvious
+  equivalent.
 
 ## Open questions — resolved
 

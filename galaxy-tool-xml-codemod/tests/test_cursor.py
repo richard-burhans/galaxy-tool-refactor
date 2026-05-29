@@ -236,3 +236,20 @@ def test_rename_attribute_rejects_present_new() -> None:
     cursor = Cursor(etree.fromstring(b"<param typ='text' type='data'/>"))
     with pytest.raises(ValueError):
         cursor.rename_attribute("typ", "type")
+
+
+def test_remove_detaches_element_from_parent() -> None:
+    """``remove`` drops the element from its parent's children."""
+    from lxml import etree
+
+    root = etree.fromstring(b"<tool><a/><trackster_conf/><b/></tool>")
+    Cursor(root[1]).remove()
+    assert [child.tag for child in Cursor(root).children()] == ["a", "b"]
+
+
+def test_remove_rejects_root() -> None:
+    """``remove`` raises on an element with no parent — you can't drop the root."""
+    from lxml import etree
+
+    with pytest.raises(ValueError):
+        Cursor(etree.fromstring(b"<tool/>")).remove()

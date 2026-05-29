@@ -4,7 +4,8 @@ M1 supplied read-only navigation (tag, attribute reads, child / parent
 traversal). M2 added the mutation primitives codemods need:
 ``set_attribute``, ``delete_attribute``, ``reorder_attributes``,
 ``attribute_names``, plus the ``rename_tag`` / ``rename_attribute``
-primitives the typo-repair codemod relies on. All mutations apply
+primitives the typo-repair codemod relies on and ``remove`` (used by
+profile-upgrade codemods to drop obsolete elements). All mutations apply
 immediately to the underlying lxml tree.
 
 ``children()`` returns **only real elements** — lxml Comment and
@@ -101,6 +102,18 @@ class Cursor:
         attrib.clear()
         for name, value in snapshot:
             attrib[name] = value
+
+    def remove(self, /) -> None:
+        """Detach this element (and its subtree) from its parent.
+
+        Raises ``ValueError`` if the element has no parent — the document root
+        cannot be removed. lxml drops the element's tail text along with it,
+        which the cosmetic formatter re-normalises.
+        """
+        parent = self._element.getparent()
+        if parent is None:
+            raise ValueError("remove: element has no parent (cannot remove the root)")
+        parent.remove(self._element)
 
     def reorder_attributes(self, names: Sequence[str], /) -> None:
         """Rewrite the element's attribute order to match ``names``.

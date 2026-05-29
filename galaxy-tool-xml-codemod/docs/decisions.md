@@ -334,3 +334,20 @@ reproducible command for any data-driven claim.
   galaxy_tool_xml_codemod.upgrades:UpgradeToLatest --limit 300` → 297 reached
   latest, 3 stuck at 25.1 (next codemod to write); 0 non-idempotent /
   post-validate-failed / crashed.
+- **Empirical growth (full combined sweep, 8 648 eligible):** `Upgrade24_1`
+  was extended to also normalize `ftype` (24.2 pattern-restricts it like
+  `format`); `Upgrade25_1` (25.1 → 26.0) drops the obsolete top-level
+  `<trackster_conf>` element, which pulled in the deferred `Cursor.remove()`
+  primitive. The remaining sticking points are documented in `PLAN.md` as
+  needed-but-deferred — each requires a semantic decision (invent a `<data>`
+  name for 19.01; restructure a `<collection>`'s filtered `<data>` for 24.0;
+  macro-token / empty / multi-format handling for the 24.1 residual), so they
+  are reported by the discovery sweep rather than auto-fixed.
+- **Runtime missing-upgrade reporting:** the discovery sweep only sees corpus
+  tools. So `UpgradeToLatest` also reports at runtime — `logger.warning` plus a
+  `missing_upgrade()` accessor — whenever it stalls at a sub-latest profile
+  with no registered `upgrade_vN`. A user's tool (not in the corpus) run
+  through fmt's canonical pipeline therefore surfaces the gap instead of being
+  silently left below latest. A version that *has* a codemod which merely
+  can't advance a particular tool is not reported as missing (that's an
+  incomplete codemod / unfixable tool, not an absent one).
