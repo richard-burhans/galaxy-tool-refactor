@@ -16,8 +16,10 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, ClassVar
 
+from galaxy_tool_refactor_rules.meta import RuleMeta
+
 from galaxy_tool_xml_fmt.edits import Edit, SetTail
-from galaxy_tool_xml_fmt.rules import Rule, RuleMeta
+from galaxy_tool_xml_fmt.rules import Rule
 
 if TYPE_CHECKING:
     from lxml import etree
@@ -30,7 +32,7 @@ class BlankLineBetweenSections(Rule):
     meta: ClassVar[RuleMeta] = RuleMeta(
         code="GTX003",
         summary="One blank line between top-level children of <tool>.",
-        since="0.1.0",
+        since="0.0.1",
         order=90,
     )
 

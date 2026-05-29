@@ -11,7 +11,9 @@ structure only; ``UpdateProfile`` (run by ``UpgradeToLatest``) re-declares
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
+
+from galaxy_tool_refactor_rules.meta import RuleMeta
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
 from galaxy_tool_xml_codemod.cursor import Cursor
@@ -22,6 +24,15 @@ if TYPE_CHECKING:
 
 class Upgrade25_1(CodemodCommand):
     """Upgrade a tool stuck at profile 25.1 toward 26.0 (drop ``<trackster_conf>``)."""
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTX011",
+        summary=(
+            "Upgrade a tool stuck at profile 25.1 toward 26.0"
+            " (drop <trackster_conf>)."
+        ),
+        since="0.0.1",
+    )
 
     def apply(self, module: Module, /) -> None:
         for element in list(module.document.root.iter("trackster_conf")):

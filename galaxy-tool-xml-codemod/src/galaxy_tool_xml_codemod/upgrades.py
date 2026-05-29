@@ -21,8 +21,9 @@ canonical pipeline) is surfaced rather than silently left behind. See
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
+from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_xml.binding import newest_valid_profile
 from galaxy_tool_xml.profiles import latest_profile
 
@@ -57,6 +58,12 @@ class UpgradeToLatest(CodemodCommand):
     tool validating at the best version reached, which ``UpdateProfile`` has
     already declared.
     """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTX012",
+        summary="Iteratively upgrade a tool toward the latest profile.",
+        since="0.0.1",
+    )
 
     def __init__(self) -> None:
         # From-versions the most recent ``apply`` advanced the tool past, in

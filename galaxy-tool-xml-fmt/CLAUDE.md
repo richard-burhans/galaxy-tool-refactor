@@ -18,18 +18,19 @@ formatting per input, no user-tunable style. The opinionated choice
 goes here so the lower tiers can ignore trivia (indentation, quote
 style, attribute spacing, empty-element shorthand) entirely.
 
-**Tier independence.** This package's library
-(`format_tool_document`) does **not** depend on
-`galaxy-tool-xml-codemod`. Cosmetic-only formatting is fully
-functional with just `galaxy-tool-xml + galaxy-tool-xml-fmt` installed.
+**Tier independence.** This package — both the library
+(`format_tool_document`) and the `galaxy-tool-xml-fmt` CLI — is
+**cosmetic-only** and does **not** depend on `galaxy-tool-xml-codemod`.
+It works with just `galaxy-tool-xml + galaxy-tool-xml-fmt` installed.
 
-For the project's preferred (fully-canonical) workflow — structural
-canonicalisation **then** cosmetic formatting — install the
-`[canonical]` extra (`pip install galaxy-tool-xml-fmt[canonical]`) and
-use the `galaxy-tool-xml-fmt` CLI. When the extra is present, the CLI
-runs `galaxy_tool_xml_codemod.canonical.CANONICAL_CODEMODS` before
-fmt's cosmetic rules. Without the extra, the CLI prints a one-line
-hint at startup and proceeds with cosmetic rules only.
+For the fully-canonical and profile-upgrade workflows, use the
+`galaxy-tool-refactor` app CLI (`galaxy-tool-refactor-cli`, tier 4),
+which composes the codemod and fmt tiers. Orchestration lives there,
+not here — fmt's CLI no longer runs codemods (the former `[canonical]`
+extra was removed; see `docs/decisions.md` §D12). This package does
+own the shared CLI engine `cli_support.py` (file walking,
+`--check`/`--diff`/`--quiet`, drift detection), which both fmt's CLI
+and the app's CLI consume.
 
 ## Coding standards
 

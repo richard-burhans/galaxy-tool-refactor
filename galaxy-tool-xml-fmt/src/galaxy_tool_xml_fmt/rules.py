@@ -1,4 +1,9 @@
-"""Rule base class and metadata for the formatter.
+"""Rule base class for the formatter.
+
+The ``RuleMeta`` descriptor each rule carries lives in the shared
+``galaxy-tool-refactor-rules`` package (tier 0.5), so the formatter and the
+codemod tier expose one uniform rule-metadata vocabulary.
+
 
 Rules are stateless ABCs whose ``apply()`` method inspects an lxml tree and
 yields ``Edit``s describing the canonical-form mutations to perform. The
@@ -19,34 +24,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar
+
+from galaxy_tool_refactor_rules.meta import RuleMeta
 
 if TYPE_CHECKING:
     from lxml import etree
 
     from galaxy_tool_xml_fmt.edits import Edit
-
-
-@dataclass(frozen=True)
-class RuleMeta:
-    """Metadata descriptor for a formatter rule.
-
-    Attributes:
-        code: Short unique rule identifier (e.g. ``"GTX001"``).
-        summary: One-line human-readable description.
-        since: Version in which this rule was introduced.
-        until: Version in which this rule was removed, or ``None`` if active.
-        cite: Optional reference URL or citation.
-        order: Application order; lower values run first.
-    """
-
-    code: str
-    summary: str
-    since: str
-    until: str | None = None
-    cite: str | None = None
-    order: int = 100
 
 
 class Rule(ABC):

@@ -28,12 +28,13 @@ See ``docs/architecture.md`` § Cursor-walk constraint and
 from __future__ import annotations
 
 from functools import cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_xml_codemod.cursor import Cursor
 from galaxy_tool_xml_codemod.eligibility import corpus_test_profile
 
 if TYPE_CHECKING:
+    from galaxy_tool_refactor_rules.meta import RuleMeta
     from galaxy_tool_xml.document import ToolDocument
 
     from galaxy_tool_xml_codemod.module import Module
@@ -52,7 +53,15 @@ def _visit_method_name(tag: str) -> str:
 
 
 class CodemodCommand:
-    """Base class for structural-refactor codemods."""
+    """Base class for structural-refactor codemods.
+
+    Every bundled codemod carries a ``meta: ClassVar[RuleMeta]`` GTX descriptor
+    (shared with the formatter tier via ``galaxy-tool-refactor-rules``) so the
+    two tiers expose one uniform rule registry. The enumerated set of coded
+    codemods is ``catalog.coded_codemods()``.
+    """
+
+    meta: ClassVar[RuleMeta]
 
     def apply(self, module: Module, /) -> None:
         """Walk ``module``'s lxml tree and dispatch ``visit_X`` for each element.

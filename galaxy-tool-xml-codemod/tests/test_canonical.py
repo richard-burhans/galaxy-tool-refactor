@@ -1,8 +1,11 @@
-"""Tests for the ``CANONICAL_CODEMODS`` public contract."""
+"""Tests for the ``CANONICAL_CODEMODS`` and ``AUTO_UPGRADE_CODEMODS`` contracts."""
 
 from __future__ import annotations
 
-from galaxy_tool_xml_codemod.canonical import CANONICAL_CODEMODS
+from galaxy_tool_xml_codemod.canonical import (
+    AUTO_UPGRADE_CODEMODS,
+    CANONICAL_CODEMODS,
+)
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.codemods.reorder_param_attributes import (
@@ -20,36 +23,53 @@ def test_canonical_set_includes_both_attribute_reorder_codemods() -> None:
     assert ReorderToolAttributes in CANONICAL_CODEMODS
 
 
-def test_canonical_set_includes_repair_and_upgrade_codemods() -> None:
-    """``FixTypos`` and ``UpgradeToLatest`` run as part of the canonical pipeline.
+def test_canonical_set_repairs_but_does_not_upgrade() -> None:
+    """``FixTypos`` runs in the canonical pipeline; profile upgrade does not.
 
-    ``UpgradeToLatest`` subsumes ``UpdateProfile`` (it runs it internally each
-    round), so the profile step is represented by the orchestrator, not a
-    standalone ``UpdateProfile`` entry.
+    Profile upgrade is semantic and opt-in — it lives in
+    ``AUTO_UPGRADE_CODEMODS``, not the default canonical (format) pipeline.
     """
     assert FixTypos in CANONICAL_CODEMODS
-    assert UpgradeToLatest in CANONICAL_CODEMODS
+    assert UpgradeToLatest not in CANONICAL_CODEMODS
 
 
-def test_canonical_order_repairs_then_upgrades_then_reorders() -> None:
-    """FixTypos precedes UpgradeToLatest, and both precede the attribute reorderers.
+def test_canonical_order_repairs_then_reorders() -> None:
+    """FixTypos precedes the attribute reorderers.
 
-    Order is load-bearing: typo repair must run before the tool is upgraded off a
-    now-validatable tree, and the profile must be settled (the upgrade loop
-    re-declares it) before ``ReorderToolAttributes`` positions ``profile=``.
+    Order is load-bearing: typo repair must run before attribute order is
+    tidied so the reorderers see a validatable, settled tree.
     """
     order = {cls: i for i, cls in enumerate(CANONICAL_CODEMODS)}
+    assert order[FixTypos] < order[ReorderParamAttributes]
+    assert order[FixTypos] < order[ReorderToolAttributes]
+
+
+def test_auto_upgrade_pipeline_repairs_then_upgrades() -> None:
+    """``AUTO_UPGRADE_CODEMODS`` runs ``FixTypos`` before ``UpgradeToLatest``.
+
+    Order is load-bearing: ``UpgradeToLatest`` no-ops on a tool that validates
+    nowhere, so repair must run first for a broken-and-outdated tool to upgrade
+    in one pass.
+    """
+    assert FixTypos in AUTO_UPGRADE_CODEMODS
+    assert UpgradeToLatest in AUTO_UPGRADE_CODEMODS
+    order = {cls: i for i, cls in enumerate(AUTO_UPGRADE_CODEMODS)}
     assert order[FixTypos] < order[UpgradeToLatest]
-    assert order[UpgradeToLatest] < order[ReorderToolAttributes]
-    assert order[UpgradeToLatest] < order[ReorderParamAttributes]
 
 
-def test_canonical_codemods_are_all_codemod_commands() -> None:
-    """Every member of the canonical set is a ``CodemodCommand`` subclass."""
-    for codemod_cls in CANONICAL_CODEMODS:
+def test_auto_upgrade_pipeline_does_not_reorder_attributes() -> None:
+    """The upgrade pipeline is repair + version migration only, not formatting."""
+    assert ReorderParamAttributes not in AUTO_UPGRADE_CODEMODS
+    assert ReorderToolAttributes not in AUTO_UPGRADE_CODEMODS
+
+
+def test_pipelines_are_all_codemod_commands() -> None:
+    """Every member of both pipelines is a ``CodemodCommand`` subclass."""
+    for codemod_cls in (*CANONICAL_CODEMODS, *AUTO_UPGRADE_CODEMODS):
         assert issubclass(codemod_cls, CodemodCommand)
 
 
-def test_canonical_set_is_a_tuple() -> None:
-    """``CANONICAL_CODEMODS`` is a tuple — the contract surface is immutable."""
+def test_pipelines_are_tuples() -> None:
+    """Both contracts are tuples — the contract surface is immutable."""
     assert isinstance(CANONICAL_CODEMODS, tuple)
+    assert isinstance(AUTO_UPGRADE_CODEMODS, tuple)

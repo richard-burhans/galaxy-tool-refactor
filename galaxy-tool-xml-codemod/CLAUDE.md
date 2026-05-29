@@ -20,21 +20,28 @@ This package supplies the **structural-refactor framework**: a
 with typed mutation primitives (``set_attribute``, ``delete_attribute``,
 ``rename_attribute``, ``rename_tag``, ``reorder_attributes``, ``remove``,
 ``add_child``, ``attribute_names``), a ``Module`` wrapper, a ``parse_module`` entry
-point, and the bundled codemods exposed via the ordered
-``CANONICAL_CODEMODS`` tuple consumed by fmt's CLI:
-``FixTypos`` → ``UpgradeToLatest`` → ``ReorderParamAttributes`` →
-``ReorderToolAttributes``. ``FixTypos`` and ``UpgradeToLatest`` (which
-loops ``UpdateProfile`` + single-step ``upgrade_vN`` codemods from
-``upgrades.py``) are validation-driven and override ``apply``. The
-upgrade registry is grown empirically from ``corpus_check codemod``
-discovery sweeps; see ``docs/decisions.md`` §11–14.
+point, and the bundled codemods exposed via two ordered pipeline
+contracts in ``canonical.py``:
 
-**Tier independence:** fmt's *library* (`format_tool_document`) does
-not depend on this package. fmt's *CLI* depends on it via the
-``[canonical]`` extra — when codemod is installed, the CLI runs
-``CANONICAL_CODEMODS`` before fmt's cosmetic rules to produce the
-project's preferred output. Without the extra, fmt still works but
-applies cosmetic rules only.
+- ``CANONICAL_CODEMODS`` = ``FixTypos`` → ``ReorderParamAttributes`` →
+  ``ReorderToolAttributes`` (the safe canonical/format pipeline).
+- ``AUTO_UPGRADE_CODEMODS`` = ``FixTypos`` → ``UpgradeToLatest`` (the
+  opt-in profile-upgrade pipeline).
+
+``FixTypos`` and ``UpgradeToLatest`` (which loops ``UpdateProfile`` +
+single-step ``upgrade_vN`` codemods from ``upgrades.py``) are
+validation-driven and override ``apply``. The upgrade registry is grown
+empirically from ``corpus_check codemod`` discovery sweeps; see
+``docs/decisions.md`` §11–14, and §16 for the canonical/upgrade split.
+
+**Tier independence:** this package does not depend on fmt. The
+user-facing orchestration — running these pipelines and writing output
+through fmt's serializer — lives in the tier-4 app
+(``galaxy-tool-refactor-cli``): its ``format`` command runs
+``CANONICAL_CODEMODS``, its ``upgrade`` command runs
+``AUTO_UPGRADE_CODEMODS``. fmt's own CLI is cosmetic-only and no longer
+consumes these contracts (see ``galaxy-tool-xml-fmt/docs/decisions.md``
+§D12).
 
 The architecture rationale lives in `docs/architecture.md` (a working
 copy forked from `galaxy-tool-xml/docs/codemod-architecture.md` —
@@ -92,9 +99,11 @@ Run these from the **workspace root** (`galaxy-tool-refactor/`):
 - `galaxy-tool-xml/docs/decisions.md` §3 (trivia contract), §6 (corpus
   stats), §9 (three-tier vision)
 - `galaxy-tool-xml/docs/codemod-architecture.md` — the original tier-2 design
-- `galaxy-tool-xml-fmt/src/galaxy_tool_xml_fmt/cli.py` — the CLI that
-  orchestrates ``CANONICAL_CODEMODS`` before fmt's cosmetic rules
-- `canonical.py` — the public ``CANONICAL_CODEMODS`` contract consumed by fmt's CLI
+- `galaxy-tool-refactor-cli/src/galaxy_tool_refactor_cli/cli.py` — the app
+  CLI that runs ``CANONICAL_CODEMODS`` (``format``) and
+  ``AUTO_UPGRADE_CODEMODS`` (``upgrade``)
+- `canonical.py` — the public ``CANONICAL_CODEMODS`` and
+  ``AUTO_UPGRADE_CODEMODS`` pipeline contracts the app CLI consumes
 - `codemods/` — bundled codemod implementations (verb-noun module names)
 - `eligibility.py` — corpus-sweep profile-selection policy
 - `../docs/corpus_data/combined_corpus_data.json` — every swept Galaxy

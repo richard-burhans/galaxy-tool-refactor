@@ -50,11 +50,13 @@ Cosmetic rules in this package:
 - One-line layout for all attributes regardless of source layout
   (locked by lxml + tests, D8)
 
-Structural transforms applied by the CLI via the `[canonical]` extra are
-whatever `galaxy_tool_xml_codemod.canonical.CANONICAL_CODEMODS` contains; that
-set has grown in tier 2 and now runs, in order: `FixTypos`, `UpgradeToLatest`,
-`ReorderParamAttributes`, `ReorderToolAttributes`. The two this package
-originally owned:
+Structural transforms are not applied by this package's CLI (cosmetic-only
+since §D12). They live in tier 2 and are run by the tier-4 app
+(`galaxy-tool-refactor`): `galaxy_tool_xml_codemod.canonical.CANONICAL_CODEMODS`
+= `FixTypos`, `ReorderParamAttributes`, `ReorderToolAttributes` (the app's
+`format` command); profile upgrade is the separate `AUTO_UPGRADE_CODEMODS` =
+`FixTypos`, `UpgradeToLatest` (the app's `upgrade` command). The two this
+package originally owned:
 
 - `<param>` attribute order (canonical: IUC order — `ReorderParamAttributes`,
   was GTX002 in this package)

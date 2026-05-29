@@ -23,8 +23,9 @@ See ``docs/decisions.md`` §13.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
+from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_xml.binding import newest_valid_profile
 from packaging.version import InvalidVersion, Version
 
@@ -51,6 +52,15 @@ def _is_newer(target: str, declared: str, /) -> bool:
 
 class UpdateProfile(CodemodCommand):
     """Set ``profile=`` to the newest profile the tool validates at (bump-up-only)."""
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTX007",
+        summary=(
+            "Set profile= to the newest profile the tool validates at"
+            " (bump-up-only)."
+        ),
+        since="0.0.1",
+    )
 
     def apply(self, module: Module, /) -> None:
         document = module.document

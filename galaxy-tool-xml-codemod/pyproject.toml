@@ -7,13 +7,11 @@ requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Richard Burhans" }]
 dependencies = [
+    "galaxy-tool-refactor-rules",
     "galaxy-tool-xml",
     "click>=8",
     "lxml>=5",
 ]
-
-[project.scripts]
-galaxy-tool-xml-codemod = "galaxy_tool_xml_codemod.cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -46,4 +44,5 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 
 [tool.uv.sources]
+galaxy-tool-refactor-rules = { workspace = true }
 galaxy-tool-xml = { workspace = true }

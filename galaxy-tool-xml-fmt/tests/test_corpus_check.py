@@ -13,6 +13,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import scripts.corpus_check as corpus_check
+from galaxy_tool_xml_codemod.catalog import coded_codemods
+
+from galaxy_tool_xml_fmt.format import all_rules
 
 
 def test_provenance_round_trip(tmp_path: Path) -> None:
@@ -63,3 +66,60 @@ def test_signature_includes_exception_type_and_deepest_frame() -> None:
         signature = corpus_check._signature(exc)
     assert signature.startswith("ValueError @ ")
     assert "test_corpus_check.py" in signature
+
+
+def _reference_table_codes() -> list[str]:
+    """The rule codes listed in the generated reference table, in row order."""
+    rows = corpus_check._fmt_format_rule_reference_table()
+    return [line.split("|")[1].strip() for line in rows if line.startswith("| GTX")]
+
+
+def test_reference_table_covers_every_rule_across_both_tiers() -> None:
+    """Every fmt rule and every coded codemod appears in the reference table."""
+    expected = {cls.meta.code for cls in all_rules()} | {
+        cls.meta.code for cls in coded_codemods()
+    }
+    assert set(_reference_table_codes()) == expected
+
+
+def test_gtx_codes_are_globally_unique_across_tiers() -> None:
+    """A GTX code must identify exactly one rule across fmt + codemod."""
+    codes = [cls.meta.code for cls in all_rules()]
+    codes += [cls.meta.code for cls in coded_codemods()]
+    assert len(codes) == len(set(codes))
+
+
+def test_reference_table_sits_above_the_trigger_tables() -> None:
+    """The glossary heading must precede the Pass 1 trigger heading."""
+    rows = corpus_check._fmt_format_rule_reference_table()
+    assert rows[0] == "## Rule reference"
+    # codemod-tier rows are reference-only; the intro must say so.
+    assert any("do not appear in the trigger tables" in line for line in rows)
+
+
+def test_rule_stats_fmt_table_renders_a_row() -> None:
+    """The per-rule isolation fmt table renders code + counts, sorted by code."""
+    sweeps = [
+        corpus_check._FmtRuleSweep(code="GTX003", validated=10, touched=10, edits=42),
+        corpus_check._FmtRuleSweep(
+            code="GTX001", validated=10, touched=10, edits=99, non_idempotent=1
+        ),
+    ]
+    table = corpus_check._rule_format_fmt_table(sweeps)
+    codes = [line.split("|")[1].strip() for line in table if line.startswith("| GTX")]
+    assert codes == ["GTX001", "GTX003"]  # sorted by code
+    assert any("| GTX001 |" in line and "| 99 |" in line for line in table)
+
+
+def test_rule_stats_upgrade_discovery_lists_sticking_points() -> None:
+    """UpgradeToLatest's isolated discovery shows reach + sticking-point rows."""
+    from galaxy_tool_xml.profiles import latest_profile
+
+    state = corpus_check._CodemodSweepState(eligible=5)
+    state.final_profiles[latest_profile()] = 3
+    state.final_profiles["24.1"] = 2
+    state.upgrade_steps["24.1"] = 1
+    lines = corpus_check._rule_format_upgrade_discovery(state)
+    assert any("UpgradeToLatest" in line for line in lines)
+    assert any("reached latest" in line for line in lines)
+    assert any(line.startswith("| 24.1 |") for line in lines)

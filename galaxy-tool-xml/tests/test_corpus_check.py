@@ -503,3 +503,32 @@ def test_write_failure_details_annotates_toolshed_rows_with_github_siblings(
         encoding="utf-8"
     )
     assert "someone/kegalign (also in github: tools-iuc)" in page
+
+
+def test_profile_sort_key_distinguishes_version_equal_strings() -> None:
+    """``20.5`` and ``20.05`` are numerically equal but must get distinct keys.
+
+    Otherwise their stat-table rows tie and the order depends on dict iteration,
+    churning the regenerated artifact on every sweep.
+    """
+    assert corpus_check._profile_sort_key("20.5") != corpus_check._profile_sort_key(
+        "20.05"
+    )
+    assert corpus_check._profile_sort_key_newest_first(
+        "24.1"
+    ) != corpus_check._profile_sort_key_newest_first("24.01")
+
+
+def test_profile_sort_is_deterministic_regardless_of_input_order() -> None:
+    """Sorting the same labels in any input order yields one canonical order."""
+    labels = ["24.1", "24.01", "20.05", "20.5", "24.0", "24.00", "19.01", "26.0"]
+    forward = sorted(labels, key=corpus_check._profile_sort_key)
+    reversed_in = sorted(labels[::-1], key=corpus_check._profile_sort_key)
+    assert forward == reversed_in
+    # oldest-first: a genuinely older version precedes a newer one.
+    assert forward.index("19.01") < forward.index("26.0")
+
+
+def test_profile_sort_key_handles_numeric_prefix_without_typeerror() -> None:
+    """A bare ``24`` vs ``24.0`` must not compare an int against the raw string."""
+    assert sorted(["24.0", "24"], key=corpus_check._profile_sort_key) == ["24", "24.0"]

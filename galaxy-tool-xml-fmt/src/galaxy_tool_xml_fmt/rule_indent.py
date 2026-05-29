@@ -14,8 +14,10 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, ClassVar
 
+from galaxy_tool_refactor_rules.meta import RuleMeta
+
 from galaxy_tool_xml_fmt.edits import Edit, SetTail, SetText
-from galaxy_tool_xml_fmt.rules import Rule, RuleMeta
+from galaxy_tool_xml_fmt.rules import Rule
 
 if TYPE_CHECKING:
     from lxml import etree
@@ -28,7 +30,7 @@ class CanonicalIndent(Rule):
     meta: ClassVar[RuleMeta] = RuleMeta(
         code="GTX001",
         summary="Canonical 4-space indentation; no tabs.",
-        since="0.1.0",
+        since="0.0.1",
         cite="https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html",
         order=10,
     )

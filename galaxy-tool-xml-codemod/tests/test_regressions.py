@@ -21,7 +21,10 @@ import pytest
 from galaxy_tool_xml.binding import validate_tool
 from lxml import etree
 
-from galaxy_tool_xml_codemod.canonical import CANONICAL_CODEMODS
+from galaxy_tool_xml_codemod.canonical import (
+    AUTO_UPGRADE_CODEMODS,
+    CANONICAL_CODEMODS,
+)
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.eligibility import corpus_test_profile
 from galaxy_tool_xml_codemod.parse import parse_module
@@ -52,6 +55,28 @@ def test_canonical_codemods_are_idempotent_on_fixture(tool_path: Path) -> None:
         codemod_cls().apply(module)
     once = etree.tostring(module.document.tree)
     for codemod_cls in CANONICAL_CODEMODS:
+        codemod_cls().apply(module)
+    twice = etree.tostring(module.document.tree)
+    assert once == twice
+
+
+@pytest.mark.parametrize(
+    "tool_path",
+    _fixture_paths(),
+    ids=lambda path: path.parent.name,
+)
+def test_auto_upgrade_codemods_are_idempotent_on_fixture(tool_path: Path) -> None:
+    """Applying ``AUTO_UPGRADE_CODEMODS`` twice must yield identical bytes.
+
+    Profile upgrade moved out of the canonical pipeline into the opt-in upgrade
+    pipeline; this keeps the upgrade path's idempotence covered on every
+    retained fixture (a no-op on tools already at the latest profile).
+    """
+    module = parse_module(tool_path)
+    for codemod_cls in AUTO_UPGRADE_CODEMODS:
+        codemod_cls().apply(module)
+    once = etree.tostring(module.document.tree)
+    for codemod_cls in AUTO_UPGRADE_CODEMODS:
         codemod_cls().apply(module)
     twice = etree.tostring(module.document.tree)
     assert once == twice

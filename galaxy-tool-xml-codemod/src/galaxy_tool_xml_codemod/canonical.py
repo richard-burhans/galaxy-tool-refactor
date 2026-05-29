@@ -1,28 +1,38 @@
-"""The canonical codemod set — the structural transforms required for
-fully-conformant Galaxy tool XML output.
+"""The bundled codemod pipelines — ordered contracts consumed by the app tier.
 
-Tier 2 (this package) and Tier 3 (``galaxy-tool-xml-fmt``) are
-independent siblings of Tier 1 (``galaxy-tool-xml``). fmt's library is
-cosmetic-only and does not import codemod. The end-user "format my
-tool" workflow — exposed by ``galaxy-tool-xml-fmt``'s CLI — runs this
-``CANONICAL_CODEMODS`` tuple before fmt's cosmetic rules when the
-codemod package is installed (declared as the ``canonical`` extra on
-fmt). Without codemod installed, fmt still works but produces
-cosmetic-only output.
+Tier 2 (this package) and Tier 3 (``galaxy-tool-xml-fmt``) are independent
+siblings of Tier 1 (``galaxy-tool-xml``); neither runs the user-facing
+workflow. The orchestration — read a file, apply a pipeline, write the result
+via fmt's serializer — lives in the top-level app tier
+(``galaxy-tool-refactor-cli``). This module only declares *which* codemods run
+and *in what order*; the app consumes these tuples.
 
-**Order matters.** The tuple runs front-to-back:
+Two pipelines, separated because profile upgrade is semantic and opt-in while
+canonicalisation is safe and idempotent:
 
-1. ``FixTypos`` — repair near-miss spelling typos. A no-op unless the
-   tool validates at no profile, so it only acts on broken tools; running
-   it first lets the rest of the pipeline see a validatable tree.
-2. ``UpgradeToLatest`` — iteratively upgrade the (now possibly repaired)
-   tool toward the latest profile, re-declaring its profile between steps.
-   This subsumes ``UpdateProfile`` (it runs it internally each round), so a
-   tool with no applicable upgrade is simply declared at its newest valid
-   profile. After ``FixTypos`` so a repaired tool is upgradable; before
-   ``ReorderToolAttributes`` so an added/changed ``profile=`` gets positioned.
-3. ``ReorderParamAttributes`` / ``ReorderToolAttributes`` — tidy
-   attribute order last, once structure and profile are settled.
+``CANONICAL_CODEMODS`` — the structural canonical pipeline (the app's ``format``
+command, run before fmt's cosmetic rules). Front-to-back:
+
+1. ``FixTypos`` — repair near-miss spelling typos. A no-op unless the tool
+   validates at no profile, so it only acts on broken tools; running it first
+   lets the rest of the pipeline see a validatable tree.
+2. ``ReorderParamAttributes`` / ``ReorderToolAttributes`` — tidy attribute order
+   once the tree is settled.
+
+It deliberately does **not** change ``profile=`` or apply version migrations —
+that is the upgrade pipeline's job.
+
+``AUTO_UPGRADE_CODEMODS`` — the opt-in profile-upgrade pipeline (the app's
+``upgrade`` command). Front-to-back:
+
+1. ``FixTypos`` — repair first, so a broken-and-outdated tool becomes
+   validatable and therefore upgradable in one pass.
+2. ``UpgradeToLatest`` — iteratively upgrade the (now possibly repaired) tool
+   toward the latest profile, re-declaring its profile between steps. This
+   subsumes ``UpdateProfile`` (it runs it internally each round).
+
+``FixTypos`` intentionally appears in both pipelines; it is idempotent, so
+running it in whichever pipeline the user invokes is harmless.
 """
 
 from __future__ import annotations
@@ -39,7 +49,11 @@ from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 
 CANONICAL_CODEMODS: tuple[type[CodemodCommand], ...] = (
     FixTypos,
-    UpgradeToLatest,
     ReorderParamAttributes,
     ReorderToolAttributes,
+)
+
+AUTO_UPGRADE_CODEMODS: tuple[type[CodemodCommand], ...] = (
+    FixTypos,
+    UpgradeToLatest,
 )
