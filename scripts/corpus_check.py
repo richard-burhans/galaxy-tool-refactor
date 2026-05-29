@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Sweep public Galaxy tool repositories through the galaxy-tool-xml ecosystem.
 
-A maintainer QA tool with two subcommands:
+A maintainer QA tool with three subcommands:
 
 ``validate`` — sweep the corpus through the galaxy-tool-xml API and check the
 library's invariants on each tool:
@@ -20,7 +20,14 @@ library's invariants on each tool:
 * re-formatting the formatter's output must yield identical bytes
   (**idempotence**: ``format(format(x)) == format(x)``).
 
-Each distinct violation in either subcommand is retained under the relevant
+``codemod`` — sweep the corpus through a single structural codemod and check:
+
+* idempotence (apply-twice = apply-once) and post-codemod validity;
+* a per-step **discovery report** — the post-apply profile distribution, the
+  ``STICKING POINT`` versions still needing an upgrade codemod, and the
+  per-codemod upgrade counts (how many tools each ``upgrade_vN`` advanced).
+
+Each distinct violation in any subcommand is retained under the relevant
 package's ``tests/data/regressions/`` as a permanent regression fixture.
 
 Usage::
@@ -30,6 +37,9 @@ Usage::
 
     uv run python -m scripts.corpus_check fmt [--repo NAME] [--limit N] \\
         [--no-stats] [--profile VERSION]
+
+    uv run python -m scripts.corpus_check codemod <dotted.module>:<ClassName> \\
+        [--source github|toolshed|combined] [--repo NAME] [--limit N]
 
 GitHub-source repositories are shallow-cloned into the gitignored ``corpus/``
 directory and reused on later runs. A repository that cannot be cloned is

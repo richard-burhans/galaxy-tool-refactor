@@ -50,13 +50,18 @@ Cosmetic rules in this package:
 - One-line layout for all attributes regardless of source layout
   (locked by lxml + tests, D8)
 
-Structural transforms applied by the CLI via the `[canonical]` extra
-(implemented in `galaxy-tool-xml-codemod`):
+Structural transforms applied by the CLI via the `[canonical]` extra are
+whatever `galaxy_tool_xml_codemod.canonical.CANONICAL_CODEMODS` contains; that
+set has grown in tier 2 and now runs, in order: `FixTypos`, `UpgradeToLatest`,
+`ReorderParamAttributes`, `ReorderToolAttributes`. The two this package
+originally owned:
 
 - `<param>` attribute order (canonical: IUC order — `ReorderParamAttributes`,
   was GTX002 in this package)
 - `<tool>` attribute order (canonical: id, name, version, profile,
   alphabetical — `ReorderToolAttributes`, was GTX005)
+
+See `galaxy-tool-xml-codemod/docs/decisions.md` §11–14 for the others.
 
 ## Milestone status
 

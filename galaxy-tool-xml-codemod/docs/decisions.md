@@ -305,9 +305,13 @@ reproducible command for any data-driven claim.
   `codemod` subcommand gained `--source github|toolshed|combined` (combined is
   sha256-deduplicated) so discovery runs over the whole corpus. We keep looping
   (sweep → write `upgrade_vN` → sweep) until every upgradeable tool reaches
-  latest. First full combined sweep (8 648 eligible): 8 575 reached latest,
-  `Upgrade24_1` advanced 94; residual sticking points 24.1 (56), 19.01 (9),
-  25.1 (5), 21.05/21.09/24.0 (1 each); 0 non-idempotent / crashed.
+  latest. The initial full combined sweep (8 648 eligible) reached latest on
+  8 575 with only `Upgrade24_1` (advancing 94; residual 24.1 (56), 19.01 (9),
+  25.1 (5), 21.05/21.09/24.0 (1 each)); after the ftype extension and
+  `Upgrade25_1` (below) it reaches latest on **8 583** — `Upgrade24_1` advances
+  97, `Upgrade25_1` advances 5, leaving residual 24.1 (53), 19.01 (9),
+  21.05/21.09/24.0 (1 each); 0 non-idempotent / post-validate-failed / crashed
+  throughout.
 - **`Upgrade24_1` (24.1 → 24.2):** empirically the only 24.2 delta corpus tools
   trip on is the `format` attribute gaining a pattern facet — `FormatList`
   (`<param>`, comma-separated `[a-z0-9._-]` tokens) and `Format` (`<data>`, a
@@ -331,9 +335,9 @@ reproducible command for any data-driven claim.
   reach — and `FixTypos`'s guard plus the no-op cases mean a current,
   well-authored tool is untouched beyond attribute ordering.
 - **Reproduce:** `uv run python -m scripts.corpus_check codemod
-  galaxy_tool_xml_codemod.upgrades:UpgradeToLatest --limit 300` → 297 reached
-  latest, 3 stuck at 25.1 (next codemod to write); 0 non-idempotent /
-  post-validate-failed / crashed.
+  galaxy_tool_xml_codemod.upgrades:UpgradeToLatest --source combined` → the
+  full combined-corpus discovery run (numbers above), reporting each remaining
+  `STICKING POINT` and the per-`upgrade_vN` advance counts.
 - **Empirical growth (full combined sweep, 8 648 eligible):** `Upgrade24_1`
   was extended to also normalize `ftype` (24.2 pattern-restricts it like
   `format`); `Upgrade25_1` (25.1 → 26.0) drops the obsolete top-level

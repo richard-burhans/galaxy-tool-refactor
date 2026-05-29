@@ -67,7 +67,9 @@ def _restore_root(live: etree._Element, source: etree._Element, /) -> None:
         live.append(copy.deepcopy(child))
 
 
-def _resolve(root: etree._Element, correction: Correction, /) -> etree._Element | None:
+def _resolve(
+    root: etree._Element, correction: Correction, claimed: set[int], /
+) -> etree._Element | None:
     """Return the element a ``Correction`` refers to, or ``None`` if not found.
 
     ``Correction`` locates a typo by ``(element tag, source line, found token)``
@@ -75,11 +77,18 @@ def _resolve(root: etree._Element, correction: Correction, /) -> etree._Element 
     node. Resolution is defensive (LBYL): a correction that cannot be uniquely
     located is skipped rather than raised on, since difflib could in principle
     surface a token that no longer matches the tree.
+
+    ``claimed`` holds the ``id()`` of elements already matched this round, so
+    two corrections sharing a ``(tag, line, token)`` key — e.g. two same-tag
+    elements minified onto one source line — resolve to *distinct* nodes
+    instead of both targeting the first (which would double-apply and raise).
     """
     line = correction.line
     if correction.kind == "element":
         # ``element`` is the parent tag; ``found`` is the misspelled child tag.
         for node in root.iter():
+            if id(node) in claimed:
+                continue
             if not isinstance(node.tag, str) or node.tag != correction.found:
                 continue
             if (node.sourceline or 0) != line:
@@ -90,6 +99,8 @@ def _resolve(root: etree._Element, correction: Correction, /) -> etree._Element 
         return None
     # ``attribute`` / ``enum_value``: the element bearing the attribute.
     for node in root.iter():
+        if id(node) in claimed:
+            continue
         if not isinstance(node.tag, str) or node.tag != correction.element:
             continue
         if (node.sourceline or 0) != line:
@@ -138,12 +149,15 @@ class FixTypos(CodemodCommand):
                 return
             # Resolve every correction to an element against the current tree
             # before mutating, so a tag/attribute rename can't invalidate a
-            # later lookup keyed on the pre-mutation spelling.
-            resolved = [
-                (element, correction)
-                for correction in corrections
-                if (element := _resolve(document.root, correction)) is not None
-            ]
+            # later lookup keyed on the pre-mutation spelling. ``claimed`` keeps
+            # two corrections from resolving to the same node (see _resolve).
+            claimed: set[int] = set()
+            resolved: list[tuple[etree._Element, Correction]] = []
+            for correction in corrections:
+                element = _resolve(document.root, correction, claimed)
+                if element is not None:
+                    claimed.add(id(element))
+                    resolved.append((element, correction))
             if not resolved:
                 return  # nothing applicable — avoid spinning to the round cap
             for element, correction in resolved:

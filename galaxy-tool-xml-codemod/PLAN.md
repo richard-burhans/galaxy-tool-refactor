@@ -63,11 +63,13 @@ Shipped:
 - Read-only navigation: `tag`, `get_attribute`, `children` (filters
   Comment/PI nodes), `parent`.
 
-Deferred to a later milestone (no current consumer):
-- `replace_with(other_cursor)`, `remove()`,
-  `add_child(other_cursor, *, index=None)`. Per decisions.md §6,
-  Cursor still carries only the lxml element, not a typed-model class
-  — per-context dispatch is deferred.
+Shipped later (pulled in by a real consumer):
+- `remove()` — landed with `Upgrade25_1` (drops `<trackster_conf>`).
+
+Still deferred (no current consumer):
+- `replace_with(other_cursor)`, `add_child(other_cursor, *, index=None)`.
+  Per decisions.md §6, Cursor still carries only the lxml element, not a
+  typed-model class — per-context dispatch is deferred.
 
 ### M3 — Visitor base classes *(minimal slice done — 2026-05-28)*
 
@@ -164,18 +166,21 @@ discovery sweep keeps reporting them):
 
 The following were open questions in the original design; decisions below.
 
-> **Note:** several of these design-time resolutions were revised during
+> **Note:** several of these design-time resolutions were revised after
 > M1–M3.5 — `MACRO_MODE` was removed pending a real consumer
-> (`docs/decisions.md` §8), the `remove` / `replace_with_siblings` /
-> `add_child` cursor mutators in §3 were deferred (see the M2 status
-> above), and profile-drift handling (§4) is not yet implemented. The
+> (`docs/decisions.md` §8); of the deferred cursor mutators in §3, `remove`
+> later shipped with `Upgrade25_1` while `replace_with_siblings` / `add_child`
+> remain deferred; `model` is a plain `@property`, not `@cached_property`
+> (decisions.md §5); and profile-drift handling (§4) is not implemented (the
+> upgrade codemods instead re-declare the profile via `UpdateProfile`). The
 > "Milestone status" section above is authoritative for what shipped.
 
 ### 1. `parse_module` signature
 
 **Decision:** `parse_module(source: Path | bytes | ToolDocument) -> Module` — a
 single positional argument with a union type. LBYL form: `isinstance` dispatch,
-not overloading. Path → `load_tool`; bytes → `parse_tool`; `ToolDocument` → wrap
+not overloading. Path and bytes both → `load_tool` (symmetric strict
+semantics, decisions.md §2); `ToolDocument` → wrap
 directly. This matches dignified-python (one clear call site per input form, no
 overloads, no sentinel kwargs).
 

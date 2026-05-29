@@ -67,7 +67,10 @@ class UpgradeToLatest(CodemodCommand):
         self._missing_upgrade = None
         latest = latest_profile()
         seen: set[str] = set()
-        UpdateProfile().apply(module)
+        # One stateless instance, re-declared each round (matches the sweep's
+        # "reuse a single codemod instance" rationale).
+        update_profile = UpdateProfile()
+        update_profile.apply(module)
         version = newest_valid_profile(module.document)
         # Each productive round advances to a strictly newer version; the
         # ``seen`` guard halts a non-advancing round so the loop terminates.
@@ -91,7 +94,7 @@ class UpgradeToLatest(CodemodCommand):
                 )
                 return
             upgrade().apply(module)
-            UpdateProfile().apply(module)
+            update_profile.apply(module)
             new_version = newest_valid_profile(module.document)
             if new_version != version:
                 # The step advanced the tool — credit it to this from-version.

@@ -118,6 +118,27 @@ def test_atomic_revert_preserves_cdata_comments_and_attr_order() -> None:
     assert b"<!-- keep this comment -->" in after
 
 
+def test_repairs_duplicate_typos_on_one_source_line() -> None:
+    """Two same-tag elements with the same typo on one line each get fixed.
+
+    Both corrections share a ``(tag, line, token)`` key; without per-round
+    de-duplication they would both target the first element and the second
+    rename would raise. They must resolve to distinct nodes instead.
+    """
+    xml = (
+        b'<tool id="m" name="M" version="1.0.0" profile="24.0">'
+        b"<command><![CDATA[echo x]]></command>"
+        b'<inputs><param name="a" typ="text"/><param name="b" typ="integer"/></inputs>'
+        b"<outputs/></tool>"
+    )
+    module = parse_module(xml)
+    FixTypos().apply(module)
+    params = module.document.root.findall(".//param")
+    assert [p.get("type") for p in params] == ["text", "integer"]
+    assert all("typ" not in p.attrib for p in params)
+    assert newest_valid_profile(module.document) is not None
+
+
 def test_profile_attribute_is_never_modified() -> None:
     """``profile=`` is left untouched on every fixture, repaired or not."""
     for xml in (_ATTR_TYPO, _ELEM_TYPO, _ENUM_TYPO, _STRUCTURAL):
