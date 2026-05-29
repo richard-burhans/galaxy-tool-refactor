@@ -115,6 +115,21 @@ class Cursor:
             raise ValueError("remove: element has no parent (cannot remove the root)")
         parent.remove(self._element)
 
+    def add_child(self, tag: str, /, *, text: str | None = None) -> Cursor:
+        """Create a new child element ``<tag>``, append it last, return its cursor.
+
+        ``text`` sets the child's text content when given. ``tag`` must be a
+        non-empty string — an empty tag would corrupt the tree, so it is
+        rejected loudly (LBYL). The new element is appended after any existing
+        children; the cosmetic formatter re-normalises indentation afterwards.
+        """
+        if not tag:
+            raise ValueError("add_child: tag must be a non-empty string")
+        child = etree.SubElement(self._element, tag)
+        if text is not None:
+            child.text = text
+        return Cursor(child)
+
     def reorder_attributes(self, names: Sequence[str], /) -> None:
         """Rewrite the element's attribute order to match ``names``.
 

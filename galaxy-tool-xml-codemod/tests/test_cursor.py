@@ -253,3 +253,42 @@ def test_remove_rejects_root() -> None:
 
     with pytest.raises(ValueError):
         Cursor(etree.fromstring(b"<tool/>")).remove()
+
+
+def test_add_child_appends_new_element_with_text() -> None:
+    """``add_child`` creates a child element with text and appends it last."""
+    from lxml import etree
+
+    root = etree.fromstring(b"<collection><data/></collection>")
+    cursor = Cursor(root).add_child("filter", text="cond")
+    assert cursor.tag == "filter"
+    assert [child.tag for child in root] == ["data", "filter"]
+    assert root[1].text == "cond"
+
+
+def test_add_child_without_text_has_no_text() -> None:
+    """``add_child`` with no text leaves the new element's text unset."""
+    from lxml import etree
+
+    root = etree.fromstring(b"<collection/>")
+    Cursor(root).add_child("filter")
+    assert root[0].tag == "filter"
+    assert root[0].text is None
+
+
+def test_add_child_returns_cursor_to_new_element() -> None:
+    """The returned cursor points at the freshly created child (chainable)."""
+    from lxml import etree
+
+    root = etree.fromstring(b"<outputs/>")
+    child = Cursor(root).add_child("data")
+    child.set_attribute("name", "out")
+    assert root[0].get("name") == "out"
+
+
+def test_add_child_rejects_empty_tag() -> None:
+    """``add_child`` raises on an empty tag rather than corrupting the tree."""
+    from lxml import etree
+
+    with pytest.raises(ValueError):
+        Cursor(etree.fromstring(b"<outputs/>")).add_child("")

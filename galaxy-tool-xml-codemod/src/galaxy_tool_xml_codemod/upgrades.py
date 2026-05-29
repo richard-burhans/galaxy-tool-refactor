@@ -29,6 +29,7 @@ from galaxy_tool_xml.profiles import latest_profile
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
 from galaxy_tool_xml_codemod.codemods.update_profile import UpdateProfile
 from galaxy_tool_xml_codemod.codemods.upgrade_19_01 import Upgrade19_01
+from galaxy_tool_xml_codemod.codemods.upgrade_24_0 import Upgrade24_0
 from galaxy_tool_xml_codemod.codemods.upgrade_24_1 import Upgrade24_1
 from galaxy_tool_xml_codemod.codemods.upgrade_25_1 import Upgrade25_1
 
@@ -40,6 +41,7 @@ logger = logging.getLogger(__name__)
 # Sticking version -> the codemod that upgrades a tool one step past it.
 UPGRADE_CODEMODS: dict[str, type[CodemodCommand]] = {
     "19.01": Upgrade19_01,
+    "24.0": Upgrade24_0,
     "24.1": Upgrade24_1,
     "25.1": Upgrade25_1,
 }

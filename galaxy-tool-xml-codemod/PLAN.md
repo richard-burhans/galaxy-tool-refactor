@@ -145,6 +145,11 @@ reports each `STICKING POINT <version>` where real tools stall.
   `name` (`output`, `output2`, …) on unnamed output `<data>` (19.05 made it
   required). Advances 9 corpus tools (one repo). The name is an unreferenced
   placeholder, so the synthesis breaks nothing; see `docs/decisions.md` §14.
+- `Upgrade24_0` (24.0 → 24.1): hoist an all-or-nothing identical `<filter>` from
+  a `<collection>`'s child `<data>` up to the collection (24.1 forbids filters
+  on collection-element data). Advances 1 corpus tool (`kat_filter`); refuses
+  non-equivalent cases (differing / partial child filters, pre-existing
+  collection filter). First consumer of `Cursor.add_child`; see §14.
 
 **Needed — reported by the full combined sweep, deferred for
 investigation** (each needs a semantic decision, so not auto-fixed; the
@@ -155,9 +160,6 @@ discovery sweep keeps reporting them):
   tokens (`@format@`, `@intypes@`), empty (`format=""`), or a `<data>`
   comma-list (a single-token `Format` cannot hold a list). Needs
   macro-aware handling and a rule for empty / multi-format values.
-- **24.0 → 24.1 (1 tool)** — `<filter>` inside a `<collection>`'s `<data>`
-  is no longer allowed (only `actions`/`change_format`). Top-level `<data>`
-  filters are fine; the collection case needs structural restructuring.
 - **21.09 → 22.01 (1 tool)** — 22.01 pattern-restricted `output_collection/@type`
   and `param/@collection_type` to a `(list|paired)` grammar (25.0 later broadened
   it to add `paired_or_unpaired`/`record`). The sticking tool
@@ -188,8 +190,11 @@ The following were open questions in the original design; decisions below.
 > **Note:** several of these design-time resolutions were revised after
 > M1–M3.5 — `MACRO_MODE` was removed pending a real consumer
 > (`docs/decisions.md` §8); of the deferred cursor mutators in §3, `remove`
-> later shipped with `Upgrade25_1` while `replace_with_siblings` / `add_child`
-> remain deferred; `model` is a plain `@property`, not `@cached_property`
+> shipped with `Upgrade25_1` and `add_child` shipped with `Upgrade24_0` — though
+> in a create-new-element form (`add_child(tag, *, text=None)`), not the
+> design-time insert-an-existing-cursor sketch below, since its consumer needed
+> a fresh `<filter>`; `replace_with_siblings` remains deferred; `model` is a
+> plain `@property`, not `@cached_property`
 > (decisions.md §5); and profile-drift handling (§4) is not implemented (the
 > upgrade codemods instead re-declare the profile via `UpdateProfile`). The
 > "Milestone status" section above is authoritative for what shipped.
