@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import scripts.corpus_check as corpus_check
+from galaxy_tool_xml.profiles import latest_profile
 from galaxy_tool_xml_codemod.catalog import coded_codemods
 
 from galaxy_tool_xml_fmt.format import all_rules
@@ -115,6 +116,7 @@ def test_rule_stats_page_has_reference_table_above_isolation_tables() -> None:
     """The GTX glossary must precede both isolated-rule tables, covering all 12."""
     lines = corpus_check._rule_stats_lines(
         profile="26.1",
+        source="combined",
         fmt_sweeps=[corpus_check._FmtRuleSweep(code="GTX001", validated=1)],
         codemod_rows=[
             ("GTX002", "ReorderParamAttributes", corpus_check._CodemodSweepState())
@@ -144,3 +146,55 @@ def test_rule_stats_upgrade_discovery_lists_sticking_points() -> None:
     assert any("UpgradeToLatest" in line for line in lines)
     assert any("reached latest" in line for line in lines)
     assert any(line.startswith("| 24.1 |") for line in lines)
+
+
+# --- fmt sweep population gate (_fmt_in_scope) ----------------------------------
+
+_VALID_TOOL = (
+    b'<tool id="m" name="M" version="1.0.0" profile="24.1">'
+    b"<command><![CDATA[echo x]]></command>"
+    b'<inputs/><outputs><data name="o"/></outputs></tool>'
+)
+# Missing the required id/name/version: validates under no vendored profile.
+_NEVER_VALID_TOOL = b"<tool><inputs/></tool>"
+
+
+def test_fmt_in_scope_default_accepts_any_valid_profile(tmp_path: Path) -> None:
+    file = tmp_path / "tool.xml"
+    file.write_bytes(_VALID_TOOL)
+    assert corpus_check._fmt_in_scope(file, profile=None) is True
+
+
+def test_fmt_in_scope_default_rejects_never_valid(tmp_path: Path) -> None:
+    file = tmp_path / "tool.xml"
+    file.write_bytes(_NEVER_VALID_TOOL)
+    assert corpus_check._fmt_in_scope(file, profile=None) is False
+
+
+def test_fmt_in_scope_pinned_profile_uses_that_profile(tmp_path: Path) -> None:
+    file = tmp_path / "tool.xml"
+    file.write_bytes(_VALID_TOOL)
+    assert corpus_check._fmt_in_scope(file, profile=latest_profile()) is True
+
+
+def test_fmt_repos_section_lists_each_github_repo() -> None:
+    repos = [("tools-iuc", "abc123", 5), ("pico_galaxy", "def456", 2)]
+    out = corpus_check._fmt_format_repos_section(repos, source="github")
+    assert any("| tools-iuc |" in line and "| 5 |" in line for line in out)
+    assert any("| pico_galaxy |" in line and "| 2 |" in line for line in out)
+
+
+def test_fmt_repos_section_rolls_up_combined_by_source() -> None:
+    # toolshed display names carry an owner/ slash; github names do not.
+    repos = [
+        ("tools-iuc", "a", 5),
+        ("pico_galaxy", "b", 2),
+        ("owner/repo1", "c", 1),
+        ("owner/repo2", "d", 3),
+    ]
+    out = corpus_check._fmt_format_repos_section(repos, source="combined")
+    rows = {ln.split("|")[1].strip(): ln for ln in out if ln.startswith("| ")}
+    assert "| 2 |" in rows["github"] and "| 7 |" in rows["github"]  # 2 repos, 5+2
+    assert "| 2 |" in rows["toolshed"] and "| 4 |" in rows["toolshed"]  # 2 repos, 1+3
+    # the giant per-repo list must NOT be present
+    assert not any("| owner/repo1 |" in line for line in out)

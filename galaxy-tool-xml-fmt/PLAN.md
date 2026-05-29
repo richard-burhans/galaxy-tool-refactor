@@ -13,11 +13,13 @@ cross-tier orchestration moved to the tier-4 app
 (`galaxy-tool-refactor`). See `docs/decisions.md` §D12 (which
 supersedes the §D10 optional-extra split).
 
-The corpus sweep parsed 4,095 `<tool>` documents across 21 public repos;
-3,933 validated under profile `26.1` and were format-checked: 100%
-idempotent under both the cosmetic pipeline (this package) and the
-structural pipeline (each canonical codemod). See
-`docs/corpus_format_stats.md`.
+The corpus sweep now covers the combined corpus (github + toolshed,
+sha256-deduplicated), gated on validity under any vendored profile (fmt
+`docs/decisions.md` §D13): 9,358 unique `<tool>` documents, of which 8,608
+validate under at least one profile and were format-checked — 100% idempotent,
+0 crashes. The per-rule isolation sweep finds every GTX rule (fmt + codemod)
+clean over the same corpus. See `../docs/corpus_format_stats.md` and
+`../docs/corpus_rule_stats.md`.
 
 ## Design intent
 

@@ -448,6 +448,14 @@ implementation needed, value is regression coverage.
 
 ## D9 (2026-05-28) — Corpus runner, fixture retention, and the first idempotence sweep
 
+> **Gate relaxed 2026-05-29 — see D13.** The "first sweep" cohort below
+> (github-only, validated under the latest profile `26.1`: 4,095 parsed / 3,933
+> validated) was deliberately bounded while the formatter was unproven. D13
+> relaxed it to the combined corpus (github + toolshed) gated on any vendored
+> profile; the current swept numbers (9,358 / 8,608) live in
+> `../../docs/corpus_format_stats.md`, not here. The numbers below are retained
+> as the original cohort.
+
 ### Decision
 
 `scripts/corpus_check.py` is the maintainer-facing tool that gates the
@@ -703,4 +711,43 @@ still doesn't depend on codemod); orchestration simply lives one tier up.
 uv sync
 uv run --package galaxy-tool-xml-fmt      pytest galaxy-tool-xml-fmt/tests/test_cli.py
 uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/
+```
+
+## D13 (2026-05-29) — fmt corpus sweep relaxed: any-valid gate + combined source
+
+### Decision
+
+The `corpus_check fmt` and `corpus_check rules` sweeps no longer restrict to the
+latest-profile / github-only cohort:
+
+- **Validity gate (`_fmt_in_scope`)**: a tool is in scope if it validates under
+  **any** vendored profile (`newest_valid_profile(...) is not None`), not only
+  the latest. `--profile X` still pins the old single-profile gate. Cosmetic
+  rules are profile-agnostic, so excluding older-but-valid tools only narrowed
+  coverage; this executes §D9's stated "future sweeps may relax the gate."
+- **Source**: the `fmt` subcommand gained `--source` (github | toolshed |
+  combined) and both `fmt` and `rules` now **default to `combined`** (github +
+  toolshed, sha256-deduplicated) — matching the `validate` sweep's coverage. The
+  fmt sweep now sha256-dedups like the others.
+
+The gate stays validity-based (never-valid XML is still excluded — §D9's
+anti-noise point); only the latest-only and github-only restrictions lifted.
+
+### Rationale
+
+§D9 deliberately started with the latest-profile, github cohort to "keep the
+failure surface bounded" while the formatter was unproven. It is now proven
+(merged, the per-rule isolation sweep found zero failures), so broadening to the
+full validating corpus is the planned next step and the strongest idempotence QA
+— it exercises the formatter on the older, messier toolshed tools for the first
+time. `_fmt_in_scope` is shared by both fmt paths (one fmt-population policy);
+this is distinct from the per-tool *profile-selection* policies that
+`project-corpus-check-filters` says not to unify.
+
+### Reproduction
+
+```sh
+uv run python -m scripts.corpus_check fmt               # combined, any-valid
+uv run python -m scripts.corpus_check fmt --source github --profile 26.1  # old cohort
+uv run --package galaxy-tool-xml-fmt pytest galaxy-tool-xml-fmt/tests/test_corpus_check.py
 ```
