@@ -12,8 +12,8 @@ moved to `galaxy-tool-xml-codemod` as `ReorderParamAttributes` and
 layers when the extra is installed. See `docs/decisions.md` §D10 for
 the architecture split.
 
-The corpus sweep parsed 4,190 `<tool>` documents across 21 public repos;
-4,014 validated under profile `26.1` and were format-checked: 100%
+The corpus sweep parsed 4,095 `<tool>` documents across 21 public repos;
+3,933 validated under profile `26.1` and were format-checked: 100%
 idempotent under both the cosmetic pipeline (this package) and the
 structural pipeline (each canonical codemod). See
 `docs/corpus_format_stats.md`.

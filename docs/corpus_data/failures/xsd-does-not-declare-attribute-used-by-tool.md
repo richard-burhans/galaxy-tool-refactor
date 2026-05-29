@@ -1,6 +1,6 @@
 # XSD does not declare attribute used by tool
 
-351 unique tool(s) fall into this category. Each link goes to the source-repository view of the tool at the version captured by the combined sweep.
+348 unique tool(s) fall into this category.
 
 | Repository | tool_id | Path | Version | Source |
 |---|---|---|---|---|
@@ -105,11 +105,11 @@
 | crs4/seal_galaxy | `seal_recab_table` | `seal-galaxy-cc1b1911/seal/recab_table.xml` | `244073d9abc1` | [view](https://toolshed.g2.bx.psu.edu/view/crs4/seal_galaxy) |
 | crs4/seal_galaxy | `seal_seqal` | `seal-galaxy-cc1b1911/seal/seqal.xml` | `244073d9abc1` | [view](https://toolshed.g2.bx.psu.edu/view/crs4/seal_galaxy) |
 | cstrittmatter/mitokmer | `mitokmer_v1` | `mitokmer.xml` | `3c3520289da4` | [view](https://toolshed.g2.bx.psu.edu/view/cstrittmatter/mitokmer) |
-| curtish/bwa_tools_mini (also in github: tools-devteam) | `bwa_wrapper` | `bwa_wrapper.xml` | `11eda1d95d84` | [view](https://toolshed.g2.bx.psu.edu/view/curtish/bwa_tools_mini) |
+| curtish/bwa_tools_mini | `bwa_wrapper` | `bwa_wrapper.xml` | `11eda1d95d84` | [view](https://toolshed.g2.bx.psu.edu/view/curtish/bwa_tools_mini) |
 | daan_vdm/ctaff | `cluster_extract` | `cluster_extract.xml` | `8b2476d8517f` | [view](https://toolshed.g2.bx.psu.edu/view/daan_vdm/ctaff) |
 | dazeone/grapetree | `grapetreetool` | `grapetree.xml` | `463a269e92a9` | [view](https://toolshed.g2.bx.psu.edu/view/dazeone/grapetree) |
-| devteam/bowtie_color_wrappers (also in github: tools-devteam) | `bowtie_color_wrapper` | `bowtie_color_wrapper.xml` | `a3825c73805c` | [view](https://toolshed.g2.bx.psu.edu/view/devteam/bowtie_color_wrappers) |
-| devteam/bwa_wrappers (also in github: tools-devteam) | `bwa_wrapper` | `bwa_wrapper.xml` | `b4427dbb6ced` | [view](https://toolshed.g2.bx.psu.edu/view/devteam/bwa_wrappers) |
+| devteam/bowtie_color_wrappers | `bowtie_color_wrapper` | `bowtie_color_wrapper.xml` | `a3825c73805c` | [view](https://toolshed.g2.bx.psu.edu/view/devteam/bowtie_color_wrappers) |
+| devteam/bwa_wrappers | `bwa_wrapper` | `bwa_wrapper.xml` | `b4427dbb6ced` | [view](https://toolshed.g2.bx.psu.edu/view/devteam/bwa_wrappers) |
 | devteam/change_case (also in github: tools-devteam) | `ChangeCase` | `changeCase.xml` | `ecf91530d461` | [view](https://toolshed.g2.bx.psu.edu/view/devteam/change_case) |
 | devteam/picard_plus (also in github: tools-iuc) | `picard_CollectRnaSeqMetrics` | `picard_CollectRnaSeqMetrics.xml` | `4aa5b444fd42` | [view](https://toolshed.g2.bx.psu.edu/view/devteam/picard_plus) |
 | diego/rtg_investigator | `rtg_sdf2fasta` | `tools/rtg/sdf2fasta.xml` | `8593828f91e7` | [view](https://toolshed.g2.bx.psu.edu/view/diego/rtg_investigator) |
@@ -138,7 +138,7 @@
 | einonm-galaxy-tools | `plink2` | `plink2/plink2.xml` | `61a2d68562a9` | [view](https://gitlab.com/einonm/galaxy-tools/-/blob/61a2d68562a9f254286cfb0c8d3f41d2c0fb0cfc/plink2/plink2.xml) |
 | einonm-galaxy-tools | `plot_assoc` | `plink2/plot_assoc.xml` | `61a2d68562a9` | [view](https://gitlab.com/einonm/galaxy-tools/-/blob/61a2d68562a9f254286cfb0c8d3f41d2c0fb0cfc/plink2/plot_assoc.xml) |
 | enios/nc_rna | `ezlncpred` | `ezlncpred.xml` | `8ec95406dfc1` | [view](https://toolshed.g2.bx.psu.edu/view/enios/nc_rna) |
-| evan/bwa_wrappers (also in github: tools-devteam) | `bwa_wrapper` | `bwa_wrapper.xml` | `3a001705dc94` | [view](https://toolshed.g2.bx.psu.edu/view/evan/bwa_wrappers) |
+| evan/bwa_wrappers | `bwa_wrapper` | `bwa_wrapper.xml` | `3a001705dc94` | [view](https://toolshed.g2.bx.psu.edu/view/evan/bwa_wrappers) |
 | fabio/gdcwebapp (also in github: tools-iuc) | `data_source_gdcwebapp` | `gdcwebapp.xml` | `7d3117898196` | [view](https://toolshed.g2.bx.psu.edu/view/fabio/gdcwebapp) |
 | fcaramia/contra | `baseline_tool` | `baseline.xml` | `0bf826f62f04` | [view](https://toolshed.g2.bx.psu.edu/view/fcaramia/contra) |
 | fcaramia/jointsnvmix | `joint_snv_mix` | `joint_snv_mix.xml` | `26953f1c8af2` | [view](https://toolshed.g2.bx.psu.edu/view/fcaramia/jointsnvmix) |
@@ -150,7 +150,7 @@
 | galaxy-australia/ipa_hifi | `ipa` | `ipa.xml` | `1289beb50ab0` | [view](https://toolshed.g2.bx.psu.edu/view/galaxy-australia/ipa_hifi) |
 | galaxyp/appendfdr (also in github: tools-galaxyp) | `append_fdr` | `append_fdr.xml` | `ef7cc296f063` | [view](https://toolshed.g2.bx.psu.edu/view/galaxyp/appendfdr) |
 | galaxyp/ms_wiff_loader (also in github: tools-galaxyp) | `ms_wiff_upload` | `ms_wiff_loader.xml` | `5bc64a2d5f91` | [view](https://toolshed.g2.bx.psu.edu/view/galaxyp/ms_wiff_loader) |
-| galaxyp/msconvert_win (also in github: tools-galaxyp) | `msconvert_win` | `msconvert_win.xml` | `f8cf3be564bb` | [view](https://toolshed.g2.bx.psu.edu/view/galaxyp/msconvert_win) |
+| galaxyp/msconvert_win | `msconvert_win` | `msconvert_win.xml` | `f8cf3be564bb` | [view](https://toolshed.g2.bx.psu.edu/view/galaxyp/msconvert_win) |
 | gandres/readseq | `sniplay_readseq` | `readseq.xml` | `1a40d002fdc4` | [view](https://toolshed.g2.bx.psu.edu/view/gandres/readseq) |
 | gdroc/scaffremodler | `convert2X` | `scaffremodler/convert2X.xml` | `66885fa414c8` | [view](https://toolshed.g2.bx.psu.edu/view/gdroc/scaffremodler) |
 | geco-team/gmql_download | `gmql_download` | `gmql_rest_datasets_download.xml` | `35d52820e7c7` | [view](https://toolshed.g2.bx.psu.edu/view/geco-team/gmql_download) |
@@ -195,7 +195,7 @@
 | jowong/khmer_load_into_counting | `khmer_load_into_counting` | `khmer_load_into_counting.xml` | `ab0f91be3a90` | [view](https://toolshed.g2.bx.psu.edu/view/jowong/khmer_load_into_counting) |
 | jowong/kwip | `kwip` | `kwip.xml` | `352616f69941` | [view](https://toolshed.g2.bx.psu.edu/view/jowong/kwip) |
 | jowong/prince_galaxy | `filler` | `filler.xml` | `5b816b501285` | [view](https://toolshed.g2.bx.psu.edu/view/jowong/prince_galaxy) |
-| juanperin/bwa_wrapper (also in github: tools-devteam) | `bwa_wrapper` | `bwa_long/bwa_wrapper.xml` | `fb4844b6a98e` | [view](https://toolshed.g2.bx.psu.edu/view/juanperin/bwa_wrapper) |
+| juanperin/bwa_wrapper | `bwa_wrapper` | `bwa_long/bwa_wrapper.xml` | `fb4844b6a98e` | [view](https://toolshed.g2.bx.psu.edu/view/juanperin/bwa_wrapper) |
 | kaymccoy/enhanced_bowtie_mapper | `bowtie_mapper` | `enhanced_bowtie_mapper.xml` | `a17d4f682e3f` | [view](https://toolshed.g2.bx.psu.edu/view/kaymccoy/enhanced_bowtie_mapper) |
 | kellrott/cluster3 | `cluster3` | `cluster3.xml` | `e1bc1519822b` | [view](https://toolshed.g2.bx.psu.edu/view/kellrott/cluster3) |
 | ketan/swift | `catsn` | `helloswift.xml` | `386bf3c10c46` | [view](https://toolshed.g2.bx.psu.edu/view/ketan/swift) |
@@ -323,9 +323,6 @@
 | timpalpant/java_genomics_toolkit | `KMeans` | `galaxy-conf/KMeans.xml` | `b43c420a6135` | [view](https://toolshed.g2.bx.psu.edu/view/timpalpant/java_genomics_toolkit) |
 | timpalpant/java_genomics_toolkit | `StripMatrix` | `galaxy-conf/StripMatrix.xml` | `b43c420a6135` | [view](https://toolshed.g2.bx.psu.edu/view/timpalpant/java_genomics_toolkit) |
 | tomnl/nmrml2isa | `nmrml2isa` | `nmrml2isa-galaxy/galaxy/nmrml2isa/nmrml2isa.xml` | `c95c37aad7b4` | [view](https://toolshed.g2.bx.psu.edu/view/tomnl/nmrml2isa) |
-| tools-devteam | `bwa_color_space_index_builder_data_manager` | `deprecated/data_managers/data_manager_bwa_index_builder/data_manager/bwa_color_space_index_builder.xml` | `5d53a79839c6` | [view](https://github.com/galaxyproject/tools-devteam/blob/5d53a79839c6d9b7c1f13e8f5bd9f65d69d96a46/deprecated/data_managers/data_manager_bwa_index_builder/data_manager/bwa_color_space_index_builder.xml) |
-| tools-devteam | `bwa_index_builder_data_manager` | `deprecated/data_managers/data_manager_bwa_index_builder/data_manager/bwa_index_builder.xml` | `5d53a79839c6` | [view](https://github.com/galaxyproject/tools-devteam/blob/5d53a79839c6d9b7c1f13e8f5bd9f65d69d96a46/deprecated/data_managers/data_manager_bwa_index_builder/data_manager/bwa_index_builder.xml) |
-| tools-devteam | `bwa_wrapper` | `deprecated/tools/bwa_wrappers/bwa_wrapper.xml` | `5d53a79839c6` | [view](https://github.com/galaxyproject/tools-devteam/blob/5d53a79839c6d9b7c1f13e8f5bd9f65d69d96a46/deprecated/tools/bwa_wrappers/bwa_wrapper.xml) |
 | tools-devteam | `cummerbund_to_cuffdiff` | `tools/cummerbund_to_tabular/cummerbund_to_tabular.xml` | `5d53a79839c6` | [view](https://github.com/galaxyproject/tools-devteam/blob/5d53a79839c6d9b7c1f13e8f5bd9f65d69d96a46/tools/cummerbund_to_tabular/cummerbund_to_tabular.xml) |
 | tools-devteam | `dividePgSnp` | `tools/divide_pg_snp/dividePgSnpAlleles.xml` | `5d53a79839c6` | [view](https://github.com/galaxyproject/tools-devteam/blob/5d53a79839c6d9b7c1f13e8f5bd9f65d69d96a46/tools/divide_pg_snp/dividePgSnpAlleles.xml) |
 | tools-devteam | `maximal_information_based_nonparametric_exploration` | `tools/mine/MINE.xml` | `5d53a79839c6` | [view](https://github.com/galaxyproject/tools-devteam/blob/5d53a79839c6d9b7c1f13e8f5bd9f65d69d96a46/tools/mine/MINE.xml) |

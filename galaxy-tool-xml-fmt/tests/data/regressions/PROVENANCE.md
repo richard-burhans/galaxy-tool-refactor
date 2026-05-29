@@ -6,7 +6,6 @@
 - `tools-iuc__mmseqs2` — tools-iuc `tools/mmseqs2/mmseqs2_easy_linsearch.xml` @ `0dfd993e151c` — non-idempotent:GTX001,GTX003
 - `tools-iuc__mmseqs2-2` — tools-iuc `tools/mmseqs2/mmseqs2_easy_taxonomy.xml` @ `0dfd993e151c` — non-idempotent:GTX001,GTX003
 - `tools-iuc__mmseqs2-3` — tools-iuc `tools/mmseqs2/mmseqs2_taxonomy_assignment.xml` @ `0dfd993e151c` — non-idempotent:GTX001,GTX003
-- `tools-galaxyp__dia_umpire` — tools-galaxyp `deprecated/tools/dia_umpire/dia_umpire_quant.xml` @ `74bc7df880ad` — non-idempotent:GTX001,GTX003
 - `tools-galaxyp__mqppep` — tools-galaxyp `tools/mqppep/mqppep_anova.xml` @ `74bc7df880ad` — non-idempotent:GTX001,GTX003
 - `tools-galaxyp__openms` — tools-galaxyp `tools/openms/IDExtractor.xml` @ `74bc7df880ad` — non-idempotent:GTX001,GTX003
 - `tools-galaxyp__pepquery` — tools-galaxyp `tools/pepquery/pepquery.xml` @ `74bc7df880ad` — non-idempotent:GTX001,GTX003

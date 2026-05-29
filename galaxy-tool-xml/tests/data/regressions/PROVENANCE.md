@@ -7,7 +7,7 @@ alongside any macro files it imports.
 
 - `bedtools` — tools-iuc `tools/bedtools/intersectBed.xml` @ `75560ba43a4b` — TypeError @ config.py:20
 
-- `tools-iuc__gatk2` — tools-iuc `deprecated/tools/gatk2/base_recalibrator.xml` @ `75560ba43a4b` — non-contiguous
-
 - `dazeone__kleborate__kleborate` — dazeone/kleborate `kleborate.xml` @ `latest` — XMLSyntaxError @ parser.pxi:689
 - `nml__hivtrace__hivtrace` — nml/hivtrace `hivtrace.xml` @ `latest` — XmlContextError @ primitive.py:71
+
+- `tools-iuc__samtools_consensus` — tools-iuc `tool_collections/samtools/samtools_consensus/samtools_consensus.xml` @ `0dfd993e151c` — non-contiguous

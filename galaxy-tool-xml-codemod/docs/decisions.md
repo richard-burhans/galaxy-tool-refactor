@@ -312,6 +312,14 @@ reproducible command for any data-driven claim.
   97, `Upgrade25_1` advances 5, leaving residual 24.1 (53), 19.01 (9),
   21.05/21.09/24.0 (1 each); 0 non-idempotent / post-validate-failed / crashed
   throughout.
+  - **Refreshed 2026-05-29** (after deprecated-directory tools were excluded
+    from the corpus — see `galaxy-tool-xml/docs/decisions.md` §10): the combined
+    sweep now reports **8 607 eligible**, reaching latest on **8 542** (65 below
+    latest). The 41-tool drop was entirely tools that already validated at
+    latest — `Upgrade24_1` still advances 97, `Upgrade25_1` still 5, and the
+    residual is unchanged (24.1 (53), 19.01 (9), 21.05/21.09/24.0 (1 each)), so
+    the prioritized to-write list is unaffected. Still 0 non-idempotent /
+    post-validate-failed / crashed.
 - **`Upgrade24_1` (24.1 → 24.2):** empirically the only 24.2 delta corpus tools
   trip on is the `format` attribute gaining a pattern facet — `FormatList`
   (`<param>`, comma-separated `[a-z0-9._-]` tokens) and `Format` (`<data>`, a
