@@ -49,7 +49,6 @@ skipped with a warning.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import logging
 import re
@@ -70,6 +69,7 @@ from packaging.version import Version
 from scripts._shared import PROFILE_NONE as _PROFILE_NONE
 from scripts._shared import iter_tool_xmls as _iter_tool_xmls
 from scripts._shared import row_source as _row_source
+from scripts._shared import sha256_of as _sha256_of
 from scripts._shared import unique_by_sha as _unique_by_sha
 
 logger = logging.getLogger("corpus_check")
@@ -661,7 +661,7 @@ def _validate_process_path(
     """Sweep one XML file and update ``state``; return ``True`` if it counts."""
     if not path.is_file():
         return False
-    sha = hashlib.sha256(path.read_bytes()).hexdigest() if need_sha else ""
+    sha = _sha256_of(path) if need_sha else ""
     if combined and sha in state.seen_hashes:
         state.source_duplicate_counts[source_label] += 1
         cached = state.sha_to_stats.get(sha)
@@ -2181,7 +2181,7 @@ def _codemod_main(argv: list[str]) -> int:
                 break
             if not path.is_file():
                 continue
-            sha = hashlib.sha256(path.read_bytes()).hexdigest()
+            sha = _sha256_of(path)
             if sha in seen_sha:
                 continue
             seen_sha.add(sha)

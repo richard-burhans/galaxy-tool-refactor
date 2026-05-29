@@ -40,12 +40,12 @@ if TYPE_CHECKING:
 
 
 def _child_data(collection: etree._Element, /) -> list[etree._Element]:
-    """Return the collection's direct ``<data>`` children."""
-    return [
-        child
-        for child in collection
-        if isinstance(child.tag, str) and child.tag == "data"
-    ]
+    """Return the collection's direct ``<data>`` children.
+
+    A literal-tag comparison already excludes Comment/ProcessingInstruction
+    nodes (their ``.tag`` is a callable sentinel, never ``== "data"``).
+    """
+    return [child for child in collection if child.tag == "data"]
 
 
 class Upgrade24_0(CodemodCommand):

@@ -12,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from scripts._shared import is_deprecated_path, iter_tool_xmls
+from scripts._shared import is_deprecated_path, iter_tool_xmls, sha256_of
 
 
 @pytest.mark.parametrize(
@@ -58,3 +58,14 @@ def test_iter_tool_xmls_skips_deprecated_and_hg(tmp_path: Path) -> None:
     found = sorted(iter_tool_xmls(tmp_path))
 
     assert found == [live]
+
+
+def test_sha256_of_matches_hashlib(tmp_path: Path) -> None:
+    """``sha256_of`` is the hex sha256 of the file's bytes (the dedup key)."""
+    import hashlib
+
+    path = tmp_path / "tool.xml"
+    payload = b"<tool/>\n"
+    path.write_bytes(payload)
+
+    assert sha256_of(path) == hashlib.sha256(payload).hexdigest()

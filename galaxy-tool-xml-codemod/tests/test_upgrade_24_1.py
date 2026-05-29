@@ -74,6 +74,34 @@ def test_leaves_unfixable_data_comma_list_untouched() -> None:
     assert newest_valid_profile(etree.tostring(root)) == "24.1"
 
 
+def test_lowercases_data_comma_list_but_stays_stuck() -> None:
+    """An uppercase ``<data>`` comma-list is lowercased, but ``Format`` still
+    forbids the comma — the codemod mutates yet the tool stays stuck."""
+    root = _apply(_tool(data_fmt="FASTA,FASTQ"))
+    assert _format_of(root, "data") == "fasta,fastq"
+    assert newest_valid_profile(etree.tostring(root)) == "24.1"
+
+
+def test_leaves_help_format_enum_untouched() -> None:
+    """``<help format>`` is an enum (markdown/restructuredtext), not a datatype.
+
+    The codemod's ``format`` sweep is global, but a clean lowercase enum value
+    normalizes to itself, so help is left untouched — pinning that the breadth
+    is benign on the one non-datatype ``format`` attribute in the schema.
+    """
+    xml = (
+        b'<tool id="m" name="M" version="1.0.0" profile="24.1">'
+        b"<command><![CDATA[echo x]]></command><inputs/>"
+        b'<outputs><data name="o"/></outputs>'
+        b'<help format="markdown">doc</help></tool>'
+    )
+    module = parse_module(xml)
+    Upgrade24_1().apply(module)
+    help_element = module.document.root.find("help")
+    assert help_element is not None
+    assert help_element.get("format") == "markdown"
+
+
 def test_deletes_empty_param_format_and_unsticks() -> None:
     """An empty ``format`` restricts nothing and violates the pattern — dropped."""
     root = _apply(_tool(param_fmt=""))

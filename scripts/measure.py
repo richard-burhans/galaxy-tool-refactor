@@ -25,7 +25,6 @@ Companion to the project memory entries on
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import logging
 import re
@@ -43,6 +42,7 @@ from lxml import etree
 from scripts._shared import PROFILE_NONE as _PROFILE_NONE
 from scripts._shared import iter_tool_xmls as _iter_tool_xmls
 from scripts._shared import row_source as _row_source
+from scripts._shared import sha256_of as _sha256_of
 from scripts._shared import unique_by_sha as _unique_by_sha
 
 logger = logging.getLogger("measure")
@@ -310,11 +310,9 @@ def _measure_lenient_text_fields(*, corpus_root: Path) -> _LenientTextFieldsResu
             if not child_tags:
                 continue
             counts_with_children[element.tag] += 1
-            affected_tools.add(str(path.relative_to(_repo_root())))
+            affected_tools.add(_display_path(path))
             if len(exemplars[element.tag]) < 5:
-                exemplars[element.tag].append(
-                    (str(path.relative_to(_repo_root())), child_tags[0])
-                )
+                exemplars[element.tag].append((_display_path(path), child_tags[0]))
 
     return _LenientTextFieldsResult(
         parsed_tool_files=parsed,
@@ -763,7 +761,7 @@ def _measure_macro_usage(*, corpus_root: Path) -> _MacroUsageResult:
     for path in _iter_corpus_tool_xmls(corpus_root):
         if not path.is_file():
             continue
-        sha = hashlib.sha256(path.read_bytes()).hexdigest()
+        sha = _sha256_of(path)
         if sha in seen_sha:
             continue
         seen_sha.add(sha)
@@ -1145,13 +1143,18 @@ def _collection_type_candidates(
 ) -> Iterable[tuple[str, re.Pattern[str]]]:
     """Yield ``(attr, pattern)`` for collection-structure attrs on *element*.
 
-    ``collection_type`` is collection-typed on any element; ``type`` only on
-    ``<collection>``/``<output_collection>`` (elsewhere it is a param/data type).
+    ``type`` is collection-typed only on ``<collection>``/``<output_collection>``
+    (elsewhere it is a param/data type). ``collection_type`` is the
+    comma-permitting ``CollectionTypeList`` grammar only on ``<param>``; on
+    ``<output>``/``<collection>`` contexts the XSD types it as colon-only
+    ``CollectionType``, so the stricter pattern applies there.
     """
     patterns = _collection_type_patterns()
     if element.tag in ("collection", "output_collection"):
         yield "type", patterns["type"]
-    yield "collection_type", patterns["collection_type"]
+    yield "collection_type", (
+        patterns["collection_type"] if element.tag == "param" else patterns["type"]
+    )
 
 
 def _measure_collection_type_normalization(
@@ -1170,7 +1173,7 @@ def _measure_collection_type_normalization(
     for path in _iter_corpus_tool_xmls(corpus_root):
         if not path.is_file():
             continue
-        sha = hashlib.sha256(path.read_bytes()).hexdigest()
+        sha = _sha256_of(path)
         if sha in seen_sha:
             continue
         seen_sha.add(sha)

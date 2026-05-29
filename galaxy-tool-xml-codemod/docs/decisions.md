@@ -283,6 +283,13 @@ reproducible command for any data-driven claim.
 
 **Date:** 2026-05-28.
 
+> **Current state (2026-05-29).** Registry: `Upgrade19_01`, `Upgrade24_0`,
+> `Upgrade24_1`, `Upgrade25_1`. Combined sweep (8 607 eligible) reaches latest on
+> **8 566** (41 below); residual sticking points 24.1 (39, the macro-reachability
+> ceiling + uncoercible values) and 21.05 / 21.09 (1 each, tool bugs). The
+> dated bullets below are a historical → refreshed narrative; this summary is
+> the live total.
+
 - **What we chose:** A family of single-step upgrade codemods plus an
   orchestrator. `upgrades.py` holds `UPGRADE_CODEMODS` (a dict mapping a
   sticking version → the codemod that moves a tool one step past it) and
@@ -313,7 +320,8 @@ reproducible command for any data-driven claim.
   21.05/21.09/24.0 (1 each); 0 non-idempotent / post-validate-failed / crashed
   throughout.
   - **Refreshed 2026-05-29** (after deprecated-directory tools were excluded
-    from the corpus — see `galaxy-tool-xml/docs/decisions.md` §10): the combined
+    from the corpus — the discovery filter is `galaxy-tool-xml/docs/decisions.md`
+    §6, refreshed measurements §10): the combined
     sweep now reports **8 607 eligible**, reaching latest on **8 542** (65 below
     latest). The 41-tool drop was entirely tools that already validated at
     latest — `Upgrade24_1` still advances 97, `Upgrade25_1` still 5, and the
