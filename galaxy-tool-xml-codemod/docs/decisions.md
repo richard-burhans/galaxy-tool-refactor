@@ -320,6 +320,14 @@ reproducible command for any data-driven claim.
     residual is unchanged (24.1 (53), 19.01 (9), 21.05/21.09/24.0 (1 each)), so
     the prioritized to-write list is unaffected. Still 0 non-idempotent /
     post-validate-failed / crashed.
+  - **`Upgrade19_01` added (19.01 → 19.05).** The 19.01 residual (9 tools, all
+    from `ucsb-phylogenetics/ucsb_phylogenetics`) stuck on 19.05 making `name`
+    required on output `<data>`. `Upgrade19_01` (§ below) synthesizes a
+    deterministic, collision-free `name` (`output`, `output2`, …) on every
+    unnamed output `<data>`; the combined sweep now reaches latest on **8 551**
+    (56 below latest) — `Upgrade19_01` advances 9, `Upgrade24_1` 97,
+    `Upgrade25_1` 5, leaving residual 24.1 (53), 21.05/21.09/24.0 (1 each).
+    Still 0 non-idempotent / no-repair / post-validate-failed / crashed.
 - **`Upgrade24_1` (24.1 → 24.2):** empirically the only 24.2 delta corpus tools
   trip on is the `format` attribute gaining a pattern facet — `FormatList`
   (`<param>`, comma-separated `[a-z0-9._-]` tokens) and `Format` (`<data>`, a
@@ -330,6 +338,16 @@ reproducible command for any data-driven claim.
   significant). It leaves what it cannot safely coerce: an empty value, or a
   `<data>` comma-list (which `Format` forbids and there is no basis to pick one
   datatype) — those stay stuck and the discovery sweep reports them.
+- **`Upgrade19_01` (19.01 → 19.05):** 19.05 made `name` required on output
+  `<data>`. The 9 corpus tools that stuck here declared their outputs as bare
+  `<data from_work_dir="…"/>` and never referenced the output name (not in the
+  command, not in a `<test>`), so the codemod synthesizes a deterministic,
+  collision-free name (`output`, then `output2`, `output3`, … skipping any
+  already in use) on each unnamed output `<data>`. Unlike `Upgrade24_1`'s
+  value-normalization this is a *synthesis* — an unreferenced placeholder
+  identity, not a recovery of author intent — which is the reason it was a
+  judgment call (a one-repo corpus signal); the placeholder is safe because
+  nothing references it, and it carries every one of the 9 tools to latest.
 - **Alternative:** direct-to-latest monolithic upgrade codemods; or making
   upgrades opt-in rather than canonical.
 - **Why:** Single-step codemods keyed by from-version match how Galaxy's schema
@@ -350,11 +368,12 @@ reproducible command for any data-driven claim.
   was extended to also normalize `ftype` (24.2 pattern-restricts it like
   `format`); `Upgrade25_1` (25.1 → 26.0) drops the obsolete top-level
   `<trackster_conf>` element, which pulled in the deferred `Cursor.remove()`
-  primitive. The remaining sticking points are documented in `PLAN.md` as
-  needed-but-deferred — each requires a semantic decision (invent a `<data>`
-  name for 19.01; restructure a `<collection>`'s filtered `<data>` for 24.0;
-  macro-token / empty / multi-format handling for the 24.1 residual), so they
-  are reported by the discovery sweep rather than auto-fixed.
+  primitive; `Upgrade19_01` (19.01 → 19.05) then names unnamed output `<data>`.
+  The remaining sticking points are documented in `PLAN.md` as
+  needed-but-deferred — each requires a semantic decision (restructure a
+  `<collection>`'s filtered `<data>` for 24.0; macro-token / empty /
+  multi-format handling for the 24.1 residual), so they are reported by the
+  discovery sweep rather than auto-fixed.
 - **Declined — collection-type whitespace normalization (`Upgrade22_1`).** The
   22.01 schema pattern-restricted `collection_type`/`type` to a `(list|paired)`
   grammar (broadened at 25.0 to add `paired_or_unpaired`/`record`). A codemod
