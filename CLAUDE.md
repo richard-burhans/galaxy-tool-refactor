@@ -116,6 +116,11 @@ uv run python -m scripts.measure macro-profile-ownership
 # placeholders (check §D1); macro-fmt-idempotence backs fmt §D16:
 uv run python -m scripts.measure command-iuc-heuristics
 uv run python -m scripts.measure macro-fmt-idempotence
+
+# Phase-3c sizing: clean @TOOL_VERSION@/@VERSION_SUFFIX@ extraction candidates
+# (literal version="<base>+galaxy<suffix>" whose base == a package requirement
+# version), split by whether a <macros> block exists or would need creating:
+uv run python -m scripts.measure version-tokenization
 ```
 
 **Note:** invoke as `python -m scripts.X`, not `python scripts/X.py` — the
