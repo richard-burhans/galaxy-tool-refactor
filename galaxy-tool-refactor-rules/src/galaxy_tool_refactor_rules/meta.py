@@ -36,6 +36,15 @@ class RuleMeta:
             check tier (``galaxy-tool-xml-check``) sets this ``True``; a
             report-only consumer like the ``check`` CLI uses it to treat such
             findings as informational rather than as a failing gate.
+        applies_to: The document kinds the rule operates on — a subset of
+            ``{"tool", "macro"}``. A generic XML rule (canonical indentation,
+            empty-element shorthand) applies to both; a tool-structural rule
+            (``<tool>`` child order, a blank line between ``<tool>`` sections,
+            attribute order, profile upgrades) applies only to ``"tool"``; a
+            macro-library rule applies only to ``"macro"``. The default
+            ``{"tool"}`` is the conservative choice — a rule runs on a macro
+            file only when it explicitly opts in. Consumers run a rule against a
+            document only when the document's kind is in this set.
     """
 
     code: str
@@ -45,3 +54,4 @@ class RuleMeta:
     cite: str | None = None
     order: int = 100
     detect_only: bool = False
+    applies_to: frozenset[str] = frozenset({"tool"})

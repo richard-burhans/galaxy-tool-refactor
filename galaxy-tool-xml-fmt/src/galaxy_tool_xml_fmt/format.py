@@ -22,7 +22,8 @@ from galaxy_tool_xml_fmt.rules import Rule
 from galaxy_tool_xml_fmt.serializer import to_bytes
 
 if TYPE_CHECKING:
-    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_xml.document import MacroDocument, ToolDocument
+    from lxml import etree
 
 
 @cache
@@ -36,16 +37,35 @@ def all_rules() -> tuple[type[Rule], ...]:
     return tuple(sorted(rule_classes, key=lambda cls: cls.meta.order))
 
 
-def format_tool_document(document: ToolDocument) -> bytes:
-    """Format *document* with cosmetic rules and serialise to bytes.
+def rules_for_kind(kind: str, /) -> tuple[type[Rule], ...]:
+    """Return the active cosmetic rules that apply to a *kind* of document.
 
-    Runs every active cosmetic rule against the document's mutable lxml
-    tree in order, then serialises the result. The input document is
-    mutated in-place; callers that need the original tree should pass a
-    copy. **No structural canonicalisation** — for the full canonical
-    pipeline use the ``galaxy-tool-refactor format`` app command, or apply
-    ``galaxy_tool_xml_codemod.canonical.CANONICAL_CODEMODS`` yourself
-    before calling this function.
+    *kind* is ``"tool"`` or ``"macro"``; a rule applies when *kind* is in its
+    ``meta.applies_to``. Generic XML rules (indent, empty-element shorthand)
+    apply to both; the blank-line-between-``<tool>``-sections rule applies only
+    to tools. Order is preserved (``all_rules()`` is already ``meta.order``-sorted).
+    """
+    return tuple(cls for cls in all_rules() if kind in cls.meta.applies_to)
+
+
+def _apply_rules(
+    tree: etree._ElementTree, rule_classes: tuple[type[Rule], ...]
+) -> bytes:
+    """Run *rule_classes* (in ``meta.order``) over *tree*; serialise to bytes."""
+    for rule_cls in sorted(rule_classes, key=lambda cls: cls.meta.order):
+        apply_edits(rule_cls().apply(tree))
+    return to_bytes(tree)
+
+
+def format_tool_document(document: ToolDocument) -> bytes:
+    """Format *document* with the tool-applicable cosmetic rules; serialise to bytes.
+
+    Runs every active cosmetic rule that applies to a ``<tool>`` against the
+    document's mutable lxml tree in order, then serialises. The input document is
+    mutated in-place; callers that need the original tree should pass a copy.
+    **No structural canonicalisation** — for the full canonical pipeline use the
+    ``galaxy-tool-refactor format`` app command, or apply
+    ``galaxy_tool_xml_codemod.canonical.CANONICAL_CODEMODS`` yourself first.
 
     Args:
         document: A parsed Galaxy tool document.
@@ -53,7 +73,19 @@ def format_tool_document(document: ToolDocument) -> bytes:
     Returns:
         Canonical-form XML bytes (cosmetic-only).
     """
-    return format_tool_document_subset(document, rule_classes=all_rules())
+    return _apply_rules(document.tree, rules_for_kind("tool"))
+
+
+def format_macro_document(document: MacroDocument) -> bytes:
+    """Format a macro-library document with the macro-applicable cosmetic rules.
+
+    The ``<macros>``-file counterpart to ``format_tool_document``: runs only the
+    cosmetic rules whose ``meta.applies_to`` includes ``"macro"`` (the generic
+    XML rules — indentation, empty-element shorthand — but not the
+    blank-line-between-``<tool>``-sections rule, which is tool-specific). The
+    document's tree is mutated in place.
+    """
+    return _apply_rules(document.tree, rules_for_kind("macro"))
 
 
 def format_tool_document_subset(
@@ -80,7 +112,4 @@ def format_tool_document_subset(
     Returns:
         XML bytes after applying the selected rules.
     """
-    tree = document.tree
-    for rule_cls in sorted(rule_classes, key=lambda cls: cls.meta.order):
-        apply_edits(rule_cls().apply(tree))
-    return to_bytes(tree)
+    return _apply_rules(document.tree, rule_classes)

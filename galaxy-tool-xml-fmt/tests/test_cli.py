@@ -8,6 +8,7 @@ import pytest
 from click.testing import CliRunner
 
 from galaxy_tool_xml_fmt.cli import main
+from galaxy_tool_xml_fmt.cli_support import is_macros_root, is_tool_root
 
 _UNFORMATTED_TOOL = (
     b"<tool id='t' name='T' version='0.1'>"
@@ -81,12 +82,28 @@ def test_directory_path_recurses(tmp_path: Path) -> None:
     assert "b.xml" in result.output
 
 
-def test_non_tool_xml_is_skipped(tmp_path: Path) -> None:
-    file = _write(tmp_path / "macros.xml", b"<macros><token>x</token></macros>")
+def test_non_tool_non_macro_xml_is_skipped(tmp_path: Path) -> None:
+    # Neither a <tool> nor a <macros> root, so it is skipped and left untouched.
+    original = b"<datatypes><datatype extension='txt'/></datatypes>"
+    file = _write(tmp_path / "datatypes_conf.xml", original)
     result = CliRunner().invoke(main, [str(file)])
     assert result.exit_code == 0, result.output
     assert "skipped" in result.output
-    assert file.read_bytes() == b"<macros><token>x</token></macros>"
+    assert file.read_bytes() == original
+
+
+def test_macro_file_is_formatted(tmp_path: Path) -> None:
+    # A <macros> library is now formatted with the kind-applicable rules
+    # (GTX001 indent, GTX004 shorthand) — not skipped.
+    file = _write(
+        tmp_path / "macros.xml",
+        b'<macros><token name="@TOOL_VERSION@">1.0</token></macros>',
+    )
+    result = CliRunner().invoke(main, [str(file)])
+    assert result.exit_code == 0, result.output
+    assert "reformatted" in result.output
+    formatted = file.read_bytes()
+    assert b'\n    <token name="@TOOL_VERSION@">1.0</token>\n' in formatted
 
 
 def test_malformed_tool_xml_is_reported_as_error(tmp_path: Path) -> None:
@@ -101,7 +118,21 @@ def test_malformed_tool_xml_is_reported_as_error(tmp_path: Path) -> None:
 def test_help_flag(flag: str) -> None:
     result = CliRunner().invoke(main, [flag])
     assert result.exit_code == 0
-    assert "format Galaxy tool XML" in result.output
+    assert "format Galaxy tool and macro XML" in result.output
+
+
+def test_root_pre_checks_distinguish_tool_macro_and_other() -> None:
+    assert is_tool_root(b"<tool id='t'/>")
+    assert not is_macros_root(b"<tool id='t'/>")
+    assert is_macros_root(b"<macros/>")
+    assert not is_tool_root(b"<macros/>")
+    # A singular <macro> element is not a macro-*library* root.
+    assert not is_macros_root(b"<macro/>")
+    # Neither for unrelated config XML.
+    assert not is_tool_root(b"<datatypes/>")
+    assert not is_macros_root(b"<datatypes/>")
+    # A leading declaration / comment is tolerated.
+    assert is_macros_root(b"<?xml version='1.0'?>\n<!-- c -->\n<macros/>")
 
 
 def test_cli_does_not_reorder_attributes(tmp_path: Path) -> None:

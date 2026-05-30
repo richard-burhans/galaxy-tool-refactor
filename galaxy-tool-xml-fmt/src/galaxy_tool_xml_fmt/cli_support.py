@@ -20,8 +20,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import click
-from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_tool
-from galaxy_tool_xml.document import ToolDocument
+from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_macros, load_tool
+from galaxy_tool_xml.document import MacroDocument, ToolDocument
 
 
 @dataclass(frozen=True)
@@ -86,13 +86,14 @@ def iter_targets(paths: Iterable[Path]) -> Iterable[Path]:
             yield path
 
 
-def is_tool_root(xml_bytes: bytes) -> bool:
-    """Cheap pre-check: does the document's first element open ``<tool``?
+def _root_opens(xml_bytes: bytes, token: str) -> bool:
+    """Cheap pre-check: does the document's first element open with *token*?
 
-    Skips macro / test XML before paying for a full parse. Accepts leading
-    whitespace, an XML declaration, comments, and a DOCTYPE before the root.
-    A false negative is acceptable (the file is then skipped); a false
-    positive is caught by the post-parse tag check.
+    Skips a leading XML declaration, comments, and a DOCTYPE, then tests whether
+    the root element starts with *token* (e.g. ``"<tool"`` or ``"<macros"``).
+    A false negative is acceptable (the file is then skipped); a false positive
+    is caught by the post-parse tag check. Avoids a full parse on non-matching
+    files (e.g. ``tool_data_table_conf`` / test XML).
     """
     head = xml_bytes[:4096].decode("utf-8", errors="replace")
     index = 0
@@ -118,8 +119,22 @@ def is_tool_root(xml_bytes: bytes) -> bool:
                 return False
             index = close + 1
             continue
-        return head.startswith("<tool", index)
+        return head.startswith(token, index)
     return False
+
+
+def is_tool_root(xml_bytes: bytes) -> bool:
+    """Cheap pre-check: does the document's first element open ``<tool``?"""
+    return _root_opens(xml_bytes, "<tool")
+
+
+def is_macros_root(xml_bytes: bytes) -> bool:
+    """Cheap pre-check: does the document's first element open ``<macros``?
+
+    ``"<macros"`` does not match a ``<macro>`` element (missing the trailing
+    ``s``), so this fires only on a macro-*library* file's root.
+    """
+    return _root_opens(xml_bytes, "<macros")
 
 
 def _print_diff(path: Path, original: bytes, formatted: bytes) -> None:
@@ -141,15 +156,61 @@ def _echo_notes(outcome: TransformOutcome, options: RunOptions) -> None:
         click.echo(note)
 
 
+def _report_malformed(path: Path, error: ToolXmlSyntaxError, counts: Counts) -> None:
+    """Report a malformed-XML load failure to stderr and count it."""
+    click.echo(f"error: {path}: malformed XML: {error}", err=True)
+    counts.errored += 1
+
+
+def _transform_file(
+    original: bytes,
+    path: Path,
+    *,
+    transform: Callable[[ToolDocument], TransformOutcome],
+    macro_transform: Callable[[MacroDocument], TransformOutcome] | None,
+    counts: Counts,
+) -> TransformOutcome | None:
+    """Load *original* by document kind and run the matching transform.
+
+    Returns the outcome, or ``None`` when the file was skipped (not a tool, or a
+    macro file with no ``macro_transform``) or errored — ``counts`` is updated in
+    those cases. Macro files are only processed when *macro_transform* is given,
+    so a caller that does not opt in keeps the historical tool-only behaviour.
+    """
+    if is_tool_root(original):
+        try:
+            tool_document = load_tool(original)
+        except ToolXmlSyntaxError as error:
+            _report_malformed(path, error, counts)
+            return None
+        if tool_document.root.tag != "tool":
+            counts.skipped += 1
+            return None
+        return transform(tool_document)
+    if macro_transform is not None and is_macros_root(original):
+        try:
+            macro_document = load_macros(original)
+        except ToolXmlSyntaxError as error:
+            _report_malformed(path, error, counts)
+            return None
+        if macro_document.root.tag != "macros":
+            counts.skipped += 1
+            return None
+        return macro_transform(macro_document)
+    counts.skipped += 1
+    return None
+
+
 def _process_file(
     path: Path,
     *,
     transform: Callable[[ToolDocument], TransformOutcome],
+    macro_transform: Callable[[MacroDocument], TransformOutcome] | None,
     action: Action,
     options: RunOptions,
     counts: Counts,
 ) -> None:
-    """Apply ``transform`` to one file in place, or preview per ``options``.
+    """Apply the matching transform to one file in place, or preview per ``options``.
 
     Per-file errors are reported to stderr and counted but never stop the run.
     """
@@ -159,19 +220,15 @@ def _process_file(
         click.echo(f"error: cannot read {path}: {error}", err=True)
         counts.errored += 1
         return
-    if not is_tool_root(original):
-        counts.skipped += 1
+    outcome = _transform_file(
+        original,
+        path,
+        transform=transform,
+        macro_transform=macro_transform,
+        counts=counts,
+    )
+    if outcome is None:
         return
-    try:
-        document = load_tool(original)
-    except ToolXmlSyntaxError as error:
-        click.echo(f"error: {path}: malformed XML: {error}", err=True)
-        counts.errored += 1
-        return
-    if document.root.tag != "tool":
-        counts.skipped += 1
-        return
-    outcome = transform(document)
     if outcome.formatted == original:
         counts.unchanged += 1
         if not options.quiet and not options.check and not options.diff:
@@ -228,17 +285,21 @@ def run(
     transform: Callable[[ToolDocument], TransformOutcome],
     action: Action,
     options: RunOptions,
+    macro_transform: Callable[[MacroDocument], TransformOutcome] | None = None,
 ) -> int:
-    """Process every target through ``transform`` and return an exit code.
+    """Process every target through the matching transform; return an exit code.
 
-    Exit code is 1 if any file errored, or — under ``--check`` — if any file
-    would change; otherwise 0.
+    Tool files go through *transform*. When *macro_transform* is given, macro
+    *library* files (``<macros>`` root) are processed too; without it they are
+    skipped (the historical tool-only behaviour). Exit code is 1 if any file
+    errored, or — under ``--check`` — if any file would change; otherwise 0.
     """
     counts = Counts()
     for target in iter_targets(paths):
         _process_file(
             target,
             transform=transform,
+            macro_transform=macro_transform,
             action=action,
             options=options,
             counts=counts,

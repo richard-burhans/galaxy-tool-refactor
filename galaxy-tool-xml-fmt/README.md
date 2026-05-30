@@ -1,6 +1,8 @@
 # galaxy-tool-xml-fmt
 
-A `black`-like opinionated cosmetic formatter for Galaxy tool XML.
+A `black`-like opinionated cosmetic formatter for Galaxy tool XML — and for
+macro-library files (`<macros>` root), which get the kind-applicable rules
+(indentation, empty-element shorthand) per `RuleMeta.applies_to`.
 The **formatting** tier of the Galaxy refactoring architecture:
 
 | Tier | Layer | Package | Role |
