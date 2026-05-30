@@ -180,8 +180,9 @@ The app `format` and `check` commands now process macro-library files
 (`<macros>` root), not just tools. `format` cosmetically formats them
 (`format_macro_document` via `cli_support.run`'s `macro_transform`); `check`
 reports their cosmetic drift (`detect_macro_document`, all fixable). `upgrade`
-is unchanged — it stays tool-only (it passes no `macro_transform`), since its
-work is semantic; macro editing from `upgrade` is the Phase-3 token-aware step.
+passes no `macro_transform` (it does not *cosmetically* format macro files); its
+**semantic** macro edit — the token-aware imported-`@PROFILE@` bump — landed in
+§D6 below, not as a `macro_transform`.
 
 Macro files get **cosmetic rules only** (codemods are tool-only,
 `RuleMeta.applies_to={"tool"}`), so the macro transform bypasses the registry
@@ -214,3 +215,39 @@ uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/
 uv run galaxy-tool-refactor format path/to/macros.xml   # cosmetically formatted
 uv run galaxy-tool-refactor check  path/to/macros.xml   # reports GTX001/GTX004 drift
 ```
+
+## D6 (2026-05-30) — `upgrade` bumps imported `@PROFILE@` tokens (Phase 3b-2)
+
+**Date:** 2026-05-30. Phase 3b-2 (the imported-token arm of the profile upgrade).
+Reproduced-by: `uv run --package galaxy-tool-refactor-cli pytest
+galaxy-tool-refactor-cli/tests/test_cli.py -k imported`.
+
+`upgrade` now upgrades a `profile="@PROFILE@"` whose token is defined in an
+*imported* macro file by bumping that token in place — the ~1,382-tool bulk the
+inline GTX007 path (§3a) does not reach.
+
+- **A whole-run phase, not a per-file transform.** The decision is run-relative
+  (a shared macro file is edited once; the target must be unanimous across *all*
+  its importers in the run), and it edits *macro* files, not the tool file under
+  the cursor — so it cannot ride `cli_support.run`'s per-file `transform`. A new
+  `_upgrade_macro_profile_tokens` phase runs first: it walks the run's tool files
+  (`iter_targets` + `is_tool_root`, loading from the path so imports resolve),
+  collects each one's `profile_token_site`, and feeds the lot to the registry
+  (`plan_from_sites` → `apply_profile_token_plans`). The per-file tool
+  `run(...)` (repair + structural upgrade + format) then proceeds unchanged; the
+  two phases touch disjoint files.
+- **Agreement, not a fork.** A shared macro file's token is bumped in place only
+  when every profile-using importer agrees on the target; otherwise it is
+  reported and skipped. This is the data-driven resolution of the deferred
+  shared-macro policy (registry §D5): the `macro-profile-ownership` sweep found 0
+  of 46 shared files diverge, so the copy-on-write fork the §D5-era note
+  anticipated as this consumer's companion was **not** built — agreement covers
+  every real case, and fork stays deferred until divergence appears.
+- **`--check` / `--diff` preview, no write; folds into the exit code.** Under
+  `--check` (or `--diff`) the phase reports `would upgrade …` and writes nothing;
+  a pending macro bump makes `--check` exit non-zero alongside the tool run.
+  Bump-up-only and idempotent (a token already at the target is a silent no-op).
+- **Why the split CLI/registry.** The editing + agreement logic is library-first
+  in the registry (`apply_profile_token_plans`, exception-free, `write` flag);
+  the CLI owns only the path walk, parse-error tolerance, and reporting — so a
+  future MCP server reuses the same orchestration.

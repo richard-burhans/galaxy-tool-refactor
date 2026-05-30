@@ -32,7 +32,9 @@ longer imports the codemod / check tiers directly. It exposes the
   kind-applicable rules only (no codemods); selection governs tools (cli §D5).
 - `upgrade` — repair, then iterative profile upgrade, then cosmetic formatting.
   Opt-in and semantic. No `--preset`; `--select`/`--ignore` adjust its rule set.
-  Tool-only (macro editing from `upgrade` is the Phase-3 token-aware step).
+  Also bumps an imported `@PROFILE@` token in place when every profile-using
+  importer in the run agrees on the target, else reports+skips (cli §D6); the
+  inline-token case is GTX007's job.
 - `check` — report-only linter (mutates nothing) over the selected rules' detect
   phases: `file:line  CODE  message` per finding. Default (`iuc`) reports only
   *fixable* GTX findings; `--preset strict` adds the *advisory* IUC checks (marked

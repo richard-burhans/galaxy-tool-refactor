@@ -15,7 +15,9 @@ presets. All rule orchestration is delegated to the tier-3.6 registry facade
 - ``upgrade`` — repair, then iteratively upgrade ``profile=`` toward the latest
   (applying the registered migration each step), then format. Opt-in and
   semantic; presets do not apply (``--select``/``--ignore`` adjust its rule set).
-  Tool-only (macro editing from ``upgrade`` is the Phase-3 token-aware step).
+  Also bumps an imported ``@PROFILE@`` token in place when every profile-using
+  importer in the run agrees on the target (else reports and skips); a
+  ``profile="@TOKEN@"`` whose token is inline is handled per-file by GTX007.
 - ``check`` — report where tools deviate from the selection, one
   ``file:line  CODE  message`` per finding, without changing anything. Fixable
   (GTX) findings fail the run; advisory (IUC) findings are informational unless
@@ -35,6 +37,11 @@ from pathlib import Path
 import click
 from galaxy_tool_refactor_registry import facade
 from galaxy_tool_refactor_registry.errors import UnknownPreset, UnknownRuleCode
+from galaxy_tool_refactor_registry.macro_profile import (
+    apply_profile_token_plans,
+    plan_from_sites,
+    profile_token_site,
+)
 from galaxy_tool_refactor_registry.resolve import (
     resolve_codes,
     resolve_upgrade_codes,
@@ -215,8 +222,14 @@ def upgrade_command(
     Opt-in and semantic. The profile upgrade always runs; ``--select`` / ``--ignore``
     adjust the *other* fixable rules (by default typo repair + cosmetic
     formatting) — e.g. ``--ignore GTX006`` upgrades without typo repair. Presets
-    are a ``format``/``check`` concept and are **not** accepted here. PATHS may be
-    files or directories.
+    are a ``format``/``check`` concept and are **not** accepted here.
+
+    A ``profile="@PROFILE@"`` whose token lives in an *imported* macro file is
+    upgraded by bumping that token in place — but only when every profile-using
+    importer in this run agrees on the target profile; a macro file whose
+    importers disagree is reported and left untouched (no over-declaration). The
+    inline-token case is handled per-file by GTX007. PATHS may be files or
+    directories.
     """
     if preset is not None:
         raise click.BadParameter(
@@ -225,6 +238,14 @@ def upgrade_command(
             param_hint="--preset",
         )
     codes = _resolve_upgrade(select=select, ignore=ignore)
+
+    # Whole-run phase first: bump imported @PROFILE@ tokens where every
+    # profile-using importer agrees on the target (the inline case is handled
+    # per-file by GTX007 in the transform below). This edits *macro* files, so it
+    # cannot ride the per-file tool transform.
+    macro_pending = _upgrade_macro_profile_tokens(
+        paths, check=check, diff=diff, quiet=quiet
+    )
 
     def transform(document: ToolDocument) -> TransformOutcome:
         result = facade.upgrade(document, codes=codes)
@@ -236,7 +257,51 @@ def upgrade_command(
         action=Action(past="upgraded", conditional="would upgrade"),
         options=RunOptions(check=check, diff=diff, quiet=quiet),
     )
-    sys.exit(exit_code)
+    sys.exit(exit_code or (1 if (check and macro_pending) else 0))
+
+
+def _upgrade_macro_profile_tokens(
+    paths: tuple[Path, ...], *, check: bool, diff: bool, quiet: bool
+) -> bool:
+    """Upgrade imported ``@PROFILE@`` tokens across the run; return would-edit.
+
+    Walks the run's tool files, collects each one's imported-profile-token site,
+    and for every macro file whose profile-using importers agree on a target
+    bumps the ``<token>`` in place (writing unless ``check``/``diff``). A macro
+    file whose importers disagree is reported and left untouched. Returns whether
+    any macro file was (or, under preview, would be) edited — the caller folds
+    that into the ``--check`` exit code.
+    """
+    sites = []
+    for path in iter_targets(paths):
+        try:
+            original = path.read_bytes()
+        except OSError:
+            continue
+        if not is_tool_root(original):
+            continue
+        try:
+            document = load_tool(path)  # load from path so imports resolve
+        except ToolXmlSyntaxError:
+            continue  # malformed tools are surfaced by the per-file run() below
+        site = profile_token_site(document)
+        if site is not None:
+            sites.append(site)
+    plans = plan_from_sites(sites)
+    result = apply_profile_token_plans(plans, write=not (check or diff))
+    if not quiet:
+        verb = "would upgrade" if (check or diff) else "upgraded"
+        for edit in result.edits:
+            click.echo(
+                f"{verb} {edit.token_name} {edit.old_value} -> {edit.new_value} "
+                f"in {edit.macro_file} ({len(edit.importers)} tool(s))"
+            )
+        for skip in result.skips:
+            click.echo(
+                f"skipped {skip.macro_file}: {skip.token_name} importers disagree "
+                f"on target profile ({len(skip.importers)} tool(s))"
+            )
+    return bool(result.edits)
 
 
 def _check_summary(

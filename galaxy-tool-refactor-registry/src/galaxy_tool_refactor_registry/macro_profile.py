@@ -30,8 +30,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from galaxy_tool_xml.binding import newest_valid_profile
+from galaxy_tool_xml.binding import load_macros, newest_valid_profile
 from galaxy_tool_xml.macros import token_definitions
+from galaxy_tool_xml_fmt.format import format_macro_document
+from packaging.version import InvalidVersion, Version
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -107,6 +109,93 @@ def profile_token_site(document: ToolDocument, /) -> ProfileTokenSite | None:
         token_name=profile_raw,
         target=newest_valid_profile(document),
     )
+
+
+@dataclass(frozen=True)
+class MacroTokenEdit:
+    """An applied (or, under preview, would-apply) macro-token profile bump."""
+
+    macro_file: Path
+    token_name: str
+    old_value: str
+    new_value: str
+    importers: tuple[Path, ...]
+
+
+@dataclass(frozen=True)
+class MacroTokenSkip:
+    """A shared macro token left untouched because its importers disagree."""
+
+    macro_file: Path
+    token_name: str
+    importers: tuple[Path, ...]
+
+
+@dataclass(frozen=True)
+class MacroProfileResult:
+    """Outcome of applying profile-token plans across a run.
+
+    ``edits`` are the bumps performed (or, when ``write=False``, that would be);
+    ``skips`` are no-consensus files reported and left alone. A plan whose token
+    is already current (or ahead) is a silent no-op and appears in neither.
+    """
+
+    edits: tuple[MacroTokenEdit, ...]
+    skips: tuple[MacroTokenSkip, ...]
+
+
+def _is_newer(target: str, current: str, /) -> bool:
+    """Whether *target* is a strictly newer version than *current* (bump-up only).
+
+    Returns ``False`` when *current* is unparseable — the sanctioned packaging
+    boundary, mirroring ``UpdateProfile._is_newer`` (``packaging`` has no
+    validity predicate).
+    """
+    try:
+        return Version(target) > Version(current)
+    except InvalidVersion:
+        return False
+
+
+def apply_profile_token_plans(
+    plans: Iterable[ProfileTokenPlan], /, *, write: bool
+) -> MacroProfileResult:
+    """Bump each agreed macro file's profile token; report no-consensus skips.
+
+    For an agreeing plan whose token is stale (older than the agreed target), the
+    ``<token>`` text is rewritten to the target and — when *write* is true — the
+    macro file is reserialised through ``format_macro_document`` and written back.
+    Bump-up-only: a token already at (or newer than) the target is a no-op. A
+    non-agreeing plan is recorded as a skip and never written.
+    """
+    edits: list[MacroTokenEdit] = []
+    skips: list[MacroTokenSkip] = []
+    for plan in plans:
+        if not plan.agree or plan.target is None:
+            skips.append(
+                MacroTokenSkip(plan.macro_file, plan.token_name, plan.importers)
+            )
+            continue
+        document = load_macros(plan.macro_file)
+        token = document.root.find(f'token[@name="{plan.token_name}"]')
+        if token is None:
+            continue  # defensive: the defining file should carry the token
+        current = (token.text or "").strip()
+        if not _is_newer(plan.target, current):
+            continue  # already current, or token ahead of validity — no-op
+        if write:
+            token.text = plan.target
+            plan.macro_file.write_bytes(format_macro_document(document))
+        edits.append(
+            MacroTokenEdit(
+                macro_file=plan.macro_file,
+                token_name=plan.token_name,
+                old_value=current,
+                new_value=plan.target,
+                importers=plan.importers,
+            )
+        )
+    return MacroProfileResult(edits=tuple(edits), skips=tuple(skips))
 
 
 def plan_from_sites(sites: Iterable[ProfileTokenSite], /) -> list[ProfileTokenPlan]:

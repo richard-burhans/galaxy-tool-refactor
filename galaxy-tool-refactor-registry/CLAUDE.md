@@ -77,9 +77,10 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
   preset; select replaces).
 - `apply.py` — `apply_selection` (phase-ordered apply).
 - `facade.py` — `run` / `upgrade` / `detect` / `list_presets` / `list_rules`.
-- `macro_profile.py` — Phase-3b consensus analysis for upgrading an imported
-  `@PROFILE@` token: `profile_token_site` (one tool → defining file + target) and
-  the pure `plan_from_sites` (per-file importer agreement). See `docs/decisions.md` D5.
+- `macro_profile.py` — Phase-3b imported-`@PROFILE@` upgrade: `profile_token_site`
+  (one tool → defining file + target), the pure `plan_from_sites` (per-file
+  importer agreement), and `apply_profile_token_plans` (bump the agreed files'
+  tokens via `format_macro_document`, skip the rest). See `docs/decisions.md` D5.
 - `results.py` — the structured result + introspection dataclasses.
 - `errors.py` — `UnknownRuleCode` / `UnknownPreset`.
 
