@@ -25,11 +25,11 @@ from typing import TYPE_CHECKING
 from galaxy_tool_refactor_rules.violation import Violation
 
 from galaxy_tool_xml_fmt.edits import apply_edits
-from galaxy_tool_xml_fmt.format import all_rules
+from galaxy_tool_xml_fmt.format import all_rules, rules_for_kind
 
 if TYPE_CHECKING:
     from galaxy_tool_refactor_rules.meta import RuleMeta
-    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_xml.document import MacroDocument, ToolDocument
     from lxml import etree
 
     from galaxy_tool_xml_fmt.rules import Rule
@@ -66,7 +66,30 @@ def detect_tool_document_subset(
     The same caveat as ``format_tool_document_subset`` applies: an incoherent
     single-rule subset may report churn a coherent subset would cancel out.
     """
-    original = document.tree
+    return _detect_over_tree(document.tree, rule_classes)
+
+
+def detect_macro_document(document: MacroDocument, /) -> list[Violation]:
+    """Report where a macro-library file's cosmetic whitespace is non-canonical.
+
+    The ``<macros>``-file counterpart to ``detect_tool_document``: runs the
+    macro-applicable cosmetic rules (``rules_for_kind("macro")`` — the generic
+    XML rules) net-diff over a throwaway copy, attributing each changed node to
+    its owning rule. Non-mutating.
+    """
+    return _detect_over_tree(document.tree, rules_for_kind("macro"))
+
+
+def _detect_over_tree(
+    original: etree._ElementTree, rule_classes: tuple[type[Rule], ...]
+) -> list[Violation]:
+    """Net-diff the cosmetic *rule_classes* over a copy of *original*; report changes.
+
+    The shared core of the tool and macro detect functions: format a deep copy
+    through the rules (in ``meta.order``), recording the last rule to touch each
+    node's whitespace, then report one ``Violation`` per node whose net
+    ``text``/``tail`` differs from the source, located on the source tree.
+    """
     work = copy.deepcopy(original)
     ordered_rules = sorted(rule_classes, key=lambda cls: cls.meta.order)
     # Include Comment / PI nodes, not just elements: GTX001 and GTX003 rewrite the

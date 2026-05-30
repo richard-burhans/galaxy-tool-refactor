@@ -28,15 +28,22 @@ longer imports the codemod / check tiers directly. It exposes the
   preset `iuc` = `CANONICAL_CODEMODS` (repair + attribute / element order) +
   cosmetic — byte-identical to the historical behaviour. Safe, idempotent, never
   changes `profile=`. Advisory rules in a selection are reported as notes, never
-  applied.
+  applied. Also cosmetically formats macro-library files (`<macros>` root) —
+  kind-applicable rules only (no codemods); selection governs tools (cli §D5).
 - `upgrade` — repair, then iterative profile upgrade, then cosmetic formatting.
   Opt-in and semantic. No `--preset`; `--select`/`--ignore` adjust its rule set.
+  Tool-only (macro editing from `upgrade` is the Phase-3 token-aware step).
 - `check` — report-only linter (mutates nothing) over the selected rules' detect
   phases: `file:line  CODE  message` per finding. Default (`iuc`) reports only
   *fixable* GTX findings; `--preset strict` adds the *advisory* IUC checks (marked
   `(advisory)`). Fixable findings exit non-zero; advisory are informational unless
-  `--strict`.
+  `--strict`. Macro files are checked for cosmetic (fixable) drift too.
 - `presets` / `rules` — introspection of the baked-in presets and rules.
+
+Macro handling is **cosmetic-only and bundle-free** in v1: macro files are
+formatted/checked standalone as encountered (no import-graph, no shared-skip —
+cosmetic formatting is safe regardless of sharing). The import-graph bundle +
+shared-skip is Phase-3 content-edit infrastructure (cli §D5).
 
 Selection (`--preset` / `--select` / `--ignore`) is shared by
 `format`/`upgrade`/`check` (upgrade takes no `--preset`); precedence is ruff-style

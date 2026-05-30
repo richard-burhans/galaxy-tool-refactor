@@ -848,6 +848,9 @@ The fmt tier now formats macro-library files (`<macros>` root), not just tools.
   the **cosmetic `galaxy-tool-xml-fmt` CLI** opts in and formats both kinds. The
   app's bundle-aware macro handling (tool + its imports together, shared-skip) is
   a later step.
-- **No macro detect / check path yet.** This step covers *formatting* macro
-  files; `detect_macro_document` and the `check`/bundle integration come with the
-  app-tier bundle work.
+- **`detect_macro_document`** (added with the app-tier macro `format`/`check`
+  step) is the `<macros>` counterpart to `detect_tool_document`, running the
+  macro-applicable cosmetic rules net-diff; the shared net-diff core is factored
+  into `_detect_over_tree`. The app `check` uses it to report macro cosmetic
+  drift. The import-graph **bundle + shared-skip** remains deferred to the
+  Phase-3 content-edit work (see `galaxy-tool-refactor-cli/docs/decisions.md` §D5).

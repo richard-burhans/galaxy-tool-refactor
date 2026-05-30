@@ -23,6 +23,7 @@ Rule orchestration lives in the registry facade; this package depends on it
 galaxy-tool-refactor format tool.xml
 galaxy-tool-refactor format --preset cosmetic tool.xml   # whitespace only
 galaxy-tool-refactor format --ignore GTX002 tool.xml     # all but param-reorder
+galaxy-tool-refactor format tools/                       # also formats <macros> files
 
 # Opt-in, semantic: repair typos, then upgrade profile= to the latest reachable
 # version (applying each step's structural migration), then format. Reports the

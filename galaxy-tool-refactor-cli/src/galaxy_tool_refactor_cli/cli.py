@@ -10,13 +10,16 @@ presets. All rule orchestration is delegated to the tier-3.6 registry facade
 - ``format`` — apply a preset's (or a ``--select``/``--ignore`` selection's)
   fixable rules then cosmetic formatting. Safe and idempotent; never changes
   ``profile=``. Default preset ``iuc`` reproduces the historical behaviour.
+  Macro-library files (``<macros>`` root) are also cosmetically formatted
+  (kind-applicable rules only — no codemods).
 - ``upgrade`` — repair, then iteratively upgrade ``profile=`` toward the latest
   (applying the registered migration each step), then format. Opt-in and
   semantic; presets do not apply (``--select``/``--ignore`` adjust its rule set).
+  Tool-only (macro editing from ``upgrade`` is the Phase-3 token-aware step).
 - ``check`` — report where tools deviate from the selection, one
   ``file:line  CODE  message`` per finding, without changing anything. Fixable
   (GTX) findings fail the run; advisory (IUC) findings are informational unless
-  ``--strict``.
+  ``--strict``. Macro files are checked for cosmetic (fixable) drift too.
 - ``rules`` / ``presets`` — introspection: the baked-in rules and the presets.
 
 Selection (``--preset`` / ``--select`` / ``--ignore``) is shared by ``format``,
@@ -36,16 +39,19 @@ from galaxy_tool_refactor_registry.resolve import (
     resolve_codes,
     resolve_upgrade_codes,
 )
-from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_tool
-from galaxy_tool_xml.document import ToolDocument
+from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_macros, load_tool
+from galaxy_tool_xml.document import MacroDocument, ToolDocument
 from galaxy_tool_xml_fmt.cli_support import (
     Action,
     RunOptions,
     TransformOutcome,
+    is_macros_root,
     is_tool_root,
     iter_targets,
     run,
 )
+from galaxy_tool_xml_fmt.detect import detect_macro_document
+from galaxy_tool_xml_fmt.format import format_macro_document
 
 _PATH_ARGUMENT = click.argument(
     "paths",
@@ -161,8 +167,11 @@ def format_command(
     The default preset ``iuc`` applies the canonical codemods (typo repair,
     attribute / element order) and the cosmetic rules — the historical ``format``
     behaviour. Advisory rules in a selection (e.g. under ``--preset strict``) are
-    reported as notes but never change a file. PATHS may be files or directories
-    (searched recursively for ``*.xml``); non-Galaxy-tool XML is skipped.
+    reported as notes but never change a file. Macro-library files (``<macros>``
+    root) are also **cosmetically** formatted (the kind-applicable rules — no
+    codemods, which are tool-only; rule selection governs tools). PATHS may be
+    files or directories (searched recursively for ``*.xml``); other XML is
+    skipped.
     """
     codes = _resolve(preset=preset, select=select, ignore=ignore)
 
@@ -170,11 +179,16 @@ def format_command(
         result = facade.run(document, codes=codes)
         return TransformOutcome(result.formatted, notes=result.notes)
 
+    def macro_transform(document: MacroDocument) -> TransformOutcome:
+        # Macro files get cosmetic formatting only; codemods are tool-only.
+        return TransformOutcome(format_macro_document(document))
+
     exit_code = run(
         paths,
         transform=transform,
         action=Action(past="reformatted", conditional="would reformat"),
         options=RunOptions(check=check, diff=diff, quiet=quiet),
+        macro_transform=macro_transform,
     )
     sys.exit(exit_code)
 
@@ -246,7 +260,7 @@ def _check_summary(
     if clean:
         parts.append(f"{clean} file(s) clean")
     if skipped:
-        parts.append(f"{skipped} skipped (not a Galaxy tool)")
+        parts.append(f"{skipped} skipped (not a Galaxy tool or macro file)")
     if errored:
         parts.append(f"{errored} errored")
     return "; ".join(parts) + "." if parts else "no files checked."
@@ -274,7 +288,10 @@ def check_command(
     *advisory* IUC best-practice checks (marked ``(advisory)``). Prints one
     ``file:line  CODE  message`` per finding. Exits non-zero on any *fixable*
     finding or error; advisory findings are informational unless ``--strict``.
-    PATHS may be files or directories; non-Galaxy-tool XML is skipped.
+    Macro-library files (``<macros>`` root) are also checked, for cosmetic
+    (fixable) drift only — the selection governs tools; macro files get the
+    standard cosmetic checks. PATHS may be files or directories; other XML is
+    skipped.
     """
     codes = _resolve(preset=preset, select=select, ignore=ignore)
     fixable = advisory = flagged = clean = skipped = errored = 0
@@ -285,25 +302,40 @@ def check_command(
             click.echo(f"error: cannot read {target}: {error}", err=True)
             errored += 1
             continue
-        if not is_tool_root(original):
+        # Each finding is a (violation, is_advisory) pair. Tool files run the
+        # full selected detect (fixable GTX + advisory IUC); macro files run the
+        # cosmetic macro rules only (all fixable). Other XML is skipped.
+        if is_tool_root(original):
+            try:
+                tool_document = load_tool(original)
+            except ToolXmlSyntaxError as error:
+                click.echo(f"error: {target}: malformed XML: {error}", err=True)
+                errored += 1
+                continue
+            if tool_document.root.tag != "tool":
+                skipped += 1
+                continue
+            result = facade.detect(tool_document, codes=codes)
+            findings = [(v, result.is_advisory(v)) for v in result.violations]
+        elif is_macros_root(original):
+            try:
+                macro_document = load_macros(original)
+            except ToolXmlSyntaxError as error:
+                click.echo(f"error: {target}: malformed XML: {error}", err=True)
+                errored += 1
+                continue
+            if macro_document.root.tag != "macros":
+                skipped += 1
+                continue
+            findings = [(v, False) for v in detect_macro_document(macro_document)]
+        else:
             skipped += 1
             continue
-        try:
-            document = load_tool(original)
-        except ToolXmlSyntaxError as error:
-            click.echo(f"error: {target}: malformed XML: {error}", err=True)
-            errored += 1
-            continue
-        if document.root.tag != "tool":
-            skipped += 1
-            continue
-        result = facade.detect(document, codes=codes)
-        if not result.violations:
+        if not findings:
             clean += 1
             continue
         flagged += 1
-        for violation in result.violations:
-            is_advisory = result.is_advisory(violation)
+        for violation, is_advisory in findings:
             if is_advisory:
                 advisory += 1
             else:
