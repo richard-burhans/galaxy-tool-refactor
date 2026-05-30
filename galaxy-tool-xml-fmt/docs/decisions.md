@@ -854,3 +854,11 @@ The fmt tier now formats macro-library files (`<macros>` root), not just tools.
   into `_detect_over_tree`. The app `check` uses it to report macro cosmetic
   drift. The import-graph **bundle + shared-skip** remains deferred to the
   Phase-3 content-edit work (see `galaxy-tool-refactor-cli/docs/decisions.md` §D5).
+- **Corpus idempotence — same evidence tools have** (2026-05-30, combined
+  corpus; Reproduced-by: `uv run python -m scripts.measure
+  macro-fmt-idempotence`). Of **1,177** distinct `<macros>`-root files (1
+  unparseable under strict load), **1,176 (99.9%) would change** under
+  `format_macro_document` — i.e. almost no macro file is currently canonical, so
+  formatting them is worthwhile — and **all 1,176 are idempotent (0
+  non-idempotent)**, matching the tool-file guarantee in §D9/§D13. This backs
+  formatting macro files with the same corpus QA tools already have.

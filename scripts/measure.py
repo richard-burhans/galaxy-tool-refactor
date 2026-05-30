@@ -1698,6 +1698,225 @@ def _run_macro_profile_ownership(args: argparse.Namespace) -> None:
         print(f"\nwrote {_display_path(out_path)}")
 
 
+# --- measurement: command-iuc-heuristics ----------------------------------------
+#
+# Sizes the two reserved advisory placeholders (check §D1): IUC011 (single-quote
+# Cheetah variables in <command>) and IUC012 (join shell commands with `&&`, not
+# a lone `&`). Both would be CDATA-text heuristics, deferred precisely because
+# they risk firing as noise. This counts, across each unique tool's first
+# <command> body, how many candidate findings each heuristic would raise — the
+# number that decides whether the checks are worth implementing and how loud
+# they would be. Heuristic, not a Cheetah/shell parser; deliberately matches the
+# crude detection the placeholders would use, so the counts reflect real noise.
+
+# A `$name` or `${name}` Cheetah reference. "Quoted" is approximated by a single
+# quote immediately preceding the `$` (the IUC convention `'$x'`); anything else
+# counts as a candidate. Crude on purpose — the noise is the point.
+_CHEETAH_VAR = re.compile(r"\$\{?[A-Za-z_][\w.]*\}?")
+# A lone `&` — not part of `&&`. In itertext, `&amp;` is already unescaped to `&`.
+_LONE_AMP = re.compile(r"(?<!&)&(?!&)")
+
+
+@dataclass
+class _CommandIucHeuristicsResult:
+    n_unique_tools: int
+    n_with_command: int
+    n_tools_unquoted_var: int  # IUC011 candidates: >=1 unquoted Cheetah var
+    n_unquoted_var_findings: int  # total unquoted-var occurrences
+    n_tools_lone_amp: int  # IUC012 candidates: >=1 lone `&`
+    n_lone_amp_findings: int  # total lone-`&` occurrences
+
+
+def _count_unquoted_vars(text: str, /) -> int:
+    """Count Cheetah ``$var`` references not immediately preceded by a quote."""
+    count = 0
+    for match in _CHEETAH_VAR.finditer(text):
+        start = match.start()
+        if start == 0 or text[start - 1] != "'":
+            count += 1
+    return count
+
+
+def _measure_command_iuc_heuristics(
+    *, corpus_root: Path
+) -> _CommandIucHeuristicsResult:
+    """Count IUC011/IUC012 candidate findings across each tool's first command."""
+    seen: set[str] = set()
+    n_tools = n_with = 0
+    tools_var = var_findings = tools_amp = amp_findings = 0
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        n_tools += 1
+        command = root.find("command")
+        if command is None:
+            continue
+        n_with += 1
+        text = "".join(command.itertext())
+        unquoted = _count_unquoted_vars(text)
+        lone_amps = len(_LONE_AMP.findall(text))
+        if unquoted:
+            tools_var += 1
+            var_findings += unquoted
+        if lone_amps:
+            tools_amp += 1
+            amp_findings += lone_amps
+    return _CommandIucHeuristicsResult(
+        n_unique_tools=n_tools,
+        n_with_command=n_with,
+        n_tools_unquoted_var=tools_var,
+        n_unquoted_var_findings=var_findings,
+        n_tools_lone_amp=tools_amp,
+        n_lone_amp_findings=amp_findings,
+    )
+
+
+def _report_command_iuc_heuristics(result: _CommandIucHeuristicsResult) -> None:
+    with_cmd = result.n_with_command
+
+    def pct(n: int) -> float:
+        return 100 * n / with_cmd if with_cmd else 0.0
+
+    print("\n=== command-iuc-heuristics (IUC011/IUC012 sizing; heuristic) ===")
+    print(
+        f"Unique tools: {result.n_unique_tools}; with <command>: {with_cmd}"
+    )
+    print(
+        f"IUC011 unquoted Cheetah $var: {result.n_tools_unquoted_var} tools "
+        f"({pct(result.n_tools_unquoted_var):.1f}%), "
+        f"{result.n_unquoted_var_findings} findings"
+    )
+    print(
+        f"IUC012 lone '&':              {result.n_tools_lone_amp} tools "
+        f"({pct(result.n_tools_lone_amp):.1f}%), "
+        f"{result.n_lone_amp_findings} findings"
+    )
+
+
+def _run_command_iuc_heuristics(args: argparse.Namespace) -> None:
+    _report_command_iuc_heuristics(
+        _measure_command_iuc_heuristics(corpus_root=args.corpus_root)
+    )
+
+
+# --- measurement: macro-fmt-idempotence -----------------------------------------
+#
+# Backs fmt §D16 (cosmetic formatting of <macros>-library files) with the same
+# corpus evidence tool files already have (fmt §D9/§D13): of the distinct macro
+# files in the corpus, how many would `format_macro_document` change, and is the
+# formatter idempotent on them (format∘format == format)? A non-idempotent file
+# is a bug to retain as a fixture. Macro files are identified by a `<macros>`
+# root; deduplicated by content sha256 like the other corpus walks.
+
+
+@dataclass
+class _MacroFmtIdempotenceResult:
+    n_macro_files: int  # distinct <macros>-root files (sha-deduped)
+    n_unparseable: int  # failed strict load_macros (syntax error)
+    n_would_change: int  # formatting changes the bytes
+    n_idempotent: int  # format(format(x)) == format(x)
+    n_non_idempotent: int
+    non_idempotent_exemplars: list[str]
+
+
+def _measure_macro_fmt_idempotence(
+    *, corpus_root: Path
+) -> _MacroFmtIdempotenceResult:
+    """Sweep distinct macro files for fmt idempotence and change rate."""
+    from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_macros
+    from galaxy_tool_xml_fmt.format import format_macro_document
+
+    seen: set[str] = set()
+    n_files = n_unparseable = n_changed = n_idempotent = n_non_idempotent = 0
+    exemplars: list[str] = []
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        root = _parse_macros_root(path)
+        if root is None:
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        n_files += 1
+        original = path.read_bytes()
+        # load_macros parses strictly; a file the lenient walk accepted may still
+        # fail here — count it rather than crash the sweep (adapter boundary).
+        try:
+            once = format_macro_document(load_macros(path))
+            twice = format_macro_document(load_macros(once))
+        except ToolXmlSyntaxError:
+            n_unparseable += 1
+            continue
+        if once != original:
+            n_changed += 1
+        if once == twice:
+            n_idempotent += 1
+        else:
+            n_non_idempotent += 1
+            if len(exemplars) < 10:
+                exemplars.append(_display_path(path))
+    return _MacroFmtIdempotenceResult(
+        n_macro_files=n_files,
+        n_unparseable=n_unparseable,
+        n_would_change=n_changed,
+        n_idempotent=n_idempotent,
+        n_non_idempotent=n_non_idempotent,
+        non_idempotent_exemplars=exemplars,
+    )
+
+
+def _parse_macros_root(path: Path) -> etree._Element | None:
+    """Return the parsed root if it is ``<macros>``, else ``None`` (lenient)."""
+    if not path.is_file():
+        return None
+    parser = etree.XMLParser(recover=True, strip_cdata=False)
+    try:
+        with path.open("rb") as handle:
+            tree = etree.parse(handle, parser)
+    except (etree.XMLSyntaxError, OSError):
+        return None
+    root = tree.getroot() if tree is not None else None
+    if root is None or root.tag != "macros":
+        return None
+    return root
+
+
+def _report_macro_fmt_idempotence(result: _MacroFmtIdempotenceResult) -> None:
+    files = result.n_macro_files
+
+    def pct(n: int) -> float:
+        return 100 * n / files if files else 0.0
+
+    print("\n=== macro-fmt-idempotence ===")
+    print(f"Distinct macro files (sha256 dedup): {files}")
+    print(f"  unparseable (strict load failed): {result.n_unparseable}")
+    print(
+        f"  would change on format: {result.n_would_change} "
+        f"({pct(result.n_would_change):.1f}%)"
+    )
+    print(
+        f"  idempotent: {result.n_idempotent}; "
+        f"non-idempotent: {result.n_non_idempotent}"
+    )
+    for path in result.non_idempotent_exemplars[:10]:
+        print(f"    NON-IDEMPOTENT: {path}")
+
+
+def _run_macro_fmt_idempotence(args: argparse.Namespace) -> None:
+    _report_macro_fmt_idempotence(
+        _measure_macro_fmt_idempotence(corpus_root=args.corpus_root)
+    )
+
+
 # --- measurement: cross-source-presence -----------------------------------------
 #
 # Justifies the `presence` column in combined_corpus_data.json and the
@@ -2437,6 +2656,8 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "macro-profile-tokens": _run_macro_profile_tokens,
     "macro-topology": _run_macro_topology,
     "macro-profile-ownership": _run_macro_profile_ownership,
+    "command-iuc-heuristics": _run_command_iuc_heuristics,
+    "macro-fmt-idempotence": _run_macro_fmt_idempotence,
     "expansion-failed-ids": _run_expansion_failed_ids,
     "cross-source-presence": _run_cross_source_presence,
     "lenient-text-fields": _run_lenient_text_fields,

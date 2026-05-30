@@ -15,11 +15,14 @@ from scripts.measure import (
     _PROFILE_NONE,
     _classify_command_language,
     _collection_type_patterns,
+    _count_unquoted_vars,
     _cross_source_key_matches,
     _facts_from_macro_container,
     _measure_collection_type_normalization,
+    _measure_command_iuc_heuristics,
     _measure_command_language,
     _measure_element_cardinality,
+    _measure_macro_fmt_idempotence,
     _measure_macro_profile_ownership,
     _measure_macro_profile_tokens,
     _measure_macro_topology,
@@ -567,3 +570,52 @@ def test_render_profile_ownership_page_smoke(
     page = _render_profile_ownership_page(result)
     assert page.startswith("# Macro profile-token ownership")
     assert "## Do shared files' importers agree on the target profile?" in page
+
+
+# --- command-iuc-heuristics (IUC011 / IUC012 sizing) ----------------------------
+
+
+def test_count_unquoted_vars_quote_heuristic() -> None:
+    # $x is preceded by a space (unquoted); '$y' is preceded by a quote.
+    assert _count_unquoted_vars("echo $x and '$y'") == 1
+    assert _count_unquoted_vars("'$a' '${b}'") == 0  # both single-quoted
+    assert _count_unquoted_vars("$a $b ${c}") == 3  # none quoted
+
+
+def test_command_iuc_heuristics_counts(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # One unquoted $x, one quoted '$y'; one lone & and one && (not lone).
+    (repo / "tool.xml").write_text(
+        "<tool><command><![CDATA[echo $x && cat '$y' & wait]]></command></tool>",
+        encoding="utf-8",
+    )
+    (repo / "no_command.xml").write_text("<tool><inputs/></tool>", encoding="utf-8")
+    (repo / "not_a_tool.xml").write_text("<data/>", encoding="utf-8")
+    result = _measure_command_iuc_heuristics(corpus_root=tmp_path)
+    assert result.n_unique_tools == 2  # tool, no_command
+    assert result.n_with_command == 1
+    assert result.n_tools_unquoted_var == 1
+    assert result.n_unquoted_var_findings == 1  # $x only ('$y' is quoted)
+    assert result.n_tools_lone_amp == 1
+    assert result.n_lone_amp_findings == 1  # the standalone & (&& is not lone)
+
+
+# --- macro-fmt-idempotence ------------------------------------------------------
+
+
+def test_macro_fmt_idempotence_sweep(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # A non-canonical macro file (odd indentation) -> would change, idempotent.
+    (repo / "macros.xml").write_text(
+        '<macros>\n      <token name="@X@">1.0</token>\n</macros>',
+        encoding="utf-8",
+    )
+    # A non-<macros> file is not a macro file and must be skipped.
+    (repo / "tool.xml").write_text("<tool><inputs/></tool>", encoding="utf-8")
+    result = _measure_macro_fmt_idempotence(corpus_root=tmp_path)
+    assert result.n_macro_files == 1
+    assert result.n_would_change == 1
+    assert result.n_idempotent == 1
+    assert result.n_non_idempotent == 0

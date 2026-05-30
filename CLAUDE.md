@@ -110,6 +110,12 @@ uv run python -m scripts.measure macro-profile-tokens
 # and <import> scan-soundness (`..`/absolute). Writes
 # docs/macro_profile_ownership_stats.md (manually-regenerated; needs the corpus):
 uv run python -m scripts.measure macro-profile-ownership
+
+# Decision-augmenting sizing sweeps (print-only; numbers folded into the
+# decisions docs they back). command-iuc-heuristics sizes the IUC011/IUC012
+# placeholders (check §D1); macro-fmt-idempotence backs fmt §D16:
+uv run python -m scripts.measure command-iuc-heuristics
+uv run python -m scripts.measure macro-fmt-idempotence
 ```
 
 **Note:** invoke as `python -m scripts.X`, not `python scripts/X.py` — the
