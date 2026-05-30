@@ -28,6 +28,7 @@ from scripts.measure import (
     _measure_macro_topology,
     _measure_param_types,
     _measure_upgrade_headroom,
+    _measure_version_tokenization,
     _ParamTypesResult,
     _render_macro_stats_page,
     _render_profile_ownership_page,
@@ -619,3 +620,50 @@ def test_macro_fmt_idempotence_sweep(tmp_path: Path) -> None:
     assert result.n_would_change == 1
     assert result.n_idempotent == 1
     assert result.n_non_idempotent == 0
+
+
+# --- version-tokenization (Phase-3c @TOOL_VERSION@ sizing) ----------------------
+
+
+def test_version_tokenization_buckets(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # Clean candidate, no <macros> -> need one created.
+    (repo / "candidate.xml").write_text(
+        '<tool version="1.2.3+galaxy0"><requirements>'
+        '<requirement type="package" version="1.2.3">pkg</requirement>'
+        "</requirements></tool>",
+        encoding="utf-8",
+    )
+    # Clean candidate that already has a <macros> block.
+    (repo / "candidate_macros.xml").write_text(
+        '<tool version="2.0+galaxy1"><macros/><requirements>'
+        '<requirement type="package" version="2.0">pkg</requirement>'
+        "</requirements></tool>",
+        encoding="utf-8",
+    )
+    # Already tokenized.
+    (repo / "tokenized.xml").write_text(
+        '<tool version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"></tool>',
+        encoding="utf-8",
+    )
+    # version == req literal, no +galaxy suffix.
+    (repo / "no_suffix.xml").write_text(
+        '<tool version="3.1"><requirements>'
+        '<requirement type="package" version="3.1">pkg</requirement>'
+        "</requirements></tool>",
+        encoding="utf-8",
+    )
+    # Other literal: version unrelated to any requirement.
+    (repo / "other.xml").write_text('<tool version="0.1"></tool>', encoding="utf-8")
+    # No version attribute.
+    (repo / "no_version.xml").write_text("<tool><inputs/></tool>", encoding="utf-8")
+    result = _measure_version_tokenization(corpus_root=tmp_path)
+    assert result.n_unique_tools == 6
+    assert result.n_already_tokenized == 1
+    assert result.n_missing_version == 1
+    assert result.n_candidates == 2
+    assert result.n_candidates_need_macros == 1  # candidate.xml
+    assert result.n_candidates_have_macros == 1  # candidate_macros.xml
+    assert result.n_version_equals_req_no_suffix == 1
+    assert result.n_other_literal == 1

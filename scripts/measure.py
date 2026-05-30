@@ -1806,6 +1806,130 @@ def _run_command_iuc_heuristics(args: argparse.Namespace) -> None:
     )
 
 
+# --- measurement: version-tokenization ------------------------------------------
+#
+# Sizes the Phase-3c "create tokens" opportunity: the canonical IUC convention
+# factors a tool's version into `<token name="@TOOL_VERSION@">` (the upstream
+# package version) + `<token name="@VERSION_SUFFIX@">` (the Galaxy wrapper bump),
+# writing version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" and
+# <requirement version="@TOOL_VERSION@">. This counts how many tools are clean
+# candidates for that extraction — a literal version="<base>+galaxy<suffix>"
+# whose <base> equals a package <requirement> version — and, of those, how many
+# already have a <macros> block vs would need one created (the inline-vs-new-file
+# target the create step must choose). Heuristic on the version-string shape.
+
+_GALAXY_SUFFIX = re.compile(r"^(?P<base>.+)\+galaxy(?P<suffix>.*)$")
+
+
+@dataclass
+class _VersionTokenizationResult:
+    n_unique_tools: int
+    n_missing_version: int
+    n_already_tokenized: int  # version= already contains a @TOKEN@
+    n_candidates: int  # literal <base>+galaxy<suffix>, base == a package req version
+    n_candidates_have_macros: int  # ... already have a <macros> block
+    n_candidates_need_macros: int  # ... would need one created
+    n_version_equals_req_no_suffix: int  # version == a req literal, no +galaxy
+    n_other_literal: int  # some other literal version
+    exemplars: list[tuple[str, str]]  # (path, version) for candidates
+
+
+def _package_requirement_versions(root: etree._Element, /) -> set[str]:
+    """Return the literal versions of ``<requirement type="package">`` elements."""
+    versions: set[str] = set()
+    for requirement in root.findall("requirements/requirement"):
+        if requirement.get("type") == "package":
+            version = requirement.get("version")
+            if version:
+                versions.add(version)
+    return versions
+
+
+def _measure_version_tokenization(*, corpus_root: Path) -> _VersionTokenizationResult:
+    """Bucket each tool by its readiness for @TOOL_VERSION@/@VERSION_SUFFIX@."""
+    seen: set[str] = set()
+    n_tools = missing = tokenized = candidates = have = need = 0
+    eq_no_suffix = other = 0
+    exemplars: list[tuple[str, str]] = []
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        n_tools += 1
+        version = root.get("version")
+        if version is None:
+            missing += 1
+            continue
+        if "@" in version:
+            tokenized += 1
+            continue
+        match = _GALAXY_SUFFIX.match(version)
+        base = match.group("base") if match else version
+        req_versions = _package_requirement_versions(root)
+        if match is not None and base in req_versions:
+            candidates += 1
+            if root.find("macros") is None:
+                need += 1
+            else:
+                have += 1
+            if len(exemplars) < 10:
+                exemplars.append((_display_path(path), version))
+        elif base in req_versions:
+            eq_no_suffix += 1
+        else:
+            other += 1
+    return _VersionTokenizationResult(
+        n_unique_tools=n_tools,
+        n_missing_version=missing,
+        n_already_tokenized=tokenized,
+        n_candidates=candidates,
+        n_candidates_have_macros=have,
+        n_candidates_need_macros=need,
+        n_version_equals_req_no_suffix=eq_no_suffix,
+        n_other_literal=other,
+        exemplars=exemplars,
+    )
+
+
+def _report_version_tokenization(result: _VersionTokenizationResult) -> None:
+    total = result.n_unique_tools
+
+    def pct(n: int) -> float:
+        return 100 * n / total if total else 0.0
+
+    print("\n=== version-tokenization (Phase-3c @TOOL_VERSION@ sizing) ===")
+    print(f"Unique tools: {total}")
+    print(
+        f"  version= already tokenized (@…@): {result.n_already_tokenized} "
+        f"({pct(result.n_already_tokenized):.1f}%)"
+    )
+    print(f"  no version= attribute:            {result.n_missing_version}")
+    print(
+        f"  clean @TOOL_VERSION@ candidates:  {result.n_candidates} "
+        f"({pct(result.n_candidates):.1f}%) — "
+        f"have <macros> {result.n_candidates_have_macros}, "
+        f"need one created {result.n_candidates_need_macros}"
+    )
+    print(
+        f"  version==req literal, no +galaxy: {result.n_version_equals_req_no_suffix}"
+    )
+    print(f"  other literal version:            {result.n_other_literal}")
+    for path, version in result.exemplars[:10]:
+        print(f'    {path}: version="{version}"')
+
+
+def _run_version_tokenization(args: argparse.Namespace) -> None:
+    _report_version_tokenization(
+        _measure_version_tokenization(corpus_root=args.corpus_root)
+    )
+
+
 # --- measurement: macro-fmt-idempotence -----------------------------------------
 #
 # Backs fmt §D16 (cosmetic formatting of <macros>-library files) with the same
@@ -2658,6 +2782,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "macro-profile-ownership": _run_macro_profile_ownership,
     "command-iuc-heuristics": _run_command_iuc_heuristics,
     "macro-fmt-idempotence": _run_macro_fmt_idempotence,
+    "version-tokenization": _run_version_tokenization,
     "expansion-failed-ids": _run_expansion_failed_ids,
     "cross-source-presence": _run_cross_source_presence,
     "lenient-text-fields": _run_lenient_text_fields,
