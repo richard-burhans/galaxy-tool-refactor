@@ -17,11 +17,14 @@ import copy
 import logging
 import shutil
 import tempfile
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 
 from galaxy.util.xml_macros import load_with_references
 from lxml import etree
+
+from galaxy_tool_xml.document import ToolDocument
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +63,138 @@ def strip_macros(tree: etree._ElementTree) -> etree._ElementTree:
             if parent is not None:
                 parent.remove(element)
     return copied
+
+
+@dataclass(frozen=True)
+class TokenDefinition:
+    """A ``<token name="@X@">value</token>`` defined for a tool.
+
+    Attributes:
+        name: The token name as written, including the ``@`` delimiters
+            (e.g. ``"@TOOL_VERSION@"``).
+        value: The token's text value, whitespace-stripped.
+        source: The macro file the token is defined in, or ``None`` when it is
+            defined inline in the tool's own ``<macros>`` block.
+        sourceline: 1-based line of the ``<token>`` element in its file, or
+            ``0`` if unknown.
+    """
+
+    name: str
+    value: str
+    source: Path | None
+    sourceline: int
+
+
+def _parse_root(path: Path, /) -> etree._Element | None:
+    """Parse *path* leniently and return its root element, or ``None``.
+
+    Shared by the macro-file resolution helpers. ``recover=True`` matches the
+    lenient parse used elsewhere; a missing file, I/O error, or unrecoverable
+    XML yields ``None``.
+    """
+    if not path.is_file():
+        return None
+    parser = etree.XMLParser(recover=True, strip_cdata=False)
+    try:
+        with path.open("rb") as handle:
+            tree = etree.parse(handle, parser)
+    except (etree.XMLSyntaxError, OSError):
+        return None
+    return tree.getroot()
+
+
+def _root_and_dir(
+    target: ToolDocument | Path, /
+) -> tuple[etree._Element | None, Path | None]:
+    """Resolve *target* to ``(root element, base directory)`` for import walks.
+
+    A ``ToolDocument`` contributes its root and ``source_path``'s directory (or
+    ``None`` when it was parsed from bytes/stream and has no origin); a ``Path``
+    is parsed leniently and contributes its own parent directory.
+    """
+    if isinstance(target, ToolDocument):
+        source_path = target.source_path
+        return target.root, source_path.parent if source_path is not None else None
+    return _parse_root(target), target.parent
+
+
+def imported_macro_paths(target: ToolDocument | Path, /) -> list[Path]:
+    """Return the macro files *target* imports, transitively, in import order.
+
+    Resolves every ``<macros><import>`` of the tool — and, recursively, the
+    ``<import>``s of each imported macro file (each resolved against *its own*
+    directory, matching Galaxy) — to existing, de-duplicated, absolute paths.
+    LBYL: an ``<import>`` that is absolute, escapes its directory with ``..``,
+    or points at a missing file is skipped. Returns ``[]`` when *target* has no
+    source directory (in-memory ``ToolDocument``) or imports nothing.
+
+    *target* is a ``ToolDocument`` or a filesystem ``Path`` — resolution needs a
+    location on disk, so raw bytes/streams are out of scope.
+    """
+    root, base_dir = _root_and_dir(target)
+    if root is None or base_dir is None:
+        return []
+    resolved: list[Path] = []
+    seen: set[Path] = set()
+    frontier: deque[tuple[etree._Element, Path]] = deque([(root, base_dir)])
+    while frontier:
+        element, current_dir = frontier.popleft()
+        for relative in _import_targets(element):
+            relative_path = Path(relative)
+            if relative_path.is_absolute() or ".." in relative_path.parts:
+                continue
+            macro_path = (current_dir / relative_path).resolve()
+            if macro_path in seen or not macro_path.is_file():
+                continue
+            seen.add(macro_path)
+            resolved.append(macro_path)
+            imported_root = _parse_root(macro_path)
+            if imported_root is not None:
+                frontier.append((imported_root, macro_path.parent))
+    return resolved
+
+
+def _tokens_in(
+    root: etree._Element, *, source: Path | None
+) -> list[TokenDefinition]:
+    """Collect the top-level ``<token>`` definitions of a tool or macro root."""
+    elements = (
+        root.findall("token")
+        if root.tag == "macros"
+        else root.findall("macros/token")
+    )
+    definitions: list[TokenDefinition] = []
+    for element in elements:
+        name = element.get("name")
+        if name is None:
+            continue
+        value = element.text.strip() if element.text else ""
+        definitions.append(
+            TokenDefinition(name, value, source, element.sourceline or 0)
+        )
+    return definitions
+
+
+def token_definitions(target: ToolDocument | Path, /) -> list[TokenDefinition]:
+    """Return every ``<token>`` defined for *target*, inline then imported.
+
+    Collects the tool's own inline ``<macros><token>`` definitions (``source``
+    ``None``) followed by the ``<token>``s of each transitively-imported macro
+    file (``source`` the file's path), in import order. This is the lookup a
+    token-aware codemod uses to find where a ``@TOKEN@`` reference — e.g. a
+    ``profile="@PROFILE@"`` — is actually defined. Token *precedence* when a name
+    is defined more than once is left to the caller (the common case is a single
+    definition).
+    """
+    root, _base_dir = _root_and_dir(target)
+    definitions: list[TokenDefinition] = []
+    if root is not None:
+        definitions.extend(_tokens_in(root, source=None))
+    for macro_path in imported_macro_paths(target):
+        imported_root = _parse_root(macro_path)
+        if imported_root is not None:
+            definitions.extend(_tokens_in(imported_root, source=macro_path))
+    return definitions
 
 
 def _load_with_references(

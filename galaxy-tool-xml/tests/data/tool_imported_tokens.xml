@@ -1,0 +1,8 @@
+<tool id="imported_tokens" name="Imported Tokens" version="@TOOL_VERSION@" profile="@PROFILE@">
+    <macros>
+        <import>token_macros.xml</import>
+    </macros>
+    <command><![CDATA[echo tokens]]></command>
+    <inputs/>
+    <outputs/>
+</tool>
