@@ -67,7 +67,7 @@ line per finding, non-zero exit if any findings (or errors). It composes the
 detect phases the lower tiers gained in PR1/PR2 — the canonical codemods'
 `detect` (each `Change` projected via `Change.to_violation()`) plus fmt's
 `detect_tool_document` — over the same rules `format` would apply. PR3 of the
-detect/fix rule-split effort (see `../../docs/detect_fix_split_plan.md`).
+detect/fix rule-split effort (PR1–5, merged in #15).
 
 ### Rationale
 

@@ -760,8 +760,7 @@ scripts.corpus_check fmt`.
 
 PR2 of the detect/fix rule-split effort (tier-2 framework landed in PR1 — see
 `galaxy-tool-xml-codemod/docs/decisions.md` §19, `galaxy-tool-refactor-rules`
-D2 for the shared `Violation` type; effort tracked in
-`../../docs/detect_fix_split_plan.md`).
+D2 for the shared `Violation` type; the effort (PR1–5) merged in #15).
 
 - **What we chose.** A new `detect.py` exposes `detect_tool_document(document)
   -> list[Violation]`, the non-mutating counterpart to `format_tool_document`.

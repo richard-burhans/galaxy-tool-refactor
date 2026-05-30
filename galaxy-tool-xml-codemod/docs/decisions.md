@@ -620,5 +620,5 @@ reproducible command for any data-driven claim.
   `test_coarse_detect.py`, the reorderer suites, `test_cursor.py`); corpus gate
   `uv run python -m scripts.corpus_check codemod
   galaxy_tool_xml_codemod.codemods.reorder_param_attributes:ReorderParamAttributes`
-  (and the GTX005/GTX013/FixTypos/UpgradeToLatest specs). Effort tracked in
-  `../../docs/detect_fix_split_plan.md`.
+  (and the GTX005/GTX013/FixTypos/UpgradeToLatest specs). The effort (PR1–5)
+  merged in #15.
