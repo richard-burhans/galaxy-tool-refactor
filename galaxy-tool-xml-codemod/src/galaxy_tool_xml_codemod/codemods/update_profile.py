@@ -5,14 +5,19 @@ whose XSD the tool satisfies — and brings the root ``<tool>``'s ``profile=`` i
 line with it:
 
 - no declaration → add one set to that version;
-- a declaration *older* than that version → bump it up to that version.
+- a declaration *older* than that version → bump it up to that version;
+- a ``@TOKEN@`` declaration whose token is defined **inline** in the tool's own
+  ``<macros>`` → rewrite that token's value (keeping ``profile="@TOKEN@"``), so
+  future expansions are current. A token defined in an *imported* macro file is
+  left untouched here — that cross-file edit is the bundle-aware step; a token
+  that resolves to no inline definition is left alone, never clobbered with a
+  literal.
 
 It is **bump-up-only**: a declared profile that is newer than (or equal to) the
 newest validating version is left alone, since the ``profile`` attribute is a
 runtime-compatibility contract and lowering it would claim compatibility the
 tool may not have. It is also a no-op when the tool validates at no profile
-(nothing to point at — that is ``FixTypos``'s job) and when the declared profile
-is not a parseable version (e.g. a ``@PROFILE@`` macro placeholder).
+(nothing to point at — that is ``FixTypos``'s job).
 
 Like ``FixTypos`` this is document-level and validation-driven, so it overrides
 ``apply`` rather than using the ``detect_<Tag>`` walk. It runs in
@@ -79,5 +84,41 @@ class UpdateProfile(CodemodCommand):
         if target is None:
             return  # validates nowhere — nothing to point profile= at
         declared = document.profile
-        if declared is None or _is_newer(target, declared):
+        if declared is None:
             Cursor(document.root).set_attribute("profile", target)
+            return
+        if "@" in declared:
+            self._upgrade_inline_profile_token(module, declared, target)
+            return
+        if _is_newer(target, declared):
+            Cursor(document.root).set_attribute("profile", target)
+
+    def _upgrade_inline_profile_token(
+        self, module: Module, token_name: str, target: str
+    ) -> None:
+        """Rewrite an inline ``<token name=token_name>`` profile value to *target*.
+
+        Only an **inline** token (defined in the tool's own ``<macros>``) is
+        touched, and only when its current value is older than *target*. A token
+        defined in an imported macro file, or no matching inline token, is left
+        alone — the ``profile="@TOKEN@"`` reference is never replaced with a
+        literal. Editing an imported (possibly shared) macro file is the
+        bundle-aware step's job.
+        """
+        token = self._inline_token(module, token_name)
+        if token is None:
+            return
+        current = token.text.strip() if token.text else ""
+        if _is_newer(target, current):
+            token.set_text(target)
+
+    @staticmethod
+    def _inline_token(module: Module, token_name: str, /) -> Cursor | None:
+        """Return the cursor for the inline ``<macros><token>`` named *token_name*."""
+        for child in module.cursor.children():
+            if child.tag != "macros":
+                continue
+            for token in child.children():
+                if token.tag == "token" and token.get_attribute("name") == token_name:
+                    return token
+        return None

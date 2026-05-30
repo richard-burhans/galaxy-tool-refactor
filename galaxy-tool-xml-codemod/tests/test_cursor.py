@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from galaxy_tool_xml.binding import load_tool
+from lxml import etree
 
 from galaxy_tool_xml_codemod.cursor import Cursor
 
@@ -13,6 +14,14 @@ from galaxy_tool_xml_codemod.cursor import Cursor
 def _root_cursor(path: Path) -> Cursor:
     """Build a cursor at the root of the tool tree."""
     return Cursor(load_tool(path).root)
+
+
+def test_text_reads_and_set_text_replaces_element_text() -> None:
+    cursor = Cursor(etree.fromstring(b'<token name="@PROFILE@">16.01</token>'))
+    assert cursor.text == "16.01"
+    cursor.set_text("26.1")
+    assert cursor.text == "26.1"
+    assert cursor.get_attribute("name") == "@PROFILE@"  # attributes untouched
 
 
 def test_cursor_tag_returns_element_tag(minimal_tool_path: Path) -> None:

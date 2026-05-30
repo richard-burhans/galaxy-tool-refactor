@@ -658,3 +658,40 @@ galaxy-tool-xml-codemod/tests/test_parse.py galaxy-tool-xml-codemod/tests/test_m
 - **`applies_to` already covers codemod selection.** Codemods carry `RuleMeta`
   with `applies_to` (default `{"tool"}`, tier-0.5 D3), so the registry/bundle can
   filter codemods by document kind without any base-class change.
+
+## 21. Token-aware `UpdateProfile` for inline `@PROFILE@` (+ `Cursor.set_text`)
+
+**Date:** 2026-05-30. Phase 3a of the macro-aware effort (single-file,
+inline-token only). Reproduced-by: `uv run --package galaxy-tool-xml-codemod
+pytest galaxy-tool-xml-codemod/tests/test_update_profile.py
+galaxy-tool-xml-codemod/tests/test_cursor.py` and `uv run --package
+galaxy-tool-refactor-cli pytest
+galaxy-tool-refactor-cli/tests/test_cli.py::test_upgrade_rewrites_inline_profile_token`.
+
+- **The motivating case.** A tool declares `profile="@PROFILE@"` whose token
+  expands to (say) `16.01`, but the tool actually validates at a newer release.
+  We want future expansions to be current **without clobbering the
+  `@PROFILE@` reference** — IUC's token convention keeps the version in one
+  place. The old `UpdateProfile` was a deliberate no-op here (`_is_newer`
+  returns `False` for the unparseable `@PROFILE@` literal, so the attribute was
+  left alone). That was *safe* but did nothing.
+- **What we chose.** `UpdateProfile.apply` now branches on the declaration: a
+  parseable-and-stale literal is bumped as before; a `@TOKEN@` declaration is
+  routed to `_upgrade_inline_profile_token`, which finds the matching
+  `<macros><token name="@TOKEN@">` **defined inline in the tool's own
+  `<macros>`** (via `_inline_token`, walking `module.cursor.children()`) and
+  rewrites that token's text to the newest validating profile when it is stale.
+  The `profile="@TOKEN@"` attribute is never replaced with a literal.
+- **`Cursor.set_text` / `Cursor.text`.** The rewrite needs to read and replace
+  an element's direct text content. `cursor.py` gains a `text` property
+  (mirrors `get_attribute`'s `str`-or-`None` coercion) and a `set_text(value)`
+  mutator that replaces `text` only — children, `tail`, and attributes are
+  untouched. Generic, like every other `Cursor` primitive.
+- **What we deliberately did NOT do — imported tokens.** A token defined in an
+  *imported* macro file is left untouched here: `_inline_token` only inspects
+  the tool's own `<macros>`, and the imported-token no-op is pinned by
+  `test_leaves_imported_profile_token_untouched`. Editing an imported (possibly
+  shared) macro file is the **bundle-aware Phase 3b step** — it needs the
+  import-graph + shared-skip policy this single-file codemod intentionally
+  doesn't carry (see the macro-aware plan; §20's defer-until-consumer rule).
+  Idempotence and the imported/inline split are the regression guards.
