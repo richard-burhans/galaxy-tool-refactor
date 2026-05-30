@@ -8,10 +8,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from galaxy_tool_xml.binding import load_tool
-from galaxy_tool_xml.document import ToolDocument
+from galaxy_tool_xml.binding import load_macros, load_tool
+from galaxy_tool_xml.document import MacroDocument, ToolDocument
 
-from galaxy_tool_xml_codemod.module import Module
+from galaxy_tool_xml_codemod.module import MacroModule, Module
 
 
 def parse_module(source: Path | bytes | ToolDocument, /) -> Module:
@@ -32,3 +32,16 @@ def parse_module(source: Path | bytes | ToolDocument, /) -> Module:
     if isinstance(source, ToolDocument):
         return Module(source)
     return Module(load_tool(source))
+
+
+def parse_macro_module(source: Path | bytes | MacroDocument, /) -> MacroModule:
+    """Parse a Galaxy macro-library file into a ``MacroModule``.
+
+    The macro-file counterpart to ``parse_module``: strict on ``Path`` / ``bytes``
+    (delegates to ``load_macros``, raising ``ToolXmlSyntaxError`` on malformed
+    XML — symmetric with ``parse_module``); shares an existing ``MacroDocument``
+    by reference.
+    """
+    if isinstance(source, MacroDocument):
+        return MacroModule(source)
+    return MacroModule(load_macros(source))

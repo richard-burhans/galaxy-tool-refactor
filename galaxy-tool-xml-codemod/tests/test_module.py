@@ -6,11 +6,11 @@ from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
-from galaxy_tool_xml.binding import load_tool
+from galaxy_tool_xml.binding import load_macros, load_tool
 from galaxy_tool_xml.models.any_tool import AnyTool
 
 from galaxy_tool_xml_codemod.cursor import Cursor
-from galaxy_tool_xml_codemod.module import Module
+from galaxy_tool_xml_codemod.module import MacroModule, Module
 
 
 def test_module_exposes_underlying_document(minimal_tool_path: Path) -> None:
@@ -50,3 +50,26 @@ def test_module_is_frozen(minimal_tool_path: Path) -> None:
     module = Module(load_tool(minimal_tool_path))
     with pytest.raises(FrozenInstanceError):
         module.document = load_tool(minimal_tool_path)  # type: ignore[misc]
+
+
+def test_macro_module_cursor_navigates_and_mutates() -> None:
+    """The generic Cursor primitives work on a ``<macros>`` root via MacroModule."""
+    module = MacroModule(
+        load_macros(
+            b'<macros><token name="@TOOL_VERSION@">1.0</token>'
+            b'<token name="@PROFILE@">21.05</token></macros>'
+        )
+    )
+    assert module.cursor.tag == "macros"
+    tokens = module.cursor.children()
+    assert [token.tag for token in tokens] == ["token", "token"]
+    # A codemod-tier mutation applies to the macro tree in place.
+    tokens[1].set_attribute("name", "@PROFILE_RENAMED@")
+    names = {token.get_attribute("name") for token in module.cursor.children()}
+    assert names == {"@TOOL_VERSION@", "@PROFILE_RENAMED@"}
+
+
+def test_macro_module_is_frozen() -> None:
+    module = MacroModule(load_macros(b"<macros/>"))
+    with pytest.raises(FrozenInstanceError):
+        module.document = load_macros(b"<macros/>")  # type: ignore[misc]

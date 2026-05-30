@@ -628,3 +628,33 @@ ships GTX013 and the validation-driven codemods).
   galaxy_tool_xml_codemod.codemods.reorder_param_attributes:ReorderParamAttributes`
   (and the GTX005/GTX013/FixTypos/UpgradeToLatest specs). The effort (PR1–5)
   merged in #15.
+
+## 20. `MacroModule` + `parse_macro_module` (codemods over macro files)
+
+**Date:** 2026-05-30. Phase 2 of the macro-aware effort (codemod side).
+Reproduced-by: `uv run --package galaxy-tool-xml-codemod pytest
+galaxy-tool-xml-codemod/tests/test_parse.py galaxy-tool-xml-codemod/tests/test_module.py`.
+
+- **What we chose.** `MacroModule` (frozen, `module.py`) — the macro-file
+  counterpart to `Module`: it wraps a tier-1 `MacroDocument` and exposes a fresh
+  root `Cursor` over the `<macros>` element, but **no `model`** (a macro library
+  has no typed model/profile). `parse_macro_module(source)` (`parse.py`) mirrors
+  `parse_module`: strict on `Path`/`bytes` via `load_macros` (raises
+  `ToolXmlSyntaxError`), shares a `MacroDocument` by reference. `Cursor` is
+  already generic over any lxml element, so every mutation primitive
+  (`set_attribute`, `reorder_children`, `remove`, …) works on a macro tree
+  unchanged — pinned by `test_macro_module_cursor_navigates_and_mutates`.
+- **What we deliberately did NOT do — generalise `CodemodCommand`.** The base
+  `detect`/`apply` stay typed `module: Module` (tool-only). Widening them to
+  `Module | MacroModule` would force the seven validation-driven codemods
+  (`FixTypos`, `UpdateProfile`, `UpgradeToLatest`, the per-step `Upgrade*`) — all
+  `applies_to={"tool"}` and all using `module.document` as a `ToolDocument`
+  (`validate_tool` / `newest_valid_profile`) — to widen and `isinstance`-narrow,
+  i.e. churn for a path nothing exercises. There is **no macro-subject codemod
+  yet** (the macro-library normaliser and the token-aware `@PROFILE@` upgrade are
+  later), so per the project's defer-until-consumer rule we ship only the
+  `MacroModule` primitive. When a macro-subject codemod lands, introduce the
+  generic base (or a `MacroCodemod`) then, with that codemod as the consumer.
+- **`applies_to` already covers codemod selection.** Codemods carry `RuleMeta`
+  with `applies_to` (default `{"tool"}`, tier-0.5 D3), so the registry/bundle can
+  filter codemods by document kind without any base-class change.
