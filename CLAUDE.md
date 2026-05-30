@@ -55,6 +55,23 @@ uv run mypy --config-file galaxy-tool-refactor-registry/pyproject.toml galaxy-to
 uv run mypy --config-file galaxy-tool-refactor-cli/pyproject.toml galaxy-tool-refactor-cli/src
 ```
 
+## Pre-push QA gate
+
+`scripts/qa_gate.sh` runs the deterministic quality slice — ruff, mypy (strict,
+per package), and pytest for all seven packages — and exits non-zero (naming the
+failing step) if anything fails. A `git push` **PreToolUse hook**
+(`.claude/settings.json`) calls it and **blocks the push** on failure, so code
+never leaves the machine with a red gate. Run it manually any time:
+
+```bash
+bash scripts/qa_gate.sh
+```
+
+This is a mechanical backstop only — it does **not** replace the full pre-PR
+code + documentation audit (standards, doc/code agreement, stale-doc and
+stat-consistency review). New contributors approve the project hook on first use;
+in a session that predates the hook, open `/hooks` once (or restart) to load it.
+
 ## Corpus scripts
 
 ```bash
