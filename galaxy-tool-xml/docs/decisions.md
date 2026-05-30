@@ -232,9 +232,10 @@ optional-extra rationale.
 
 > **Update 2026-05-29:** the `[canonical]` extra was later removed and
 > all cross-tier orchestration moved to a new tier-4 app
-> (`galaxy-tool-refactor-cli`); fmt's CLI is now cosmetic-only too. There
-> are now five packages (this added tier 0.5 `galaxy-tool-refactor-rules`
-> and tier 4). The independence principle above still holds — fmt never
+> (`galaxy-tool-refactor-cli`); fmt's CLI is now cosmetic-only too. This
+> added tier 0.5 `galaxy-tool-refactor-rules` and tier 4 (and, on
+> 2026-05-30, tier 3.5 `galaxy-tool-xml-check`, bringing the workspace to
+> six packages). The independence principle above still holds — fmt never
 > depends on codemod. See `galaxy-tool-xml-fmt/docs/decisions.md` §D12,
 > `galaxy-tool-xml-codemod/docs/decisions.md` §16, and
 > `galaxy-tool-refactor-cli/docs/decisions.md` §D1.

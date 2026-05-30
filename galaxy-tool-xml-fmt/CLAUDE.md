@@ -5,13 +5,17 @@ Guidance for Claude Code working in this repository.
 ## Project
 
 `galaxy-tool-xml-fmt` is the **formatting** tier of the Galaxy tool
-refactoring framework — one of three layers:
+refactoring framework — one of six tiers (this package depends only on tier 1
+and the shared tier-0.5 rules metadata):
 
 | Tier | Layer | Package | Owns |
 |---|---|---|---|
+| 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | shared `RuleMeta` + `Violation` |
 | 1 | **parsing & validation** | `galaxy-tool-xml` | parse · XSD validate · typed views |
 | 2 | **structure** | `galaxy-tool-xml-codemod` | structural mutations |
-| 3 | **formatting** | `galaxy-tool-xml-fmt` *(this repo)* | cosmetic formatting; the only tier that writes XML to disk |
+| 3 | **formatting** | `galaxy-tool-xml-fmt` *(this repo)* | cosmetic formatting (+ non-mutating `detect`); the only tier that writes XML to disk |
+| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only IUC best-practice checks |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | composes the tiers (`format`/`upgrade`/`check`) |
 
 The fmt tool is opinionated like `black`: a single canonical
 formatting per input, no user-tunable style. The opinionated choice

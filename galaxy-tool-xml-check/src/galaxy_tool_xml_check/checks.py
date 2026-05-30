@@ -32,7 +32,11 @@ _ID_CHARSET = re.compile(r"[a-z0-9_.+-]+")
 
 
 def _violation(
-    document: ToolDocument, element: etree._Element, meta: RuleMeta, message: str
+    document: ToolDocument,
+    element: etree._Element,
+    meta: RuleMeta,
+    message: str,
+    /,
 ) -> Violation:
     """Build a ``Violation`` for *meta* located on *element*."""
     line = element.sourceline
@@ -44,23 +48,28 @@ def _violation(
     )
 
 
-def _has_text(element: etree._Element) -> bool:
+def _has_text(element: etree._Element, /) -> bool:
     """Whether *element* has non-whitespace text content."""
     return bool((element.text or "").strip())
 
 
-def _is_cdata_wrapped(element: etree._Element) -> bool:
-    """Whether *element*'s body is a CDATA section.
+def _is_cdata_wrapped(element: etree._Element, /) -> bool:
+    """Whether *element*'s own text body is a CDATA section.
 
     lxml exposes CDATA as plain ``.text``, so the only way to tell is to
     re-serialise (the tree was parsed with ``strip_cdata=False``, so a CDATA
-    section round-trips as ``<![CDATA[...]]>``).
+    section round-trips as ``<![CDATA[...]]>``). We require the section to be the
+    element's *own* leading content — the text immediately after the opening tag
+    (modulo whitespace) must be the CDATA — so a partly-wrapped body
+    (``echo <![CDATA[...]]>``) or a CDATA-bearing *child* does not count as the
+    element itself being wrapped.
     """
-    serialised = etree.tostring(element, encoding="unicode", with_tail=False)
-    return "<![CDATA[" in serialised
+    serialised: str = etree.tostring(element, encoding="unicode", with_tail=False)
+    body = serialised[serialised.index(">") + 1 :]
+    return bool(body.lstrip().startswith("<![CDATA["))
 
 
-def _is_pep440(value: str) -> bool:
+def _is_pep440(value: str, /) -> bool:
     """Whether *value* parses as a PEP 440 version.
 
     ``packaging`` exposes no validity predicate, so the ``try``/``except`` is the
@@ -84,7 +93,7 @@ class TestsPresent(CheckRule):
         detect_only=True,
     )
 
-    def detect(self, document: ToolDocument) -> Iterable[Violation]:
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
         root = document.root
         tests = root.find("tests")
         if tests is None or tests.find("test") is None:
@@ -104,7 +113,7 @@ class CommandCdata(CheckRule):
         detect_only=True,
     )
 
-    def detect(self, document: ToolDocument) -> Iterable[Violation]:
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
         command = document.root.find("command")
         if (
             command is not None
@@ -127,7 +136,7 @@ class IdCharset(CheckRule):
         detect_only=True,
     )
 
-    def detect(self, document: ToolDocument) -> Iterable[Violation]:
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
         root = document.root
         tool_id = root.get("id")
         if tool_id is not None and _ID_CHARSET.fullmatch(tool_id) is None:
@@ -151,7 +160,7 @@ class VersionFormat(CheckRule):
         detect_only=True,
     )
 
-    def detect(self, document: ToolDocument) -> Iterable[Violation]:
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
         root = document.root
         version = root.get("version")
         if version is None or "@" in version:
@@ -176,7 +185,7 @@ class RequirementsPresent(CheckRule):
         detect_only=True,
     )
 
-    def detect(self, document: ToolDocument) -> Iterable[Violation]:
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
         root = document.root
         requirements = root.find("requirements")
         if requirements is None or not (
@@ -196,10 +205,10 @@ class ErrorHandling(CheckRule):
         detect_only=True,
     )
 
-    def detect(self, document: ToolDocument) -> Iterable[Violation]:
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
         root = document.root
         command = root.find("command")
-        has_detect_errors = command is not None and command.get("detect_errors")
+        has_detect_errors = bool(command is not None and command.get("detect_errors"))
         if not has_detect_errors and root.find("stdio") is None:
             yield _violation(
                 document,
@@ -211,17 +220,17 @@ class ErrorHandling(CheckRule):
 
 
 class EdamXrefs(CheckRule):
-    """IUC007 — the tool should declare EDAM topics/operations or bio.tools xrefs."""
+    """IUC007 — the tool should declare EDAM topics/operations or ``<xrefs>``."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
         code="IUC007",
-        summary="Tool should declare EDAM topics/operations or bio.tools xrefs.",
+        summary="Tool should declare EDAM topics/operations or <xrefs>.",
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
     )
 
-    def detect(self, document: ToolDocument) -> Iterable[Violation]:
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
         root = document.root
         if all(
             root.find(tag) is None
@@ -246,7 +255,7 @@ class HelpPresent(CheckRule):
         detect_only=True,
     )
 
-    def detect(self, document: ToolDocument) -> Iterable[Violation]:
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
         root = document.root
         help_element = root.find("help")
         if help_element is None or not _has_text(help_element):
@@ -269,7 +278,7 @@ class DescriptionPresent(CheckRule):
         detect_only=True,
     )
 
-    def detect(self, document: ToolDocument) -> Iterable[Violation]:
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
         root = document.root
         description = root.find("description")
         if description is None or not _has_text(description):
@@ -292,7 +301,7 @@ class HelpCdata(CheckRule):
         detect_only=True,
     )
 
-    def detect(self, document: ToolDocument) -> Iterable[Violation]:
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
         help_element = document.root.find("help")
         if (
             help_element is not None
@@ -320,7 +329,7 @@ class SingleQuotedCheetah(CheckRule):
         detect_only=True,
     )
 
-    def detect(self, document: ToolDocument) -> Iterable[Violation]:
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
         return ()  # placeholder — detection deferred
 
 
@@ -340,5 +349,5 @@ class CommandAndJoining(CheckRule):
         detect_only=True,
     )
 
-    def detect(self, document: ToolDocument) -> Iterable[Violation]:
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
         return ()  # placeholder — detection deferred

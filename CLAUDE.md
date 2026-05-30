@@ -25,7 +25,7 @@ galaxy-tool-refactor/
 ## Install
 
 ```bash
-uv sync          # installs all five packages + dev deps into .venv
+uv sync          # installs all six packages + dev deps into .venv
 ```
 
 ## Test
@@ -35,17 +35,19 @@ uv run --package galaxy-tool-refactor-rules pytest galaxy-tool-refactor-rules/te
 uv run --package galaxy-tool-xml            pytest galaxy-tool-xml/tests/
 uv run --package galaxy-tool-xml-codemod    pytest galaxy-tool-xml-codemod/tests/
 uv run --package galaxy-tool-xml-fmt        pytest galaxy-tool-xml-fmt/tests/
+uv run --package galaxy-tool-xml-check      pytest galaxy-tool-xml-check/tests/
 uv run --package galaxy-tool-refactor-cli   pytest galaxy-tool-refactor-cli/tests/
 ```
 
 ## Lint / type-check
 
 ```bash
-uv run ruff check galaxy-tool-refactor-rules/src galaxy-tool-xml/src galaxy-tool-xml-codemod/src galaxy-tool-xml-fmt/src galaxy-tool-refactor-cli/src
+uv run ruff check galaxy-tool-refactor-rules/src galaxy-tool-xml/src galaxy-tool-xml-codemod/src galaxy-tool-xml-fmt/src galaxy-tool-xml-check/src galaxy-tool-refactor-cli/src
 uv run mypy --config-file galaxy-tool-refactor-rules/pyproject.toml galaxy-tool-refactor-rules/src
 uv run mypy --config-file galaxy-tool-xml/pyproject.toml         galaxy-tool-xml/src
 uv run mypy --config-file galaxy-tool-xml-codemod/pyproject.toml galaxy-tool-xml-codemod/src
 uv run mypy --config-file galaxy-tool-xml-fmt/pyproject.toml     galaxy-tool-xml-fmt/src
+uv run mypy --config-file galaxy-tool-xml-check/pyproject.toml   galaxy-tool-xml-check/src
 uv run mypy --config-file galaxy-tool-refactor-cli/pyproject.toml galaxy-tool-refactor-cli/src
 ```
 
@@ -109,14 +111,17 @@ Tiers, each independently installable:
 
 **Orchestration lives in the app tier.** Each lower tier is consumable
 standalone; none runs the end-to-end workflow. The app
-(`galaxy-tool-refactor-cli`) hard-depends on codemod (tier 2) and fmt
-(tier 3) and owns both commands:
+(`galaxy-tool-refactor-cli`) hard-depends on codemod (tier 2), fmt
+(tier 3), and check (tier 3.5), and owns three commands:
 
 - `galaxy-tool-refactor format` — `CANONICAL_CODEMODS` (repair +
   attribute order + `<tool>` child-element order) then fmt's cosmetic
   rules. Safe, idempotent; never changes `profile=`.
 - `galaxy-tool-refactor upgrade` — `AUTO_UPGRADE_CODEMODS` (repair, then
   iterative profile upgrade) then cosmetic formatting. Opt-in, semantic.
+- `galaxy-tool-refactor check` — report-only linter over the codemod +
+  fmt + check **detect** phases. Fixable GTX findings exit non-zero;
+  advisory IUC findings are informational unless `--strict`.
 
 `galaxy-tool-xml-fmt`'s own CLI is **cosmetic-only** and has no codemod
 dependency (the former `[canonical]` extra is gone). The library

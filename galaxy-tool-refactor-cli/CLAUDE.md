@@ -14,22 +14,29 @@ user-facing workflow.
 | 1 | parsing & validation | `galaxy-tool-xml` |
 | 2 | structure | `galaxy-tool-xml-codemod` |
 | 3 | formatting | `galaxy-tool-xml-fmt` |
+| 3.5 | advisory checks | `galaxy-tool-xml-check` |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` *(this repo)* |
 
-It depends on codemod (tier 2) and fmt (tier 3) and exposes the
-`galaxy-tool-refactor` CLI with two subcommands:
+It depends on codemod (tier 2), fmt (tier 3), and check (tier 3.5) and exposes
+the `galaxy-tool-refactor` CLI with three subcommands:
 
 - `format` — apply `CANONICAL_CODEMODS` (repair + attribute order) then fmt's
   cosmetic rules. Safe, idempotent, never changes `profile=`.
 - `upgrade` — apply `AUTO_UPGRADE_CODEMODS` (repair, then iterative profile
   upgrade) then cosmetic formatting. Opt-in and semantic.
+- `check` — report-only linter (mutates nothing) that composes the codemod +
+  fmt + check **detect** phases: `file:line  CODE  message` per finding. Fixable
+  GTX findings (what `format` would change) exit non-zero; advisory IUC findings
+  are marked `(advisory)` and informational unless `--strict`.
 
-Both reuse fmt's `cli_support` engine (file walking, `--check`/`--diff`/`--quiet`,
-drift detection, summary); the subcommands differ only in which codemod pipeline
-they apply. Both serialize through fmt — which is *why* this tier sits above
-fmt (a writer inside codemod would invert the tiers, since fmt already depends
-on codemod's contracts conceptually). See `docs/decisions.md` §D1 and
-`galaxy-tool-xml-fmt/docs/decisions.md` §D12.
+`format` and `upgrade` reuse fmt's `cli_support` engine (file walking,
+`--check`/`--diff`/`--quiet`, drift detection, summary) and differ only in which
+codemod pipeline they apply; `check` runs its own report-only loop (reusing
+`cli_support.iter_targets`/`is_tool_root`, not the write path). All serialize
+or report through the lower tiers — which is *why* this tier sits above them (a
+writer inside codemod would invert the tiers). See `docs/decisions.md` §D1
+(app tier), §D2 (`check`), §D3 (advisory findings); `galaxy-tool-xml-fmt/docs/
+decisions.md` §D12.
 
 ## Coding standards
 

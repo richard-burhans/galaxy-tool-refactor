@@ -190,9 +190,14 @@ def _detect_violations(document: ToolDocument) -> list[Violation]:
     Composes three non-mutating detect phases over the one document: the
     structural canonical codemods (each ``Change`` projected to a ``Violation``),
     fmt's cosmetic detect, and the advisory IUC checks. The first two are
-    *fixable* — ``format`` would apply them; the IUC checks are *advisory*
+    *fixable* (``format`` applies the same rules); the IUC checks are *advisory*
     (``detect_only``). Findings are sorted by source line so a report reads top
     to bottom.
+
+    Each codemod detect runs against the document *as-is*, not pipelined, so for
+    the small population that validates at no profile — where ``format`` would
+    run ``FixTypos`` first — the reported structural findings are computed before
+    that repair and may differ slightly from the final ``format`` result.
     """
     module = Module(document)
     violations = [
