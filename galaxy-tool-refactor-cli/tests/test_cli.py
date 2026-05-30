@@ -96,6 +96,44 @@ def test_upgrade_rewrites_inline_profile_token(tmp_path: Path) -> None:
     assert f">{latest_profile()}<".encode() in output  # token value bumped
 
 
+def _imported_token_tool(tool_id: str) -> bytes:
+    return (
+        f'<tool id="{tool_id}" name="{tool_id}" version="1.0.0" profile="@PROFILE@">'
+        "<macros><import>macros.xml</import></macros>"
+        "<command><![CDATA[echo x]]></command>"
+        '<inputs/><outputs><data name="o"/></outputs></tool>'
+    ).encode()
+
+
+def test_upgrade_bumps_shared_imported_profile_token(tmp_path: Path) -> None:
+    """`upgrade` bumps a stale @PROFILE@ in a shared imported macro file."""
+    _write(
+        tmp_path / "macros.xml",
+        b'<macros><token name="@PROFILE@">16.01</token></macros>',
+    )
+    _write(tmp_path / "a.xml", _imported_token_tool("a"))
+    _write(tmp_path / "b.xml", _imported_token_tool("b"))
+    result = CliRunner().invoke(main, ["upgrade", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    macros = (tmp_path / "macros.xml").read_bytes()
+    assert f">{latest_profile()}<".encode() in macros  # token bumped once
+    # the tools keep the reference; the import is what advanced them
+    assert b'profile="@PROFILE@"' in (tmp_path / "a.xml").read_bytes()
+    assert "2 tool(s)" in result.output  # both importers drove the one edit
+
+
+def test_upgrade_check_does_not_write_imported_token(tmp_path: Path) -> None:
+    macros = _write(
+        tmp_path / "macros.xml",
+        b'<macros><token name="@PROFILE@">16.01</token></macros>',
+    )
+    _write(tmp_path / "a.xml", _imported_token_tool("a"))
+    result = CliRunner().invoke(main, ["upgrade", "--check", str(tmp_path)])
+    assert result.exit_code == 1, result.output
+    assert b"16.01" in macros.read_bytes()  # not written under --check
+    assert "would upgrade @PROFILE@" in result.output
+
+
 def test_format_diff_does_not_write(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
     result = CliRunner().invoke(main, ["format", "--diff", str(file)])

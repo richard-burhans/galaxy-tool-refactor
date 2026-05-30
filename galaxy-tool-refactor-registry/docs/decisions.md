@@ -146,6 +146,10 @@ galaxy-tool-refactor-registry/tests/test_macro_profile.py`.
   is orchestration — it belongs in the facade tier, above the per-tool lower
   tiers and below the CLI. It is library-first and exception-free (per-document,
   no scanning/error-handling): the CLI does the path walk + parse-error handling
-  and feeds it `ProfileTokenSite`s. The orchestration that performs the edit
-  (via `Cursor.set_text` + `format_macro_document`) and writes the files is the
-  next step (3b-2).
+  and feeds it `ProfileTokenSite`s.
+- **The edit landed alongside (3b-2).** `apply_profile_token_plans(plans, *,
+  write)` (same module) consumes the plans: for an agreeing, stale plan it
+  rewrites the defining file's `<token>` text and — when `write` — reserialises
+  through `format_macro_document` and writes it back (bump-up-only, idempotent);
+  a non-agreeing plan is recorded as a skip and never touched. The CLI `upgrade`
+  command drives it as a whole-run phase (cli §D6).
