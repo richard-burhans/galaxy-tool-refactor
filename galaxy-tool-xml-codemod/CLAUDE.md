@@ -5,18 +5,23 @@ Guidance for Claude Code working in this repository.
 ## Project
 
 `galaxy-tool-xml-codemod` is the **structure** tier of the Galaxy tool
-refactoring framework — one of three layers, each owning a distinct
-concern:
+refactoring framework — one of six tiers (this package depends only on tier 1
+and the shared tier-0.5 rules metadata):
 
 | Tier | Layer | Package | What it owns |
 |---|---|---|---|
+| 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | shared `RuleMeta` + `Violation` |
 | 1 | **parsing & validation** | `galaxy-tool-xml` | parsing, profile-aware XSD validation, typed views |
 | 2 | **structure** | `galaxy-tool-xml-codemod` *(this repo)* | structural mutations (attribute order, element shape) |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | whitespace / indentation / shorthand; the only tier that writes XML to disk |
+| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only IUC best-practice checks |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | composes the tiers (`format`/`upgrade`/`check`) |
 
 This package supplies the **structural-refactor framework**: a
-``CodemodCommand`` visitor base with tag-PascalCase dispatch
-(``visit_Param``, ``visit_Tool``, …), an ``lxml``-backed ``Cursor``
+``CodemodCommand`` **detect-primitive** base with tag-PascalCase dispatch
+(``detect_Param``, ``detect_Tool``, …) whose ``apply`` is derived from
+``detect`` (each rule has a non-mutating detect phase + a fix phase), an
+``lxml``-backed ``Cursor``
 with typed mutation primitives (``set_attribute``, ``delete_attribute``,
 ``rename_attribute``, ``rename_tag``, ``reorder_attributes``,
 ``reorder_children``, ``remove``, ``add_child``, ``attribute_names``), a

@@ -1650,34 +1650,31 @@ def _fmt_process_path(
     return True
 
 
-def _fmt_format_rule_reference_table() -> list[str]:
-    """Render the cross-tier GTX rule glossary as markdown.
+def _gtx_reference_table(intro: str, /) -> list[str]:
+    """Render the cross-tier GTX rule glossary (fmt + codemod) under *intro*.
 
     fmt-tier rules (``all_rules()``) and codemod-tier rules
     (``coded_codemods()``) share the ``RuleMeta`` vocabulary, so the glossary is
-    generated from live metadata rather than hand-maintained. The codemod-tier
-    rows are listed for reference only: they are structural transforms run by
-    the canonical pipeline, so they never fire in this cosmetic format sweep and
-    do not appear in the trigger tables below.
+    generated from live metadata rather than hand-maintained. The IUC advisory
+    checks (tier 3.5) carry their own codes and are reported separately on the
+    ``check`` sweep page, so they are not part of this GTX glossary.
     """
     entries: list[tuple[RuleMeta, str]] = [
         (rule_cls.meta, "fmt") for rule_cls in all_rules()
     ]
     entries.extend((codemod_cls.meta, "codemod") for codemod_cls in coded_codemods())
-    lines = [
-        "## Rule reference",
-        "",
-        (
-            "What each GTX rule does, across both tiers. *fmt*-tier rules are the "
-            "cosmetic rules swept on this page; *codemod*-tier rules are "
-            "structural transforms (run by the canonical pipeline) listed here "
-            "for reference — they do not fire in this sweep, so they do not "
-            "appear in the trigger tables below."
-        ),
-        "",
-    ]
-    lines.extend(render_rule_reference_table(entries))
-    return lines
+    return ["## Rule reference", "", intro, "", *render_rule_reference_table(entries)]
+
+
+def _fmt_format_rule_reference_table() -> list[str]:
+    """The GTX glossary for the fmt stat page (codemod rows are reference-only)."""
+    return _gtx_reference_table(
+        "What each GTX rule does, across both tiers. *fmt*-tier rules are the "
+        "cosmetic rules swept on this page; *codemod*-tier rules are structural "
+        "transforms (run by the canonical pipeline) listed here for reference — "
+        "they do not fire in this sweep, so they do not appear in the trigger "
+        "tables below."
+    )
 
 
 def _fmt_format_rule_table(
@@ -2747,27 +2744,11 @@ def _rule_format_upgrade_discovery(state: _CodemodSweepState) -> list[str]:
 
 
 def _rule_format_reference_table() -> list[str]:
-    """Render the cross-tier GTX glossary for the rule-stats page.
-
-    Same descriptor table as the fmt stat page's reference, but with an intro
-    framed for this page (the isolation tables below cover every rule, so the
-    fmt page's "do not appear below" caveat does not apply here).
-    """
-    entries: list[tuple[RuleMeta, str]] = [
-        (rule_cls.meta, "fmt") for rule_cls in all_rules()
-    ]
-    entries.extend((codemod_cls.meta, "codemod") for codemod_cls in coded_codemods())
-    lines = [
-        "## Rule reference",
-        "",
-        (
-            "What each GTX rule does, across both tiers. The isolation tables "
-            "below report how each rule behaves when run alone."
-        ),
-        "",
-    ]
-    lines.extend(render_rule_reference_table(entries))
-    return lines
+    """The GTX glossary for the per-rule isolation stat page."""
+    return _gtx_reference_table(
+        "What each GTX rule does, across both tiers. The isolation tables below "
+        "report how each rule behaves when run alone."
+    )
 
 
 def _rule_stats_lines(
@@ -3034,8 +3015,9 @@ def _check_detect(document: ToolDocument) -> list[Violation]:
     """Unified detect over one tool — canonical codemods + fmt + advisory IUC.
 
     Mirrors the app CLI's ``_detect_violations`` (non-mutating; each phase reads
-    the same document). Kept here rather than imported from the cli package so
-    the maintainer script does not depend on the app tier.
+    the same document as-is — see that function for the pre-repair caveat on the
+    validates-nowhere population). Kept here rather than imported from the cli
+    package so the maintainer script does not depend on the app tier.
     """
     module = Module(document)
     violations = [

@@ -34,11 +34,13 @@ different execution contracts and are not unified.
 
 ### Scope
 
-`RuleMeta` fields are unchanged from the fmt original (`code`, `summary`,
-`since`, `until`, `cite`, `order`). The cross-tier GTX registry after this change
-spans GTX001–GTX012 (3 fmt rules, 9 codemods); codes are globally unique across
-the two tiers (asserted by a test in `galaxy-tool-xml-fmt`'s corpus-check suite,
-which can import both tiers).
+`RuleMeta` fields at the time of this extraction were the fmt original (`code`,
+`summary`, `since`, `until`, `cite`, `order`); `detect_only` was added later in
+§D2. The cross-tier GTX registry at the time spanned GTX001–GTX012 (3 fmt rules,
+9 codemods); it later grew GTX013 (codemod §17) and the IUC advisory codes
+(tier 3.5, `galaxy-tool-xml-check`). Codes are globally unique across the tiers
+(asserted by a test in `galaxy-tool-xml-fmt`'s corpus-check suite, which can
+import both tiers).
 
 ## D2 (2026-05-30) — Add the shared `Violation` diagnostic type
 

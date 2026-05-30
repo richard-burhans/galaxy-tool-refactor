@@ -8,9 +8,10 @@ for each candidate it asks tier 1's ``suggest_corrections`` what that profile's
 vocabulary would correct, applies those corrections, and checks validity —
 stopping at the first profile that validates.
 
-This shape does not fit the ``visit_<Tag>`` walk, so ``apply`` is overridden
-rather than implemented through ``CodemodCommand``'s dispatch. Two properties
-are load-bearing:
+This shape does not fit the ``detect_<Tag>`` walk, so ``apply`` is overridden
+rather than implemented through ``CodemodCommand``'s dispatch (and ``detect`` is
+the coarse apply-on-copy form; see ``_coarse_detect``). Two properties are
+load-bearing:
 
 - **Atomic.** A deep-copy snapshot is taken on entry; each profile attempt
   starts from it, and if no profile validates the snapshot is restored, leaving

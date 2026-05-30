@@ -97,6 +97,12 @@ reproducible command for any data-driven claim.
 
 **Date:** 2026-05-28 (M3 design).
 
+**Update (§19, 2026-05-30):** the detect/fix split renamed this mechanism
+`visit_<Tag>` → `detect_<Tag>` (and made `detect` the primitive, with `apply`
+derived); the dispatch-by-tag rationale below is otherwise unchanged. The
+"two structural codemods" framing is the M3-era snapshot (the catalog now also
+ships GTX013 and the validation-driven codemods).
+
 - **What we chose:** `_visit_method_name("param") → "visit_Param"` —
   string transformation of the XML tag.
 - **Alternative:** Look up the typed-model class for the element's

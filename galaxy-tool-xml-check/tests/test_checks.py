@@ -116,3 +116,17 @@ def test_violations_are_located() -> None:
     assert violations  # at least IUC001 and IUC002
     assert all(v.xpath.startswith("/tool") for v in violations)
     assert all(v.sourceline >= 1 for v in violations)
+
+
+def test_iuc002_partial_or_child_cdata_is_flagged() -> None:
+    """Only the command's own body being CDATA-wrapped clears IUC002.
+
+    Leading unprotected text (`echo <![CDATA[...]]>`) or a CDATA-bearing *child*
+    leaves the command body unprotected, so IUC002 must still fire.
+    """
+    assert "IUC002" in _codes(_tool(command="<command>echo <![CDATA[hi]]></command>"))
+    child = "<command>echo <token><![CDATA[x]]></token></command>"
+    assert "IUC002" in _codes(_tool(command=child))
+    # Fully wrapped, even with leading whitespace, is fine.
+    wrapped_ws = "<command>\n    <![CDATA[echo hi]]></command>"
+    assert "IUC002" not in _codes(_tool(command=wrapped_ws))

@@ -9,7 +9,8 @@ rationale. Mirrors the conventions of the sibling packages' `docs/decisions.md`.
 
 A new tier-4 package owns the user-facing `galaxy-tool-refactor` CLI and all
 cross-tier orchestration. It depends on the codemod tier (tier 2) and the fmt
-tier (tier 3) and exposes two commands:
+tier (tier 3) and exposes two commands (a third, report-only `check`, was added
+in §D2 over the check tier):
 
 - `format` — apply `CANONICAL_CODEMODS` (typo repair + attribute order) then
   fmt's cosmetic rules. Safe, idempotent; never changes `profile=`.

@@ -26,6 +26,6 @@ class CheckRule(ABC):
     meta: ClassVar[RuleMeta]
 
     @abstractmethod
-    def detect(self, document: ToolDocument) -> Iterable[Violation]:
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
         """Yield advisory ``Violation``s for *document*. Never mutates it."""
         ...

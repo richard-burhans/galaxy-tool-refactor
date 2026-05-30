@@ -59,9 +59,11 @@ omitted: it overlaps `GTX007` / the `upgrade` command.
 
 ```sh
 uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/
-# corpus sanity (per-check hit rate over a 2,000-tool sample); none at 0%/100%:
-#   IUC001 31.6% · 002 37.6% · 003 13.7% · 004 0.7% · 005 54.6% · 006 51.7%
-#   IUC007 91.0% · 008 2.9% · 009 8.5% · 010 42.0% · 011/012 0% (placeholders)
+# per-check corpus hit rates: see docs/corpus_check_stats.md (full sweep, the
+# authoritative source). PR4 first validated with a 2,000-tool sanity sample;
+# none of the 10 active checks fire at 0% or 100% (the IUC011/IUC012
+# placeholders correctly flag nothing). Regenerate with:
+uv run python -m scripts.corpus_check check
 ```
 
 ## D2 (2026-05-30) — `corpus_check check` sweep + per-rule violation counts (PR5)
@@ -93,12 +95,14 @@ rules. It writes `docs/corpus_check_stats.md` (a *fixable* GTX table and an
   detect phases locally (codemod + fmt + check) rather than importing the cli
   package, keeping the maintainer script above no tier it shouldn't be.
 
-### Result (combined corpus, 2026-05-29 run)
+### Result (combined corpus)
 
-9,289 parseable tools; all 9,289 carry a finding (9,287 fixable, 9,035 advisory),
+9,289 parseable tools; all 9,289 carry a finding (9,287 fixable, 9,037 advisory),
 0 crashes. Headlines: GTX003 blank-line 99.4% · GTX001 indent 71.7% · GTX002
 param-order 71.3% · GTX013 child-order 53.9%; IUC007 EDAM/xrefs 89.6% · IUC005
-requirements 57.3% · IUC002 command-CDATA 35.2%; placeholders IUC011/IUC012 0%.
+requirements 57.3% · IUC002 command-CDATA 35.2% · IUC010 help-CDATA 39.6%;
+placeholders IUC011/IUC012 0%. See `docs/corpus_check_stats.md` for the full
+table (the authoritative source).
 
 ### Reproduction
 
