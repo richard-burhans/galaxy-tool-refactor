@@ -5,8 +5,13 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
-from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_tool, parse_tool
-from galaxy_tool_xml.document import ToolDocument
+from galaxy_tool_xml.binding import (
+    ToolXmlSyntaxError,
+    load_macros,
+    load_tool,
+    parse_tool,
+)
+from galaxy_tool_xml.document import MacroDocument, ToolDocument
 
 
 def test_load_tool_returns_document(data_dir: Path) -> None:
@@ -31,6 +36,31 @@ def test_source_path_set_for_path_input(data_dir: Path) -> None:
 def test_source_path_none_for_bytes_input(data_dir: Path) -> None:
     document = load_tool((data_dir / "minimal_tool.xml").read_bytes())
     assert document.source_path is None
+
+
+def test_load_macros_returns_macro_document(data_dir: Path) -> None:
+    document = load_macros(data_dir / "token_macros.xml")
+    assert isinstance(document, MacroDocument)
+    assert document.root.tag == "macros"
+    assert document.source_path == data_dir / "token_macros.xml"
+    # The mutable tree is the source of truth: the <token>s are present.
+    assert {token.get("name") for token in document.root.findall("token")} == {
+        "@TOOL_VERSION@",
+        "@PROFILE@",
+    }
+
+
+def test_load_macros_preserves_comments(data_dir: Path) -> None:
+    document = load_macros(
+        b"<macros><!-- keep me --><token name='@X@'>1</token></macros>"
+    )
+    assert b"<!-- keep me -->" in etree.tostring(document.tree)
+    assert document.source_path is None
+
+
+def test_load_macros_raises_on_malformed_xml() -> None:
+    with pytest.raises(ToolXmlSyntaxError):
+        load_macros(b"<macros><token")
 
 
 def test_model_exposes_typed_fields(data_dir: Path) -> None:

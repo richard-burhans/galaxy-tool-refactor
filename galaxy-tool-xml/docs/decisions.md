@@ -703,3 +703,28 @@ galaxy-tool-xml/tests/test_macros.py`.
   deferred to the next phase (running fmt/codemods on macro files); these two
   functions are the read foundation the bundle, the shared-import graph, and the
   token-aware profile upgrade all build on.
+
+## 15. `MacroDocument` + `load_macros` (editing foundation)
+
+**Date:** 2026-05-30. Phase 2 (first step) of the macro-aware effort — the
+mutable macro-file document that §14 deferred. Reproduced-by: `uv run --package
+galaxy-tool-xml pytest galaxy-tool-xml/tests/test_binding.py`.
+
+- **What we chose.** `MacroDocument` (`document.py`) — the macro-file counterpart
+  to `ToolDocument`: a mutable lxml tree (CDATA / comments / attribute order
+  preserved) exposed via `tree` / `root` / `source_path`, **no serializer**
+  (exposing the tree is the contract). `load_macros(source) -> MacroDocument`
+  (`binding.py`) mirrors `load_tool` — same `_read_source` + `_parse_bytes`
+  machinery, raising `ToolXmlSyntaxError` on malformed XML.
+- **No `profile`, no `model`, no validation.** A macro library is a fragment the
+  Galaxy XSD does not define as a standalone document, so `MacroDocument`
+  deliberately omits `ToolDocument`'s `profile`/`model()` and there is no
+  `validate_macros` — macro files are parsed and edited, and correctness is still
+  checked by validating the *expanded tool* (`validate_tool`), unchanged.
+- **Root tag not enforced.** `load_macros` parses and wraps whatever root it
+  finds; a caller distinguishing a macro file from a tool inspects
+  `root.tag` (a cheap `is_macros_root` byte pre-check for the CLI/bundle comes
+  with the fmt/codemod-on-macros step).
+- **Why a separate type, not reusing `ToolDocument`.** `ToolDocument.model()` /
+  `.profile` are tool-specific and meaningless on a `<macros>` root; a dedicated
+  type keeps the contract honest and lets fmt/codemod dispatch on document kind.
