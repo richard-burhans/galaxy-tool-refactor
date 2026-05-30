@@ -39,7 +39,10 @@ truth**, faithfully preserving CDATA, comments, and attribute order.
 `binding.py` parses (`load_tool`, `parse_tool`), validates (`validate_tool`), and
 finds a tool's newest valid profile (`newest_valid_profile`). `profiles.py`
 resolves a tool's `profile` to one of the ~28 vendored per-release XSDs.
-`macros.py` handles Galaxy macros and is the sole `galaxy-util` adapter.
+`macros.py` handles Galaxy macros and is the sole `galaxy-util` adapter; it also
+exposes read-only macro-file resolution (`imported_macro_paths`) and
+token-definition lookup (`token_definitions` / `TokenDefinition`) over a tool and
+its imported macro files.
 `corrections.py` suggests near-miss typo fixes. `models/` holds an
 xsdata-generated read-only typed model per vendored schema version, generated at
 build time by `_codegen.py` and reached via `ToolDocument.model()`;

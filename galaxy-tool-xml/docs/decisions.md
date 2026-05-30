@@ -670,3 +670,36 @@ that merely mentions an interpreter in a comment is counted as that interpreter.
   idempotent.
 - **Reproduced by:** `uv run python -m scripts.corpus_check rules`;
   determinism pinned by `test_corpus_check.py`'s `_profile_sort_key` tests.
+
+## 14. Macro-file resolution + token-definition lookup (`macros.py`)
+
+**Date:** 2026-05-30. Phase 1 of the macro-aware refactoring effort (see
+`galaxy-tool-xml-codemod/docs/macro-aware-normalization.md` and the workspace
+plan). Reproduced-by: `uv run --package galaxy-tool-xml pytest
+galaxy-tool-xml/tests/test_macros.py`.
+
+- **What we chose.** Two public, read-only `macros.py` functions (the foundation
+  the codemod tier's `PLAN.md` listed as "Macro file resolution — not yet
+  shipped"):
+  - `imported_macro_paths(target) -> list[Path]` — the macro files a tool
+    imports, **transitively** (each file's own `<import>`s resolved against *its*
+    directory, matching Galaxy), de-duplicated, in import order, existing-only.
+  - `token_definitions(target) -> list[TokenDefinition]` — every `<token>`
+    defined for a tool, inline (`source=None`) then per imported file
+    (`source=<path>`). `TokenDefinition` carries `name` / `value` / `source` /
+    `sourceline`. This is how a token-aware codemod will find where a
+    `profile="@PROFILE@"` is actually defined (the corpus shows 1,384 of 1,486
+    such tokens live in an imported file — `docs/macro_corpus_stats.md`).
+- **`target` is `ToolDocument | Path`, not the full `Source`.** Resolution needs
+  a location on disk, so raw `bytes`/streams are out of scope (an in-memory
+  `ToolDocument` with no `source_path` returns `[]`). This is deliberately
+  narrower than `validate_tool`'s `Source | ToolDocument`.
+- **LBYL, and `macros.py` stays free of `binding`.** Imports are walked with
+  plain lxml (`recover=True`) and resolved by `pathlib`; an `<import>` that is
+  absolute, contains `..`, or is missing is skipped — no Galaxy exception
+  surfaces, and no `binding` import is taken (avoiding a `binding`↔`macros`
+  cycle; `macros.py` newly imports only the leaf `document.ToolDocument`).
+- **Read-only for now.** A mutable `MacroDocument` for *editing* macro files is
+  deferred to the next phase (running fmt/codemods on macro files); these two
+  functions are the read foundation the bundle, the shared-import graph, and the
+  token-aware profile upgrade all build on.
