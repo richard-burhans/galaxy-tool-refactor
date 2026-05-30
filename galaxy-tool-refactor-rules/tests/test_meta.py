@@ -21,6 +21,17 @@ def test_rule_meta_defaults() -> None:
     assert meta.cite is None
     assert meta.order == 100
     assert meta.detect_only is False
+    assert meta.applies_to == frozenset({"tool"})
+
+
+def test_rule_meta_applies_to_can_widen_to_macro() -> None:
+    meta = RuleMeta(
+        code="GTX001",
+        summary="Generic XML rule.",
+        since="0.1.0",
+        applies_to=frozenset({"tool", "macro"}),
+    )
+    assert meta.applies_to == frozenset({"tool", "macro"})
 
 
 def test_rule_meta_carries_supplied_values() -> None:

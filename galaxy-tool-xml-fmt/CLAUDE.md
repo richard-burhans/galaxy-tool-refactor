@@ -23,6 +23,14 @@ formatting per input, no user-tunable style. The opinionated choice
 goes here so the lower tiers can ignore trivia (indentation, quote
 style, attribute spacing, empty-element shorthand) entirely.
 
+It formats both **tool** files (`<tool>` root) and **macro-library** files
+(`<macros>` root). Each rule declares the document kinds it applies to via
+`RuleMeta.applies_to` (`format.rules_for_kind`): the generic XML rules (GTX001
+indent, GTX004 shorthand) run on both; the tool-only blank-line rule (GTX003)
+runs on tools only. `format_macro_document` is the `<macros>` counterpart to
+`format_tool_document`; the CLI opts into macro files via `cli_support.run`'s
+`macro_transform` (see `docs/decisions.md` §D16, rules §D3).
+
 **Tier independence.** This package — both the library
 (`format_tool_document`) and the `galaxy-tool-xml-fmt` CLI — is
 **cosmetic-only** and does **not** depend on `galaxy-tool-xml-codemod`.

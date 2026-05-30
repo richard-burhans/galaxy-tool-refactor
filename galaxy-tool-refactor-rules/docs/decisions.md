@@ -75,3 +75,33 @@ This lands as part of the detect/fix rule-split effort (see
 `Violation` is pure data with no methods beyond the dataclass. A capability flag
 on `RuleMeta` (e.g. `detect_only`) is deferred until detect-only rules arrive
 (roadmap PR4), so the flag has a first non-default user when added.
+
+## D3 (2026-05-30) — `RuleMeta.applies_to` (document-kind applicability)
+
+### Decision
+
+`RuleMeta` gains `applies_to: frozenset[str]` (default `frozenset({"tool"})`) —
+the document kinds a rule operates on, a subset of `{"tool", "macro"}`. A generic
+XML rule (canonical indentation GTX001, empty-element shorthand GTX004) declares
+`{"tool", "macro"}`; a tool-structural rule (blank line between `<tool>` sections
+GTX003, attribute / element order, profile upgrades) keeps the default `{"tool"}`;
+a future macro-library rule declares `{"macro"}`. Consumers run a rule against a
+document only when the document's kind is in this set (fmt's `rules_for_kind`,
+and later the registry/codemod tiers).
+
+### Rationale
+
+- **One field drives fmt *and* codemods.** Phase 2 of the macro-aware effort
+  needs to run rules on macro-library files (`<macros>` root); rather than a
+  bespoke "is this rule macro-safe?" check per tier, applicability becomes rule
+  metadata, read uniformly wherever a document of a given kind is formatted or
+  codemodded.
+- **Default `{"tool"}` is conservative and churn-free.** Every existing rule is
+  tool-structural by history, so the default leaves them unchanged; only the two
+  generic whitespace rules are explicitly widened. A rule runs on a macro file
+  only when it opts in.
+- **A set, not a single `scope` enum.** "Applies to any XML" is just "both
+  kinds", so a `frozenset` avoids a special `"any"` value and extends cleanly if
+  another document kind ever appears. See `galaxy-tool-xml-fmt/docs/decisions.md`
+  §D16 for the fmt-side consumption (`format_macro_document` / `rules_for_kind`).
+

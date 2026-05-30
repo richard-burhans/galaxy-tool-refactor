@@ -33,6 +33,7 @@ class CanonicalIndent(Rule):
         since="0.0.1",
         cite="https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html",
         order=10,
+        applies_to=frozenset({"tool", "macro"}),
     )
 
     def apply(self, tree: etree._ElementTree) -> Iterable[Edit]:

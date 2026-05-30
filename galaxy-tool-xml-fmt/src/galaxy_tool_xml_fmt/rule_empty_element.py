@@ -35,6 +35,7 @@ class EmptyElementShorthand(Rule):
         summary="Collapse empty-with-whitespace leaves to <foo/> form.",
         since="0.0.1",
         order=20,
+        applies_to=frozenset({"tool", "macro"}),
     )
 
     def apply(self, tree: etree._ElementTree) -> Iterable[Edit]:

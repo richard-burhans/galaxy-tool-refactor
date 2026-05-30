@@ -822,3 +822,32 @@ Support for the rule-selection facade (`galaxy-tool-refactor-registry`, tier 3.6
   echo prints each `notes` line; fmt's own CLI passes none, so its behaviour is
   unchanged. Notes also surface on byte-unchanged files in plain write mode so a
   `strict`-preset advisory finding is not swallowed when nothing is reformatted.
+
+## D16 (2026-05-30) — Formatting macro files (kind-aware rules)
+
+**Date:** 2026-05-30. Phase 2 (first step) of the macro-aware effort.
+Reproduced-by: `uv run --package galaxy-tool-xml-fmt pytest
+galaxy-tool-xml-fmt/tests/test_subset.py galaxy-tool-xml-fmt/tests/test_cli.py`.
+
+The fmt tier now formats macro-library files (`<macros>` root), not just tools.
+
+- **Rules filter by document kind via `RuleMeta.applies_to`** (tier-0.5 D3).
+  GTX001 (indent) and GTX004 (empty-element shorthand) are widened to
+  `{"tool","macro"}` — generic XML cosmetics; GTX003 (blank line between `<tool>`
+  sections) stays tool-only, so a macro file is *not* given tool-shaped blank
+  lines. `format.rules_for_kind(kind)` returns the applicable subset;
+  `format_macro_document(MacroDocument)` is the `<macros>` counterpart to
+  `format_tool_document` (both now route through a private `_apply_rules` over
+  the kind's rules). `format_tool_document` is unchanged in output (all current
+  rules apply to tools) but is now future-proof against macro-only rules.
+- **`cli_support` gained an optional `macro_transform`** and an `is_macros_root`
+  byte pre-check (sibling of `is_tool_root`, both via `_root_opens`). When a
+  caller passes `macro_transform`, `<macros>`-root files are loaded with
+  `load_macros` and formatted; without it they are skipped — so the **app CLI is
+  unchanged** (it passes no `macro_transform` and still skips macro files) while
+  the **cosmetic `galaxy-tool-xml-fmt` CLI** opts in and formats both kinds. The
+  app's bundle-aware macro handling (tool + its imports together, shared-skip) is
+  a later step.
+- **No macro detect / check path yet.** This step covers *formatting* macro
+  files; `detect_macro_document` and the `check`/bundle integration come with the
+  app-tier bundle work.
