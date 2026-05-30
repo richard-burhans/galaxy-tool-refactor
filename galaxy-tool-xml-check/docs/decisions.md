@@ -45,6 +45,17 @@ command joining — both require parsing shell/Cheetah text inside `<command>`
 CDATA and are deferred. A standalone "profile recency" check is intentionally
 omitted: it overlaps `GTX007` / the `upgrade` command.
 
+**The deferral is now backed by data** (2026-05-30, combined corpus;
+Reproduced-by: `uv run python -m scripts.measure command-iuc-heuristics`). Of
+9,318 tools with a `<command>`, the crude `IUC011` heuristic (any `$var` not
+immediately preceded by a single quote) would fire on **8,126 tools (87.2%),
+115,007 findings** — confirming the noise concern: most matches are Cheetah
+directives (`#if $x`), not unquoted shell arguments, so a literal-text `IUC011`
+is not worth shipping without real Cheetah-aware parsing. `IUC012` (a lone `&`)
+is far rarer — **431 tools (4.6%), 640 findings** — so it is the tractable one
+to implement first should we revisit these. The measurement is the sizing tool
+for that decision.
+
 ### Caveats
 
 - CDATA detection (`IUC002`/`IUC010`) works by re-serialising the element, since

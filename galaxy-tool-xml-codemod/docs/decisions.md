@@ -252,10 +252,15 @@ ships GTX013 and the validation-driven codemods).
   until the repair runs. A `no-repair` result is a legitimate outcome, not
   a regression, so it is counted but never retained as a fixture.
 - **Reproduce:** `uv run python -m scripts.corpus_check codemod
-  galaxy_tool_xml_codemod.codemods.fix_typos:FixTypos --limit 40` →
-  40 eligible (5 repaired, 35 no-repair), 0 non-idempotent /
-  post-validate-failed / crashed; the no-valid population is now swept
-  (it was skipped wholesale before these hooks).
+  galaxy_tool_xml_codemod.codemods.fix_typos:FixTypos` (combined source, the
+  §18 default). **Refreshed 2026-05-30** over the full corpus: **708 eligible**
+  (the validate-nowhere population), **39 repaired, 669 no-repair, 708
+  idempotent, 0 non-idempotent / post-validate-failed / crashed**; of the 39
+  repaired, 38 then validate at latest (26.1) and 1 stays at 24.1 (needs a 24.1
+  upgrade codemod). The original entry quoted a `--limit 40` github sample (40
+  eligible, 5 repaired, 35 no-repair) from 2026-05-28; the no-repair majority is
+  expected and legitimate — most validate-nowhere tools are not mere typos. The
+  no-valid population is swept here (it was skipped wholesale before these hooks).
 
 ## 13. `UpdateProfile` + a canonical pipeline ordered repair → profile → reorder
 

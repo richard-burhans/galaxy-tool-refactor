@@ -8,23 +8,29 @@ from pathlib import Path
 
 import pytest
 from lxml import etree
+from scripts._shared import sha256_of
 from scripts.measure import (
     _COLLECTION_TYPE_MEMBERS,
     _MATCH_KEYS,
     _PROFILE_NONE,
     _classify_command_language,
     _collection_type_patterns,
+    _count_unquoted_vars,
     _cross_source_key_matches,
     _facts_from_macro_container,
     _measure_collection_type_normalization,
+    _measure_command_iuc_heuristics,
     _measure_command_language,
     _measure_element_cardinality,
+    _measure_macro_fmt_idempotence,
+    _measure_macro_profile_ownership,
     _measure_macro_profile_tokens,
     _measure_macro_topology,
     _measure_param_types,
     _measure_upgrade_headroom,
     _ParamTypesResult,
     _render_macro_stats_page,
+    _render_profile_ownership_page,
     _version_tuple,
 )
 
@@ -467,3 +473,149 @@ def test_render_macro_stats_page_smoke(macro_corpus: Path) -> None:
     assert page.startswith("# Macro corpus statistics")
     assert "## Shared macro files (blast-radius input)" in page
     assert "## Stale macro-token profiles (token-aware upgrade target)" in page
+
+
+# --- macro-profile-ownership ----------------------------------------------------
+
+_PROFILE_MACROS = b'<macros><token name="@PROFILE@">19.01</token></macros>'
+
+
+def _importing_tool(tool_id: str) -> str:
+    return (
+        f'<tool id="{tool_id}" profile="@PROFILE@">'
+        "<macros><import>macros.xml</import></macros></tool>"
+    )
+
+
+@pytest.fixture()
+def ownership_corpus(tmp_path: Path) -> tuple[Path, list[dict[str, object]]]:
+    """Synthetic corpus exercising every ownership bucket, plus matching rows.
+
+    A shared file whose two profile-using importers AGREE on the target; a
+    shared file whose importers DIVERGE; a sole-owned file; and an inline token.
+    Each tool's ``newest_valid`` is joined by content sha, so the fixture builds
+    the rows from the files it writes.
+    """
+    repo = tmp_path / "owner" / "repo"
+    layout = {
+        "agree": (_PROFILE_MACROS, {"a.xml": "26.1", "b.xml": "26.1"}),
+        "diverge": (_PROFILE_MACROS, {"c.xml": "24.2", "e.xml": "26.1"}),
+        "solo": (_PROFILE_MACROS, {"solo.xml": "26.1"}),
+    }
+    rows: list[dict[str, object]] = []
+    for subdir, (macros, tools) in layout.items():
+        directory = repo / subdir
+        directory.mkdir(parents=True)
+        (directory / "macros.xml").write_bytes(macros)
+        for filename, newest in tools.items():
+            path = directory / filename
+            path.write_text(_importing_tool(path.stem), encoding="utf-8")
+            rows.append({"sha256": sha256_of(path), "newest_valid": newest})
+    inline = repo / "inline.xml"
+    inline.write_text(
+        '<tool id="inline" profile="@PROFILE@">'
+        '<macros><token name="@PROFILE@">19.01</token></macros></tool>',
+        encoding="utf-8",
+    )
+    rows.append({"sha256": sha256_of(inline), "newest_valid": "26.1"})
+    return tmp_path, rows
+
+
+def test_profile_ownership_placement(
+    ownership_corpus: tuple[Path, list[dict[str, object]]],
+) -> None:
+    corpus_root, rows = ownership_corpus
+    result = _measure_macro_profile_ownership(corpus_root=corpus_root, rows=rows)
+    assert result.n_unique_tools == 6  # a, b, c, e, solo, inline
+    assert result.n_profile_token_tools == 6
+    assert result.n_inline == 1  # inline.xml
+    assert result.n_imported_direct == 5  # a, b, c, e, solo
+    assert result.n_imported_deeper == 0
+    assert result.n_unresolved == 0
+    assert result.n_defining_same_dir == 5  # every macros.xml is beside its tools
+
+
+def test_profile_ownership_sharedness_and_agreement(
+    ownership_corpus: tuple[Path, list[dict[str, object]]],
+) -> None:
+    corpus_root, rows = ownership_corpus
+    result = _measure_macro_profile_ownership(corpus_root=corpus_root, rows=rows)
+    # solo is sole-owned; a, b, c, e import a shared file.
+    assert result.n_defining_sole_owned == 1
+    assert result.n_defining_shared == 4
+    # Two shared defining files, both with >=2 profile users: agree/ and diverge/.
+    assert result.n_shared_defining_files == 2
+    assert result.n_shared_multi_user == 2
+    assert result.n_shared_agree == 1
+    assert result.n_shared_diverge == 1
+    assert result.n_shared_indeterminate == 0
+    assert [path.split("/")[-2] for path, _ in result.diverge_exemplars] == ["diverge"]
+
+
+def test_profile_ownership_scan_soundness(
+    ownership_corpus: tuple[Path, list[dict[str, object]]],
+) -> None:
+    corpus_root, rows = ownership_corpus
+    result = _measure_macro_profile_ownership(corpus_root=corpus_root, rows=rows)
+    assert result.n_import_stmts == 5  # a, b, c, e, solo each import macros.xml
+    assert result.n_import_dotdot == 0
+    assert result.n_import_absolute == 0
+
+
+def test_render_profile_ownership_page_smoke(
+    ownership_corpus: tuple[Path, list[dict[str, object]]],
+) -> None:
+    corpus_root, rows = ownership_corpus
+    result = _measure_macro_profile_ownership(corpus_root=corpus_root, rows=rows)
+    page = _render_profile_ownership_page(result)
+    assert page.startswith("# Macro profile-token ownership")
+    assert "## Do shared files' importers agree on the target profile?" in page
+
+
+# --- command-iuc-heuristics (IUC011 / IUC012 sizing) ----------------------------
+
+
+def test_count_unquoted_vars_quote_heuristic() -> None:
+    # $x is preceded by a space (unquoted); '$y' is preceded by a quote.
+    assert _count_unquoted_vars("echo $x and '$y'") == 1
+    assert _count_unquoted_vars("'$a' '${b}'") == 0  # both single-quoted
+    assert _count_unquoted_vars("$a $b ${c}") == 3  # none quoted
+
+
+def test_command_iuc_heuristics_counts(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # One unquoted $x, one quoted '$y'; one lone & and one && (not lone).
+    (repo / "tool.xml").write_text(
+        "<tool><command><![CDATA[echo $x && cat '$y' & wait]]></command></tool>",
+        encoding="utf-8",
+    )
+    (repo / "no_command.xml").write_text("<tool><inputs/></tool>", encoding="utf-8")
+    (repo / "not_a_tool.xml").write_text("<data/>", encoding="utf-8")
+    result = _measure_command_iuc_heuristics(corpus_root=tmp_path)
+    assert result.n_unique_tools == 2  # tool, no_command
+    assert result.n_with_command == 1
+    assert result.n_tools_unquoted_var == 1
+    assert result.n_unquoted_var_findings == 1  # $x only ('$y' is quoted)
+    assert result.n_tools_lone_amp == 1
+    assert result.n_lone_amp_findings == 1  # the standalone & (&& is not lone)
+
+
+# --- macro-fmt-idempotence ------------------------------------------------------
+
+
+def test_macro_fmt_idempotence_sweep(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # A non-canonical macro file (odd indentation) -> would change, idempotent.
+    (repo / "macros.xml").write_text(
+        '<macros>\n      <token name="@X@">1.0</token>\n</macros>',
+        encoding="utf-8",
+    )
+    # A non-<macros> file is not a macro file and must be skipped.
+    (repo / "tool.xml").write_text("<tool><inputs/></tool>", encoding="utf-8")
+    result = _measure_macro_fmt_idempotence(corpus_root=tmp_path)
+    assert result.n_macro_files == 1
+    assert result.n_would_change == 1
+    assert result.n_idempotent == 1
+    assert result.n_non_idempotent == 0
