@@ -11,7 +11,7 @@ galaxy-tool-refactor/
 ├── galaxy-tool-xml-check/    Tier 3.5 (advisory detect-only IUC checks)
 ├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check)
 ├── scripts/                  Shared maintainer scripts (not installed)
-│   ├── corpus_check.py         validate | fmt | codemod subcommands
+│   ├── corpus_check.py         validate | fmt | codemod | rules | check subcommands
 │   ├── fetch_schemas.py        download release XSDs
 │   ├── fetch_toolshed.py       clone Toolshed repos
 │   ├── measure.py              ad-hoc corpus queries
@@ -64,6 +64,10 @@ uv run python -m scripts.corpus_check codemod <dotted.module>:<ClassName> [--rep
 # Per-rule isolation QA (every GTX rule alone, fmt + codemod): idempotence (+ post-validity
 # for codemods), retain failures, write docs/corpus_rule_stats.md.
 uv run python -m scripts.corpus_check rules [--source github|toolshed|combined] [--repo NAME] [--limit N]
+
+# Unified-detect violation counts (what `check` reports: canonical codemods + fmt + advisory
+# IUC): per-rule tools-flagged + total findings, write docs/corpus_check_stats.md.
+uv run python -m scripts.corpus_check check [--source github|toolshed|combined] [--repo NAME] [--limit N]
 
 uv run python -m scripts.fetch_schemas         # download release XSDs
 uv run python -m scripts.fetch_toolshed        # clone Toolshed repos

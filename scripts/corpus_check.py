@@ -2955,6 +2955,346 @@ def _rules_main(argv: list[str]) -> int:
 
 
 # =============================================================================
+# check subcommand — unified detect (violation counts incl. detect-only IUC)
+# =============================================================================
+#
+# What `galaxy-tool-refactor check` reports, swept across the corpus: per-code
+# how many tools carry the finding (and the total findings). Unlike the `rules`
+# isolation sweep (which counts every emitted edit, including no-ops, to QA each
+# rule alone), this counts genuine per-occurrence violations from the same detect
+# phases the CLI runs. Covers the detect-only IUC checks. Writes
+# docs/corpus_check_stats.md.
+
+from galaxy_tool_refactor_rules.violation import Violation  # noqa: E402
+from galaxy_tool_xml_check.detect import all_checks  # noqa: E402
+from galaxy_tool_xml_check.detect import detect_violations as _detect_advisory  # noqa: E402
+from galaxy_tool_xml_codemod.canonical import CANONICAL_CODEMODS  # noqa: E402
+from galaxy_tool_xml_codemod.module import Module  # noqa: E402
+from galaxy_tool_xml_fmt.cli_support import is_tool_root  # noqa: E402
+
+_CHECK_STATS_FILE = _REPO_ROOT / "docs" / "corpus_check_stats.md"
+
+# Backtick-wrap ``<tag>`` tokens so GitHub renders them literally in a table
+# cell (the shared reference renderer does the same for the glossary).
+_CHECK_ANGLE_TOKEN = re.compile(r"(<[^>]+>)")
+
+
+def _check_md_summary(text: str) -> str:
+    """Backtick-wrap angle-bracket tokens in a rule summary for a markdown cell."""
+    return _CHECK_ANGLE_TOKEN.sub(r"`\1`", text)
+
+
+@dataclass
+class _CheckRuleStat:
+    """Per-code tally for the unified-detect (check) sweep."""
+
+    code: str
+    tier: str
+    detect_only: bool
+    summary: str
+    flagged: int = 0  # tools carrying at least one finding of this code
+    total: int = 0  # total findings of this code across the corpus
+
+
+@dataclass
+class _CheckSweepState:
+    """Corpus-wide tallies for the check sweep."""
+
+    tools: int = 0
+    flagged_tools: int = 0
+    fixable_flagged_tools: int = 0
+    advisory_flagged_tools: int = 0
+    crashed: int = 0
+    registry: dict[str, _CheckRuleStat] = field(default_factory=dict)
+
+
+def _check_rule_registry() -> dict[str, _CheckRuleStat]:
+    """One stat row per code the ``check`` command can report (fmt + canonical
+    codemods + advisory IUC), keyed by code."""
+    registry: dict[str, _CheckRuleStat] = {}
+    for rule_cls in all_rules():
+        meta = rule_cls.meta
+        registry[meta.code] = _CheckRuleStat(
+            meta.code, "fmt", meta.detect_only, meta.summary
+        )
+    for codemod_cls in CANONICAL_CODEMODS:
+        meta = codemod_cls.meta
+        registry[meta.code] = _CheckRuleStat(
+            meta.code, "codemod", meta.detect_only, meta.summary
+        )
+    for check_cls in all_checks():
+        meta = check_cls.meta
+        registry[meta.code] = _CheckRuleStat(
+            meta.code, "check", meta.detect_only, meta.summary
+        )
+    return registry
+
+
+def _check_detect(document: ToolDocument) -> list[Violation]:
+    """Unified detect over one tool — canonical codemods + fmt + advisory IUC.
+
+    Mirrors the app CLI's ``_detect_violations`` (non-mutating; each phase reads
+    the same document). Kept here rather than imported from the cli package so
+    the maintainer script does not depend on the app tier.
+    """
+    module = Module(document)
+    violations = [
+        change.to_violation()
+        for codemod_cls in CANONICAL_CODEMODS
+        for change in codemod_cls().detect(module)
+    ]
+    violations.extend(detect_tool_document(document))
+    violations.extend(_detect_advisory(document))
+    return violations
+
+
+def _check_process_path(path: Path, *, state: _CheckSweepState) -> None:
+    """Run the unified detect on one file and roll the findings into ``state``."""
+    if not path.is_file():
+        return
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        return
+    if not is_tool_root(raw):
+        return
+    try:
+        document = load_tool(raw)
+    except ToolXmlSyntaxError:
+        return
+    if document.root.tag != "tool":
+        return
+    state.tools += 1
+    try:
+        violations = _check_detect(document)
+    except Exception:  # noqa: BLE001 — diagnostic sweep: a crash is a finding
+        state.crashed += 1
+        logger.warning("CRASH on %s\n%s", path, traceback.format_exc())
+        return
+    if not violations:
+        return
+    state.flagged_tools += 1
+    codes_here: set[str] = set()
+    has_fixable = has_advisory = False
+    for violation in violations:
+        stat = state.registry.get(violation.code)
+        if stat is None:
+            continue  # a code outside the registry should not occur
+        stat.total += 1
+        codes_here.add(violation.code)
+        if stat.detect_only:
+            has_advisory = True
+        else:
+            has_fixable = True
+    for code in codes_here:
+        state.registry[code].flagged += 1
+    if has_fixable:
+        state.fixable_flagged_tools += 1
+    if has_advisory:
+        state.advisory_flagged_tools += 1
+
+
+def _check_sweep(
+    *, sources: tuple[str, ...], repo_filter: str | None, limit: int
+) -> _CheckSweepState:
+    """Sweep the corpus through the unified detect, tallying per-code findings."""
+    state = _CheckSweepState(registry=_check_rule_registry())
+    seen_sha: set[str] = set()
+    for _source_label, _display_name, repo_dir, _version in _iter_sources(
+        sources, repo_filter=repo_filter
+    ):
+        for path in sorted(_iter_tool_xmls(repo_dir)):
+            if limit and state.tools >= limit:
+                break
+            if not path.is_file():
+                continue
+            sha = _sha256_of(path)
+            if sha in seen_sha:
+                continue
+            seen_sha.add(sha)
+            _check_process_path(path, state=state)
+        if limit and state.tools >= limit:
+            break
+    return state
+
+
+def _check_format_table(
+    state: _CheckSweepState, *, detect_only: bool, heading: str, blurb: str
+) -> list[str]:
+    """Render the fixable or advisory per-code table."""
+    rows = sorted(
+        (stat for stat in state.registry.values() if stat.detect_only is detect_only),
+        key=lambda stat: stat.code,
+    )
+    lines = [
+        heading,
+        "",
+        blurb,
+        "",
+        "| Rule | Tier | Tools flagged | % of tools | Findings | What it flags |",
+        "|---|---|---:|---:|---:|---|",
+    ]
+    tools = state.tools or 1
+    for stat in rows:
+        pct = 100 * stat.flagged / tools
+        summary = _check_md_summary(stat.summary)
+        lines.append(
+            f"| {stat.code} | {stat.tier} | {stat.flagged:,} | {pct:.1f}% | "
+            f"{stat.total:,} | {summary} |"
+        )
+    return lines
+
+
+def _check_stats_lines(*, source: str, state: _CheckSweepState) -> list[str]:
+    """Build the check-sweep stats markdown (pure; no I/O)."""
+    corpus_note = (
+        "the combined corpus (github + toolshed, sha256-deduplicated)"
+        if source == "combined"
+        else f"the {source} corpus"
+    )
+    lines: list[str] = [
+        "# Corpus check (unified detect) statistics",
+        "",
+        (
+            f"Generated by `python -m scripts.corpus_check check` on "
+            f"{date.today().isoformat()}. Runs the exact detect phases the "
+            f"`galaxy-tool-refactor check` command reports — the canonical "
+            f"codemods + cosmetic fmt rules (*fixable*) plus the advisory IUC "
+            f"best-practice checks (*advisory*, detect-only) — across "
+            f"{corpus_note}, and counts, per rule, how many tools carry the "
+            f"finding. Unlike the per-rule **isolation** page "
+            f"(`corpus_rule_stats.md`, which counts every emitted edit to QA each "
+            f"rule alone), these are genuine per-occurrence violation counts. "
+            f"Every parseable `<tool>` is swept (no validity gate, matching "
+            f"`check`)."
+        ),
+        "",
+        (
+            f"**{state.tools:,}** tools swept; **{state.flagged_tools:,}** have at "
+            f"least one finding (**{state.fixable_flagged_tools:,}** a fixable "
+            f"one, **{state.advisory_flagged_tools:,}** an advisory one); "
+            f"{state.crashed:,} crashed."
+        ),
+        "",
+        (
+            "Regenerated by every full run of `corpus_check.py check` unless "
+            "`--no-stats` is given; partial sweeps (`--limit` or `--repo`) do not "
+            "regenerate it."
+        ),
+        "",
+    ]
+    lines.extend(
+        _check_format_table(
+            state,
+            detect_only=False,
+            heading="## Fixable rules (GTX — what `format` would change)",
+            blurb=(
+                "Structural canonical codemods and cosmetic fmt rules. A finding "
+                "here means `format` would change the tool; `check` exits non-zero "
+                "on any of these."
+            ),
+        )
+    )
+    lines.append("")
+    lines.extend(
+        _check_format_table(
+            state,
+            detect_only=True,
+            heading="## Advisory checks (IUC — best practices)",
+            blurb=(
+                "Detect-only IUC best-practice checks. Advisory: `check` reports "
+                "them but does not fail unless `--strict`. `IUC011`/`IUC012` are "
+                "reserved placeholders (no detection yet), so they flag nothing."
+            ),
+        )
+    )
+    lines.append("")
+    return lines
+
+
+def _check_write_stats(*, source: str, state: _CheckSweepState) -> None:
+    """Write the check-sweep statistics artifact to ``docs/``."""
+    _CHECK_STATS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    lines = _check_stats_lines(source=source, state=state)
+    _CHECK_STATS_FILE.write_text("\n".join(lines), encoding="utf-8")
+
+
+def _check_main(argv: list[str]) -> int:
+    """Sweep the corpus through the unified detect; write check violation stats."""
+    parser = argparse.ArgumentParser(
+        prog="python -m scripts.corpus_check check",
+        description=(
+            "Sweep the corpus through the unified detect phases the "
+            "`galaxy-tool-refactor check` command runs (canonical codemods + fmt "
+            "+ advisory IUC checks) and report per-rule violation counts, "
+            "including the detect-only rules. Writes docs/corpus_check_stats.md."
+        ),
+    )
+    parser.add_argument(
+        "--source",
+        choices=("github", "toolshed", "combined"),
+        default="combined",
+        help="corpus to sweep (default: combined — github + toolshed, deduped)",
+    )
+    parser.add_argument(
+        "--repo", help="sweep only this repository (by name); --source github only"
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="stop after N tools (0 sweeps everything)",
+    )
+    parser.add_argument(
+        "--no-stats",
+        action="store_true",
+        help="do not (re)write docs/corpus_check_stats.md",
+    )
+    args = parser.parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+    if args.repo is not None and args.source != "github":
+        logger.error(
+            "--repo is only supported with --source github, not %r", args.source
+        )
+        return 1
+    if args.repo is not None:
+        known_names = {name for name, _ in _corpus_sources()}
+        if args.repo not in known_names:
+            logger.error(
+                "unknown --repo %r; known: %s", args.repo, ", ".join(sorted(known_names))
+            )
+            return 1
+
+    sources = ("github", "toolshed") if args.source == "combined" else (args.source,)
+    if "toolshed" in sources and not _TOOLSHED_ROOT.exists():
+        logger.error(
+            "no toolshed corpus at %s; populate it via scripts/fetch_toolshed.py",
+            _TOOLSHED_ROOT.relative_to(_REPO_ROOT),
+        )
+        return 1
+
+    state = _check_sweep(sources=sources, repo_filter=args.repo, limit=args.limit)
+    logger.info(
+        "check sweep: %d tools; %d flagged (%d fixable, %d advisory); %d crashed",
+        state.tools, state.flagged_tools, state.fixable_flagged_tools,
+        state.advisory_flagged_tools, state.crashed,
+    )
+    for stat in sorted(state.registry.values(), key=lambda s: s.code):
+        logger.info(
+            "  %s [%s%s] %d tools, %d findings",
+            stat.code, stat.tier, " advisory" if stat.detect_only else "",
+            stat.flagged, stat.total,
+        )
+    if args.no_stats or args.limit or args.repo is not None:
+        logger.info("partial or --no-stats run: not regenerating corpus_check_stats.md")
+        return 0
+    _check_write_stats(source=args.source, state=state)
+    logger.info("check stats -> %s", _CHECK_STATS_FILE.relative_to(_REPO_ROOT))
+    return 0
+
+
+# =============================================================================
 # Top-level dispatcher
 # =============================================================================
 
@@ -2968,11 +3308,12 @@ def main(argv: list[str]) -> int:
     )
     parser.add_argument(
         "subcommand",
-        choices=("validate", "fmt", "codemod", "rules"),
+        choices=("validate", "fmt", "codemod", "rules", "check"),
         help=(
             "validate: API invariants sweep; fmt: formatter idempotence "
             "sweep; codemod: one structural-codemod idempotence + validity "
-            "sweep; rules: per-rule isolation QA sweep (every rule alone)"
+            "sweep; rules: per-rule isolation QA sweep (every rule alone); "
+            "check: unified-detect violation counts (incl. detect-only IUC)"
         ),
     )
     # Parse only the subcommand, pass the rest to the subcommand's own parser.
@@ -2986,7 +3327,9 @@ def main(argv: list[str]) -> int:
         return _fmt_main(remaining)
     if args.subcommand == "codemod":
         return _codemod_main(remaining)
-    return _rules_main(remaining)
+    if args.subcommand == "rules":
+        return _rules_main(remaining)
+    return _check_main(remaining)
 
 
 if __name__ == "__main__":

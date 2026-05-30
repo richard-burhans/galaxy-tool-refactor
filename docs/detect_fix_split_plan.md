@@ -1,13 +1,13 @@
 # Plan — detect/fix rule split (in progress)
 
-Working plan for the detect/fix rule-split effort. **Status: PR1–PR4 landed.
-PR5 not yet started.** This doc is the resume point — read it top to bottom to
-pick the work back up cold. It is being superseded by per-tier
-`docs/decisions.md` entries as the work lands (PR1 → `galaxy-tool-xml-codemod`
-§19, `galaxy-tool-refactor-rules` D2; PR2 → `galaxy-tool-xml-fmt` D14; PR3 →
+Working plan for the detect/fix rule-split effort. **Status: COMPLETE — PR1–PR5
+all landed on `detect-fix-rule-split`.** Fully superseded by per-tier
+`docs/decisions.md` entries (PR1 → `galaxy-tool-xml-codemod` §19,
+`galaxy-tool-refactor-rules` D2; PR2 → `galaxy-tool-xml-fmt` D14; PR3 →
 `galaxy-tool-refactor-cli` D2; PR4 → `galaxy-tool-xml-check` D1 +
-`galaxy-tool-refactor-cli` D3 + `galaxy-tool-refactor-rules` D-detect_only),
-then removed.
+`galaxy-tool-refactor-cli` D3 + `galaxy-tool-refactor-rules` D2; PR5 →
+`galaxy-tool-xml-check` D2). **This doc can be retired when the branch merges.**
+Retained below as the cold-start narrative until then.
 
 **PR1 done (2026-05-30):** tier-0.5 `Violation`; tier-2 `Change` /
 `apply_changes`; `CodemodCommand` is detect-primitive (`detect_<Tag>` walk,
@@ -35,6 +35,15 @@ codemods' `detect` (`Change.to_violation()`) + fmt `detect_tool_document`; print
 `cli_support.iter_targets`/`is_tool_root`/`load_tool` (own loop, NOT
 `_process_file`). Scope = the `format` rule set (not `upgrade` — too noisy).
 See `galaxy-tool-refactor-cli` D2.
+
+**PR5 done (2026-05-30):** new `corpus_check check` subcommand — sweeps the
+unified detect (canonical codemods + fmt + advisory IUC) over the corpus, tallies
+per-code tools-flagged + total findings (covers detect-only IUC), writes
+`docs/corpus_check_stats.md` (fixable GTX table + advisory IUC table). True
+per-occurrence violation counts (vs the `rules` isolation page's edit over-count).
+Combined corpus: 9,289 tools, all flagged (9,287 fixable, 9,035 advisory), 0
+crashes. `_check_detect` re-composes the 3 detect phases locally (no cli-package
+dep). See `galaxy-tool-xml-check` D2.
 
 **PR4 done (2026-05-30):** new tier-3.5 package `galaxy-tool-xml-check`
 (`CheckRule` ABC + `IUC001`–`IUC012` + `all_checks`/`detect_violations`); depends

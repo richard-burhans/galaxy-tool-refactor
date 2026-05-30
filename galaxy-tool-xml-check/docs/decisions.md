@@ -63,3 +63,48 @@ uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/
 #   IUC001 31.6% · 002 37.6% · 003 13.7% · 004 0.7% · 005 54.6% · 006 51.7%
 #   IUC007 91.0% · 008 2.9% · 009 8.5% · 010 42.0% · 011/012 0% (placeholders)
 ```
+
+## D2 (2026-05-30) — `corpus_check check` sweep + per-rule violation counts (PR5)
+
+### Decision
+
+A fifth `scripts/corpus_check.py` subcommand, `check`, sweeps the corpus through
+the exact unified detect the `galaxy-tool-refactor check` command runs (canonical
+codemods + cosmetic fmt + advisory IUC) and tallies, per rule code, how many
+tools carry the finding and the total findings — covering the detect-only IUC
+rules. It writes `docs/corpus_check_stats.md` (a *fixable* GTX table and an
+*advisory* IUC table). PR5 (final) of the detect/fix rule-split effort.
+
+### Rationale
+
+- **Genuine violation counts, not the isolation page's edit count.** The existing
+  `rules` sweep (`corpus_rule_stats.md`) runs each rule *alone* and counts every
+  emitted `Edit` — including no-ops — to QA that each rule is idempotent and
+  crash-free in isolation. That over-counts (an fmt rule emits a `SetText` per
+  element regardless of need; see fmt D14). The `check` sweep instead counts the
+  per-occurrence `Violation`s the detect phases actually report, which is what a
+  user sees. The two pages are complementary: isolation = per-rule QA, check =
+  how often each rule fires.
+- **Covers detect-only rules naturally.** Because it runs the same composed
+  detect as the CLI, the IUC checks are tallied alongside GTX with no separate
+  machinery, and the fixable/advisory split is read straight off
+  `RuleMeta.detect_only`.
+- **No app dependency in the script.** `_check_detect` re-composes the three
+  detect phases locally (codemod + fmt + check) rather than importing the cli
+  package, keeping the maintainer script above no tier it shouldn't be.
+
+### Result (combined corpus, 2026-05-29 run)
+
+9,289 parseable tools; all 9,289 carry a finding (9,287 fixable, 9,035 advisory),
+0 crashes. Headlines: GTX003 blank-line 99.4% · GTX001 indent 71.7% · GTX002
+param-order 71.3% · GTX013 child-order 53.9%; IUC007 EDAM/xrefs 89.6% · IUC005
+requirements 57.3% · IUC002 command-CDATA 35.2%; placeholders IUC011/IUC012 0%.
+
+### Reproduction
+
+```sh
+uv run python -m scripts.corpus_check check            # full sweep + stat page
+uv run python -m scripts.corpus_check check --limit 200 --no-stats
+uv run --package galaxy-tool-xml-fmt pytest \
+  galaxy-tool-xml-fmt/tests/test_corpus_check.py       # helper unit tests
+```
