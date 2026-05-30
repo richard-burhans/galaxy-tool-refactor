@@ -1,15 +1,22 @@
-"""``CodemodCommand`` base class and the visitor-dispatch harness.
+"""``CodemodCommand`` base class and the detect-dispatch harness.
 
-A codemod subclasses ``CodemodCommand`` and defines one or more
-``visit_<TagPascalCase>`` methods. ``apply(module)`` walks the lxml tree
-in document order; for each element it looks up ``visit_<TagPascalCase>``
-and, if present, calls it with the cursor. A visitor that returns
-``False`` halts descent into that element's subtree. Comment and
-ProcessingInstruction nodes are skipped by ``Cursor.children()`` so
-visitors only see real elements.
+A structural codemod subclasses ``CodemodCommand`` and defines one or more
+``detect_<TagPascalCase>`` methods. ``detect(module)`` walks the lxml tree in
+document order; for each element it looks up ``detect_<TagPascalCase>`` and, if
+present, yields the ``Change``s it returns — **without mutating the tree**. The
+yielded change list *is* the lint report. ``apply(module)`` is derived: it
+materialises ``detect(module)`` and runs each change's ``mutate`` thunk, so the
+change a codemod reports is exactly the change it applies. Comment and
+ProcessingInstruction nodes are skipped by ``Cursor.children()`` so detectors
+only see real elements.
 
-Dispatch is by **tag name** (``<param>`` → ``visit_Param``,
-``<change_format>`` → ``visit_ChangeFormat``). The architecture targets
+Validation-driven codemods (``FixTypos``, ``UpgradeToLatest`` and the per-step
+upgrades) cannot pre-compute a static change list — they branch on
+re-validation — so they override ``apply`` with bespoke logic and supply a
+**coarse** ``detect`` (see ``codemods._coarse_detect``).
+
+Dispatch is by **tag name** (``<param>`` → ``detect_Param``,
+``<change_format>`` → ``detect_ChangeFormat``). The architecture targets
 typed-model class names long-term — these coincide with PascalCase tags
 for unambiguous elements like ``<param>`` and ``<tool>``, and diverge
 only for elements with multiple per-context typed classes (``<when>``).
@@ -30,10 +37,13 @@ from __future__ import annotations
 from functools import cache
 from typing import TYPE_CHECKING, ClassVar
 
+from galaxy_tool_xml_codemod.change import Change, apply_changes
 from galaxy_tool_xml_codemod.cursor import Cursor
 from galaxy_tool_xml_codemod.eligibility import corpus_test_profile
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Iterator
+
     from galaxy_tool_refactor_rules.meta import RuleMeta
     from galaxy_tool_xml.document import ToolDocument
 
@@ -41,15 +51,15 @@ if TYPE_CHECKING:
 
 
 @cache
-def _visit_method_name(tag: str) -> str:
-    """Convert an XML tag to its visitor method name.
+def _detect_method_name(tag: str) -> str:
+    """Convert an XML tag to its detector method name.
 
-    ``"param"`` → ``"visit_Param"``;
-    ``"change_format"`` → ``"visit_ChangeFormat"``.
+    ``"param"`` → ``"detect_Param"``;
+    ``"change_format"`` → ``"detect_ChangeFormat"``.
     """
     parts = tag.split("_")
     pascal = "".join(part[:1].upper() + part[1:] for part in parts)
-    return f"visit_{pascal}"
+    return f"detect_{pascal}"
 
 
 class CodemodCommand:
@@ -63,24 +73,35 @@ class CodemodCommand:
 
     meta: ClassVar[RuleMeta]
 
-    def apply(self, module: Module, /) -> None:
-        """Walk ``module``'s lxml tree and dispatch ``visit_X`` for each element.
+    def detect(self, module: Module, /) -> Iterable[Change]:
+        """Yield the ``Change``s this codemod would make, without mutating.
 
-        Mutations performed via the cursor apply immediately to the
-        underlying tree. Atomicity (deep-copy snapshot) is the
-        responsibility of whatever harness invokes ``apply`` — for the
-        canonical-pipeline CLI that's fmt's CLI; for sweep tooling
-        that's the relevant subcommand.
+        Walks ``module``'s lxml tree in document order, dispatching
+        ``detect_<Tag>`` for each element and yielding the changes it returns.
+        The default walk drives the structural (cursor-walk) codemods;
+        validation-driven codemods override this with a coarse detector.
         """
-        self._dispatch(Cursor(module.document.root))
+        yield from self._detect_dispatch(Cursor(module.document.root))
 
-    def _dispatch(self, cursor: Cursor) -> None:
-        method_name = _visit_method_name(cursor.tag)
-        visit = getattr(self, method_name, None)
-        if visit is not None and visit(cursor) is False:
-            return
+    def _detect_dispatch(self, cursor: Cursor) -> Iterator[Change]:
+        method_name = _detect_method_name(cursor.tag)
+        detector = getattr(self, method_name, None)
+        if detector is not None:
+            yield from detector(cursor)
         for child in cursor.children():
-            self._dispatch(child)
+            yield from self._detect_dispatch(child)
+
+    def apply(self, module: Module, /) -> None:
+        """Apply this codemod by running every detected change's thunk.
+
+        Detection is materialised first (all reads complete before any
+        mutation), then ``apply_changes`` runs the thunks. Mutations apply
+        immediately to the underlying tree; atomicity (deep-copy snapshot) is
+        the responsibility of whatever harness invokes ``apply`` — for the
+        canonical-pipeline CLI that's the app tier; for sweep tooling that's
+        the relevant subcommand.
+        """
+        apply_changes(list(self.detect(module)))
 
     def upgrade_steps_applied(self) -> tuple[str, ...]:
         """From-versions whose upgrade the last ``apply`` advanced the tool past.

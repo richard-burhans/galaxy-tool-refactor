@@ -1,11 +1,13 @@
-"""Tests for the M3 ``CodemodCommand`` base class and visitor dispatch."""
+"""Tests for the ``CodemodCommand`` base class and detect-dispatch harness."""
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
 
 from galaxy_tool_xml.binding import load_tool
 
+from galaxy_tool_xml_codemod.change import Change
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.cursor import Cursor
@@ -13,94 +15,106 @@ from galaxy_tool_xml_codemod.eligibility import corpus_test_profile
 from galaxy_tool_xml_codemod.parse import parse_module
 
 
-def test_visit_tool_is_called_on_root(minimal_tool_path: Path) -> None:
-    """A codemod's ``visit_Tool`` method runs on the root ``<tool>`` element."""
+def test_detect_tool_is_called_on_root(minimal_tool_path: Path) -> None:
+    """A codemod's ``detect_Tool`` method runs on the root ``<tool>`` element."""
     seen: list[str] = []
 
     class RecordRoot(CodemodCommand):
-        def visit_Tool(self, cursor: Cursor) -> None:
+        def detect_Tool(self, cursor: Cursor) -> Iterable[Change]:
             seen.append(cursor.tag)
+            return ()
 
     module = parse_module(minimal_tool_path)
-    RecordRoot().apply(module)
+    list(RecordRoot().detect(module))
     assert seen == ["tool"]
 
 
-def test_visit_param_is_called_for_every_param(
+def test_detect_param_is_called_for_every_param(
     tool_with_params_path: Path,
 ) -> None:
-    """``visit_Param`` runs once per ``<param>`` element regardless of depth."""
+    """``detect_Param`` runs once per ``<param>`` element regardless of depth."""
     seen: list[str | None] = []
 
     class RecordParams(CodemodCommand):
-        def visit_Param(self, cursor: Cursor) -> None:
+        def detect_Param(self, cursor: Cursor) -> Iterable[Change]:
             seen.append(cursor.get_attribute("name"))
+            return ()
 
     module = parse_module(tool_with_params_path)
-    RecordParams().apply(module)
+    list(RecordParams().detect(module))
     assert seen == ["input1", "input2", "choice"]
 
 
-def test_mutations_via_cursor_persist(minimal_tool_path: Path) -> None:
-    """Mutations performed in ``visit_X`` are visible on the module afterwards."""
+def test_detect_is_non_mutating(minimal_tool_path: Path) -> None:
+    """``detect`` never mutates — the change's thunk only fires under ``apply``."""
 
     class StampHidden(CodemodCommand):
-        def visit_Tool(self, cursor: Cursor) -> None:
-            cursor.set_attribute("hidden", "true")
+        def detect_Tool(self, cursor: Cursor) -> Iterable[Change]:
+            yield Change(
+                code="GTX000",
+                sourceline=cursor.sourceline,
+                xpath=cursor.xpath,
+                message="would stamp hidden",
+                mutate=lambda: cursor.set_attribute("hidden", "true"),
+            )
+
+    module = parse_module(minimal_tool_path)
+    list(StampHidden().detect(module))
+    assert module.cursor.get_attribute("hidden") is None
+
+
+def test_apply_runs_detected_change_thunks(minimal_tool_path: Path) -> None:
+    """``apply`` materialises ``detect`` and fires each change's thunk."""
+
+    class StampHidden(CodemodCommand):
+        def detect_Tool(self, cursor: Cursor) -> Iterable[Change]:
+            yield Change(
+                code="GTX000",
+                sourceline=cursor.sourceline,
+                xpath=cursor.xpath,
+                message="would stamp hidden",
+                mutate=lambda: cursor.set_attribute("hidden", "true"),
+            )
 
     module = parse_module(minimal_tool_path)
     StampHidden().apply(module)
     assert module.cursor.get_attribute("hidden") == "true"
 
 
-def test_returning_false_stops_descent(tool_with_params_path: Path) -> None:
-    """A ``visit_X`` that returns ``False`` halts traversal into its subtree."""
-    seen: list[str] = []
-
-    class SkipInputsSubtree(CodemodCommand):
-        def visit_Inputs(self, cursor: Cursor) -> bool:
-            seen.append("inputs")
-            return False
-
-        def visit_Param(self, cursor: Cursor) -> None:
-            seen.append("param")
-
-    module = parse_module(tool_with_params_path)
-    SkipInputsSubtree().apply(module)
-    assert seen == ["inputs"]
-
-
-def test_returning_none_descends(tool_with_params_path: Path) -> None:
-    """Returning ``None`` (the default) lets traversal descend into children."""
+def test_detect_descends_into_children(tool_with_params_path: Path) -> None:
+    """The walk descends into a matched element's subtree."""
     seen: list[str] = []
 
     class WatchInputs(CodemodCommand):
-        def visit_Inputs(self, cursor: Cursor) -> None:
+        def detect_Inputs(self, cursor: Cursor) -> Iterable[Change]:
             seen.append("inputs")
+            return ()
 
-        def visit_Param(self, cursor: Cursor) -> None:
+        def detect_Param(self, cursor: Cursor) -> Iterable[Change]:
             seen.append("param")
+            return ()
 
     module = parse_module(tool_with_params_path)
-    WatchInputs().apply(module)
+    list(WatchInputs().detect(module))
     assert seen == ["inputs", "param", "param", "param"]
 
 
 def test_traversal_handles_snake_case_tags(tool_with_params_path: Path) -> None:
-    """Snake-case tags dispatch to PascalCase visitors.
+    """Snake-case tags dispatch to PascalCase detectors.
 
-    e.g. ``<change_format>`` would dispatch to ``visit_ChangeFormat``. The
+    e.g. ``<change_format>`` would dispatch to ``detect_ChangeFormat``. The
     fixture has no ``<change_format>``, so verify the convention with
-    ``<conditional>`` (single word) → ``visit_Conditional``.
+    ``<conditional>`` (single word) → ``detect_Conditional``.
     """
     seen: list[str] = []
 
     class RecordConditional(CodemodCommand):
-        def visit_Conditional(self, cursor: Cursor) -> None:
+        def detect_Conditional(self, cursor: Cursor) -> Iterable[Change]:
             seen.append(cursor.tag)
+            return ()
 
     module = parse_module(tool_with_params_path)
-    RecordConditional().apply(module)
+    list(RecordConditional().detect(module))
     assert seen == ["conditional"]
 
 
@@ -109,32 +123,21 @@ def test_traversal_visits_in_document_order(tool_with_params_path: Path) -> None
     visited: list[str] = []
 
     class RecordAll(CodemodCommand):
-        def visit_Tool(self, cursor: Cursor) -> None:
+        def _record(self, cursor: Cursor) -> Iterable[Change]:
             visited.append(cursor.tag)
+            return ()
 
-        def visit_Inputs(self, cursor: Cursor) -> None:
-            visited.append(cursor.tag)
-
-        def visit_Outputs(self, cursor: Cursor) -> None:
-            visited.append(cursor.tag)
-
-        def visit_Conditional(self, cursor: Cursor) -> None:
-            visited.append(cursor.tag)
-
-        def visit_Param(self, cursor: Cursor) -> None:
-            visited.append(cursor.tag)
-
-        def visit_Data(self, cursor: Cursor) -> None:
-            visited.append(cursor.tag)
-
-        def visit_Command(self, cursor: Cursor) -> None:
-            visited.append(cursor.tag)
-
-        def visit_Option(self, cursor: Cursor) -> None:
-            visited.append(cursor.tag)
+        detect_Tool = _record
+        detect_Inputs = _record
+        detect_Outputs = _record
+        detect_Conditional = _record
+        detect_Param = _record
+        detect_Data = _record
+        detect_Command = _record
+        detect_Option = _record
 
     module = parse_module(tool_with_params_path)
-    RecordAll().apply(module)
+    list(RecordAll().detect(module))
     assert visited == [
         "tool",
         "command",

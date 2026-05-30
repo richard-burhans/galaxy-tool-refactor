@@ -2034,6 +2034,9 @@ class _CodemodOutcome:
     modified: bool = False
     profile: str | None = None
     upgrade_steps: tuple[str, ...] = ()
+    # Number of changes the non-mutating ``detect`` phase reported for this
+    # tool. The detect/apply parity invariant is ``bool(detected) == modified``.
+    detected: int = 0
 
 
 def _resolve_codemod(spec: str) -> type[CodemodCommand]:
@@ -2114,12 +2117,28 @@ def _codemod_exercise(path: Path, codemod: CodemodCommand) -> _CodemodOutcome:
         # resolution. A re-parse from bytes loses that path.
         document_one = parse_module(path)
         before_bytes = etree.tostring(document_one.document.tree)
+        # Detect phase first: non-mutating, so it reads the pristine tree. Its
+        # change list is the lint report; apply must change the tool exactly
+        # when detect reported something (the parity invariant below).
+        detected = len(list(codemod.detect(document_one)))
         codemod.apply(document_one)
         pass1_bytes = etree.tostring(document_one.document.tree)
         # Did the codemod actually change anything? (atomic no-ops — e.g.
         # FixTypos that found no repair, UpdateProfile on an already-correct
         # profile — leave the bytes identical.)
         modified = pass1_bytes != before_bytes
+        # Detect/apply parity: detect reports a change iff apply makes one. A
+        # mismatch is a framework bug (detect drifted from apply) — retain it.
+        if bool(detected) != modified:
+            sig = f"detect-parity:{type(codemod).__name__}"
+            detail = (
+                f"detect reported {detected} change(s) but apply "
+                f"{'changed' if modified else 'did not change'} the tool"
+            )
+            return _CodemodOutcome(
+                "detect-parity-mismatch", sig, detail, modified=modified,
+                detected=detected,
+            )
         # Captured now, before pass-2 overwrites the orchestrator's state.
         upgrade_steps = codemod.upgrade_steps_applied()
         # Pass-2: codemod applied again to a freshly re-parsed copy of
@@ -2137,6 +2156,7 @@ def _codemod_exercise(path: Path, codemod: CodemodCommand) -> _CodemodOutcome:
                 _fmt_byte_diff_excerpt(pass1_bytes, pass2_bytes),
                 modified=modified,
                 upgrade_steps=upgrade_steps,
+                detected=detected,
             )
         # Validate the POST-codemod document at the codemod's policy profile,
         # evaluated after apply. For the structural codemods this equals the
@@ -2149,7 +2169,8 @@ def _codemod_exercise(path: Path, codemod: CodemodCommand) -> _CodemodOutcome:
         profile = type(codemod).corpus_validation_profile(document_one.document)
         if profile is None:
             return _CodemodOutcome(
-                "no-repair", modified=modified, upgrade_steps=upgrade_steps
+                "no-repair", modified=modified, upgrade_steps=upgrade_steps,
+                detected=detected,
             )
         validation = validate_tool(document_one.document, profile=profile)
         if not validation.valid:
@@ -2162,11 +2183,13 @@ def _codemod_exercise(path: Path, codemod: CodemodCommand) -> _CodemodOutcome:
                 modified=modified,
                 profile=profile,
                 upgrade_steps=upgrade_steps,
+                detected=detected,
             )
     except Exception as exc:  # noqa: BLE001 — diagnostic sweep: every crash is a finding
         return _CodemodOutcome("crash", _signature(exc), traceback.format_exc())
     return _CodemodOutcome(
-        "ok", modified=modified, profile=profile, upgrade_steps=upgrade_steps
+        "ok", modified=modified, profile=profile, upgrade_steps=upgrade_steps,
+        detected=detected,
     )
 
 

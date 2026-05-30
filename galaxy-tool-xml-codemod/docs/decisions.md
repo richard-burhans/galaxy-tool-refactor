@@ -569,3 +569,56 @@ reproducible command for any data-driven claim.
   was an artifact, not an intent. Consistency across the three rule-sweeping
   subcommands removes a footgun (a green github-only sweep reading as full
   coverage). Combined is ~8,607 eligible tools vs ~3,957 for github.
+
+## 19. Detect/fix split — `Change`, `detect()`, and coarse validation-driven detect
+
+**Date:** 2026-05-30.
+
+- **What we chose (PR1 of the detect/fix rule-split effort):** every codemod now
+  has a non-mutating **detect** phase alongside its **fix** phase, on the
+  `ruff check` / `ruff format` model.
+  - New `change.py`: a `Change` frozen dataclass carrying diagnostic data
+    (`code`, `sourceline`, `xpath`, `message` — the same fields as tier-0.5
+    `Violation`, projectable via `Change.to_violation()`) plus a zero-arg
+    `mutate` thunk (excluded from equality/repr). `apply_changes` is the single
+    dispatch site (runs each thunk).
+  - `CodemodCommand` is now **detect-primitive**: `detect(module)` walks the tree
+    dispatching `detect_<TagPascalCase>` and yields `Change`s without mutating;
+    `apply` is derived (`apply_changes(list(self.detect(module)))`). The old
+    imperative `visit_<Tag>` walk and its `False`-halt descent control are
+    removed (no bundled codemod used the halt; the three reorderers were the only
+    `visit_` users).
+  - The three structural reorderers (GTX002/005/013) became `detect_<Tag>`
+    methods yielding one located `Change` per out-of-order element. To keep the
+    "would it change?" decision in **one** place, `Cursor` gained
+    `would_reorder_attributes` / `would_reorder_children` predicates; the
+    mutators are rewritten in terms of them, so detect and apply can never drift.
+    `Cursor` also gained read-only `sourceline` / `xpath` accessors for the
+    `Change` location.
+  - The validation-driven codemods (`FixTypos`, `UpdateProfile`,
+    `UpgradeToLatest`, the per-step `Upgrade*`) keep their bespoke `apply` and
+    get a **coarse** `detect` (`codemods/_coarse_detect.py`): run the codemod on
+    a deep copy, and if `etree.tostring` differs, yield a single root-level
+    `Change`. They branch on re-validation, so no static per-occurrence change
+    list exists; the per-occurrence lint value concentrates in the structural
+    and (future) detect-only rules.
+- **Why thunk-carrying `Change` rather than a declarative mutation union (à la
+  fmt's `Edit`):** each reorderer makes exactly one `Cursor` call per element, so
+  the closure *is* that call — verbatim reuse, one mutation site, the detect list
+  is literally the report. A declarative union would re-enumerate every mutation
+  kind for no present gain; revisit if a codemod needs inspectable mutation data.
+- **Sweep parity gate:** `corpus_check codemod` now runs `detect()` (non-mutating)
+  before `apply` on every tool and retains a `detect-parity-mismatch` finding if
+  `bool(detected) != modified` (byte-diff). The invariant held across the corpus
+  with no behavioural change — the three reorderers report the **same** modified
+  counts as before the refactor.
+- **Corpus result (combined, 8,607 eligible tools), 0 parity mismatches:**
+  GTX002 6,075 modified · GTX005 1,020 · GTX013 4,640 — identical to §16–17
+  baselines; FixTypos and UpgradeToLatest coarse-detect parity also clean.
+- **Reproduced-by:** `uv run --package galaxy-tool-xml-codemod pytest
+  galaxy-tool-xml-codemod/tests/` (`test_change.py`, `test_codemod.py`,
+  `test_coarse_detect.py`, the reorderer suites, `test_cursor.py`); corpus gate
+  `uv run python -m scripts.corpus_check codemod
+  galaxy_tool_xml_codemod.codemods.reorder_param_attributes:ReorderParamAttributes`
+  (and the GTX005/GTX013/FixTypos/UpgradeToLatest specs). Effort tracked in
+  `../../docs/detect_fix_split_plan.md`.

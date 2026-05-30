@@ -16,9 +16,12 @@ depend on:
 | 2 | structure | `galaxy-tool-xml-codemod` |
 | 3 | formatting | `galaxy-tool-xml-fmt` |
 
-It owns exactly two things:
+It owns the shared rule **metadata + diagnostics** vocabulary — three things:
 
 - `meta.py` — the `RuleMeta` frozen dataclass (the GTX rule descriptor).
+- `violation.py` — the `Violation` frozen dataclass (the per-occurrence detect
+  result: `code`, `int` `sourceline`, `str` `xpath`, `message`). Pure primitives,
+  no lxml — the read-only counterpart to tier-2 `Change` / tier-3 `Edit`.
 - `reference.py` — `render_rule_reference_table`, a pure markdown renderer for
   a rule glossary.
 

@@ -34,9 +34,13 @@ from galaxy_tool_refactor_rules.meta import RuleMeta
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
+from galaxy_tool_xml_codemod.codemods._coarse_detect import coarse_detect
 from galaxy_tool_xml_codemod.cursor import Cursor
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from galaxy_tool_xml_codemod.change import Change
     from galaxy_tool_xml_codemod.module import Module
 
 
@@ -60,6 +64,11 @@ class Upgrade24_0(CodemodCommand):
         ),
         since="0.0.1",
     )
+
+    def detect(self, module: Module, /) -> Iterator[Change]:
+        return coarse_detect(
+            self, module, message="tool would be upgraded one step past profile 24.0"
+        )
 
     def apply(self, module: Module, /) -> None:
         for collection in module.document.root.iter("collection"):
