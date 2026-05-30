@@ -25,7 +25,8 @@ This package supplies the **structural-refactor framework**: a
 ``lxml``-backed ``Cursor``
 with typed mutation primitives (``set_attribute``, ``delete_attribute``,
 ``rename_attribute``, ``rename_tag``, ``reorder_attributes``,
-``reorder_children``, ``remove``, ``add_child``, ``attribute_names``), a
+``reorder_children``, ``remove``, ``add_child``, ``attribute_names``,
+``set_text`` — the token-aware ``@PROFILE@`` rewrite, §21), a
 ``Module`` wrapper, a ``parse_module`` entry
 point (plus ``MacroModule`` / ``parse_macro_module`` — the macro-file
 counterparts wrapping a tier-1 ``MacroDocument``; ``Cursor`` is generic, so its

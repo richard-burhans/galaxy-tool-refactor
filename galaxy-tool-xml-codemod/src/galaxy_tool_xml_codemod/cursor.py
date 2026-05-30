@@ -62,6 +62,12 @@ class Cursor:
         """
         return str(self._element.getroottree().getpath(self._element))
 
+    @property
+    def text(self) -> str | None:
+        """The element's direct text content (a ``<token>``'s value), or ``None``."""
+        text = self._element.text
+        return None if text is None else str(text)
+
     def get_attribute(self, name: str, /) -> str | None:
         value = self._element.get(name)
         return None if value is None else str(value)
@@ -90,6 +96,15 @@ class Cursor:
         """Remove ``name`` if present; otherwise no-op."""
         if name in self._element.attrib:
             del self._element.attrib[name]
+
+    def set_text(self, value: str, /) -> None:
+        """Set the element's direct text content (e.g. a ``<token>``'s value).
+
+        Replaces ``text`` only; child elements, ``tail``, and attributes are
+        untouched. Used by the token-aware profile upgrade to rewrite a
+        ``<token name="@PROFILE@">`` value in place.
+        """
+        self._element.text = value
 
     def rename_tag(self, new_tag: str, /) -> None:
         """Rename this element's tag in place.

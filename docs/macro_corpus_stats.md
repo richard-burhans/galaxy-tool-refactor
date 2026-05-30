@@ -119,9 +119,12 @@ Notable token names (tools that define or import them):
 Of the tools whose `profile=` is a macro token, how the token's
 *expanded* value compares to the newest profile the tool validates at
 (profiles compared with `packaging.version`). **Upgradeable** is the
-motivating case: rewriting the token *definition* would advance the
-tool, where today's `UpdateProfile` would clobber the `@TOKEN@`
-reference with a literal.
+motivating case: the token value is stale, so rewriting the token
+*definition* would advance the tool while keeping the `@TOKEN@`
+reference. The token-aware `UpdateProfile` (codemod §21) does this for
+a token defined *inline* in the tool's own `<macros>`; an *imported*
+token awaits the bundle-aware step (Phase 3b). Earlier `UpdateProfile`
+left every `@TOKEN@` profile untouched (a no-op, never a literal).
 
 | Outcome | Tools |
 |---|--:|

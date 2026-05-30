@@ -3,11 +3,14 @@
 ``UpdateProfile`` sets the root ``<tool>``'s ``profile=`` to the newest vendored
 profile the tool validates at: bumping a declared profile up to it, or adding the
 declaration when absent. It is bump-up-only (never lowers a declared profile),
-and a no-op when the profile is already correct, when the tool validates nowhere,
-or when the declared profile is not a parseable version.
+and a no-op when the profile is already correct or the tool validates nowhere.
+A ``@TOKEN@`` profile whose token is defined inline is upgraded by rewriting the
+token value; an imported (or unresolved) token is left untouched.
 """
 
 from __future__ import annotations
+
+from pathlib import Path
 
 from galaxy_tool_xml.binding import validate_tool
 from lxml import etree
@@ -91,3 +94,53 @@ def test_is_idempotent() -> None:
     once = etree.tostring(module.document.root)
     UpdateProfile().apply(module)
     assert etree.tostring(module.document.root) == once
+
+
+def _tool_inline_token(token_value: bytes) -> bytes:
+    """A tool whose ``profile=`` is an inline ``@PROFILE@`` token."""
+    return (
+        b'<tool id="m" name="M" version="1.0.0" profile="@PROFILE@">'
+        b'<macros><token name="@PROFILE@">' + token_value + b"</token></macros>"
+        + _CMD
+        + b"<inputs/><outputs/></tool>"
+    )
+
+
+def test_rewrites_stale_inline_profile_token() -> None:
+    """A stale inline @PROFILE@ token is bumped; the reference is preserved."""
+    root = _apply(_tool_inline_token(b"16.01"))
+    assert root.get("profile") == "@PROFILE@"  # reference kept, not clobbered
+    token = root.find('macros/token[@name="@PROFILE@"]')
+    assert token is not None
+    assert token.text == "26.1"
+
+
+def test_inline_profile_token_already_current_is_noop() -> None:
+    module = parse_module(_tool_inline_token(b"26.1"))
+    before = etree.tostring(module.document.root)
+    UpdateProfile().apply(module)
+    assert etree.tostring(module.document.root) == before
+
+
+def test_leaves_imported_profile_token_untouched(tmp_path: Path) -> None:
+    """An @PROFILE@ token defined in an imported macro file is left alone (3a).
+
+    The cross-file edit is the bundle-aware step; here neither the tool's
+    reference nor the macro file is changed.
+    """
+    macros = tmp_path / "macros.xml"
+    macros.write_bytes(b'<macros><token name="@PROFILE@">16.01</token></macros>')
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(
+        b'<tool id="m" name="M" version="1.0.0" profile="@PROFILE@">'
+        b"<macros><import>macros.xml</import></macros>" + _CMD
+        + b"<inputs/><outputs/></tool>"
+    )
+    module = parse_module(tool)
+    before_tool = etree.tostring(module.document.root)
+    UpdateProfile().apply(module)
+    assert module.document.root.get("profile") == "@PROFILE@"
+    assert etree.tostring(module.document.root) == before_tool
+    assert macros.read_bytes() == (
+        b'<macros><token name="@PROFILE@">16.01</token></macros>'
+    )

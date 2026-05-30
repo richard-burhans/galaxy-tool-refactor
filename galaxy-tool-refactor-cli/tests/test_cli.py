@@ -80,6 +80,22 @@ def test_upgrade_keeps_latest_profile(tmp_path: Path) -> None:
     assert f'profile="{latest_profile()}"'.encode() in file.read_bytes()
 
 
+def test_upgrade_rewrites_inline_profile_token(tmp_path: Path) -> None:
+    """`upgrade` bumps a stale inline @PROFILE@ token, keeping the reference."""
+    file = _write(
+        tmp_path / "tool.xml",
+        b'<tool id="m" name="M" version="1.0.0" profile="@PROFILE@">'
+        b'<macros><token name="@PROFILE@">16.01</token></macros>'
+        b"<command><![CDATA[echo x]]></command>"
+        b'<inputs/><outputs><data name="o"/></outputs></tool>',
+    )
+    result = CliRunner().invoke(main, ["upgrade", str(file)])
+    assert result.exit_code == 0, result.output
+    output = file.read_bytes()
+    assert b'profile="@PROFILE@"' in output  # reference preserved, not clobbered
+    assert f">{latest_profile()}<".encode() in output  # token value bumped
+
+
 def test_format_diff_does_not_write(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
     result = CliRunner().invoke(main, ["format", "--diff", str(file)])
