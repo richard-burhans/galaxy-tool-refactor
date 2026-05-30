@@ -1,17 +1,21 @@
 """The ``galaxy-tool-refactor`` command-line interface.
 
-Two subcommands, sharing fmt's file-walking / drift-detection engine
-(``galaxy_tool_xml_fmt.cli_support``) and differing only in which codemod
-pipeline they apply before serialisation:
+Three subcommands. ``format`` and ``upgrade`` share fmt's file-walking /
+drift-detection engine (``galaxy_tool_xml_fmt.cli_support``) and differ only in
+which codemod pipeline they apply before serialisation; ``check`` is a
+report-only linter that mutates nothing.
 
 - ``format`` — apply ``CANONICAL_CODEMODS`` (repair + attribute order) then
   cosmetic formatting. Safe and idempotent; never changes ``profile=``.
 - ``upgrade`` — apply ``AUTO_UPGRADE_CODEMODS`` (repair, then iterative profile
   upgrade) then cosmetic formatting. Opt-in and semantic; reports the profile
   steps applied and warns if it stalls below the latest profile.
+- ``check`` — report where tools deviate from canonical form (the same rules
+  ``format`` would apply), one ``file:line  CODE  message`` per finding, without
+  changing anything. Exits non-zero if any findings.
 
-Both write through fmt's serializer, so output is canonical-form XML in either
-case; the difference is purely which transforms ran.
+``format`` and ``upgrade`` write through fmt's serializer, so output is
+canonical-form XML; the difference is purely which transforms ran.
 """
 
 from __future__ import annotations
@@ -20,6 +24,8 @@ import sys
 from pathlib import Path
 
 import click
+from galaxy_tool_refactor_rules.violation import Violation
+from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_tool
 from galaxy_tool_xml.document import ToolDocument
 from galaxy_tool_xml_codemod.canonical import (
     AUTO_UPGRADE_CODEMODS,
@@ -32,8 +38,11 @@ from galaxy_tool_xml_fmt.cli_support import (
     Action,
     RunOptions,
     TransformOutcome,
+    is_tool_root,
+    iter_targets,
     run,
 )
+from galaxy_tool_xml_fmt.detect import detect_tool_document
 from galaxy_tool_xml_fmt.format import format_tool_document
 
 _PATH_ARGUMENT = click.argument(
@@ -153,6 +162,99 @@ def upgrade_command(
         options=RunOptions(check=check, diff=diff, quiet=quiet),
     )
     sys.exit(code)
+
+
+def _detect_violations(document: ToolDocument) -> list[Violation]:
+    """Collect every canonical-form violation in *document*, without mutating it.
+
+    Composes the structural canonical codemods' detect phases (each ``Change``
+    projected to a ``Violation``) with fmt's cosmetic detect — the same rules
+    ``format`` would apply, in report-only mode. Every detect is non-mutating, so
+    they run against the one document without interfering. Findings are sorted by
+    source line so a file's report reads top to bottom.
+    """
+    module = Module(document)
+    violations = [
+        change.to_violation()
+        for codemod_cls in CANONICAL_CODEMODS
+        for change in codemod_cls().detect(module)
+    ]
+    violations.extend(detect_tool_document(document))
+    violations.sort(key=lambda violation: (violation.sourceline, violation.code))
+    return violations
+
+
+def _check_summary(
+    *, findings: int, flagged: int, clean: int, skipped: int, errored: int
+) -> str:
+    """Render the trailing summary line for ``check``."""
+    parts: list[str] = []
+    if findings:
+        parts.append(f"{findings} finding(s) in {flagged} file(s)")
+    if clean:
+        parts.append(f"{clean} file(s) clean")
+    if skipped:
+        parts.append(f"{skipped} skipped (not a Galaxy tool)")
+    if errored:
+        parts.append(f"{errored} errored")
+    return ", ".join(parts) + "." if parts else "no files checked."
+
+
+@main.command(name="check")
+@_PATH_ARGUMENT
+@_QUIET_OPTION
+def check_command(paths: tuple[Path, ...], quiet: bool) -> None:
+    """Report where tools deviate from canonical form, without changing them.
+
+    Runs the same rules ``format`` applies (structural canonical codemods plus
+    cosmetic fmt rules) in report-only mode, printing one
+    ``file:line  CODE  message`` line per finding. Exits non-zero if any findings
+    or errors. PATHS may be files or directories (searched recursively for
+    ``*.xml``); non-Galaxy-tool XML is skipped.
+    """
+    findings = flagged = clean = skipped = errored = 0
+    for target in iter_targets(paths):
+        try:
+            original = target.read_bytes()
+        except OSError as error:
+            click.echo(f"error: cannot read {target}: {error}", err=True)
+            errored += 1
+            continue
+        if not is_tool_root(original):
+            skipped += 1
+            continue
+        try:
+            document = load_tool(original)
+        except ToolXmlSyntaxError as error:
+            click.echo(f"error: {target}: malformed XML: {error}", err=True)
+            errored += 1
+            continue
+        if document.root.tag != "tool":
+            skipped += 1
+            continue
+        violations = _detect_violations(document)
+        if not violations:
+            clean += 1
+            continue
+        flagged += 1
+        findings += len(violations)
+        if not quiet:
+            for violation in violations:
+                click.echo(
+                    f"{target}:{violation.sourceline}  "
+                    f"{violation.code}  {violation.message}"
+                )
+    if not quiet:
+        click.echo(
+            _check_summary(
+                findings=findings,
+                flagged=flagged,
+                clean=clean,
+                skipped=skipped,
+                errored=errored,
+            )
+        )
+    sys.exit(1 if findings or errored else 0)
 
 
 if __name__ == "__main__":

@@ -1,11 +1,11 @@
 # Plan — detect/fix rule split (in progress)
 
-Working plan for the detect/fix rule-split effort. **Status: PR1 + PR2 landed.
-PR3–PR5 not yet started.** This doc is the resume point — read it top to bottom
-to pick the work back up cold. It is being superseded by per-tier
+Working plan for the detect/fix rule-split effort. **Status: PR1 + PR2 + PR3
+landed. PR4–PR5 not yet started.** This doc is the resume point — read it top to
+bottom to pick the work back up cold. It is being superseded by per-tier
 `docs/decisions.md` entries as the work lands (PR1 → `galaxy-tool-xml-codemod`
-§19, `galaxy-tool-refactor-rules` D2; PR2 → `galaxy-tool-xml-fmt` D14), then
-removed.
+§19, `galaxy-tool-refactor-rules` D2; PR2 → `galaxy-tool-xml-fmt` D14; PR3 →
+`galaxy-tool-refactor-cli` D2), then removed.
 
 **PR1 done (2026-05-30):** tier-0.5 `Violation`; tier-2 `Change` /
 `apply_changes`; `CodemodCommand` is detect-primitive (`detect_<Tag>` walk,
@@ -25,6 +25,14 @@ per-edit mapping over-reports because GTX001/GTX003 overlap on tails. Includes
 Comment/PI tails. `corpus_check fmt` enforces detect⇔format-changes parity:
 8,608 tools, 8,608 idempotent, 0 parity mismatches. See `galaxy-tool-xml-fmt`
 D14.
+
+**PR3 done (2026-05-30):** report-only `galaxy-tool-refactor check` subcommand
+(`galaxy-tool-refactor-cli/cli.py`). `_detect_violations` composes the canonical
+codemods' `detect` (`Change.to_violation()`) + fmt `detect_tool_document`; prints
+`file:line  CODE  message` sorted by line, exit 1 on findings/errors. Reuses
+`cli_support.iter_targets`/`is_tool_root`/`load_tool` (own loop, NOT
+`_process_file`). Scope = the `format` rule set (not `upgrade` — too noisy).
+See `galaxy-tool-refactor-cli` D2.
 
 Branch: `detect-fix-rule-split` (off `main` @ the GTX013 merge, `db66c7c`).
 

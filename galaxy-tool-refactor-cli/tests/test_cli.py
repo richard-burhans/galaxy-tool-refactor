@@ -123,3 +123,55 @@ def test_subcommand_help(command: str) -> None:
     result = CliRunner().invoke(main, [command, "--help"])
     assert result.exit_code == 0
     assert "PATHS" in result.output
+
+
+def test_check_reports_findings_and_exits_nonzero(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
+    result = CliRunner().invoke(main, ["check", str(file)])
+    assert result.exit_code == 1, result.output
+    # structural finding (param attr order) is reported with its GTX code
+    assert "GTX002" in result.output
+    assert f"{file}:" in result.output
+    assert "finding(s)" in result.output
+
+
+def test_check_does_not_modify_the_file(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
+    CliRunner().invoke(main, ["check", str(file)])
+    assert file.read_bytes() == _PARAM_OUT_OF_ORDER
+
+
+def test_check_clean_file_exits_zero(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
+    # Canonicalise first; the formatted file must then be clean.
+    assert CliRunner().invoke(main, ["format", str(file)]).exit_code == 0
+    result = CliRunner().invoke(main, ["check", str(file)])
+    assert result.exit_code == 0, result.output
+    assert "clean" in result.output
+
+
+def test_check_quiet_suppresses_per_finding_output(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
+    result = CliRunner().invoke(main, ["check", "--quiet", str(file)])
+    assert result.exit_code == 1, result.output
+    assert result.output == ""
+
+
+def test_check_skips_non_tool_xml(tmp_path: Path) -> None:
+    file = _write(tmp_path / "macros.xml", b"<macros><token>x</token></macros>")
+    result = CliRunner().invoke(main, ["check", str(file)])
+    assert result.exit_code == 0, result.output
+    assert "skipped" in result.output
+
+
+def test_check_reports_malformed_as_error(tmp_path: Path) -> None:
+    file = _write(tmp_path / "bad.xml", b"<tool id='t'><unclosed>")
+    result = CliRunner().invoke(main, ["check", str(file)])
+    assert result.exit_code == 1, result.output
+    assert "error" in result.output
+
+
+def test_group_help_lists_check() -> None:
+    result = CliRunner().invoke(main, ["--help"])
+    assert result.exit_code == 0
+    assert "check" in result.output
