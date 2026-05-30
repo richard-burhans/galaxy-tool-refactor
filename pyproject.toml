@@ -5,6 +5,7 @@ members = [
     "galaxy-tool-xml",
     "galaxy-tool-xml-fmt",
     "galaxy-tool-xml-codemod",
+    "galaxy-tool-xml-check",
 ]
 
 [tool.pytest.ini_options]

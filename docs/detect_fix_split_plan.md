@@ -1,11 +1,13 @@
 # Plan — detect/fix rule split (in progress)
 
-Working plan for the detect/fix rule-split effort. **Status: PR1 + PR2 + PR3
-landed. PR4–PR5 not yet started.** This doc is the resume point — read it top to
-bottom to pick the work back up cold. It is being superseded by per-tier
+Working plan for the detect/fix rule-split effort. **Status: PR1–PR4 landed.
+PR5 not yet started.** This doc is the resume point — read it top to bottom to
+pick the work back up cold. It is being superseded by per-tier
 `docs/decisions.md` entries as the work lands (PR1 → `galaxy-tool-xml-codemod`
 §19, `galaxy-tool-refactor-rules` D2; PR2 → `galaxy-tool-xml-fmt` D14; PR3 →
-`galaxy-tool-refactor-cli` D2), then removed.
+`galaxy-tool-refactor-cli` D2; PR4 → `galaxy-tool-xml-check` D1 +
+`galaxy-tool-refactor-cli` D3 + `galaxy-tool-refactor-rules` D-detect_only),
+then removed.
 
 **PR1 done (2026-05-30):** tier-0.5 `Violation`; tier-2 `Change` /
 `apply_changes`; `CodemodCommand` is detect-primitive (`detect_<Tag>` walk,
@@ -33,6 +35,17 @@ codemods' `detect` (`Change.to_violation()`) + fmt `detect_tool_document`; print
 `cli_support.iter_targets`/`is_tool_root`/`load_tool` (own loop, NOT
 `_process_file`). Scope = the `format` rule set (not `upgrade` — too noisy).
 See `galaxy-tool-refactor-cli` D2.
+
+**PR4 done (2026-05-30):** new tier-3.5 package `galaxy-tool-xml-check`
+(`CheckRule` ABC + `IUC001`–`IUC012` + `all_checks`/`detect_violations`); depends
+only on tiers 1 + 0.5. Added `RuleMeta.detect_only` (tier 0.5). 10 real checks
+(tests/command-CDATA/id-charset/version/requirements/error-handling/EDAM-xrefs/
+help/description/help-CDATA), 2 reserved placeholders (IUC011 Cheetah, IUC012
+`&&`-vs-`&` — no-op stubs, deferred per maintainer). `check` runs them as
+**advisory**: findings shown + marked `(advisory)`, exit stays 0 unless `--strict`
+(fixable GTX findings still exit 1). Corpus sanity (2,000 tools): hit rates
+0.7%–91%, none at 0/100% except placeholders. See `galaxy-tool-xml-check` D1,
+cli D3.
 
 Branch: `detect-fix-rule-split` (off `main` @ the GTX013 merge, `db66c7c`).
 

@@ -95,3 +95,26 @@ uv run galaxy-tool-refactor check tool.xml   # exit 1 + findings
 uv run galaxy-tool-refactor format tool.xml
 uv run galaxy-tool-refactor check tool.xml   # exit 0, "clean"
 ```
+
+## D3 (2026-05-30) — `check` gains advisory IUC findings (PR4)
+
+### Decision
+
+`check` now also runs the tier-3.5 advisory checks
+(`galaxy-tool-xml-check.detect_violations`) alongside the fixable GTX detect
+phases. The two finding classes are distinguished by `RuleMeta.detect_only`:
+fixable (GTX, what `format` would change) versus advisory (IUC best practices).
+Per-finding output marks advisory lines `(advisory)`; the summary splits the
+counts ("N fixable, M advisory in K file(s)"). `check` exits non-zero on any
+*fixable* finding or error; a new `--strict` flag also fails on advisory
+findings.
+
+### Rationale
+
+A GTX finding is definitive ("a codemod / `format` would change this"); an IUC
+finding is a judgment call ("consider adding tests"). Failing CI on the latter
+by default would make advisory opinions hard gates — a canonical tool that
+merely lacks EDAM xrefs should stay green. Keeping both in one report (the user
+sees everything) while gating only on fixable findings — with `--strict` to opt
+into stricter gating — gives the linter the right ergonomics. The app composes
+all three detect tiers (codemod + fmt + check); orchestration stays here.

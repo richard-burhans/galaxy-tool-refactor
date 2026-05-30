@@ -31,6 +31,11 @@ class RuleMeta:
         order: Application order; lower values run first. Used by the formatter
             tier to sequence its rules; the codemod tier orders by its own
             pipeline tuple and leaves this at the default.
+        detect_only: Whether the rule only *reports* (a lint with no automatic
+            fix), as opposed to the fixable fmt rules and codemods. The advisory
+            check tier (``galaxy-tool-xml-check``) sets this ``True``; a
+            report-only consumer like the ``check`` CLI uses it to treat such
+            findings as informational rather than as a failing gate.
     """
 
     code: str
@@ -39,3 +44,4 @@ class RuleMeta:
     until: str | None = None
     cite: str | None = None
     order: int = 100
+    detect_only: bool = False

@@ -11,6 +11,7 @@ members = [
     "galaxy-tool-refactor-cli",
     "galaxy-tool-refactor-rules",
     "galaxy-tool-xml",
+    "galaxy-tool-xml-check",
     "galaxy-tool-xml-codemod",
     "galaxy-tool-xml-fmt",
 ]
@@ -238,7 +239,9 @@ version = "0.1.0"
 source = { editable = "galaxy-tool-refactor-cli" }
 dependencies = [
     { name = "click" },
+    { name = "galaxy-tool-refactor-rules" },
     { name = "galaxy-tool-xml" },
+    { name = "galaxy-tool-xml-check" },
     { name = "galaxy-tool-xml-codemod" },
     { name = "galaxy-tool-xml-fmt" },
 ]
@@ -253,7 +256,9 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8" },
+    { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
     { name = "galaxy-tool-xml", editable = "galaxy-tool-xml" },
+    { name = "galaxy-tool-xml-check", editable = "galaxy-tool-xml-check" },
     { name = "galaxy-tool-xml-codemod", editable = "galaxy-tool-xml-codemod" },
     { name = "galaxy-tool-xml-fmt", editable = "galaxy-tool-xml-fmt" },
 ]
@@ -323,6 +328,39 @@ dev = [
     { name = "pytest", specifier = ">=8" },
     { name = "ruff" },
     { name = "xsdata", extras = ["cli"], specifier = ">=26.2" },
+]
+
+[[package]]
+name = "galaxy-tool-xml-check"
+version = "0.0.1"
+source = { editable = "galaxy-tool-xml-check" }
+dependencies = [
+    { name = "galaxy-tool-refactor-rules" },
+    { name = "galaxy-tool-xml" },
+    { name = "lxml" },
+    { name = "packaging" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
+    { name = "galaxy-tool-xml", editable = "galaxy-tool-xml" },
+    { name = "lxml", specifier = ">=5" },
+    { name = "packaging", specifier = ">=23" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=1.10" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "ruff", specifier = ">=0.5" },
 ]
 
 [[package]]

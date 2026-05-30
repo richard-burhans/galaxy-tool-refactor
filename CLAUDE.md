@@ -8,7 +8,8 @@ galaxy-tool-refactor/
 ├── galaxy-tool-xml/          Tier 1 (parsing & validation)
 ├── galaxy-tool-xml-codemod/  Tier 2 (structure)
 ├── galaxy-tool-xml-fmt/      Tier 3 (formatting)
-├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade)
+├── galaxy-tool-xml-check/    Tier 3.5 (advisory detect-only IUC checks)
+├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check)
 ├── scripts/                  Shared maintainer scripts (not installed)
 │   ├── corpus_check.py         validate | fmt | codemod subcommands
 │   ├── fetch_schemas.py        download release XSDs
@@ -99,7 +100,8 @@ Tiers, each independently installable:
 | 1 | **parsing & validation** | `galaxy-tool-xml` | `load_tool` / `parse_tool` / `validate_tool`, typed xsdata views. **No serializer.** |
 | 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework + bundled structural codemods (each carries a `RuleMeta` GTX code; see `catalog.coded_codemods()`) + `CANONICAL_CODEMODS` contract. |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic rules (indent / blank line / empty-element shorthand) + the shared `cli_support` CLI engine. The only tier that writes XML to disk. |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Composes tiers 2 + 3 into `format` (canonicalise + cosmetic) and `upgrade` (repair + profile upgrade). |
+| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice checks (`IUC` codes, `RuleMeta.detect_only`); read-only LBYL queries over tier 1 yielding `Violation`. Depends only on tiers 1 + 0.5. |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Composes tiers 2 + 3 + 3.5 into `format`, `upgrade`, and report-only `check`. |
 
 **Orchestration lives in the app tier.** Each lower tier is consumable
 standalone; none runs the end-to-end workflow. The app

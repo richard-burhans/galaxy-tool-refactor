@@ -141,13 +141,32 @@ def test_check_does_not_modify_the_file(tmp_path: Path) -> None:
     assert file.read_bytes() == _PARAM_OUT_OF_ORDER
 
 
-def test_check_clean_file_exits_zero(tmp_path: Path) -> None:
+def test_check_formatted_file_has_no_fixable_findings(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
-    # Canonicalise first; the formatted file must then be clean.
+    # Canonicalise first; the formatted file then has no *fixable* (GTX) findings,
+    # so check exits 0 even though advisory (IUC) suggestions remain.
     assert CliRunner().invoke(main, ["format", str(file)]).exit_code == 0
     result = CliRunner().invoke(main, ["check", str(file)])
     assert result.exit_code == 0, result.output
-    assert "clean" in result.output
+    assert "GTX" not in result.output  # nothing left to fix
+
+
+def test_check_advisory_findings_do_not_fail_by_default(tmp_path: Path) -> None:
+    # A canonical tool that merely lacks tests/requirements/help: advisory only.
+    file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
+    CliRunner().invoke(main, ["format", str(file)])
+    result = CliRunner().invoke(main, ["check", str(file)])
+    assert result.exit_code == 0, result.output
+    assert "IUC" in result.output
+    assert "(advisory)" in result.output
+    assert "advisory finding(s)" in result.output
+
+
+def test_check_strict_fails_on_advisory(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
+    CliRunner().invoke(main, ["format", str(file)])
+    result = CliRunner().invoke(main, ["check", "--strict", str(file)])
+    assert result.exit_code == 1, result.output
 
 
 def test_check_quiet_suppresses_per_finding_output(tmp_path: Path) -> None:

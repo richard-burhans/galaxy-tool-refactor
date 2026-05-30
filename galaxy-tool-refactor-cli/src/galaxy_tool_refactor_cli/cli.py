@@ -10,9 +10,11 @@ report-only linter that mutates nothing.
 - ``upgrade`` — apply ``AUTO_UPGRADE_CODEMODS`` (repair, then iterative profile
   upgrade) then cosmetic formatting. Opt-in and semantic; reports the profile
   steps applied and warns if it stalls below the latest profile.
-- ``check`` — report where tools deviate from canonical form (the same rules
-  ``format`` would apply), one ``file:line  CODE  message`` per finding, without
-  changing anything. Exits non-zero if any findings.
+- ``check`` — report where tools deviate from canonical form, one
+  ``file:line  CODE  message`` per finding, without changing anything. Covers the
+  *fixable* GTX rules (what ``format`` would change) plus the *advisory* IUC
+  best-practice checks (``galaxy-tool-xml-check``). Exits non-zero on any fixable
+  finding; advisory findings are informational unless ``--strict``.
 
 ``format`` and ``upgrade`` write through fmt's serializer, so output is
 canonical-form XML; the difference is purely which transforms ran.
@@ -21,12 +23,15 @@ canonical-form XML; the difference is purely which transforms ran.
 from __future__ import annotations
 
 import sys
+from functools import cache
 from pathlib import Path
 
 import click
 from galaxy_tool_refactor_rules.violation import Violation
 from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_tool
 from galaxy_tool_xml.document import ToolDocument
+from galaxy_tool_xml_check.detect import all_checks
+from galaxy_tool_xml_check.detect import detect_violations as detect_advisory
 from galaxy_tool_xml_codemod.canonical import (
     AUTO_UPGRADE_CODEMODS,
     CANONICAL_CODEMODS,
@@ -66,6 +71,11 @@ _QUIET_OPTION = click.option(
     "--quiet",
     is_flag=True,
     help="Suppress per-file output; only errors and the summary are shown.",
+)
+_STRICT_OPTION = click.option(
+    "--strict",
+    is_flag=True,
+    help="Also fail (exit non-zero) on advisory findings, not just fixable ones.",
 )
 
 
@@ -164,14 +174,25 @@ def upgrade_command(
     sys.exit(code)
 
 
-def _detect_violations(document: ToolDocument) -> list[Violation]:
-    """Collect every canonical-form violation in *document*, without mutating it.
+@cache
+def _advisory_codes() -> frozenset[str]:
+    """The set of ``detect_only`` (advisory) rule codes — the IUC check tier."""
+    return frozenset(
+        check_cls.meta.code
+        for check_cls in all_checks()
+        if check_cls.meta.detect_only
+    )
 
-    Composes the structural canonical codemods' detect phases (each ``Change``
-    projected to a ``Violation``) with fmt's cosmetic detect — the same rules
-    ``format`` would apply, in report-only mode. Every detect is non-mutating, so
-    they run against the one document without interfering. Findings are sorted by
-    source line so a file's report reads top to bottom.
+
+def _detect_violations(document: ToolDocument) -> list[Violation]:
+    """Collect every reported violation in *document*, without mutating it.
+
+    Composes three non-mutating detect phases over the one document: the
+    structural canonical codemods (each ``Change`` projected to a ``Violation``),
+    fmt's cosmetic detect, and the advisory IUC checks. The first two are
+    *fixable* — ``format`` would apply them; the IUC checks are *advisory*
+    (``detect_only``). Findings are sorted by source line so a report reads top
+    to bottom.
     """
     module = Module(document)
     violations = [
@@ -180,39 +201,55 @@ def _detect_violations(document: ToolDocument) -> list[Violation]:
         for change in codemod_cls().detect(module)
     ]
     violations.extend(detect_tool_document(document))
+    violations.extend(detect_advisory(document))
     violations.sort(key=lambda violation: (violation.sourceline, violation.code))
     return violations
 
 
 def _check_summary(
-    *, findings: int, flagged: int, clean: int, skipped: int, errored: int
+    *,
+    fixable: int,
+    advisory: int,
+    flagged: int,
+    clean: int,
+    skipped: int,
+    errored: int,
 ) -> str:
     """Render the trailing summary line for ``check``."""
     parts: list[str] = []
-    if findings:
-        parts.append(f"{findings} finding(s) in {flagged} file(s)")
+    if fixable or advisory:
+        counts = []
+        if fixable:
+            counts.append(f"{fixable} fixable")
+        if advisory:
+            counts.append(f"{advisory} advisory")
+        parts.append(", ".join(counts) + f" finding(s) in {flagged} file(s)")
     if clean:
         parts.append(f"{clean} file(s) clean")
     if skipped:
         parts.append(f"{skipped} skipped (not a Galaxy tool)")
     if errored:
         parts.append(f"{errored} errored")
-    return ", ".join(parts) + "." if parts else "no files checked."
+    return "; ".join(parts) + "." if parts else "no files checked."
 
 
 @main.command(name="check")
 @_PATH_ARGUMENT
 @_QUIET_OPTION
-def check_command(paths: tuple[Path, ...], quiet: bool) -> None:
+@_STRICT_OPTION
+def check_command(paths: tuple[Path, ...], quiet: bool, strict: bool) -> None:
     """Report where tools deviate from canonical form, without changing them.
 
-    Runs the same rules ``format`` applies (structural canonical codemods plus
-    cosmetic fmt rules) in report-only mode, printing one
-    ``file:line  CODE  message`` line per finding. Exits non-zero if any findings
-    or errors. PATHS may be files or directories (searched recursively for
-    ``*.xml``); non-Galaxy-tool XML is skipped.
+    Runs three report-only detect phases: the structural canonical codemods and
+    cosmetic fmt rules (*fixable* — what ``format`` would change) plus the
+    advisory IUC best-practice checks (marked ``(advisory)``). Prints one
+    ``file:line  CODE  message`` line per finding. Exits non-zero on any
+    *fixable* finding or error; advisory findings are informational unless
+    ``--strict`` is given. PATHS may be files or directories (searched
+    recursively for ``*.xml``); non-Galaxy-tool XML is skipped.
     """
-    findings = flagged = clean = skipped = errored = 0
+    advisory_codes = _advisory_codes()
+    fixable = advisory = flagged = clean = skipped = errored = 0
     for target in iter_targets(paths):
         try:
             original = target.read_bytes()
@@ -237,24 +274,31 @@ def check_command(paths: tuple[Path, ...], quiet: bool) -> None:
             clean += 1
             continue
         flagged += 1
-        findings += len(violations)
-        if not quiet:
-            for violation in violations:
+        for violation in violations:
+            is_advisory = violation.code in advisory_codes
+            if is_advisory:
+                advisory += 1
+            else:
+                fixable += 1
+            if not quiet:
+                suffix = "  (advisory)" if is_advisory else ""
                 click.echo(
                     f"{target}:{violation.sourceline}  "
-                    f"{violation.code}  {violation.message}"
+                    f"{violation.code}  {violation.message}{suffix}"
                 )
     if not quiet:
         click.echo(
             _check_summary(
-                findings=findings,
+                fixable=fixable,
+                advisory=advisory,
                 flagged=flagged,
                 clean=clean,
                 skipped=skipped,
                 errored=errored,
             )
         )
-    sys.exit(1 if findings or errored else 0)
+    fail = bool(errored or fixable or (strict and advisory))
+    sys.exit(1 if fail else 0)
 
 
 if __name__ == "__main__":

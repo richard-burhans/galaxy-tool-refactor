@@ -1,22 +1,20 @@
 [project]
-name = "galaxy-tool-refactor-cli"
-version = "0.1.0"
-description = "Top-level CLI app that composes the Galaxy tool refactoring tiers (format + upgrade)."
+name = "galaxy-tool-xml-check"
+version = "0.0.1"
+description = "Advisory (detect-only) IUC best-practice checks for Galaxy tool XML — tier 3.5 of the galaxy-tool-xml ecosystem."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Richard Burhans" }]
+# Advisory checks are read-only tree queries over tier-1 (`ToolDocument`) that
+# report findings as the shared tier-0.5 `Violation`. They do NOT depend on the
+# mutating tiers (codemod / fmt) — the app composes this alongside them.
 dependencies = [
     "galaxy-tool-refactor-rules",
     "galaxy-tool-xml",
-    "galaxy-tool-xml-codemod",
-    "galaxy-tool-xml-fmt",
-    "galaxy-tool-xml-check",
-    "click>=8",
+    "lxml>=5",
+    "packaging>=23",
 ]
-
-[project.scripts]
-galaxy-tool-refactor = "galaxy_tool_refactor_cli.cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -40,12 +38,14 @@ select = ["E", "F", "I", "B", "UP", "SIM", "PTH"]
 files = ["src"]
 strict = true
 
+[[tool.mypy.overrides]]
+# lxml ships no type information.
+module = ["lxml.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.uv.sources]
 galaxy-tool-refactor-rules = { workspace = true }
 galaxy-tool-xml = { workspace = true }
-galaxy-tool-xml-codemod = { workspace = true }
-galaxy-tool-xml-fmt = { workspace = true }
-galaxy-tool-xml-check = { workspace = true }
