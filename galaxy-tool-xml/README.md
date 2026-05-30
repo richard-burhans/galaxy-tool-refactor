@@ -51,8 +51,9 @@ else is private and may change without notice.
 
 ```python
 from galaxy_tool_xml.binding import load_tool, parse_tool, validate_tool, newest_valid_profile
+from galaxy_tool_xml.binding import load_macros
 from galaxy_tool_xml.binding import ParseResult, ValidationResult, XmlError, ToolXmlSyntaxError
-from galaxy_tool_xml.document import ToolDocument
+from galaxy_tool_xml.document import ToolDocument, MacroDocument
 from galaxy_tool_xml.macros import MacroError, imported_macro_paths, token_definitions, TokenDefinition
 from galaxy_tool_xml.corrections import suggest_corrections, Correction
 from galaxy_tool_xml.profiles import available_profiles, latest_profile, UnknownProfileError

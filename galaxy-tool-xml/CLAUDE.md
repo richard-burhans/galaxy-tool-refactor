@@ -36,8 +36,11 @@ The repo directory, the distribution, and the CLI command are all
 
 `ToolDocument` (`document.py`) wraps a mutable lxml tree — the **source of
 truth**, faithfully preserving CDATA, comments, and attribute order.
-`binding.py` parses (`load_tool`, `parse_tool`), validates (`validate_tool`), and
-finds a tool's newest valid profile (`newest_valid_profile`). `profiles.py`
+`binding.py` parses (`load_tool`, `parse_tool`; `load_macros` for a `<macros>`
+file → `MacroDocument`), validates (`validate_tool`), and finds a tool's newest
+valid profile (`newest_valid_profile`). `MacroDocument` (`document.py`) is the
+macro-file counterpart to `ToolDocument` — a mutable tree with no profile/model
+and no standalone XSD validation. `profiles.py`
 resolves a tool's `profile` to one of the ~28 vendored per-release XSDs.
 `macros.py` handles Galaxy macros and is the sole `galaxy-util` adapter; it also
 exposes read-only macro-file resolution (`imported_macro_paths`) and

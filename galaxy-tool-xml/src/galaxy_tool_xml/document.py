@@ -159,3 +159,38 @@ class ToolDocument:
             f"expected {cls.__name__}, got {type(result).__name__}"
         )
         return cast("AnyTool", result)
+
+
+class MacroDocument:
+    """A parsed Galaxy macro-library file (``<macros>`` root), mutable lxml tree.
+
+    The macro-file counterpart to ``ToolDocument``: the lxml tree is the source
+    of truth (CDATA, comments, and attribute order preserved), and there is no
+    serializer — exposing the tree is the contract. Unlike a tool it has **no
+    ``profile`` and no typed ``model``**: a macro library is a fragment the
+    Galaxy XSD does not define as a standalone document, so it is parsed but
+    never profile-validated. A token-aware codemod mutates ``root`` (e.g. a
+    ``<token>``'s text) and the formatter re-serialises the tree.
+    """
+
+    def __init__(
+        self, tree: etree._ElementTree, *, source_path: Path | None = None
+    ) -> None:
+        """Wrap *tree*; optionally record *source_path* for diagnostics."""
+        self._tree = tree
+        self._source_path = source_path
+
+    @property
+    def tree(self) -> etree._ElementTree:
+        """The mutable lxml ``ElementTree`` — the source of truth."""
+        return self._tree
+
+    @property
+    def root(self) -> etree._Element:
+        """The root ``<macros>`` element of the mutable tree."""
+        return self._tree.getroot()
+
+    @property
+    def source_path(self) -> Path | None:
+        """The file the document was loaded from, or ``None`` for in-memory input."""
+        return self._source_path

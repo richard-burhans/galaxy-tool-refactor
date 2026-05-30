@@ -18,7 +18,7 @@ from typing import BinaryIO
 
 from lxml import etree
 
-from galaxy_tool_xml.document import ToolDocument
+from galaxy_tool_xml.document import MacroDocument, ToolDocument
 from galaxy_tool_xml.macros import (
     MacroError,
     expand_from_path,
@@ -160,6 +160,24 @@ def parse_tool(source: Source) -> ParseResult:
     tree, syntax_errors = _parse_bytes(xml_bytes, label)
     document = None if tree is None else ToolDocument(tree, source_path=source_path)
     return ParseResult(document=document, syntax_errors=syntax_errors)
+
+
+def load_macros(source: Source) -> MacroDocument:
+    """Parse a macro-library file strictly; raise ``ToolXmlSyntaxError`` if malformed.
+
+    The macro-file counterpart to ``load_tool``. A macro library (a ``<macros>``
+    root holding ``<token>`` / ``<xml>`` / ``<macro>`` / ``<import>``) has no
+    standalone XSD, so this only parses — there is no ``validate`` for macro
+    files. The returned ``MacroDocument`` carries the mutable tree (CDATA,
+    comments, and attribute order preserved) and ``source_path``. The root tag
+    is not enforced; callers that need to distinguish a macro file from a tool
+    inspect ``document.root.tag``.
+    """
+    xml_bytes, source_path, label = _read_source(source)
+    tree, syntax_errors = _parse_bytes(xml_bytes, label)
+    if tree is None or syntax_errors:
+        raise ToolXmlSyntaxError(syntax_errors)
+    return MacroDocument(tree, source_path=source_path)
 
 
 def _source_label(document: ToolDocument) -> str:
