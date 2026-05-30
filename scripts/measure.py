@@ -1366,6 +1366,338 @@ def _run_macro_topology(args: argparse.Namespace) -> None:
         print(f"\nwrote {_display_path(out_path)}")
 
 
+# --- measurement: macro-profile-ownership ---------------------------------------
+#
+# Phase-3b decision input. When a tool's profile= is a macro token defined in an
+# IMPORTED macro file, can we rewrite that file's <token> IN PLACE, or must we
+# FORK it (copy-on-write) so other importers' profiles do not change? Measures:
+#
+#   - where the profile token is defined: inline / directly-imported file /
+#     deeper in the import chain / unresolved (sizes the branches; prices the
+#     "handle direct, report deeper" punt);
+#   - sole-owned vs shared defining file (the edit-in-place vs fork branches of
+#     plan choice (b));
+#   - for SHARED defining files, whether the token's profile-using importers
+#     AGREE on the target profile (their newest-valid). Frequent agreement means
+#     forking shared files is usually unnecessary — the headline number that can
+#     flip the fork-vs-edit decision;
+#   - <import> paths that are absolute or use `..` (validates the bounded-scan
+#     soundness argument: with no `..`, importers live only at/above a macro
+#     file, so a subtree scan finds them all);
+#   - defining file in the tool's own directory vs elsewhere (path-rewriting).
+#
+# newest-valid per tool is joined from combined_corpus_data.json by content
+# sha256 (validation is deterministic per content), so this never re-validates.
+# Sharedness uses the TRANSITIVE importer graph (tier-1 imported_macro_paths),
+# so a deeply-imported defining file's importers are counted correctly.
+
+
+@dataclass
+class _ProfileOwnershipResult:
+    n_unique_tools: int
+    n_profile_token_tools: int  # profile= contains '@'
+    n_inline: int  # token defined in the tool's own <macros>
+    n_imported_direct: int  # defined in a directly <import>ed file
+    n_imported_deeper: int  # defined only deeper in the import chain
+    n_unresolved: int  # token not found inline or in any imported file
+    n_imported_total: int  # n_imported_direct + n_imported_deeper
+    n_defining_sole_owned: int  # defining file has exactly one importer (transitive)
+    n_defining_shared: int  # defining file imported by >= 2 tools
+    n_shared_defining_files: int  # distinct shared files defining a used profile token
+    n_shared_multi_user: int  # ... with >= 2 profile-using importers (agreement tested)
+    n_shared_agree: int  # all profile-using importers want the same target
+    n_shared_diverge: int  # importers want different targets
+    n_shared_indeterminate: int  # no profile-using importer validates anywhere
+    n_import_stmts: int  # tool-level <macros><import> statements seen
+    n_import_dotdot: int  # ... whose path contains '..'
+    n_import_absolute: int  # ... whose path is absolute
+    n_defining_same_dir: int  # defining file in the importing tool's own directory
+    n_defining_other_dir: int  # defining file elsewhere (path rewrite needed)
+    diverge_exemplars: list[tuple[str, list[tuple[str, str]]]]
+
+
+def _measure_macro_profile_ownership(
+    *, corpus_root: Path, rows: list[dict[str, object]]
+) -> _ProfileOwnershipResult:
+    """Characterise where profile tokens live and whether their files are shared."""
+    from galaxy_tool_xml.macros import imported_macro_paths, token_definitions
+
+    sha_to_newest: dict[str, str] = {}
+    for row in rows:
+        sha = row.get("sha256")
+        newest = row.get("newest_valid")
+        if isinstance(sha, str) and isinstance(newest, str):
+            sha_to_newest.setdefault(sha, newest)
+
+    seen_sha: set[str] = set()
+    importers: dict[Path, set[str]] = defaultdict(set)  # defining file -> tool shas
+    # Per profile-token tool: (defining_file | None, placement, sha, same_dir)
+    profile_tools: list[tuple[Path | None, str, str, bool]] = []
+    skipped = n_profile = n_inline = n_unresolved = 0
+    n_stmts = n_dotdot = n_absolute = 0
+
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        sha = _sha256_of(path)
+        if sha in seen_sha:
+            continue
+        seen_sha.add(sha)
+        root = _parse_tool_root(path)
+        if root is None:
+            skipped += 1
+            continue
+
+        for element in root.findall("macros/import"):
+            relative = element.text.strip() if element.text else ""
+            if not relative:
+                continue
+            n_stmts += 1
+            if ".." in Path(relative).parts:
+                n_dotdot += 1
+            if Path(relative).is_absolute():
+                n_absolute += 1
+
+        for macro_path in imported_macro_paths(path):
+            importers[macro_path].add(sha)
+
+        profile_raw = root.get("profile")
+        if profile_raw is None or "@" not in profile_raw:
+            continue
+        n_profile += 1
+        definition = next(
+            (d for d in token_definitions(path) if d.name == profile_raw), None
+        )
+        if definition is None:
+            n_unresolved += 1
+            continue
+        if definition.source is None:
+            n_inline += 1
+            continue
+        direct = {resolved for _rel, resolved in _import_paths(root, tool_path=path)}
+        placement = "direct" if definition.source in direct else "deeper"
+        same_dir = definition.source.parent == path.parent
+        profile_tools.append((definition.source, placement, sha, same_dir))
+
+    return _summarise_profile_ownership(
+        n_unique_tools=len(seen_sha) - skipped,
+        n_profile=n_profile,
+        n_inline=n_inline,
+        n_unresolved=n_unresolved,
+        n_stmts=n_stmts,
+        n_dotdot=n_dotdot,
+        n_absolute=n_absolute,
+        importers=importers,
+        profile_tools=profile_tools,
+        sha_to_newest=sha_to_newest,
+    )
+
+
+def _summarise_profile_ownership(
+    *,
+    n_unique_tools: int,
+    n_profile: int,
+    n_inline: int,
+    n_unresolved: int,
+    n_stmts: int,
+    n_dotdot: int,
+    n_absolute: int,
+    importers: dict[Path, set[str]],
+    profile_tools: list[tuple[Path | None, str, str, bool]],
+    sha_to_newest: dict[str, str],
+) -> _ProfileOwnershipResult:
+    """Aggregate the per-tool ownership rows into the result counters."""
+    n_direct = sum(1 for _f, placement, _s, _d in profile_tools if placement == "direct")
+    n_deeper = sum(1 for _f, placement, _s, _d in profile_tools if placement == "deeper")
+    n_same_dir = sum(1 for _f, _p, _s, same_dir in profile_tools if same_dir)
+
+    sole = shared = 0
+    # Group profile-using importers (their target profiles) per defining file.
+    per_file_targets: dict[Path, list[str]] = defaultdict(list)
+    for defining_file, _placement, sha, _same_dir in profile_tools:
+        if defining_file is None:
+            continue
+        if len(importers.get(defining_file, set())) <= 1:
+            sole += 1
+        else:
+            shared += 1
+        newest = sha_to_newest.get(sha)
+        if isinstance(newest, str) and newest not in ("", _PROFILE_NONE):
+            per_file_targets[defining_file].append(newest)
+        else:
+            per_file_targets[defining_file].append("")
+
+    shared_files = sorted(
+        (f for f in per_file_targets if len(importers.get(f, set())) > 1),
+        key=str,
+    )
+    n_agree = n_diverge = n_indeterminate = n_multi_user = 0
+    diverge_exemplars: list[tuple[str, list[tuple[str, str]]]] = []
+    for defining_file in shared_files:
+        targets = per_file_targets[defining_file]
+        if len(targets) >= 2:
+            n_multi_user += 1
+        distinct = {t for t in targets if t}
+        if not distinct:
+            n_indeterminate += 1
+        elif len(distinct) == 1:
+            n_agree += 1
+        else:
+            n_diverge += 1
+            if len(diverge_exemplars) < 10:
+                shas = sorted(set(targets))
+                diverge_exemplars.append(
+                    (_display_path(defining_file), [(t or "(none)", "") for t in shas])
+                )
+
+    return _ProfileOwnershipResult(
+        n_unique_tools=n_unique_tools,
+        n_profile_token_tools=n_profile,
+        n_inline=n_inline,
+        n_imported_direct=n_direct,
+        n_imported_deeper=n_deeper,
+        n_unresolved=n_unresolved,
+        n_imported_total=n_direct + n_deeper,
+        n_defining_sole_owned=sole,
+        n_defining_shared=shared,
+        n_shared_defining_files=len(shared_files),
+        n_shared_multi_user=n_multi_user,
+        n_shared_agree=n_agree,
+        n_shared_diverge=n_diverge,
+        n_shared_indeterminate=n_indeterminate,
+        n_import_stmts=n_stmts,
+        n_import_dotdot=n_dotdot,
+        n_import_absolute=n_absolute,
+        n_defining_same_dir=n_same_dir,
+        n_defining_other_dir=(n_direct + n_deeper) - n_same_dir,
+        diverge_exemplars=diverge_exemplars,
+    )
+
+
+def _render_profile_ownership_page(result: _ProfileOwnershipResult) -> str:
+    """Render docs/macro_profile_ownership_stats.md (deterministic)."""
+
+    def pct(n: int, of: int) -> float:
+        return 100 * n / of if of else 0.0
+
+    imported = result.n_imported_total
+    lines = [
+        "# Macro profile-token ownership (Phase-3b decision input)",
+        "",
+        "Reproduced-by: `uv run python -m scripts.measure macro-profile-ownership`.",
+        "",
+        "When a tool's `profile=` is a macro token (e.g. `@PROFILE@`), where is the",
+        "token defined, is that file shared, and — if shared — do the importers",
+        "agree on the target profile? These numbers decide whether Phase 3b must",
+        "fork shared macro files (copy-on-write) or can edit them in place.",
+        "",
+        "## Where the profile token is defined",
+        "",
+        "| Placement | Tools |",
+        "|---|--:|",
+        f"| profile= is a macro token | {result.n_profile_token_tools} |",
+        f"| └ defined inline (handled in Phase 3a) | {result.n_inline} |",
+        f"| └ in a directly-imported file | {result.n_imported_direct} |",
+        f"| └ deeper in the import chain | {result.n_imported_deeper} |",
+        f"| └ unresolved (token not found) | {result.n_unresolved} |",
+        "",
+        "## Defining-file ownership (imported tokens only)",
+        "",
+        f"Of the {imported} imported-token tools:",
+        "",
+        "| Defining file | Tools |",
+        "|---|--:|",
+        f"| sole-owned (1 importer) → edit in place | {result.n_defining_sole_owned} "
+        f"({pct(result.n_defining_sole_owned, imported):.1f}%) |",
+        f"| shared (≥2 importers) → fork candidate | {result.n_defining_shared} "
+        f"({pct(result.n_defining_shared, imported):.1f}%) |",
+        "",
+        "## Do shared files' importers agree on the target profile?",
+        "",
+        "The headline: if importers of a shared defining file almost always want the",
+        "same newest-valid profile, forking is usually unnecessary (an in-place bump",
+        "would satisfy them all).",
+        "",
+        "| Shared defining file | Files |",
+        "|---|--:|",
+        f"| importers agree on one target | {result.n_shared_agree} |",
+        f"| importers diverge | {result.n_shared_diverge} |",
+        f"| indeterminate (none validate) | {result.n_shared_indeterminate} |",
+        f"| total shared defining files | {result.n_shared_defining_files} |",
+        f"| └ with ≥2 profile-using importers (agreement actually tested) "
+        f"| {result.n_shared_multi_user} |",
+        "",
+        "## Scan-soundness and path rewriting",
+        "",
+        "| Metric | Count |",
+        "|---|--:|",
+        f"| tool `<macros><import>` statements | {result.n_import_stmts} |",
+        f"| └ path contains `..` | {result.n_import_dotdot} |",
+        f"| └ path is absolute | {result.n_import_absolute} |",
+        f"| defining file in tool's own directory | {result.n_defining_same_dir} |",
+        f"| defining file elsewhere | {result.n_defining_other_dir} |",
+        "",
+    ]
+    if result.diverge_exemplars:
+        lines.append("Diverging shared files (file: targets wanted):")
+        lines.append("")
+        lines.extend(
+            f"- `{path}`: {', '.join(t for t, _ in targets)}"
+            for path, targets in result.diverge_exemplars
+        )
+        lines.append("")
+    return "\n".join(lines)
+
+
+def _report_macro_profile_ownership(result: _ProfileOwnershipResult) -> None:
+    imported = result.n_imported_total
+
+    def pct(n: int, of: int) -> float:
+        return 100 * n / of if of else 0.0
+
+    print("\n=== macro-profile-ownership ===")
+    print(
+        f"profile= is a macro token: {result.n_profile_token_tools} "
+        f"(inline {result.n_inline}, direct-import {result.n_imported_direct}, "
+        f"deeper {result.n_imported_deeper}, unresolved {result.n_unresolved})"
+    )
+    print(
+        f"  imported defining file: sole-owned {result.n_defining_sole_owned} "
+        f"({pct(result.n_defining_sole_owned, imported):.1f}%), "
+        f"shared {result.n_defining_shared} "
+        f"({pct(result.n_defining_shared, imported):.1f}%)"
+    )
+    print(
+        f"  shared defining files ({result.n_shared_defining_files}; "
+        f"{result.n_shared_multi_user} with >=2 profile users): "
+        f"importers agree {result.n_shared_agree}, diverge {result.n_shared_diverge}, "
+        f"indeterminate {result.n_shared_indeterminate}"
+    )
+    print(
+        f"  imports: {result.n_import_stmts} stmts, {result.n_import_dotdot} use '..', "
+        f"{result.n_import_absolute} absolute"
+    )
+    print(
+        f"  defining file location: same-dir {result.n_defining_same_dir}, "
+        f"elsewhere {result.n_defining_other_dir}"
+    )
+    for path, targets in result.diverge_exemplars[:10]:
+        print(f"    {path}: {', '.join(t for t, _ in targets)}")
+
+
+def _run_macro_profile_ownership(args: argparse.Namespace) -> None:
+    result = _measure_macro_profile_ownership(
+        corpus_root=args.corpus_root, rows=_load_combined_data(path=args.data)
+    )
+    _report_macro_profile_ownership(result)
+    if not args.all:
+        out_path = _repo_root() / "docs" / "macro_profile_ownership_stats.md"
+        out_path.write_text(
+            _render_profile_ownership_page(result) + "\n", encoding="utf-8"
+        )
+        print(f"\nwrote {_display_path(out_path)}")
+
+
 # --- measurement: cross-source-presence -----------------------------------------
 #
 # Justifies the `presence` column in combined_corpus_data.json and the
@@ -2104,6 +2436,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "macro-placeholder-profile": _run_macro_placeholder_profile,
     "macro-profile-tokens": _run_macro_profile_tokens,
     "macro-topology": _run_macro_topology,
+    "macro-profile-ownership": _run_macro_profile_ownership,
     "expansion-failed-ids": _run_expansion_failed_ids,
     "cross-source-presence": _run_cross_source_presence,
     "lenient-text-fields": _run_lenient_text_fields,

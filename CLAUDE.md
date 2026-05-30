@@ -103,6 +103,13 @@ uv run python -m scripts.measure               # ad-hoc corpus queries (--list)
 # needs the corpus, so it is not run in CI):
 uv run python -m scripts.measure macro-topology
 uv run python -m scripts.measure macro-profile-tokens
+
+# Phase-3b decision input: where profile tokens are defined (inline / directly
+# imported / deeper), sole-owned vs shared defining files, whether shared files'
+# importers agree on the target profile (the fork-vs-edit-in-place question),
+# and <import> scan-soundness (`..`/absolute). Writes
+# docs/macro_profile_ownership_stats.md (manually-regenerated; needs the corpus):
+uv run python -m scripts.measure macro-profile-ownership
 ```
 
 **Note:** invoke as `python -m scripts.X`, not `python scripts/X.py` — the
