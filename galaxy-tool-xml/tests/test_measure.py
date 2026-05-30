@@ -434,6 +434,9 @@ def test_macro_topology_sharing_and_yield(macro_corpus: Path) -> None:
     assert result.n_shared_macro_files == 1
     assert result.max_importers == 2
     assert result.importer_histogram == [(2, 1)]
+    # tool1 + tool2 import the shared macros.xml; inline + plain do not.
+    assert result.n_imports_shared_macro == 2
+    assert result.n_no_shared_macro == 2
     # The shared macro library defines <macro> with a <yield/>.
     assert result.n_uses_yield == 2  # tool1, tool2 (via the imported library)
     assert result.n_named_yield == 0

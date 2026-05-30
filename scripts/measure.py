@@ -963,6 +963,8 @@ class _MacroTopologyResult:
     n_version_is_token: int
     n_macro_files: int
     n_shared_macro_files: int  # imported by >1 unique tool
+    n_imports_shared_macro: int  # tools importing >=1 shared macro file
+    n_no_shared_macro: int  # tools importing NO shared file (v1-eligible population)
     max_importers: int
     importer_histogram: list[tuple[int, int]]  # (importer_count, n_macro_files)
     top_shared: list[tuple[str, int]]  # (macro file path, importer count)
@@ -1019,6 +1021,7 @@ def _measure_macro_topology(*, corpus_root: Path) -> _MacroTopologyResult:
 
     seen_sha: set[str] = set()
     importers: dict[Path, set[Path]] = defaultdict(set)
+    per_tool_imports: list[set[Path]] = []  # resolved, on-disk imports per tool
     token_tools: Counter[str] = Counter()
     skipped = no_macros = inline_only = with_imports = unresolved = 0
     uses_expand = uses_yield = named_yield = defines_macro = 0
@@ -1047,9 +1050,12 @@ def _measure_macro_topology(*, corpus_root: Path) -> _MacroTopologyResult:
             for _relative, resolved in imports
             if (facts := _macro_file_facts(resolved)) is not None
         ]
-        for _relative, resolved in imports:
-            if resolved.is_file():
-                importers[resolved].add(path)
+        existing_imports = {
+            resolved for _relative, resolved in imports if resolved.is_file()
+        }
+        per_tool_imports.append(existing_imports)
+        for resolved in existing_imports:
+            importers[resolved].add(path)
 
         if not has_macros(root):
             no_macros += 1
@@ -1096,6 +1102,10 @@ def _measure_macro_topology(*, corpus_root: Path) -> _MacroTopologyResult:
 
     counts = sorted(len(tools) for tools in importers.values())
     histogram = sorted(Counter(counts).items())
+    shared_files = {macro for macro, tools in importers.items() if len(tools) > 1}
+    imports_shared = sum(
+        1 for tool_imports in per_tool_imports if tool_imports & shared_files
+    )
     shared = [(macro, len(tools)) for macro, tools in importers.items() if len(tools) > 1]
     shared.sort(key=lambda item: (-item[1], str(item[0])))
     top_shared = [(_display_path(macro), count) for macro, count in shared[:15]]
@@ -1120,6 +1130,8 @@ def _measure_macro_topology(*, corpus_root: Path) -> _MacroTopologyResult:
         n_version_is_token=version_token,
         n_macro_files=len(importers),
         n_shared_macro_files=len(shared),
+        n_imports_shared_macro=imports_shared,
+        n_no_shared_macro=(len(seen_sha) - skipped) - imports_shared,
         max_importers=counts[-1] if counts else 0,
         importer_histogram=histogram,
         top_shared=top_shared,
@@ -1168,6 +1180,13 @@ def _report_macro_topology(measurement: _MacroTopologyResult) -> None:
         f"  distinct imported macro files: {measurement.n_macro_files}; "
         f"shared by >1 tool: {measurement.n_shared_macro_files}; "
         f"max importers: {measurement.max_importers}"
+    )
+    print(
+        f"  tools importing a shared macro file: "
+        f"{measurement.n_imports_shared_macro} "
+        f"({pct(measurement.n_imports_shared_macro):.1f}%); "
+        f"no shared macro (v1-eligible): {measurement.n_no_shared_macro} "
+        f"({pct(measurement.n_no_shared_macro):.1f}%)"
     )
     print("  importer-count histogram (importers: #files):")
     for importer_count, n_files in measurement.importer_histogram:
@@ -1242,6 +1261,15 @@ def _render_macro_stats_page(
         f"Distinct imported macro files: **{num(topology.n_macro_files)}**; "
         f"imported by more than one tool: **{num(topology.n_shared_macro_files)}**; "
         f"max importers of a single file: **{num(topology.max_importers)}**.",
+        "",
+        f"Tools importing at least one shared macro file: "
+        f"**{num(topology.n_imports_shared_macro)}** "
+        f"({pct(topology.n_imports_shared_macro, unique):.1f}%). Tools with **no "
+        f"shared macro** (none, inline-only, or importing only sole-owner files) "
+        f"— the population safe to edit without cross-tool blast radius, i.e. the "
+        f"**v1-eligible test set while the shared-macro edit policy is deferred**: "
+        f"**{num(topology.n_no_shared_macro)}** "
+        f"({pct(topology.n_no_shared_macro, unique):.1f}%).",
         "",
         "Importer-count distribution (how many tools import each macro file):",
         "",
