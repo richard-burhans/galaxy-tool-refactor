@@ -42,6 +42,8 @@ but named yields and tool-defined `<macro>`s are rare. v1 must therefore
 
 Distinct imported macro files: **3,368**; imported by more than one tool: **203**; max importers of a single file: **137**.
 
+Tools importing at least one shared macro file: **1,545** (16.5%). Tools with **no shared macro** (none, inline-only, or importing only sole-owner files) — the population safe to edit without cross-tool blast radius, i.e. the **v1-eligible test set while the shared-macro edit policy is deferred**: **7,813** (83.5%).
+
 Importer-count distribution (how many tools import each macro file):
 
 | Importers | Macro files |
