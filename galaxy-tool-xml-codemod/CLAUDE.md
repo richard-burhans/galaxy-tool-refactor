@@ -27,7 +27,11 @@ with typed mutation primitives (``set_attribute``, ``delete_attribute``,
 ``rename_attribute``, ``rename_tag``, ``reorder_attributes``,
 ``reorder_children``, ``remove``, ``add_child``, ``attribute_names``), a
 ``Module`` wrapper, a ``parse_module`` entry
-point, and the bundled codemods exposed via two ordered pipeline
+point (plus ``MacroModule`` / ``parse_macro_module`` — the macro-file
+counterparts wrapping a tier-1 ``MacroDocument``; ``Cursor`` is generic, so its
+mutators work on a ``<macros>`` tree unchanged. The ``CodemodCommand`` base
+stays tool-only until a macro-subject codemod needs it — see ``docs/decisions.md``
+§20), and the bundled codemods exposed via two ordered pipeline
 contracts in ``canonical.py``:
 
 - ``CANONICAL_CODEMODS`` = ``FixTypos`` → ``ReorderParamAttributes`` →

@@ -5,11 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_tool
+from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_macros, load_tool
 from galaxy_tool_xml.models.any_tool import AnyTool
 
-from galaxy_tool_xml_codemod.module import Module
-from galaxy_tool_xml_codemod.parse import parse_module
+from galaxy_tool_xml_codemod.module import MacroModule, Module
+from galaxy_tool_xml_codemod.parse import parse_macro_module, parse_module
+
+_MACROS = b'<macros><token name="@TOOL_VERSION@">1.0</token></macros>'
 
 
 def test_parse_module_from_path(minimal_tool_path: Path) -> None:
@@ -52,3 +54,29 @@ def test_parse_module_returns_distinct_modules_for_same_document(
     second = parse_module(document)
     assert first is not second
     assert first.document is second.document
+
+
+def test_parse_macro_module_from_bytes() -> None:
+    """``parse_macro_module(bytes)`` returns a MacroModule rooted at ``<macros>``."""
+    module = parse_macro_module(_MACROS)
+    assert isinstance(module, MacroModule)
+    assert module.cursor.tag == "macros"
+
+
+def test_parse_macro_module_from_path(tmp_path: Path) -> None:
+    path = tmp_path / "macros.xml"
+    path.write_bytes(_MACROS)
+    module = parse_macro_module(path)
+    assert isinstance(module, MacroModule)
+    assert module.document.source_path == path
+
+
+def test_parse_macro_module_shares_macro_document_by_reference() -> None:
+    document = load_macros(_MACROS)
+    module = parse_macro_module(document)
+    assert module.document is document
+
+
+def test_parse_macro_module_strict_on_malformed_bytes() -> None:
+    with pytest.raises(ToolXmlSyntaxError):
+        parse_macro_module(b"<macros><token")

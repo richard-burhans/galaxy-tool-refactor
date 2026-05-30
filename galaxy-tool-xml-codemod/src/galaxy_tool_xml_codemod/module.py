@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from galaxy_tool_xml.document import ToolDocument
+from galaxy_tool_xml.document import MacroDocument, ToolDocument
 from galaxy_tool_xml.models.any_tool import AnyTool
 
 from galaxy_tool_xml_codemod.cursor import Cursor
@@ -42,4 +42,24 @@ class Module:
         Not cached, for the same reason as ``model``: a codemod that mutated the
         tree must always see the current root, never a stale cursor.
         """
+        return Cursor(self.document.root)
+
+
+@dataclass(frozen=True)
+class MacroModule:
+    """A parsed Galaxy macro-library file: lxml tree + root ``Cursor``.
+
+    The macro-file counterpart to ``Module``. A macro library has no typed
+    ``model`` or ``profile`` (see ``MacroDocument``), so this wraps just the
+    document and a fresh root ``Cursor`` over its ``<macros>`` element; codemod
+    primitives (the ``Cursor`` mutators) work on it unchanged, since ``Cursor``
+    is generic over any lxml element. Used to navigate and edit a macro file —
+    e.g. the macro-library normaliser and the token-aware profile upgrade.
+    """
+
+    document: MacroDocument
+
+    @property
+    def cursor(self) -> Cursor:
+        """A fresh root ``Cursor`` over ``<macros>``, re-derived on each access."""
         return Cursor(self.document.root)
