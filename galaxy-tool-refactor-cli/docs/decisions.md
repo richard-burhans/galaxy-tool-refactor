@@ -171,3 +171,46 @@ uv run galaxy-tool-refactor presets
 uv run galaxy-tool-refactor check --preset strict tool.xml   # advisory shown, exit 0
 uv run galaxy-tool-refactor format --select GTX001 tool.xml  # indent only
 ```
+
+## D5 (2026-05-30) — `format` / `check` also handle macro-library files
+
+### Decision
+
+The app `format` and `check` commands now process macro-library files
+(`<macros>` root), not just tools. `format` cosmetically formats them
+(`format_macro_document` via `cli_support.run`'s `macro_transform`); `check`
+reports their cosmetic drift (`detect_macro_document`, all fixable). `upgrade`
+is unchanged — it stays tool-only (it passes no `macro_transform`), since its
+work is semantic; macro editing from `upgrade` is the Phase-3 token-aware step.
+
+Macro files get **cosmetic rules only** (codemods are tool-only,
+`RuleMeta.applies_to={"tool"}`), so the macro transform bypasses the registry
+facade (which runs codemods + fmt) and calls `format_macro_document` directly.
+Rule **selection (`--preset`/`--select`/`--ignore`) governs the tool pipeline**;
+macro files always get the standard kind-applicable cosmetic rules (GTX001 /
+GTX004). A `--select GTX002` run, say, still cosmetically cleans macro files —
+documented, accepted for v1.
+
+### Rationale
+
+- **Cosmetic formatting of a macro file is safe regardless of sharing** —
+  whitespace-only, idempotent, and stripped during Galaxy macro expansion — so
+  there is no blast-radius reason to gate it. The import-graph **bundle +
+  shared-skip** is deliberately *not* built here; it is content-edit
+  infrastructure whose real consumer is the Phase-3 token-aware `@PROFILE@`
+  upgrade (and the macro-library normaliser), and it will be built with that
+  consumer so the shared-skip protects the edits it is designed for. Building it
+  now, applied to safe cosmetic formatting, would be infrastructure ahead of its
+  consumer — the pattern this project defers.
+- **Reuses the kind-aware fmt machinery** (`format_macro_document` /
+  `detect_macro_document`, `RuleMeta.applies_to`; fmt §D16, rules §D3) and
+  `cli_support`'s `is_macros_root` / `macro_transform` (fmt §D16) — no new
+  orchestration.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/
+uv run galaxy-tool-refactor format path/to/macros.xml   # cosmetically formatted
+uv run galaxy-tool-refactor check  path/to/macros.xml   # reports GTX001/GTX004 drift
+```

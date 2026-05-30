@@ -96,12 +96,25 @@ def test_quiet_suppresses_per_file_output(tmp_path: Path) -> None:
     assert "reformatted" not in result.output
 
 
-def test_non_tool_xml_is_skipped(tmp_path: Path) -> None:
-    file = _write(tmp_path / "macros.xml", b"<macros><token>x</token></macros>")
+def test_non_tool_non_macro_xml_is_skipped(tmp_path: Path) -> None:
+    original = b"<datatypes><datatype extension='txt'/></datatypes>"
+    file = _write(tmp_path / "datatypes_conf.xml", original)
     result = CliRunner().invoke(main, ["format", str(file)])
     assert result.exit_code == 0, result.output
     assert "skipped" in result.output
-    assert file.read_bytes() == b"<macros><token>x</token></macros>"
+    assert file.read_bytes() == original
+
+
+def test_format_cosmetically_formats_a_macro_file(tmp_path: Path) -> None:
+    # `format` cleans macro files cosmetically (no codemods — tool-only).
+    file = _write(
+        tmp_path / "macros.xml",
+        b'<macros><token name="@TOOL_VERSION@">1.0</token></macros>',
+    )
+    result = CliRunner().invoke(main, ["format", str(file)])
+    assert result.exit_code == 0, result.output
+    assert "reformatted" in result.output
+    assert b'\n    <token name="@TOOL_VERSION@">1.0</token>\n' in file.read_bytes()
 
 
 def test_malformed_tool_is_reported_as_error(tmp_path: Path) -> None:
@@ -188,11 +201,34 @@ def test_check_quiet_suppresses_per_finding_output(tmp_path: Path) -> None:
     assert result.output == ""
 
 
-def test_check_skips_non_tool_xml(tmp_path: Path) -> None:
-    file = _write(tmp_path / "macros.xml", b"<macros><token>x</token></macros>")
+def test_check_skips_non_tool_non_macro_xml(tmp_path: Path) -> None:
+    file = _write(tmp_path / "datatypes_conf.xml", b"<datatypes/>")
     result = CliRunner().invoke(main, ["check", str(file)])
     assert result.exit_code == 0, result.output
     assert "skipped" in result.output
+
+
+def test_check_reports_macro_file_cosmetic_drift(tmp_path: Path) -> None:
+    # A non-canonical macro file is reported (fixable GTX001) and exits non-zero.
+    file = _write(
+        tmp_path / "macros.xml",
+        b'<macros><token name="@TOOL_VERSION@">1.0</token></macros>',
+    )
+    result = CliRunner().invoke(main, ["check", str(file)])
+    assert result.exit_code == 1, result.output
+    assert "GTX001" in result.output
+
+
+def test_check_clean_macro_file_passes(tmp_path: Path) -> None:
+    # Round trip: format canonicalises the macro file, then check finds it clean.
+    file = _write(
+        tmp_path / "macros.xml",
+        b'<macros><token name="@TOOL_VERSION@">1.0</token></macros>',
+    )
+    CliRunner().invoke(main, ["format", str(file)])
+    result = CliRunner().invoke(main, ["check", str(file)])
+    assert result.exit_code == 0, result.output
+    assert "clean" in result.output
 
 
 def test_check_reports_malformed_as_error(tmp_path: Path) -> None:
