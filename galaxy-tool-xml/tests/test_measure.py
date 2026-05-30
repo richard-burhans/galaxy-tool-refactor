@@ -15,12 +15,16 @@ from scripts.measure import (
     _classify_command_language,
     _collection_type_patterns,
     _cross_source_key_matches,
+    _facts_from_macro_container,
     _measure_collection_type_normalization,
     _measure_command_language,
     _measure_element_cardinality,
+    _measure_macro_profile_tokens,
+    _measure_macro_topology,
     _measure_param_types,
     _measure_upgrade_headroom,
     _ParamTypesResult,
+    _render_macro_stats_page,
     _version_tuple,
 )
 
@@ -325,3 +329,138 @@ def test_command_language_buckets_and_missing(tmp_path: Path) -> None:
     assert result.n_without_command == 1
     assert buckets["python"] == 1
     assert buckets["shell"] == 1
+
+
+# --- macro-profile-tokens (token-aware profile upgrade target) ------------------
+
+
+def _ptrow(
+    sha: str, raw: object, expanded: object, newest: object
+) -> dict[str, object]:
+    """One synthetic combined row for the macro-profile-tokens measurement."""
+    return {
+        "sha256": sha,
+        "path": f"{sha}.xml",
+        "profile_raw": raw,
+        "profile_expanded": expanded,
+        "newest_valid": newest,
+    }
+
+
+def test_macro_profile_tokens_buckets() -> None:
+    rows = [
+        _ptrow("a", "@PROFILE@", "19.01", "24.2"),  # upgradeable
+        _ptrow("b", "@P@", "24.2", "24.2"),  # current
+        _ptrow("c", "@P@", "24.2", "22.01"),  # token ahead of validity
+        _ptrow("d", "@P@", "19.01", _PROFILE_NONE),  # validates nowhere
+        _ptrow("e", "@P@", "notaversion", "24.2"),  # unparseable expanded
+        _ptrow("f", "24.2", "24.2", "24.2"),  # not a token — ignored
+        _ptrow("g", "@P@", "19.1", "19.01"),  # 19.1 == 19.01 -> current
+    ]
+    result = _measure_macro_profile_tokens(rows=rows)
+    assert result.n_unique_tools == 7
+    assert result.n_profile_is_token == 6  # f excluded
+    assert result.n_upgradeable == 1  # a
+    assert result.n_current == 2  # b, g (19.1 == 19.01)
+    assert result.n_token_ahead == 1  # c
+    assert result.n_validates_nowhere == 1  # d
+    assert result.n_unparseable_versions == 1  # e
+    assert result.exemplars[0] == ("a.xml", "@PROFILE@", "19.01", "24.2")
+
+
+# --- macro-topology -------------------------------------------------------------
+
+
+def test_facts_from_macro_container() -> None:
+    macros = etree.fromstring(
+        b'<macros><token name="@TOOL_VERSION@">1.0</token>'
+        b'<macro name="m"><yield/></macro>'
+        b'<xml name="x"><yield name="extra"/></xml></macros>'
+    )
+    facts = _facts_from_macro_container(macros)
+    assert facts.token_names == frozenset({"@TOOL_VERSION@"})
+    assert facts.has_yield is True
+    assert facts.has_named_yield is True
+    assert facts.defines_macro is True
+
+
+@pytest.fixture()
+def macro_corpus(tmp_path: Path) -> Path:
+    """Synthetic corpus exercising the macro-topology buckets.
+
+    One macro library imported by two tools (shared), an inline-only tool, a
+    macro-free tool, and non-<tool> XML that must be skipped.
+    """
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    (repo / "macros.xml").write_text(
+        '<macros><token name="@PROFILE@">19.01</token>'
+        '<macro name="m"><yield/></macro></macros>',
+        encoding="utf-8",
+    )
+    (repo / "tool1.xml").write_text(
+        '<tool profile="@PROFILE@"><macros><import>macros.xml</import></macros>'
+        '<expand macro="m"/></tool>',
+        encoding="utf-8",
+    )
+    (repo / "tool2.xml").write_text(
+        "<tool><macros><import>macros.xml</import></macros></tool>",
+        encoding="utf-8",
+    )
+    (repo / "inline.xml").write_text(
+        '<tool version="@TOOL_VERSION@+galaxy0">'
+        '<macros><token name="@TOOL_VERSION@">1.0</token></macros></tool>',
+        encoding="utf-8",
+    )
+    (repo / "plain.xml").write_text("<tool><inputs/></tool>", encoding="utf-8")
+    (repo / "not_a_tool.xml").write_text("<data/>", encoding="utf-8")
+    return tmp_path
+
+
+def test_macro_topology_buckets(macro_corpus: Path) -> None:
+    result = _measure_macro_topology(corpus_root=macro_corpus)
+    assert result.n_unique_tools == 4  # tool1, tool2, inline, plain
+    assert result.n_unparseable_skipped == 2  # macros.xml (non-tool root) + not_a_tool
+    assert result.n_no_macros == 1  # plain
+    assert result.n_inline_only == 1  # inline
+    assert result.n_with_imports == 2  # tool1, tool2
+    assert result.n_unresolved_imports == 0
+
+
+def test_macro_topology_sharing_and_yield(macro_corpus: Path) -> None:
+    result = _measure_macro_topology(corpus_root=macro_corpus)
+    # macros.xml is imported by tool1 and tool2 -> one shared file, 2 importers.
+    assert result.n_macro_files == 1
+    assert result.n_shared_macro_files == 1
+    assert result.max_importers == 2
+    assert result.importer_histogram == [(2, 1)]
+    # The shared macro library defines <macro> with a <yield/>.
+    assert result.n_uses_yield == 2  # tool1, tool2 (via the imported library)
+    assert result.n_named_yield == 0
+    assert result.n_defines_macro == 2
+    assert result.n_uses_expand == 1  # tool1
+
+
+def test_macro_topology_token_location(macro_corpus: Path) -> None:
+    result = _measure_macro_topology(corpus_root=macro_corpus)
+    # tool1's profile=@PROFILE@ is defined in the imported macros.xml, not inline.
+    assert result.n_profile_is_token == 1
+    assert result.n_profile_token_imported == 1
+    assert result.n_profile_token_inline == 0
+    assert result.n_profile_token_unresolved == 0
+    # inline.xml's version is a token.
+    assert result.n_version_is_token == 1
+    token_counts = dict(result.top_token_names)
+    assert token_counts["@PROFILE@"] == 2  # tool1 + tool2 import it
+    assert token_counts["@TOOL_VERSION@"] == 1  # inline.xml
+
+
+def test_render_macro_stats_page_smoke(macro_corpus: Path) -> None:
+    topology = _measure_macro_topology(corpus_root=macro_corpus)
+    profile_tokens = _measure_macro_profile_tokens(
+        rows=[_ptrow("a", "@PROFILE@", "19.01", "24.2")]
+    )
+    page = _render_macro_stats_page(topology, profile_tokens=profile_tokens)
+    assert page.startswith("# Macro corpus statistics")
+    assert "## Shared macro files (blast-radius input)" in page
+    assert "## Stale macro-token profiles (token-aware upgrade target)" in page

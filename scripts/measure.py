@@ -38,6 +38,7 @@ from functools import cache
 from pathlib import Path
 
 from lxml import etree
+from packaging.version import InvalidVersion, Version
 
 from scripts._shared import PROFILE_NONE as _PROFILE_NONE
 from scripts._shared import iter_tool_xmls as _iter_tool_xmls
@@ -801,6 +802,539 @@ def _run_macro_usage(args: argparse.Namespace) -> None:
     _report_macro_usage(_measure_macro_usage(corpus_root=args.corpus_root))
 
 
+# --- measurement: macro-profile-tokens ------------------------------------------
+#
+# The motivating case for token-aware profile upgrades: a tool whose ``profile=``
+# is a macro token (e.g. ``@PROFILE@``) whose *expanded* value is older than the
+# newest profile the tool actually validates at. Rewriting the token *definition*
+# (not the attribute) would advance future expansions. Derived from the raw-vs-
+# expanded profile columns already in combined_corpus_data.json; profiles are
+# compared with ``packaging.version`` so ``19.1`` and ``19.01`` reconcile.
+
+
+@dataclass
+class _MacroProfileTokensResult:
+    n_unique_tools: int
+    n_profile_is_token: int
+    n_upgradeable: int  # newest_valid strictly newer than the expanded value
+    n_current: int  # expanded value already equals newest_valid
+    n_token_ahead: int  # expanded value newer than newest_valid (rare)
+    n_validates_nowhere: int
+    n_unparseable_versions: int
+    exemplars: list[tuple[str, str, str, str]]  # path, raw, expanded, newest_valid
+
+
+def _as_version(value: object, /) -> Version | None:
+    """Parse a profile label to a ``Version``, or ``None`` if not a version."""
+    if not isinstance(value, str):
+        return None
+    try:
+        return Version(value)
+    except InvalidVersion:
+        return None
+
+
+def _measure_macro_profile_tokens(
+    *, rows: list[dict[str, object]]
+) -> _MacroProfileTokensResult:
+    """Bucket macro-token ``profile=`` tools by raw/expanded/newest-valid skew."""
+    unique = _unique_by_sha(rows)
+    n_token = upgradeable = current = ahead = nowhere = unparseable = 0
+    exemplars: list[tuple[str, str, str, str]] = []
+    for row in unique:
+        raw = row.get("profile_raw")
+        if not isinstance(raw, str) or "@" not in raw:
+            continue
+        n_token += 1
+        newest = row.get("newest_valid")
+        if not isinstance(newest, str) or newest == _PROFILE_NONE:
+            nowhere += 1
+            continue
+        expanded_version = _as_version(row.get("profile_expanded"))
+        newest_version = _as_version(newest)
+        if expanded_version is None or newest_version is None:
+            unparseable += 1
+            continue
+        if newest_version > expanded_version:
+            upgradeable += 1
+            if len(exemplars) < 15:
+                exemplars.append(
+                    (
+                        str(row.get("path", "")),
+                        raw,
+                        str(row.get("profile_expanded", "")),
+                        newest,
+                    )
+                )
+        elif newest_version == expanded_version:
+            current += 1
+        else:
+            ahead += 1
+    return _MacroProfileTokensResult(
+        n_unique_tools=len(unique),
+        n_profile_is_token=n_token,
+        n_upgradeable=upgradeable,
+        n_current=current,
+        n_token_ahead=ahead,
+        n_validates_nowhere=nowhere,
+        n_unparseable_versions=unparseable,
+        exemplars=exemplars,
+    )
+
+
+def _report_macro_profile_tokens(measurement: _MacroProfileTokensResult) -> None:
+    token = measurement.n_profile_is_token
+    unique = measurement.n_unique_tools
+
+    def pct(n: int, of: int) -> float:
+        return 100 * n / of if of else 0.0
+
+    print("\n=== macro-profile-tokens ===")
+    print(
+        f"Tools whose profile= is a macro token: {token} / {unique} "
+        f"({pct(token, unique):.1f}%)"
+    )
+    print(
+        f"  upgradeable (token value stale; validates higher): "
+        f"{measurement.n_upgradeable} ({pct(measurement.n_upgradeable, token):.1f}%)"
+    )
+    print(f"  already current:            {measurement.n_current}")
+    print(f"  token ahead of validity:    {measurement.n_token_ahead}")
+    print(f"  validates at no profile:    {measurement.n_validates_nowhere}")
+    print(f"  unparseable profile value:  {measurement.n_unparseable_versions}")
+    for path, raw, expanded, newest in measurement.exemplars[:10]:
+        print(f"    {path}: {raw} -> expands {expanded}, validates {newest}")
+
+
+def _run_macro_profile_tokens(args: argparse.Namespace) -> None:
+    _report_macro_profile_tokens(
+        _measure_macro_profile_tokens(rows=_load_combined_data(path=args.data))
+    )
+
+
+# --- measurement: macro-topology ------------------------------------------------
+#
+# How macros are organised across the corpus: inline <macros> vs imported macro
+# files vs none; how many tools import a given macro file (the shared-macro
+# blast-radius input for the macro-aware-editing plan); token names in use;
+# <yield> / <macro> prevalence; and where a tool's profile token is defined.
+# Re-walks the corpus (the structure is not in combined_corpus_data.json),
+# sha-deduping tools like ``macro-usage``, and writes docs/macro_corpus_stats.md.
+#
+# Caveat: the importer graph and token-location follow a tool's *direct*
+# <macros><import>s only (transitive macro-file imports are not chased) and key
+# macro files by resolved on-disk path, so "shared" means within-repo sharing
+# (sibling tools importing one file) — cross-repo copies are distinct files.
+
+_NOTABLE_TOKENS: tuple[str, ...] = (
+    "@TOOL_VERSION@",
+    "@VERSION_SUFFIX@",
+    "@WRAPPER_VERSION@",
+    "@GALAXY_VERSION@",
+    "@PROFILE@",
+    "@TOOL_CITATION@",
+)
+
+
+@dataclass
+class _MacroFileFacts:
+    token_names: frozenset[str]
+    has_yield: bool
+    has_named_yield: bool
+    defines_macro: bool
+
+
+@dataclass
+class _MacroTopologyResult:
+    n_unique_tools: int
+    n_unparseable_skipped: int
+    n_no_macros: int
+    n_inline_only: int  # macro defs inline, no <import>
+    n_with_imports: int  # at least one <macros><import>
+    n_unresolved_imports: int  # tools with an <import> target missing on disk
+    n_uses_expand: int
+    n_uses_yield: int  # tool's inline macros or its imported files use <yield>
+    n_named_yield: int
+    n_defines_macro: int
+    n_profile_is_token: int
+    n_profile_token_inline: int
+    n_profile_token_imported: int
+    n_profile_token_unresolved: int
+    n_version_is_token: int
+    n_macro_files: int
+    n_shared_macro_files: int  # imported by >1 unique tool
+    max_importers: int
+    importer_histogram: list[tuple[int, int]]  # (importer_count, n_macro_files)
+    top_shared: list[tuple[str, int]]  # (macro file path, importer count)
+    notable_token_counts: list[tuple[str, int]]  # (token name, n_tools)
+    top_token_names: list[tuple[str, int]]  # (token name, n_tools)
+
+
+def _facts_from_macro_container(element: etree._Element, /) -> _MacroFileFacts:
+    """Extract token names / <yield> / <macro> facts from a <macros>-like element."""
+    token_names = frozenset(
+        name
+        for token in element.iter("token")
+        if (name := token.get("name")) is not None
+    )
+    yields = list(element.iter("yield"))
+    return _MacroFileFacts(
+        token_names=token_names,
+        has_yield=bool(yields),
+        has_named_yield=any(node.get("name") is not None for node in yields),
+        defines_macro=element.find(".//macro") is not None,
+    )
+
+
+@cache
+def _macro_file_facts(path: Path, /) -> _MacroFileFacts | None:
+    """Parse an imported macro file and return its facts, or ``None`` if unusable."""
+    if not path.is_file():
+        return None
+    parser = etree.XMLParser(recover=True, strip_cdata=False)
+    try:
+        with path.open("rb") as handle:
+            tree = etree.parse(handle, parser)
+    except (etree.XMLSyntaxError, OSError):
+        return None
+    root = tree.getroot() if tree is not None else None
+    if root is None:
+        return None
+    return _facts_from_macro_container(root)
+
+
+def _import_paths(root: etree._Element, *, tool_path: Path) -> list[tuple[str, Path]]:
+    """Return ``(relative, resolved)`` for each <macros><import> in a tool."""
+    pairs: list[tuple[str, Path]] = []
+    for element in root.findall("macros/import"):
+        relative = element.text.strip() if element.text else ""
+        if relative:
+            pairs.append((relative, (tool_path.parent / relative).resolve()))
+    return pairs
+
+
+def _measure_macro_topology(*, corpus_root: Path) -> _MacroTopologyResult:
+    """Re-walk the corpus and characterise macro organisation across unique tools."""
+    from galaxy_tool_xml.macros import has_macros
+
+    seen_sha: set[str] = set()
+    importers: dict[Path, set[Path]] = defaultdict(set)
+    token_tools: Counter[str] = Counter()
+    skipped = no_macros = inline_only = with_imports = unresolved = 0
+    uses_expand = uses_yield = named_yield = defines_macro = 0
+    profile_token = profile_inline = profile_imported = profile_unresolved = 0
+    version_token = 0
+
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        sha = _sha256_of(path)
+        if sha in seen_sha:
+            continue
+        seen_sha.add(sha)
+        root = _parse_tool_root(path)
+        if root is None:
+            skipped += 1
+            continue
+
+        inline = root.find("macros")
+        inline_facts = (
+            _facts_from_macro_container(inline) if inline is not None else None
+        )
+        imports = _import_paths(root, tool_path=path)
+        imported_facts = [
+            facts
+            for _relative, resolved in imports
+            if (facts := _macro_file_facts(resolved)) is not None
+        ]
+        for _relative, resolved in imports:
+            if resolved.is_file():
+                importers[resolved].add(path)
+
+        if not has_macros(root):
+            no_macros += 1
+        elif imports:
+            with_imports += 1
+        else:
+            inline_only += 1
+        if any(not resolved.is_file() for _relative, resolved in imports):
+            unresolved += 1
+
+        if root.find(".//expand") is not None:
+            uses_expand += 1
+        all_facts = ([inline_facts] if inline_facts is not None else []) + imported_facts
+        if any(facts.has_yield for facts in all_facts):
+            uses_yield += 1
+        if any(facts.has_named_yield for facts in all_facts):
+            named_yield += 1
+        if any(facts.defines_macro for facts in all_facts):
+            defines_macro += 1
+
+        token_names: set[str] = set()
+        for facts in all_facts:
+            token_names |= facts.token_names
+        for name in token_names:
+            token_tools[name] += 1
+
+        profile_raw = root.get("profile")
+        if profile_raw is not None and "@" in profile_raw:
+            profile_token += 1
+            inline_names = inline_facts.token_names if inline_facts else frozenset()
+            imported_names: set[str] = set()
+            for facts in imported_facts:
+                imported_names |= facts.token_names
+            if profile_raw in inline_names:
+                profile_inline += 1
+            elif profile_raw in imported_names:
+                profile_imported += 1
+            else:
+                profile_unresolved += 1
+
+        version_raw = root.get("version")
+        if version_raw is not None and "@" in version_raw:
+            version_token += 1
+
+    counts = sorted(len(tools) for tools in importers.values())
+    histogram = sorted(Counter(counts).items())
+    shared = [(macro, len(tools)) for macro, tools in importers.items() if len(tools) > 1]
+    shared.sort(key=lambda item: (-item[1], str(item[0])))
+    top_shared = [(_display_path(macro), count) for macro, count in shared[:15]]
+    notable = [(name, token_tools.get(name, 0)) for name in _NOTABLE_TOKENS]
+    top_tokens = sorted(token_tools.items(), key=lambda item: (-item[1], item[0]))[:25]
+
+    return _MacroTopologyResult(
+        n_unique_tools=len(seen_sha) - skipped,
+        n_unparseable_skipped=skipped,
+        n_no_macros=no_macros,
+        n_inline_only=inline_only,
+        n_with_imports=with_imports,
+        n_unresolved_imports=unresolved,
+        n_uses_expand=uses_expand,
+        n_uses_yield=uses_yield,
+        n_named_yield=named_yield,
+        n_defines_macro=defines_macro,
+        n_profile_is_token=profile_token,
+        n_profile_token_inline=profile_inline,
+        n_profile_token_imported=profile_imported,
+        n_profile_token_unresolved=profile_unresolved,
+        n_version_is_token=version_token,
+        n_macro_files=len(importers),
+        n_shared_macro_files=len(shared),
+        max_importers=counts[-1] if counts else 0,
+        importer_histogram=histogram,
+        top_shared=top_shared,
+        notable_token_counts=notable,
+        top_token_names=top_tokens,
+    )
+
+
+def _report_macro_topology(measurement: _MacroTopologyResult) -> None:
+    unique = measurement.n_unique_tools
+
+    def pct(n: int) -> float:
+        return 100 * n / unique if unique else 0.0
+
+    print("\n=== macro-topology ===")
+    print(
+        f"Unique tools parsed (sha256-deduped): {unique}; "
+        f"non-<tool>/unparseable skipped: {measurement.n_unparseable_skipped}"
+    )
+    print(
+        f"  no macros:        {measurement.n_no_macros} "
+        f"({pct(measurement.n_no_macros):.1f}%)"
+    )
+    print(
+        f"  inline only:      {measurement.n_inline_only} "
+        f"({pct(measurement.n_inline_only):.1f}%)"
+    )
+    print(
+        f"  imports a file:   {measurement.n_with_imports} "
+        f"({pct(measurement.n_with_imports):.1f}%); "
+        f"{measurement.n_unresolved_imports} have an unresolved <import>"
+    )
+    print(
+        f"  uses <expand>: {measurement.n_uses_expand}; uses <yield>: "
+        f"{measurement.n_uses_yield} (named: {measurement.n_named_yield}); "
+        f"defines <macro>: {measurement.n_defines_macro}"
+    )
+    print(
+        f"  profile= is a token: {measurement.n_profile_is_token} "
+        f"(inline {measurement.n_profile_token_inline} / imported "
+        f"{measurement.n_profile_token_imported} / unresolved "
+        f"{measurement.n_profile_token_unresolved}); "
+        f"version= is a token: {measurement.n_version_is_token}"
+    )
+    print(
+        f"  distinct imported macro files: {measurement.n_macro_files}; "
+        f"shared by >1 tool: {measurement.n_shared_macro_files}; "
+        f"max importers: {measurement.max_importers}"
+    )
+    print("  importer-count histogram (importers: #files):")
+    for importer_count, n_files in measurement.importer_histogram:
+        print(f"    {importer_count}: {n_files}")
+    print("  most-shared macro files:")
+    for macro, count in measurement.top_shared[:10]:
+        print(f"    {count}x  {macro}")
+    print("  notable token names (tools defining/importing them):")
+    for name, count in measurement.notable_token_counts:
+        print(f"    {name}: {count}")
+
+
+def _render_macro_stats_page(
+    topology: _MacroTopologyResult, *, profile_tokens: _MacroProfileTokensResult
+) -> str:
+    """Render the macro-corpus stats markdown page (deterministic)."""
+    unique = topology.n_unique_tools
+
+    def pct(n: int, of: int) -> float:
+        return 100 * n / of if of else 0.0
+
+    def num(n: int) -> str:
+        return f"{n:,}"
+
+    lines: list[str] = [
+        "# Macro corpus statistics",
+        "",
+        "Phase-0 measurements for the macro-aware refactoring plan: how Galaxy",
+        "tool macros are organised across the combined corpus (parsing, sharing,",
+        "tokens, `<yield>`), and how often a macro-token `profile=` is stale. These",
+        "numbers gate the macro-aware design decisions (shared-macro edit policy,",
+        "token-aware profile upgrades, deferring `<yield>`).",
+        "",
+        "Regenerate with:",
+        "",
+        "```sh",
+        "uv run python -m scripts.measure macro-topology",
+        "```",
+        "",
+        f"Unique `<tool>` files (sha256-deduped): **{num(unique)}** "
+        f"({num(topology.n_unparseable_skipped)} non-`<tool>`-root or "
+        "unparseable XML files skipped — including the macro libraries "
+        "themselves).",
+        "",
+        "## Macro organisation",
+        "",
+        "| Bucket | Tools | Share |",
+        "|---|--:|--:|",
+        f"| No macros | {num(topology.n_no_macros)} | {pct(topology.n_no_macros, unique):.1f}% |",
+        f"| Inline `<macros>` only | {num(topology.n_inline_only)} | {pct(topology.n_inline_only, unique):.1f}% |",
+        f"| Imports a macro file | {num(topology.n_with_imports)} | {pct(topology.n_with_imports, unique):.1f}% |",
+        "",
+        f"Tools with an unresolved `<import>` (target missing on disk): "
+        f"**{num(topology.n_unresolved_imports)}**.",
+        "",
+        "## Construct usage",
+        "",
+        "| Construct | Tools | Share |",
+        "|---|--:|--:|",
+        f"| `<expand>` | {num(topology.n_uses_expand)} | {pct(topology.n_uses_expand, unique):.1f}% |",
+        f"| `<yield>` (tool + its macro files) | {num(topology.n_uses_yield)} | {pct(topology.n_uses_yield, unique):.1f}% |",
+        f"| `<yield name=...>` (named) | {num(topology.n_named_yield)} | {pct(topology.n_named_yield, unique):.1f}% |",
+        f"| defines `<macro>` | {num(topology.n_defines_macro)} | {pct(topology.n_defines_macro, unique):.1f}% |",
+        "",
+        "`<yield>` appears in the inline or imported macros of a third of tools,",
+        "but named yields and tool-defined `<macro>`s are rare. v1 must therefore",
+        "**preserve** `<yield>`/`<macro>` faithfully; yield-aware *editing*",
+        "(resolving parameterized macros) can still defer to a later phase.",
+        "",
+        "## Shared macro files (blast-radius input)",
+        "",
+        f"Distinct imported macro files: **{num(topology.n_macro_files)}**; "
+        f"imported by more than one tool: **{num(topology.n_shared_macro_files)}**; "
+        f"max importers of a single file: **{num(topology.max_importers)}**.",
+        "",
+        "Importer-count distribution (how many tools import each macro file):",
+        "",
+        "| Importers | Macro files |",
+        "|--:|--:|",
+    ]
+    lines.extend(
+        f"| {importer_count} | {num(n_files)} |"
+        for importer_count, n_files in topology.importer_histogram
+    )
+    lines.extend(["", "Most-shared macro files:", ""])
+    if topology.top_shared:
+        lines.append("| Importers | Macro file |")
+        lines.append("|--:|---|")
+        lines.extend(
+            f"| {count} | `{macro}` |" for macro, count in topology.top_shared
+        )
+    else:
+        lines.append("_None imported by more than one tool._")
+
+    lines.extend(
+        [
+            "",
+            "## Tokens",
+            "",
+            f"`profile=` is a macro token: **{num(topology.n_profile_is_token)}** "
+            f"(token defined inline {num(topology.n_profile_token_inline)} / in an "
+            f"imported file {num(topology.n_profile_token_imported)} / unresolved "
+            f"{num(topology.n_profile_token_unresolved)}). `version=` is a token: "
+            f"**{num(topology.n_version_is_token)}**.",
+            "",
+            "Notable token names (tools that define or import them):",
+            "",
+            "| Token | Tools |",
+            "|---|--:|",
+        ]
+    )
+    lines.extend(
+        f"| `{name}` | {num(count)} |"
+        for name, count in topology.notable_token_counts
+    )
+    lines.extend(
+        [
+            "",
+            "## Stale macro-token profiles (token-aware upgrade target)",
+            "",
+            "Of the tools whose `profile=` is a macro token, how the token's",
+            "*expanded* value compares to the newest profile the tool validates at",
+            "(profiles compared with `packaging.version`). **Upgradeable** is the",
+            "motivating case: rewriting the token *definition* would advance the",
+            "tool, where today's `UpdateProfile` would clobber the `@TOKEN@`",
+            "reference with a literal.",
+            "",
+            "| Outcome | Tools |",
+            "|---|--:|",
+            f"| profile= is a macro token | {num(profile_tokens.n_profile_is_token)} |",
+            f"| └ upgradeable (token value stale) | {num(profile_tokens.n_upgradeable)} |",
+            f"| └ already current | {num(profile_tokens.n_current)} |",
+            f"| └ token ahead of validity | {num(profile_tokens.n_token_ahead)} |",
+            f"| └ validates at no profile | {num(profile_tokens.n_validates_nowhere)} |",
+            f"| └ unparseable profile value | {num(profile_tokens.n_unparseable_versions)} |",
+            "",
+        ]
+    )
+    if profile_tokens.exemplars:
+        lines.append("Upgradeable exemplars (`raw` → expands → validates):")
+        lines.append("")
+        lines.extend(
+            f"- `{path}`: `{raw}` → {expanded} → validates {newest}"
+            for path, raw, expanded, newest in profile_tokens.exemplars[:10]
+        )
+        lines.append("")
+    return "\n".join(lines)
+
+
+def _run_macro_topology(args: argparse.Namespace) -> None:
+    topology = _measure_macro_topology(corpus_root=args.corpus_root)
+    profile_tokens = _measure_macro_profile_tokens(
+        rows=_load_combined_data(path=args.data)
+    )
+    _report_macro_topology(topology)
+    _report_macro_profile_tokens(profile_tokens)
+    # Emit the persistent stats page on a direct run, not during a --all sweep
+    # (which is a read-only fan-out over every measurement).
+    if not args.all:
+        out_path = _repo_root() / "docs" / "macro_corpus_stats.md"
+        out_path.write_text(
+            _render_macro_stats_page(topology, profile_tokens=profile_tokens) + "\n",
+            encoding="utf-8",
+        )
+        print(f"\nwrote {_display_path(out_path)}")
+
+
 # --- measurement: cross-source-presence -----------------------------------------
 #
 # Justifies the `presence` column in combined_corpus_data.json and the
@@ -1537,6 +2071,8 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "no-valid-profile-taxonomy": _run_no_valid_profile_taxonomy,
     "macro-usage": _run_macro_usage,
     "macro-placeholder-profile": _run_macro_placeholder_profile,
+    "macro-profile-tokens": _run_macro_profile_tokens,
+    "macro-topology": _run_macro_topology,
     "expansion-failed-ids": _run_expansion_failed_ids,
     "cross-source-presence": _run_cross_source_presence,
     "lenient-text-fields": _run_lenient_text_fields,

@@ -95,7 +95,14 @@ uv run python -m scripts.corpus_check check [--source github|toolshed|combined] 
 uv run python -m scripts.fetch_schemas         # download release XSDs
 uv run python -m scripts.fetch_toolshed        # clone Toolshed repos
 uv run python -m scripts.regenerate            # regenerate per-version models
-uv run python -m scripts.measure               # ad-hoc corpus queries
+uv run python -m scripts.measure               # ad-hoc corpus queries (--list)
+
+# Macro organisation across the corpus (inline vs imported macro files,
+# shared-macro importer distribution, token names, <yield>, stale macro-token
+# profiles). Writes docs/macro_corpus_stats.md (manually-regenerated artifact;
+# needs the corpus, so it is not run in CI):
+uv run python -m scripts.measure macro-topology
+uv run python -m scripts.measure macro-profile-tokens
 ```
 
 **Note:** invoke as `python -m scripts.X`, not `python scripts/X.py` — the
