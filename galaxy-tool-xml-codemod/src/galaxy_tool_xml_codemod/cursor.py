@@ -41,6 +41,27 @@ class Cursor:
     def tag(self) -> str:
         return str(self._element.tag)
 
+    @property
+    def sourceline(self) -> int:
+        """The element's 1-based source line, or ``0`` if it has no source position.
+
+        lxml records ``sourceline`` for parsed elements and leaves it ``None``
+        for elements built in memory (a codemod-synthesised node). Detect
+        phases surface this as the ``Violation.sourceline`` location, which is a
+        plain ``int``, so an absent position maps to ``0``.
+        """
+        line = self._element.sourceline
+        return line if line is not None else 0
+
+    @property
+    def xpath(self) -> str:
+        """The element's absolute, indexed xpath (e.g. ``/tool/inputs/param[1]``).
+
+        Derived from the live tree via lxml ``ElementTree.getpath`` — a stable
+        textual location for the detect phase's ``Violation.xpath``.
+        """
+        return str(self._element.getroottree().getpath(self._element))
+
     def get_attribute(self, name: str, /) -> str | None:
         value = self._element.get(name)
         return None if value is None else str(value)
@@ -130,46 +151,63 @@ class Cursor:
             child.text = text
         return Cursor(child)
 
-    def reorder_children(self, order: Sequence[str], /) -> None:
-        """Reorder this element's child *elements* to the canonical tag ``order``.
+    def _plan_reorder_children(
+        self, order: Sequence[str]
+    ) -> list[etree._Element] | None:
+        """Return the reordered child nodes, or ``None`` if nothing would move.
 
-        Children whose tag appears in ``order`` are placed in that order;
-        tags not in ``order`` keep their original relative position, after the
-        known ones (a stable sort by ``(rank, original index)`` — no
-        alphabetical guess, unlike ``reorder_attributes``). When the resulting
-        order equals the current one, no mutation is performed, so an
-        already-ordered element never churns.
-
-        Unlike ``reorder_attributes``, this *skips* (no-op) rather than raises
-        when the element has any non-element child (Comment /
-        ProcessingInstruction): ``children()`` hides those nodes, so a caller
-        cannot see them, and moving elements past a free-floating comment would
-        silently re-associate it with the wrong element. A comment is a normal
-        tree state, not a codemod bug, so the safe response is to leave the
-        element untouched. lxml moves an existing child when it is re-appended;
-        each element's ``tail`` travels with it, so inter-element whitespace is
-        left for the cosmetic formatter to re-normalise.
+        Children whose tag appears in ``order`` are placed in that order; tags
+        not in ``order`` keep their original relative position, after the known
+        ones (a stable sort by ``(rank, original index)`` — no alphabetical
+        guess, unlike ``reorder_attributes``). Returns ``None`` when the element
+        has any non-element child (Comment / ProcessingInstruction) — see
+        ``reorder_children`` — or when the order already matches, so neither the
+        detect predicate nor the mutator churns an already-ordered element.
         """
         nodes = list(self._element)
         if any(not _is_element(node) for node in nodes):
-            return
+            return None
         rank = {tag: index for index, tag in enumerate(order)}
         sentinel = len(order)
         reordered = sorted(nodes, key=lambda node: rank.get(str(node.tag), sentinel))
         if all(before is after for before, after in zip(nodes, reordered, strict=True)):
+            return None
+        return reordered
+
+    def would_reorder_children(self, order: Sequence[str], /) -> bool:
+        """Whether ``reorder_children(order)`` would move any child element.
+
+        The detect-phase predicate: it shares ``_plan_reorder_children`` with the
+        mutator, so a codemod reports a reorder exactly when applying one would.
+        """
+        return self._plan_reorder_children(order) is not None
+
+    def reorder_children(self, order: Sequence[str], /) -> None:
+        """Reorder this element's child *elements* to the canonical tag ``order``.
+
+        Children whose tag appears in ``order`` are placed in that order; tags
+        not in ``order`` keep their relative position, after the known ones.
+        When nothing would move — the order already matches, or a free-floating
+        Comment / ProcessingInstruction is present (``children()`` hides those,
+        and moving elements past one would silently re-associate it with the
+        wrong element; a comment is a normal tree state, not a codemod bug) —
+        the element is left untouched. lxml moves an existing child when it is
+        re-appended; each element's ``tail`` travels with it, so inter-element
+        whitespace is left for the cosmetic formatter to re-normalise.
+        """
+        reordered = self._plan_reorder_children(order)
+        if reordered is None:
             return
         for node in reordered:
             self._element.append(node)
 
-    def reorder_attributes(self, names: Sequence[str], /) -> None:
-        """Rewrite the element's attribute order to match ``names``.
+    def would_reorder_attributes(self, names: Sequence[str], /) -> bool:
+        """Whether ``reorder_attributes(names)`` would change the attribute order.
 
-        ``names`` must be a permutation of the element's current attribute
-        names. Otherwise ``ValueError`` is raised — defensively, because a
-        codemod bug that silently dropped or invented attributes would be
-        very hard to debug after the fact.
-
-        If ``names`` equals the current order, no mutation is performed.
+        ``names`` must be a permutation of the element's current attribute names;
+        otherwise ``ValueError`` is raised on the same guard as the mutator, so
+        the detect phase fails as loudly as the fix phase on a codemod bug. The
+        detect predicate and the mutator share this check, so they never drift.
         """
         current = tuple(self._element.attrib)
         ordered = tuple(names)
@@ -178,8 +216,18 @@ class Cursor:
                 f"reorder_attributes: names {ordered!r} is not a permutation "
                 f"of element's current attributes {current!r}"
             )
-        if ordered == current:
+        return ordered != current
+
+    def reorder_attributes(self, names: Sequence[str], /) -> None:
+        """Rewrite the element's attribute order to match ``names``.
+
+        ``names`` must be a permutation of the element's current attribute
+        names (see ``would_reorder_attributes``, which performs the guard).
+        If ``names`` equals the current order, no mutation is performed.
+        """
+        if not self.would_reorder_attributes(names):
             return
+        ordered = tuple(names)
         snapshot = [(name, self._element.attrib[name]) for name in ordered]
         self._element.attrib.clear()
         for name, value in snapshot:

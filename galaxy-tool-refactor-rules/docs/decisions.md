@@ -39,3 +39,38 @@ different execution contracts and are not unified.
 spans GTX001–GTX012 (3 fmt rules, 9 codemods); codes are globally unique across
 the two tiers (asserted by a test in `galaxy-tool-xml-fmt`'s corpus-check suite,
 which can import both tiers).
+
+## D2 (2026-05-30) — Add the shared `Violation` diagnostic type
+
+### Decision
+
+A `Violation` frozen dataclass joins `RuleMeta` in this tier-0.5 package
+(`violation.py`). It is the per-occurrence result of a rule's **detect (lint)**
+phase: `code` (matching `RuleMeta.code`), `sourceline` (1-based `int`, `0` when
+the element has no source position), `xpath` (`str`), and `message`. It is the
+read-only counterpart to the mutating tier-2 `Change` and tier-3 `Edit`.
+
+This lands as part of the detect/fix rule-split effort (see
+`galaxy-tool-xml-codemod/docs/decisions.md` §19 and
+`../../docs/detect_fix_split_plan.md`). Tier-2 `Change` projects onto a
+`Violation` via `Change.to_violation()`.
+
+### Rationale
+
+- **One shared diagnostic vocabulary.** Both the codemod (tier 2) and formatter
+  (tier 3) detect phases, the future report-only `check` CLI (tier 4), and the
+  planned advisory check library all surface findings; a single `Violation`
+  type lets them do so without depending on one another — the same role
+  `RuleMeta` plays for the rule registry.
+- **Dependency-free is preserved.** The location is a plain `int` line plus a
+  `str` xpath, never an lxml handle, so this package stays free of lxml / tier
+  1/2/3 imports (the invariant from D1 and `galaxy-tool-xml-fmt` §D10). Putting
+  `Violation` in tier 2 instead would have forced fmt to import codemod once fmt
+  surfaces its edits as violations — exactly the re-coupling the tier split
+  exists to prevent.
+
+### Scope
+
+`Violation` is pure data with no methods beyond the dataclass. A capability flag
+on `RuleMeta` (e.g. `detect_only`) is deferred until detect-only rules arrive
+(roadmap PR4), so the flag has a first non-default user when added.

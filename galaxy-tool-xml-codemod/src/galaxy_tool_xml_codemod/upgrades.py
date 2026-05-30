@@ -28,6 +28,7 @@ from galaxy_tool_xml.binding import newest_valid_profile
 from galaxy_tool_xml.profiles import latest_profile
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
+from galaxy_tool_xml_codemod.codemods._coarse_detect import coarse_detect
 from galaxy_tool_xml_codemod.codemods.update_profile import UpdateProfile
 from galaxy_tool_xml_codemod.codemods.upgrade_19_01 import Upgrade19_01
 from galaxy_tool_xml_codemod.codemods.upgrade_24_0 import Upgrade24_0
@@ -35,6 +36,9 @@ from galaxy_tool_xml_codemod.codemods.upgrade_24_1 import Upgrade24_1
 from galaxy_tool_xml_codemod.codemods.upgrade_25_1 import Upgrade25_1
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from galaxy_tool_xml_codemod.change import Change
     from galaxy_tool_xml_codemod.module import Module
 
 logger = logging.getLogger(__name__)
@@ -72,6 +76,11 @@ class UpgradeToLatest(CodemodCommand):
         # Sub-latest version the most recent ``apply`` stalled at with no
         # registered upgrade codemod, or ``None``. Read via ``missing_upgrade``.
         self._missing_upgrade: str | None = None
+
+    def detect(self, module: Module, /) -> Iterator[Change]:
+        return coarse_detect(
+            self, module, message="tool would be upgraded toward the latest profile"
+        )
 
     def apply(self, module: Module, /) -> None:
         self._applied_upgrades = []

@@ -42,9 +42,13 @@ from typing import TYPE_CHECKING, ClassVar
 from galaxy_tool_refactor_rules.meta import RuleMeta
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
+from galaxy_tool_xml_codemod.codemods._coarse_detect import coarse_detect
 from galaxy_tool_xml_codemod.cursor import Cursor
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from galaxy_tool_xml_codemod.change import Change
     from galaxy_tool_xml_codemod.module import Module
 
 # Attributes 24.2 newly pattern-restricts to lowercase datatype tokens:
@@ -74,6 +78,11 @@ class Upgrade24_1(CodemodCommand):
         summary="Upgrade a tool stuck at profile 24.1 toward 24.2 (normalize format).",
         since="0.0.1",
     )
+
+    def detect(self, module: Module, /) -> Iterator[Change]:
+        return coarse_detect(
+            self, module, message="tool would be upgraded one step past profile 24.1"
+        )
 
     def apply(self, module: Module, /) -> None:
         for element in module.document.root.iter():

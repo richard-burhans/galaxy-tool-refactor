@@ -357,3 +357,30 @@ def test_reorder_children_is_idempotent() -> None:
     once = etree.tostring(root)
     cursor.reorder_children(("description", "inputs", "help"))
     assert etree.tostring(root) == once
+
+
+def test_cursor_sourceline_returns_parsed_line(tool_with_params_path: Path) -> None:
+    """``cursor.sourceline`` returns the 1-based source line of the element."""
+    root = _root_cursor(tool_with_params_path)
+    assert root.sourceline == 1
+    first_param = root.children()[1].children()[0]  # tool -> inputs -> first param
+    assert first_param.tag == "param"
+    assert first_param.sourceline == 4
+
+
+def test_cursor_sourceline_is_zero_for_synthesised_element() -> None:
+    """An element built in memory (no source) reports sourceline ``0``."""
+    from lxml import etree
+
+    synthetic = etree.Element("param")
+    assert Cursor(synthetic).sourceline == 0
+
+
+def test_cursor_xpath_returns_absolute_path(tool_with_params_path: Path) -> None:
+    """``cursor.xpath`` returns an absolute, indexed path to the element."""
+    root = _root_cursor(tool_with_params_path)
+    assert root.xpath == "/tool"
+    inputs = root.children()[1]
+    params = inputs.children()
+    assert params[0].xpath == "/tool/inputs/param[1]"
+    assert params[1].xpath == "/tool/inputs/param[2]"

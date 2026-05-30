@@ -20,17 +20,20 @@ def test_rule_meta_defaults() -> None:
     assert meta.until is None
     assert meta.cite is None
     assert meta.order == 100
+    assert meta.detect_only is False
 
 
 def test_rule_meta_carries_supplied_values() -> None:
     meta = RuleMeta(
-        code="GTX001",
+        code="IUC001",
         summary="Do a thing.",
         since="0.1.0",
         until="0.4.0",
         cite="https://example.invalid/spec",
         order=10,
+        detect_only=True,
     )
     assert meta.until == "0.4.0"
     assert meta.cite == "https://example.invalid/spec"
     assert meta.order == 10
+    assert meta.detect_only is True

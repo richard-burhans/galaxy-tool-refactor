@@ -86,30 +86,43 @@ commands (#39); input sanitization; python3 / PEP 8 in embedded scripts;
 `detect_errors` or `<stdio>` error handling (#40); `<section>` for advanced
 params.
 
-### Could these be apps, like `galaxy-tool-refactor-cli`?
+### Advisory `check` tier — BUILT (`galaxy-tool-xml-check`, tier 3.5)
 
-Reasoning (maintainer asked; not yet built):
+The mechanically-detectable subset is now a **read-only `check` (lint) that
+reports, never mutates**: the `galaxy-tool-xml-check` package (tier 3.5). Each
+check carries an `IUC` code in the shared tier-0.5 registry (parallel to GTX),
+is `RuleMeta.detect_only=True`, and is an LBYL query over tier-1's
+`ToolDocument`. They surface via the report-only `galaxy-tool-refactor check`
+subcommand: `file:line  CODE  message`, marked `(advisory)`. Advisory findings
+are **informational** — `check` exits non-zero only on *fixable* (GTX) findings;
+`--strict` also fails on advisory. (See `galaxy-tool-xml-check/docs/decisions.md`
+D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 
-- **Promising for the mechanically-*detectable* subset (~12).** A **read-only
-  `check` (lint) that *reports*, never mutates** is a clean fit: presence of
-  `<tests>`; `<command>`/`<help>` wrapped in CDATA; meaningful `id` charset
-  (#10–12); profile recency; `&&` vs a lone `&`; single-quoted Cheetah
-  (heuristic); version contains a `@TOOL_VERSION@` macro / parses as PEP 440;
-  `<requirements>` present; `detect_errors`-or-`<stdio>` present; EDAM/xrefs
-  present; non-empty help/description. All are LBYL tree queries reusing tier-1
-  (`ToolDocument`, `newest_valid_profile`, the typed model) — exactly the
-  inputs tier-1 already exposes.
-- **Not promising for the human-judgment remainder.** "tests are *meaningful*",
-  "help is *useful* prose", "names are *descriptive*", "the requirement exists
-  on conda", "version tracks upstream" — a tool can't reliably judge these. At
-  most thin, explicitly low-confidence heuristics (e.g. "help looks short");
-  better served by documentation than an app.
-- **Proposed architecture (if built).** Advisory checks carry their own IUC
-  codes in the shared tier-0.5 `galaxy-tool-refactor-rules` registry (parallel
-  to GTX), live in a small check library, and surface via a **report-only
-  `check` subcommand on `galaxy-tool-refactor-cli`** (diagnostics: `file:line`,
-  code, severity, message; non-zero exit on findings). It would **not** reuse
-  fmt's transform/write `cli_support` engine (that path is built around
-  rewrite + drift detection); a report path is a separate, smaller engine. This
-  keeps the mutating tiers (codemod/fmt) cleanly separated from the advisory
-  tier. Status: designed, not implemented — awaiting a decision.
+| IUC check | Code | Status |
+|---|---|---|
+| `<tests>` present | IUC001 | done |
+| `<command>` wrapped in CDATA | IUC002 | done |
+| tool `id` charset (#10–12) | IUC003 | done |
+| `version` PEP 440 or `@…@` macro | IUC004 | done |
+| `<requirements>` present | IUC005 | done |
+| error handling (`detect_errors`/`<stdio>`) | IUC006 | done |
+| EDAM topics/operations or `<xrefs>` | IUC007 | done |
+| non-empty `<help>` | IUC008 | done |
+| non-empty `<description>` | IUC009 | done |
+| `<help>` wrapped in CDATA | IUC010 | done |
+| single-quoted Cheetah variables (#36) | IUC011 | **placeholder** (deferred) |
+| `&&` vs a lone `&` (#39) | IUC012 | **placeholder** (deferred) |
+
+The two `<command>`-CDATA-text heuristics (IUC011/IUC012) are **reserved
+placeholders** — registered codes, no-op `detect` — pending tuning to avoid
+noise (distinguishing an unquoted Cheetah `$var` or a command-joining `&` from
+legitimate shell text inside CDATA is heuristic). "Profile recency" is omitted:
+it overlaps GTX007 / the `upgrade` command.
+
+**Not promising for the human-judgment remainder.** "tests are *meaningful*",
+"help is *useful* prose", "names are *descriptive*", "the requirement exists on
+conda", "version tracks upstream" — a tool can't reliably judge these; better
+served by documentation than an app. (The detect-only checks read the
+**un-expanded** tree, so a practice met via a macro — e.g.
+`<expand macro="requirements"/>` — can still be flagged; advisory status keeps
+that tolerable.)

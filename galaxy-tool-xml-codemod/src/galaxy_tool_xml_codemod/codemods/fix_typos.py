@@ -38,9 +38,13 @@ from galaxy_tool_xml.profiles import available_profiles
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
+from galaxy_tool_xml_codemod.codemods._coarse_detect import coarse_detect
 from galaxy_tool_xml_codemod.cursor import Cursor
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from galaxy_tool_xml_codemod.change import Change
     from galaxy_tool_xml_codemod.module import Module
 
 # Cascading typos (one fix exposing the next) converge in a handful of rounds;
@@ -135,6 +139,11 @@ class FixTypos(CodemodCommand):
         summary="Repair near-miss spelling typos so a globally-invalid tool validates.",
         since="0.0.1",
     )
+
+    def detect(self, module: Module, /) -> Iterator[Change]:
+        return coarse_detect(
+            self, module, message="near-miss typos would be repaired to validate"
+        )
 
     def apply(self, module: Module, /) -> None:
         document = module.document

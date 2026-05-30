@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
+from galaxy_tool_xml_codemod.change import Change
 from galaxy_tool_xml_codemod.codemods.reorder_param_attributes import (
     ReorderParamAttributes,
 )
@@ -96,15 +99,16 @@ def test_visits_only_param_elements() -> None:
     assert tuple(module.document.root.attrib) == ("profile", "id", "name", "version")
 
 
-def test_visit_param_returns_none_so_traversal_continues() -> None:
-    """``visit_Param`` returns ``None`` so any nested elements are still visited."""
+def test_detect_param_does_not_halt_descent_into_nested_elements() -> None:
+    """The walk descends past a ``<param>`` so nested elements are still seen."""
 
     class _Recorder(ReorderParamAttributes):
         def __init__(self) -> None:
             self.seen: list[str] = []
 
-        def visit_Option(self, cursor: Cursor) -> None:
+        def detect_Option(self, cursor: Cursor) -> Iterable[Change]:
             self.seen.append(cursor.tag)
+            return ()
 
     xml = b"""<tool id="t" name="n" version="1" profile="24.0">
         <inputs>
@@ -114,5 +118,28 @@ def test_visit_param_returns_none_so_traversal_continues() -> None:
         </inputs>
     </tool>"""
     recorder = _Recorder()
-    recorder.apply(parse_module(xml))
+    list(recorder.detect(parse_module(xml)))
     assert recorder.seen == ["option"]
+
+
+def test_detect_yields_located_change_for_unordered_param() -> None:
+    """``detect`` reports a GTX002 change at the param's xpath, without mutating."""
+    xml = b"""<tool id="t" name="n" version="1" profile="24.0">
+        <inputs><param type="text" name="x"/></inputs></tool>"""
+    module = parse_module(xml)
+    changes = list(ReorderParamAttributes().detect(module))
+    assert len(changes) == 1
+    assert changes[0].code == "GTX002"
+    # lxml omits the positional index for an only-child of its tag.
+    assert changes[0].xpath == "/tool/inputs/param"
+    # detect is non-mutating: the attribute order is untouched.
+    param = next(module.document.root.iter("param"))
+    assert tuple(param.attrib) == ("type", "name")
+
+
+def test_detect_yields_nothing_for_already_ordered_param() -> None:
+    """An already-ordered ``<param>`` produces no change."""
+    xml = b"""<tool id="t" name="n" version="1" profile="24.0">
+        <inputs><param name="x" type="text"/></inputs></tool>"""
+    module = parse_module(xml)
+    assert list(ReorderParamAttributes().detect(module)) == []

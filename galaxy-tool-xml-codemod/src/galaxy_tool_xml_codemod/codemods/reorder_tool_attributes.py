@@ -8,10 +8,12 @@ order — the prefix comes from convention in the docs.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
 
+from galaxy_tool_xml_codemod.change import Change
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
 from galaxy_tool_xml_codemod.codemods._attribute_ordering import canonical_order
 from galaxy_tool_xml_codemod.cursor import Cursor
@@ -36,7 +38,13 @@ class ReorderToolAttributes(CodemodCommand):
         since="0.0.1",
     )
 
-    def visit_Tool(self, cursor: Cursor) -> None:
-        cursor.reorder_attributes(
-            canonical_order(cursor.attribute_names(), _TOOL_PRIORITY)
-        )
+    def detect_Tool(self, cursor: Cursor) -> Iterable[Change]:
+        desired = canonical_order(cursor.attribute_names(), _TOOL_PRIORITY)
+        if cursor.would_reorder_attributes(desired):
+            yield Change(
+                code=self.meta.code,
+                sourceline=cursor.sourceline,
+                xpath=cursor.xpath,
+                message="<tool> attributes are not in the documented prefix order",
+                mutate=lambda: cursor.reorder_attributes(desired),
+            )

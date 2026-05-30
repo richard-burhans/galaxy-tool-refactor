@@ -30,9 +30,13 @@ from galaxy_tool_xml.binding import newest_valid_profile
 from packaging.version import InvalidVersion, Version
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
+from galaxy_tool_xml_codemod.codemods._coarse_detect import coarse_detect
 from galaxy_tool_xml_codemod.cursor import Cursor
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from galaxy_tool_xml_codemod.change import Change
     from galaxy_tool_xml_codemod.module import Module
 
 
@@ -61,6 +65,13 @@ class UpdateProfile(CodemodCommand):
         ),
         since="0.0.1",
     )
+
+    def detect(self, module: Module, /) -> Iterator[Change]:
+        return coarse_detect(
+            self,
+            module,
+            message="profile= would be set to the newest validating profile",
+        )
 
     def apply(self, module: Module, /) -> None:
         document = module.document

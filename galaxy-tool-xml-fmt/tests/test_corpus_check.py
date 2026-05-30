@@ -213,3 +213,58 @@ def test_stat_tables_use_comma_thousands_separators() -> None:
     ]
     fmt_tbl = "\n".join(corpus_check._rule_format_fmt_table(sweeps))
     assert "8,608" in fmt_tbl and "863,912" in fmt_tbl
+
+
+# --- check subcommand (unified-detect violation counts) ---------------------
+
+_FLAT_TOOL = (
+    b'<tool id="t" name="T" version="0.1" profile="24.1">'
+    b"<command><![CDATA[echo x]]></command>"
+    b'<inputs><param value="v" type="text" name="a"/></inputs>'
+    b'<outputs><data name="o"/></outputs></tool>'
+)
+
+
+def test_check_rule_registry_spans_three_tiers() -> None:
+    """The registry covers fmt + canonical codemods + advisory IUC checks."""
+    registry = corpus_check._check_rule_registry()
+    assert {"GTX001", "GTX003", "GTX004"} <= set(registry)  # fmt
+    assert {"GTX002", "GTX005", "GTX006", "GTX013"} <= set(registry)  # codemods
+    assert {f"IUC{n:03d}" for n in range(1, 13)} <= set(registry)  # advisory
+    assert registry["GTX002"].detect_only is False
+    assert registry["IUC001"].detect_only is True
+    assert registry["GTX002"].tier == "codemod"
+    assert registry["IUC001"].tier == "check"
+
+
+def test_check_detect_reports_fixable_and_advisory() -> None:
+    """The unified detect yields both fixable (GTX) and advisory (IUC) findings."""
+    from galaxy_tool_xml.binding import load_tool
+
+    codes = {v.code for v in corpus_check._check_detect(load_tool(_FLAT_TOOL))}
+    assert "GTX002" in codes  # fixable: param attribute order
+    assert any(code.startswith("IUC") for code in codes)  # advisory present
+
+
+def test_check_process_path_tallies_per_code(tmp_path: Path) -> None:
+    """One file rolls into the sweep's per-code and per-tool tallies."""
+    file = tmp_path / "tool.xml"
+    file.write_bytes(_FLAT_TOOL)
+    state = corpus_check._CheckSweepState(registry=corpus_check._check_rule_registry())
+    corpus_check._check_process_path(file, state=state)
+    assert state.tools == 1
+    assert state.flagged_tools == 1
+    assert state.fixable_flagged_tools == 1
+    assert state.advisory_flagged_tools == 1
+    assert state.registry["GTX002"].flagged == 1
+    assert state.registry["GTX002"].total == 1
+    # GTX006 (FixTypos) does not fire on a valid tool.
+    assert state.registry["GTX006"].flagged == 0
+
+
+def test_check_process_path_skips_non_tool(tmp_path: Path) -> None:
+    file = tmp_path / "macros.xml"
+    file.write_bytes(b"<macros><token>x</token></macros>")
+    state = corpus_check._CheckSweepState(registry=corpus_check._check_rule_registry())
+    corpus_check._check_process_path(file, state=state)
+    assert state.tools == 0

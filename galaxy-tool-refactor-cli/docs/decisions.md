@@ -56,3 +56,65 @@ pulled out into the opt-in `upgrade` command here.
 uv sync
 uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/
 ```
+
+## D2 (2026-05-30) — Report-only `check` subcommand (PR3)
+
+### Decision
+
+A third subcommand, `galaxy-tool-refactor check`, reports where tools deviate
+from canonical form without changing anything: one `file:line  CODE  message`
+line per finding, non-zero exit if any findings (or errors). It composes the
+detect phases the lower tiers gained in PR1/PR2 — the canonical codemods'
+`detect` (each `Change` projected via `Change.to_violation()`) plus fmt's
+`detect_tool_document` — over the same rules `format` would apply. PR3 of the
+detect/fix rule-split effort (see `../../docs/detect_fix_split_plan.md`).
+
+### Rationale
+
+- **Scope = the `format` rule set, report-only.** `check` mirrors the safe
+  `format` pipeline (`CANONICAL_CODEMODS` + cosmetic fmt), not `upgrade` — the
+  upgrade codemods are opt-in/semantic and would flag most tools as "would
+  upgrade," drowning the signal. A future `--upgrade` flag can extend coverage;
+  the detect-only IUC rules (PR4) will also feed this command.
+- **A separate, smaller engine — not fmt's `cli_support.run`.** That engine is
+  built around rewrite + drift detection (`_process_file` reads, transforms,
+  compares bytes, writes/diffs). `check` reuses only the report-safe public
+  pieces — `iter_targets`, `is_tool_root`, `load_tool` — and runs its own loop
+  that collects `Violation`s and prints them. No bytes are written or compared.
+- **Detect phases are non-mutating and independent**, so the canonical codemods'
+  detect and fmt's detect run against the one parsed document without
+  interfering; findings are sorted by source line. Orchestration of the two
+  lower tiers belongs in this app tier, consistent with `format`/`upgrade`.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/
+# round trip: check reports, format fixes, check is then clean
+uv run galaxy-tool-refactor check tool.xml   # exit 1 + findings
+uv run galaxy-tool-refactor format tool.xml
+uv run galaxy-tool-refactor check tool.xml   # exit 0, "clean"
+```
+
+## D3 (2026-05-30) — `check` gains advisory IUC findings (PR4)
+
+### Decision
+
+`check` now also runs the tier-3.5 advisory checks
+(`galaxy-tool-xml-check.detect_violations`) alongside the fixable GTX detect
+phases. The two finding classes are distinguished by `RuleMeta.detect_only`:
+fixable (GTX, what `format` would change) versus advisory (IUC best practices).
+Per-finding output marks advisory lines `(advisory)`; the summary splits the
+counts ("N fixable, M advisory in K file(s)"). `check` exits non-zero on any
+*fixable* finding or error; a new `--strict` flag also fails on advisory
+findings.
+
+### Rationale
+
+A GTX finding is definitive ("a codemod / `format` would change this"); an IUC
+finding is a judgment call ("consider adding tests"). Failing CI on the latter
+by default would make advisory opinions hard gates — a canonical tool that
+merely lacks EDAM xrefs should stay green. Keeping both in one report (the user
+sees everything) while gating only on fixable findings — with `--strict` to opt
+into stricter gating — gives the linter the right ergonomics. The app composes
+all three detect tiers (codemod + fmt + check); orchestration stays here.
