@@ -1431,6 +1431,7 @@ from galaxy_tool_refactor_rules.reference import (  # noqa: E402
     render_rule_reference_table,
 )
 from galaxy_tool_xml_codemod.catalog import coded_codemods  # noqa: E402
+from galaxy_tool_xml_fmt.detect import detect_tool_document  # noqa: E402
 from galaxy_tool_xml_fmt.edits import apply_edits  # noqa: E402
 from galaxy_tool_xml_fmt.format import all_rules  # noqa: E402
 from galaxy_tool_xml_fmt.rules import Rule  # noqa: E402
@@ -1509,7 +1510,21 @@ def _fmt_exercise(
         document_one = parse_tool(path).document
         if document_one is None:
             return "skip-unparseable", "", "", None
+        # Detect/format parity: the cosmetic detect phase must report a violation
+        # exactly when formatting changes the document's net bytes. Run detect
+        # (non-mutating) on the pristine tree, then format and compare.
+        before_bytes = to_bytes(document_one.tree)
+        detected = detect_tool_document(document_one)
         pass1_bytes, pass1_edits = _format_with_stats(document_one)
+        if bool(detected) != (pass1_bytes != before_bytes):
+            verb = "changed" if pass1_bytes != before_bytes else "did not change"
+            return (
+                "detect-parity-mismatch",
+                "detect-parity:fmt",
+                f"detect reported {len(detected)} violation(s) but format "
+                f"{verb} the document",
+                None,
+            )
         document_two = load_tool(pass1_bytes)
         pass2_bytes, pass2_edits = _format_with_stats(document_two)
         outcome = _FormatOutcome(

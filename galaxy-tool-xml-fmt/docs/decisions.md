@@ -751,3 +751,46 @@ uv run python -m scripts.corpus_check fmt               # combined, any-valid
 uv run python -m scripts.corpus_check fmt --source github --profile 26.1  # old cohort
 uv run --package galaxy-tool-xml-fmt pytest galaxy-tool-xml-fmt/tests/test_corpus_check.py
 ```
+
+## D14 (2026-05-30) — Cosmetic detect (lint) phase: `detect_tool_document` (PR2)
+
+**Date:** 2026-05-30. Reproduced-by: `uv run --package galaxy-tool-xml-fmt
+pytest galaxy-tool-xml-fmt/tests/test_detect.py`; corpus gate `uv run python -m
+scripts.corpus_check fmt`.
+
+PR2 of the detect/fix rule-split effort (tier-2 framework landed in PR1 — see
+`galaxy-tool-xml-codemod/docs/decisions.md` §19, `galaxy-tool-refactor-rules`
+D2 for the shared `Violation` type; effort tracked in
+`../../docs/detect_fix_split_plan.md`).
+
+- **What we chose.** A new `detect.py` exposes `detect_tool_document(document)
+  -> list[Violation]`, the non-mutating counterpart to `format_tool_document`.
+  It reports one `Violation` per node whose **net** cosmetic whitespace the
+  pipeline would change, located on the source tree (real line numbers) and
+  attributed to the owning rule's `meta.code` / `meta.summary`.
+- **Why net-diff, not per-edit.** fmt rules emit *unconditional* overlapping
+  rewrites — GTX001 sets every child's tail, GTX003 then overrides top-level
+  `<tool>` child tails (blank line). So an individual `Edit` "changing the tree"
+  does **not** mean the document is non-canonical: on an already-canonical file,
+  GTX001 wants to strip GTX003's blank line (a change to the intermediate state)
+  that GTX003 immediately re-adds. Mapping changing edits to violations
+  therefore false-positives on canonical files (empirically: 2 phantom GTX001
+  findings on a canonical 3-section tool). Detection instead formats a throwaway
+  copy, records the **last** rule to touch each node's whitespace (the owner),
+  and diffs the formatted copy against the original — net-zero churn is silent,
+  so a canonical document reports nothing, exact parity with `format`.
+- **Implementation notes.** (1) lxml hands out a fresh Python proxy per
+  `.iter()`, so `id()` is unstable across calls; detect captures each node list
+  once and reuses those proxies (live views over shared nodes). (2) Comment / PI
+  nodes are included, not just elements: GTX001/GTX003 rewrite a comment's tail
+  (a blank line after a top-level comment is a real change), so omitting them
+  let detect miss changes the pipeline makes — caught by the corpus parity gate
+  on bimib/cobraxy (now a regression test).
+- **Corpus parity gate.** `corpus_check fmt` now asserts the invariant
+  `bool(detect_tool_document(doc)) == (format changes net bytes)` per tool and
+  retains any `detect-parity-mismatch` as a finding. Result over the combined
+  corpus: **8,608 tools swept, 8,608 idempotent, 0 non-idempotent, 0 parity
+  mismatches.**
+- **Tier independence preserved.** `Violation` comes from tier 0.5; detect adds
+  no dependency on the codemod tier. No CLI yet — the report-only `check`
+  subcommand is PR3.

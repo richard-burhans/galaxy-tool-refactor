@@ -1,11 +1,11 @@
 # Plan — detect/fix rule split (in progress)
 
-Working plan for the detect/fix rule-split effort. **Status: PR1 landed
-(framework + 3 reorderers + coarse validation-driven detect + sweep parity
-gate). PR2–PR5 not yet started.** This doc is the resume point — read it top to
-bottom to pick the work back up cold. It is being superseded by per-tier
+Working plan for the detect/fix rule-split effort. **Status: PR1 + PR2 landed.
+PR3–PR5 not yet started.** This doc is the resume point — read it top to bottom
+to pick the work back up cold. It is being superseded by per-tier
 `docs/decisions.md` entries as the work lands (PR1 → `galaxy-tool-xml-codemod`
-§19, `galaxy-tool-refactor-rules` D2), then removed.
+§19, `galaxy-tool-refactor-rules` D2; PR2 → `galaxy-tool-xml-fmt` D14), then
+removed.
 
 **PR1 done (2026-05-30):** tier-0.5 `Violation`; tier-2 `Change` /
 `apply_changes`; `CodemodCommand` is detect-primitive (`detect_<Tag>` walk,
@@ -16,6 +16,15 @@ to detect+apply; validation-driven codemods got coarse `detect`
 detect⇔modified parity invariant. Reorderer modified counts unchanged
 (GTX002 6,075 · GTX005 1,020 · GTX013 4,640), 0 parity mismatches across 8,607
 eligible tools.
+
+**PR2 done (2026-05-30):** fmt `detect_tool_document` (`galaxy-tool-xml-fmt/
+detect.py`) — non-mutating, per-occurrence `Violation`s via **net-diff + owner
+attribution** (format a copy, record the last rule to touch each node, diff vs
+original; net-zero churn is silent so canonical docs report nothing). Naive
+per-edit mapping over-reports because GTX001/GTX003 overlap on tails. Includes
+Comment/PI tails. `corpus_check fmt` enforces detect⇔format-changes parity:
+8,608 tools, 8,608 idempotent, 0 parity mismatches. See `galaxy-tool-xml-fmt`
+D14.
 
 Branch: `detect-fix-rule-split` (off `main` @ the GTX013 merge, `db66c7c`).
 
