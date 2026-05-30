@@ -1,44 +1,43 @@
 """The ``galaxy-tool-refactor`` command-line interface.
 
-Three subcommands. ``format`` and ``upgrade`` share fmt's file-walking /
+Five subcommands. ``format`` and ``upgrade`` share fmt's file-walking /
 drift-detection engine (``galaxy_tool_xml_fmt.cli_support``) and differ only in
-which codemod pipeline they apply before serialisation; ``check`` is a
-report-only linter that mutates nothing.
+which rules run before serialisation; ``check`` is a report-only linter that
+mutates nothing; ``rules`` / ``presets`` print the available baked-in rules and
+presets. All rule orchestration is delegated to the tier-3.6 registry facade
+(``galaxy_tool_refactor_registry``); this module only does CLI plumbing.
 
-- ``format`` — apply ``CANONICAL_CODEMODS`` (repair + attribute order) then
-  cosmetic formatting. Safe and idempotent; never changes ``profile=``.
-- ``upgrade`` — apply ``AUTO_UPGRADE_CODEMODS`` (repair, then iterative profile
-  upgrade) then cosmetic formatting. Opt-in and semantic; reports the profile
-  steps applied and warns if it stalls below the latest profile.
-- ``check`` — report where tools deviate from canonical form, one
-  ``file:line  CODE  message`` per finding, without changing anything. Covers the
-  *fixable* GTX rules (what ``format`` would change) plus the *advisory* IUC
-  best-practice checks (``galaxy-tool-xml-check``). Exits non-zero on any fixable
-  finding; advisory findings are informational unless ``--strict``.
+- ``format`` — apply a preset's (or a ``--select``/``--ignore`` selection's)
+  fixable rules then cosmetic formatting. Safe and idempotent; never changes
+  ``profile=``. Default preset ``iuc`` reproduces the historical behaviour.
+- ``upgrade`` — repair, then iteratively upgrade ``profile=`` toward the latest
+  (applying the registered migration each step), then format. Opt-in and
+  semantic; presets do not apply (``--select``/``--ignore`` adjust its rule set).
+- ``check`` — report where tools deviate from the selection, one
+  ``file:line  CODE  message`` per finding, without changing anything. Fixable
+  (GTX) findings fail the run; advisory (IUC) findings are informational unless
+  ``--strict``.
+- ``rules`` / ``presets`` — introspection: the baked-in rules and the presets.
 
-``format`` and ``upgrade`` write through fmt's serializer, so output is
-canonical-form XML; the difference is purely which transforms ran.
+Selection (``--preset`` / ``--select`` / ``--ignore``) is shared by ``format``,
+``upgrade`` (no ``--preset``), and ``check``; precedence is ruff-style
+(``--ignore`` ▸ ``--select`` ▸ ``--preset``).
 """
 
 from __future__ import annotations
 
 import sys
-from functools import cache
 from pathlib import Path
 
 import click
-from galaxy_tool_refactor_rules.violation import Violation
+from galaxy_tool_refactor_registry import facade
+from galaxy_tool_refactor_registry.errors import UnknownPreset, UnknownRuleCode
+from galaxy_tool_refactor_registry.resolve import (
+    resolve_codes,
+    resolve_upgrade_codes,
+)
 from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_tool
 from galaxy_tool_xml.document import ToolDocument
-from galaxy_tool_xml_check.detect import all_checks
-from galaxy_tool_xml_check.detect import detect_violations as detect_advisory
-from galaxy_tool_xml_codemod.canonical import (
-    AUTO_UPGRADE_CODEMODS,
-    CANONICAL_CODEMODS,
-)
-from galaxy_tool_xml_codemod.codemod import CodemodCommand
-from galaxy_tool_xml_codemod.module import Module
-from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 from galaxy_tool_xml_fmt.cli_support import (
     Action,
     RunOptions,
@@ -47,8 +46,6 @@ from galaxy_tool_xml_fmt.cli_support import (
     iter_targets,
     run,
 )
-from galaxy_tool_xml_fmt.detect import detect_tool_document
-from galaxy_tool_xml_fmt.format import format_tool_document
 
 _PATH_ARGUMENT = click.argument(
     "paths",
@@ -77,49 +74,64 @@ _STRICT_OPTION = click.option(
     is_flag=True,
     help="Also fail (exit non-zero) on advisory findings, not just fixable ones.",
 )
+_PRESET_OPTION = click.option(
+    "--preset",
+    default=None,
+    metavar="NAME",
+    help="Named rule subset to apply/report (cosmetic | iuc | strict). "
+    "Default: iuc. See `galaxy-tool-refactor presets`.",
+)
+_SELECT_OPTION = click.option(
+    "--select",
+    "select",
+    multiple=True,
+    metavar="CODE",
+    help="Run only these rule codes (replaces the preset's set). "
+    "Repeatable or comma-separated, e.g. --select GTX001,GTX003.",
+)
+_IGNORE_OPTION = click.option(
+    "--ignore",
+    "ignore",
+    multiple=True,
+    metavar="CODE",
+    help="Drop these rule codes from the selection. Repeatable or comma-separated.",
+)
 
 
-def _apply_pipeline(
-    document: ToolDocument,
-    codemods: tuple[type[CodemodCommand], ...],
-) -> None:
-    """Apply each codemod in *codemods* to *document* in document order."""
-    module = Module(document)
-    for codemod_cls in codemods:
-        codemod_cls().apply(module)
+def _split_codes(values: tuple[str, ...]) -> tuple[str, ...]:
+    """Flatten repeated / comma-separated code options, upper-cased and stripped."""
+    codes: list[str] = []
+    for value in values:
+        codes.extend(
+            token.strip().upper() for token in value.split(",") if token.strip()
+        )
+    return tuple(codes)
 
 
-def _format_transform(document: ToolDocument) -> TransformOutcome:
-    """Canonicalise (no profile change) then cosmetically format."""
-    _apply_pipeline(document, CANONICAL_CODEMODS)
-    return TransformOutcome(format_tool_document(document))
+def _resolve(
+    *, preset: str | None, select: tuple[str, ...], ignore: tuple[str, ...]
+) -> frozenset[str]:
+    """Resolve a format/check selection, mapping facade errors to the CLI boundary."""
+    try:
+        return resolve_codes(
+            preset=preset,
+            select=_split_codes(select),
+            ignore=_split_codes(ignore),
+        )
+    except (UnknownPreset, UnknownRuleCode) as error:
+        raise click.BadParameter(str(error)) from error
 
 
-def _upgrade_note(upgrader: UpgradeToLatest) -> str | None:
-    """Summarise what an ``UpgradeToLatest`` run did, for the per-file note."""
-    steps = upgrader.upgrade_steps_applied()
-    missing = upgrader.missing_upgrade()
-    parts: list[str] = []
-    if steps:
-        parts.append("upgraded past " + ", ".join(steps))
-    if missing is not None:
-        parts.append(f"stalled at {missing} (no registered upgrade)")
-    if not parts:
-        return None
-    return "  " + "; ".join(parts)
-
-
-def _upgrade_transform(document: ToolDocument) -> TransformOutcome:
-    """Repair, upgrade the profile to the latest reachable, then format."""
-    module = Module(document)
-    upgrader: UpgradeToLatest | None = None
-    for codemod_cls in AUTO_UPGRADE_CODEMODS:
-        instance = codemod_cls()
-        instance.apply(module)
-        if isinstance(instance, UpgradeToLatest):
-            upgrader = instance
-    note = _upgrade_note(upgrader) if upgrader is not None else None
-    return TransformOutcome(format_tool_document(document), note)
+def _resolve_upgrade(
+    *, select: tuple[str, ...], ignore: tuple[str, ...]
+) -> frozenset[str]:
+    """Resolve an upgrade selection (no preset), mapping facade errors to the CLI."""
+    try:
+        return resolve_upgrade_codes(
+            select=_split_codes(select), ignore=_split_codes(ignore)
+        )
+    except UnknownRuleCode as error:
+        raise click.BadParameter(str(error)) from error
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -132,22 +144,39 @@ def main() -> None:
 @_CHECK_OPTION
 @_DIFF_OPTION
 @_QUIET_OPTION
+@_PRESET_OPTION
+@_SELECT_OPTION
+@_IGNORE_OPTION
 def format_command(
-    paths: tuple[Path, ...], check: bool, diff: bool, quiet: bool
+    paths: tuple[Path, ...],
+    check: bool,
+    diff: bool,
+    quiet: bool,
+    preset: str | None,
+    select: tuple[str, ...],
+    ignore: tuple[str, ...],
 ) -> None:
-    """Canonicalise and cosmetically format tools (never changes ``profile=``).
+    """Apply a preset's fixable rules then cosmetic formatting (never ``profile=``).
 
-    Applies the structural canonical codemods (typo repair, attribute order)
-    and fmt's cosmetic rules. PATHS may be files or directories (searched
-    recursively for ``*.xml``); non-Galaxy-tool XML is skipped.
+    The default preset ``iuc`` applies the canonical codemods (typo repair,
+    attribute / element order) and the cosmetic rules — the historical ``format``
+    behaviour. Advisory rules in a selection (e.g. under ``--preset strict``) are
+    reported as notes but never change a file. PATHS may be files or directories
+    (searched recursively for ``*.xml``); non-Galaxy-tool XML is skipped.
     """
-    code = run(
+    codes = _resolve(preset=preset, select=select, ignore=ignore)
+
+    def transform(document: ToolDocument) -> TransformOutcome:
+        result = facade.run(document, codes=codes)
+        return TransformOutcome(result.formatted, notes=result.notes)
+
+    exit_code = run(
         paths,
-        transform=_format_transform,
+        transform=transform,
         action=Action(past="reformatted", conditional="would reformat"),
         options=RunOptions(check=check, diff=diff, quiet=quiet),
     )
-    sys.exit(code)
+    sys.exit(exit_code)
 
 
 @main.command(name="upgrade")
@@ -155,60 +184,45 @@ def format_command(
 @_CHECK_OPTION
 @_DIFF_OPTION
 @_QUIET_OPTION
+@_PRESET_OPTION
+@_SELECT_OPTION
+@_IGNORE_OPTION
 def upgrade_command(
-    paths: tuple[Path, ...], check: bool, diff: bool, quiet: bool
+    paths: tuple[Path, ...],
+    check: bool,
+    diff: bool,
+    quiet: bool,
+    preset: str | None,
+    select: tuple[str, ...],
+    ignore: tuple[str, ...],
 ) -> None:
-    """Repair and upgrade tools to the latest profile they can reach.
+    """Repair and upgrade tools to the latest profile they can reach, then format.
 
-    Opt-in and semantic: repairs near-miss typos, then iteratively upgrades the
-    tool's ``profile=`` toward the latest, applying the registered structural
-    migration at each step. Reports the steps applied and warns if a tool
-    stalls below the latest profile. PATHS may be files or directories.
+    Opt-in and semantic. The profile upgrade always runs; ``--select`` / ``--ignore``
+    adjust the *other* fixable rules (by default typo repair + cosmetic
+    formatting) — e.g. ``--ignore GTX006`` upgrades without typo repair. Presets
+    are a ``format``/``check`` concept and are **not** accepted here. PATHS may be
+    files or directories.
     """
-    code = run(
+    if preset is not None:
+        raise click.BadParameter(
+            "--preset is not applicable to 'upgrade'; presets govern "
+            "'format' / 'check'. Use --select / --ignore to adjust the rule set.",
+            param_hint="--preset",
+        )
+    codes = _resolve_upgrade(select=select, ignore=ignore)
+
+    def transform(document: ToolDocument) -> TransformOutcome:
+        result = facade.upgrade(document, codes=codes)
+        return TransformOutcome(result.formatted, notes=result.notes)
+
+    exit_code = run(
         paths,
-        transform=_upgrade_transform,
+        transform=transform,
         action=Action(past="upgraded", conditional="would upgrade"),
         options=RunOptions(check=check, diff=diff, quiet=quiet),
     )
-    sys.exit(code)
-
-
-@cache
-def _advisory_codes() -> frozenset[str]:
-    """The set of ``detect_only`` (advisory) rule codes — the IUC check tier."""
-    return frozenset(
-        check_cls.meta.code
-        for check_cls in all_checks()
-        if check_cls.meta.detect_only
-    )
-
-
-def _detect_violations(document: ToolDocument) -> list[Violation]:
-    """Collect every reported violation in *document*, without mutating it.
-
-    Composes three non-mutating detect phases over the one document: the
-    structural canonical codemods (each ``Change`` projected to a ``Violation``),
-    fmt's cosmetic detect, and the advisory IUC checks. The first two are
-    *fixable* (``format`` applies the same rules); the IUC checks are *advisory*
-    (``detect_only``). Findings are sorted by source line so a report reads top
-    to bottom.
-
-    Each codemod detect runs against the document *as-is*, not pipelined, so for
-    the small population that validates at no profile — where ``format`` would
-    run ``FixTypos`` first — the reported structural findings are computed before
-    that repair and may differ slightly from the final ``format`` result.
-    """
-    module = Module(document)
-    violations = [
-        change.to_violation()
-        for codemod_cls in CANONICAL_CODEMODS
-        for change in codemod_cls().detect(module)
-    ]
-    violations.extend(detect_tool_document(document))
-    violations.extend(detect_advisory(document))
-    violations.sort(key=lambda violation: (violation.sourceline, violation.code))
-    return violations
+    sys.exit(exit_code)
 
 
 def _check_summary(
@@ -242,18 +256,27 @@ def _check_summary(
 @_PATH_ARGUMENT
 @_QUIET_OPTION
 @_STRICT_OPTION
-def check_command(paths: tuple[Path, ...], quiet: bool, strict: bool) -> None:
-    """Report where tools deviate from canonical form, without changing them.
+@_PRESET_OPTION
+@_SELECT_OPTION
+@_IGNORE_OPTION
+def check_command(
+    paths: tuple[Path, ...],
+    quiet: bool,
+    strict: bool,
+    preset: str | None,
+    select: tuple[str, ...],
+    ignore: tuple[str, ...],
+) -> None:
+    """Report where tools deviate from the selection, without changing them.
 
-    Runs three report-only detect phases: the structural canonical codemods and
-    cosmetic fmt rules (*fixable* — what ``format`` would change) plus the
-    advisory IUC best-practice checks (marked ``(advisory)``). Prints one
-    ``file:line  CODE  message`` line per finding. Exits non-zero on any
-    *fixable* finding or error; advisory findings are informational unless
-    ``--strict`` is given. PATHS may be files or directories (searched
-    recursively for ``*.xml``); non-Galaxy-tool XML is skipped.
+    Runs the selected rules' detect phases (default preset ``iuc``): *fixable*
+    (GTX — what ``format`` would change) and, under ``--preset strict``, the
+    *advisory* IUC best-practice checks (marked ``(advisory)``). Prints one
+    ``file:line  CODE  message`` per finding. Exits non-zero on any *fixable*
+    finding or error; advisory findings are informational unless ``--strict``.
+    PATHS may be files or directories; non-Galaxy-tool XML is skipped.
     """
-    advisory_codes = _advisory_codes()
+    codes = _resolve(preset=preset, select=select, ignore=ignore)
     fixable = advisory = flagged = clean = skipped = errored = 0
     for target in iter_targets(paths):
         try:
@@ -274,13 +297,13 @@ def check_command(paths: tuple[Path, ...], quiet: bool, strict: bool) -> None:
         if document.root.tag != "tool":
             skipped += 1
             continue
-        violations = _detect_violations(document)
-        if not violations:
+        result = facade.detect(document, codes=codes)
+        if not result.violations:
             clean += 1
             continue
         flagged += 1
-        for violation in violations:
-            is_advisory = violation.code in advisory_codes
+        for violation in result.violations:
+            is_advisory = result.is_advisory(violation)
             if is_advisory:
                 advisory += 1
             else:
@@ -304,6 +327,32 @@ def check_command(paths: tuple[Path, ...], quiet: bool, strict: bool) -> None:
         )
     fail = bool(errored or fixable or (strict and advisory))
     sys.exit(1 if fail else 0)
+
+
+@main.command(name="presets")
+def presets_command() -> None:
+    """List the available presets and the rule codes each one selects."""
+    for info in facade.list_presets():
+        default = " (default)" if info.is_default else ""
+        click.echo(f"{info.name}{default}: {info.description}")
+        click.echo(f"  rules: {', '.join(info.codes)}")
+
+
+@main.command(name="rules")
+@click.option(
+    "--include-upgrade",
+    is_flag=True,
+    help="Also list the upgrade-only codemods (not independently selectable).",
+)
+def rules_command(include_upgrade: bool) -> None:
+    """List the baked-in rules: code, family, fixable/advisory, and presets."""
+    for info in facade.list_rules(include_upgrade=include_upgrade):
+        kind = "fixable" if info.fixable else "advisory"
+        in_presets = ",".join(info.presets) if info.presets else "-"
+        click.echo(
+            f"{info.code}  [{info.family}/{kind}]  presets:{in_presets}  "
+            f"{info.summary}"
+        )
 
 
 if __name__ == "__main__":

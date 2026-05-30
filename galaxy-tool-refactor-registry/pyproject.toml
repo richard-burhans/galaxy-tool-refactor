@@ -1,0 +1,57 @@
+[project]
+name = "galaxy-tool-refactor-registry"
+version = "0.0.1"
+description = "Unified, code-addressable rule registry + named presets for the Galaxy tool refactoring tiers — tier 3.6, a library-first facade the CLI (and a future MCP server) compose."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Richard Burhans" }]
+# The facade composes the three rule families (codemod / fmt / check) into one
+# code-addressable registry, presets, and a structured run/upgrade/detect API.
+# It depends on every rule tier; the lower tiers do NOT depend on it. It is the
+# only orchestration layer below the app CLI, and serialises XML solely through
+# fmt (preserving "fmt is the only serializer").
+dependencies = [
+    "galaxy-tool-refactor-rules",
+    "galaxy-tool-xml",
+    "galaxy-tool-xml-codemod",
+    "galaxy-tool-xml-fmt",
+    "galaxy-tool-xml-check",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[tool.ruff]
+src = ["src"]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "PTH"]
+
+[tool.mypy]
+files = ["src"]
+strict = true
+
+[[tool.mypy.overrides]]
+# lxml ships no type information.
+module = ["lxml.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv.sources]
+galaxy-tool-refactor-rules = { workspace = true }
+galaxy-tool-xml = { workspace = true }
+galaxy-tool-xml-codemod = { workspace = true }
+galaxy-tool-xml-fmt = { workspace = true }
+galaxy-tool-xml-check = { workspace = true }

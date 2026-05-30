@@ -30,13 +30,14 @@ class TransformOutcome:
 
     Attributes:
         formatted: The bytes to write (or compare against the original).
-        note: An optional one-line note to print under the per-file result
-            line (e.g. which profile upgrades a tool received). ``None`` to
-            print nothing.
+        notes: Per-file lines to print under the result line, each on its own
+            line — e.g. which profile upgrades a tool received, or advisory
+            (report-only) findings a selection included that never mutate the
+            file. Empty by default.
     """
 
     formatted: bytes
-    note: str | None = None
+    notes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -132,9 +133,11 @@ def _print_diff(path: Path, original: bytes, formatted: bytes) -> None:
     click.echo("".join(diff), nl=False)
 
 
-def _echo_note(note: str | None, options: RunOptions) -> None:
-    """Print a transform's per-file note unless output is suppressed."""
-    if note is not None and not options.quiet:
+def _echo_notes(outcome: TransformOutcome, options: RunOptions) -> None:
+    """Print a transform's per-file notes unless output is suppressed."""
+    if options.quiet:
+        return
+    for note in outcome.notes:
         click.echo(note)
 
 
@@ -173,6 +176,7 @@ def _process_file(
         counts.unchanged += 1
         if not options.quiet and not options.check and not options.diff:
             click.echo(f"unchanged {path}")
+            _echo_notes(outcome, options)
         return
     if options.diff:
         _print_diff(path, original, outcome.formatted)
@@ -180,7 +184,7 @@ def _process_file(
         counts.would_change += 1
         if not options.quiet:
             click.echo(f"{action.conditional} {path}")
-        _echo_note(outcome.note, options)
+        _echo_notes(outcome, options)
         return
     if options.diff:
         # --diff is preview-only: do not write.
@@ -195,7 +199,7 @@ def _process_file(
     counts.changed += 1
     if not options.quiet:
         click.echo(f"{action.past} {path}")
-    _echo_note(outcome.note, options)
+    _echo_notes(outcome, options)
 
 
 def _summary(counts: Counts, *, action: Action, options: RunOptions) -> str:

@@ -793,3 +793,32 @@ D2 for the shared `Violation` type; the effort (PR1–5) merged in #15).
 - **Tier independence preserved.** `Violation` comes from tier 0.5; detect adds
   no dependency on the codemod tier. No CLI yet — the report-only `check`
   subcommand is PR3.
+
+## D15 (2026-05-30) — Per-rule subset seams + `TransformOutcome.notes`
+
+**Date:** 2026-05-30. Reproduced-by: `uv run --package galaxy-tool-xml-fmt
+pytest galaxy-tool-xml-fmt/tests/test_subset.py`.
+
+Support for the rule-selection facade (`galaxy-tool-refactor-registry`, tier 3.6
+— see its `docs/decisions.md`), which lets a user pick a preset or
+`--select`/`--ignore` individual rules.
+
+- **`format_tool_document_subset(document, *, rule_classes)` and
+  `detect_tool_document_subset(document, *, rule_classes)`.** The existing
+  whole-pipeline `format_tool_document` / `detect_tool_document` now delegate to
+  these with `all_rules()`. The subset runs the chosen rules **in `meta.order`**
+  regardless of the order passed (the whitespace rules are order-sensitive: see
+  D14), so the facade can hand a single rule or any subset and get deterministic
+  output. The net-diff attribution logic for detect stays here (its owning tier),
+  not reconstructed in the facade.
+- **Coherence is the caller's job for arbitrary subsets.** The shipped presets
+  always include the full GTX001/GTX003/GTX004 trio (coherent, idempotent); a
+  lone-rule selection (`--select GTX001`) can leave non-canonical trivia a
+  coherent subset would have cancelled. Documented, not prevented.
+- **`TransformOutcome.notes: tuple[str, ...]`** replaced the old singular
+  `note: str | None`. One per-file notes channel carries both the upgrade summary
+  line and any advisory (report-only, `detect_only`) findings a selection included
+  but that never mutate the file (decision Q3: report, don't fix). The per-file
+  echo prints each `notes` line; fmt's own CLI passes none, so its behaviour is
+  unchanged. Notes also surface on byte-unchanged files in plain write mode so a
+  `strict`-preset advisory finding is not swallowed when nothing is reformatted.

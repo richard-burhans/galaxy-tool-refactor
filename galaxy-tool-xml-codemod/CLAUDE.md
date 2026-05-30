@@ -5,7 +5,7 @@ Guidance for Claude Code working in this repository.
 ## Project
 
 `galaxy-tool-xml-codemod` is the **structure** tier of the Galaxy tool
-refactoring framework — one of six tiers (this package depends only on tier 1
+refactoring framework — one of seven tiers (this package depends only on tier 1
 and the shared tier-0.5 rules metadata):
 
 | Tier | Layer | Package | What it owns |
@@ -15,7 +15,8 @@ and the shared tier-0.5 rules metadata):
 | 2 | **structure** | `galaxy-tool-xml-codemod` *(this repo)* | structural mutations (attribute order, element shape) |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | whitespace / indentation / shorthand; the only tier that writes XML to disk |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only IUC best-practice checks |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | composes the tiers (`format`/`upgrade`/`check`) |
+| 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | unified rule registry + presets; library-first facade |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | composes the tiers via the facade (`format`/`upgrade`/`check`) |
 
 This package supplies the **structural-refactor framework**: a
 ``CodemodCommand`` **detect-primitive** base with tag-PascalCase dispatch
@@ -45,12 +46,13 @@ empirically from ``corpus_check codemod`` discovery sweeps; see
 `--source combined` default.
 
 **Tier independence:** this package does not depend on fmt. The
-user-facing orchestration — running these pipelines and writing output
-through fmt's serializer — lives in the tier-4 app
-(``galaxy-tool-refactor-cli``): its ``format`` command runs
-``CANONICAL_CODEMODS``, its ``upgrade`` command runs
-``AUTO_UPGRADE_CODEMODS``. fmt's own CLI is cosmetic-only and no longer
-consumes these contracts (see ``galaxy-tool-xml-fmt/docs/decisions.md``
+orchestration — running these pipelines and writing output through fmt's
+serializer — lives in the tier-3.6 registry facade
+(``galaxy-tool-refactor-registry``), which consumes ``CANONICAL_CODEMODS``
+(its ``run`` / the app's ``format``) and ``AUTO_UPGRADE_CODEMODS`` (its
+``upgrade``); the tier-4 app CLI (``galaxy-tool-refactor-cli``) is a thin
+front-end over that facade. fmt's own CLI is cosmetic-only and does not
+consume these contracts (see ``galaxy-tool-xml-fmt/docs/decisions.md``
 §D12).
 
 The architecture rationale lives in `docs/architecture.md` (a working
@@ -109,11 +111,11 @@ Run these from the **workspace root** (`galaxy-tool-refactor/`):
 - `galaxy-tool-xml/docs/decisions.md` §3 (trivia contract), §6 (corpus
   stats), §9 (three-tier vision)
 - `galaxy-tool-xml/docs/codemod-architecture.md` — the original tier-2 design
-- `galaxy-tool-refactor-cli/src/galaxy_tool_refactor_cli/cli.py` — the app
-  CLI that runs ``CANONICAL_CODEMODS`` (``format``) and
-  ``AUTO_UPGRADE_CODEMODS`` (``upgrade``)
+- `galaxy-tool-refactor-registry/src/galaxy_tool_refactor_registry/apply.py` —
+  the tier-3.6 facade that runs ``CANONICAL_CODEMODS`` order (consumed by
+  ``run`` / the app's ``format``); `presets.py` derives the `iuc` preset from it
 - `canonical.py` — the public ``CANONICAL_CODEMODS`` and
-  ``AUTO_UPGRADE_CODEMODS`` pipeline contracts the app CLI consumes
+  ``AUTO_UPGRADE_CODEMODS`` pipeline contracts the registry facade consumes
 - `codemods/` — bundled codemod implementations (verb-noun module names)
 - `eligibility.py` — corpus-sweep profile-selection policy
 - `../docs/corpus_data/combined_corpus_data.json` — every swept Galaxy

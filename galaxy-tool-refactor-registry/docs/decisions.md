@@ -1,0 +1,118 @@
+# Decisions — galaxy-tool-refactor-registry
+
+Each entry records a decision once it lands: a date, the decision, and the
+rationale. Mirrors the conventions of the sibling packages' `docs/decisions.md`.
+
+## D1 (2026-05-30) — A tier-3.6 rule-registry facade with presets + per-rule selection
+
+### Decision
+
+A new package, `galaxy-tool-refactor-registry`, exposes a unified,
+code-addressable view over the three rule families (codemod GTX, fmt GTX,
+advisory IUC), named presets (`cosmetic` / `iuc` / `strict`, default `iuc`),
+per-rule `--select`/`--ignore`, and a **library-first** `run`/`upgrade`/`detect`
+API. The `galaxy-tool-refactor` CLI is rewired to consume it; a future MCP server
+(`galaxy-tool-refactor-mcp`) will too.
+
+### Rationale
+
+- **Where it sits.** It depends on tiers 0.5/1/2/3/3.5; the lower tiers do not
+  depend on it (tier independence preserved, rules-0.5 stays dependency-free). It
+  is the single orchestration layer below the app — the CLI and the MCP server
+  are thin, equivalent consumers, so they cannot drift.
+- **Library-first, not in the app.** An MCP server importing a `click` CLI app is
+  the wrong shape. Keeping the orchestration in a non-CLI library (structured
+  in/out, no `sys.exit`, writes only on request, introspectable) lets both
+  front-ends wrap one core. See `../../galaxy-tool-refactor-mcp/docs/vision.md`.
+- **fmt stays the only serializer.** All XML bytes come from
+  `format_tool_document_subset` / fmt's `to_bytes`; the facade never serialises
+  XML, so the long-standing "only fmt writes XML" invariant holds.
+
+## D2 (2026-05-30) — `RuleHandle`: one uniform adapter over three rule shapes
+
+### Decision
+
+A frozen `RuleHandle` (`handle.py`) carries `meta`, `family`
+(`codemod`/`fmt`/`check`), `fixable`, `detect(document) -> list[Violation]`, and
+`apply(document) -> None | None`. Family adapters (`adapters.py`) wrap each
+native shape: a codemod's `detect`/`apply` run via a `Module` (its coarse
+`detect` for validation-driven codemods needs no special-casing); an fmt rule
+uses the per-rule subset seams (`format_tool_document_subset` /
+`detect_tool_document_subset`, fmt D15); an advisory check yields `Violation`s
+and has `apply=None`.
+
+### Rationale
+
+The three families have genuinely different mechanics (Change/thunk vs.
+Edit-on-tree vs. report-only). A single thin handle lets the registry, presets,
+and facade treat every rule the same and address it by `RuleMeta.code` — which is
+also the unit a future MCP tool or a plugin loader enumerates. The GTX/IUC code
+namespace is collision-free (fmt 001/003/004; canonical codemods 002/005/006/013;
+upgrade codemods 007–012; checks IUC001–012); `registry._index` asserts it so a
+future code clash fails loudly rather than silently shadowing.
+
+## D3 (2026-05-30) — Presets, default `iuc`, and selectable vs. upgrade-only
+
+### Decision
+
+Three presets, derived from the family registries (single source of truth, no
+hardcoded code lists that can drift):
+
+- `cosmetic` = fmt cosmetic rules (GTX001/003/004).
+- `iuc` = `CANONICAL_CODEMODS` (GTX006/002/005/013) + cosmetic — **the default**,
+  byte-identical to the previous `format` pipeline (pinned by a regression test).
+- `strict` = `iuc` + every advisory IUC check (report-only).
+
+The selectable set (`registry()`, what `--select`/`--ignore` accept) is exactly
+canonical codemods + cosmetic fmt + advisory checks. The upgrade-only codemods
+(GTX007–GTX012) are internal to `UpgradeToLatest`'s loop and are **not**
+selectable; they surface only via `list_rules(include_upgrade=True)`.
+
+### Rationale
+
+`strict` includes the *whole* advisory family rather than freezing at IUC001–010,
+so when the reserved IUC011/IUC012 stubs gain real logic they are automatically
+covered; today they fire nothing, so this is observationally identical. Default
+`iuc` keeps bare `format` unchanged for existing users. Excluding the upgrade-only
+codes from selection avoids exposing internal pipeline steps as if they were
+standalone, user-toggleable rules.
+
+## D4 (2026-05-30) — Selection precedence, apply ordering, advisory-as-notes, upgrade
+
+### Decision
+
+- **Precedence (ruff-style): `--ignore` ▸ `--select` ▸ `--preset`.** An explicit
+  `--select` *replaces* the preset's set (resets the base), then `--ignore`
+  subtracts. Unknown preset/code raise typed `UnknownPreset`/`UnknownRuleCode`
+  (the CLI maps them to `click.BadParameter`).
+- **Apply ordering reproduces `format`:** selected codemods in
+  `CANONICAL_CODEMODS` order, then selected cosmetic fmt rules in `meta.order`;
+  serialise once through fmt. Advisory rules never apply.
+- **Advisory under an applying command reports, never mutates.** `run` detects the
+  advisory rules in the selection on the pre-format tree and returns them as
+  `FormatResult.advisory` + rendered `notes`; the formatted bytes are unaffected
+  (so `strict` and `iuc` format identically — pinned by a test).
+- **`upgrade` has no preset.** Presets (`cosmetic`/`iuc`/`strict`) are
+  format/check concepts; the CLI rejects `--preset` on `upgrade`. `upgrade` runs
+  `UpgradeToLatest` unconditionally (its purpose) plus the fixable rules from
+  `resolve_upgrade_codes` (base = `FixTypos` + cosmetic fmt; `FixTypos` runs
+  first as the repair precondition). `--select`/`--ignore` adjust that base — e.g.
+  `--ignore GTX006` upgrades without typo repair.
+
+### Rationale
+
+ruff's mental model is familiar and unambiguous, and replace-then-subtract avoids
+"is select additive?" guesswork. The apply order is the one `format` already used,
+so the default path is a no-op behaviour change. Reporting (not erroring on, not
+silently dropping) advisory rules under `format` lets a `strict` preset mean
+"format me and tell me everything," without making advisory opinions a hard gate
+or a surprise. Keeping `upgrade`'s pipeline fixed (preset-free) avoids pretending
+`cosmetic`/`strict` mean something for a profile-migration command.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-registry pytest galaxy-tool-refactor-registry/tests/
+# the regression guard: the iuc preset == the old format pipeline, byte for byte
+# (tests/test_facade.py::test_iuc_preset_is_byte_identical_to_today_format)
+```

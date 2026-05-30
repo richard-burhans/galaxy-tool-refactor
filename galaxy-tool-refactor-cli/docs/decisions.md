@@ -119,3 +119,55 @@ merely lacks EDAM xrefs should stay green. Keeping both in one report (the user
 sees everything) while gating only on fixable findings — with `--strict` to opt
 into stricter gating — gives the linter the right ergonomics. The app composes
 all three detect tiers (codemod + fmt + check); orchestration stays here.
+
+## D4 (2026-05-30) — CLI consumes the registry facade; `--preset` / `--select` / `--ignore`
+
+### Decision
+
+Rule orchestration moved out of the CLI into the tier-3.6 registry facade
+(`galaxy-tool-refactor-registry`). The CLI now depends on the facade (plus fmt's
+`cli_support` engine and tier-1 parsing) and **not** on the codemod / check tiers
+directly. `format`, `upgrade`, and `check` gain shared selection options
+`--preset NAME`, `--select CODE…`, `--ignore CODE…` (ruff-style precedence:
+`--ignore` ▸ `--select` ▸ `--preset`, where `--select` *replaces* the preset's
+set). Two introspection subcommands were added — `presets` and `rules` — mirroring
+the facade's `list_presets()` / `list_rules()`. `format`/`upgrade` transforms call
+`facade.run` / `facade.upgrade`; `check` calls `facade.detect`. Unknown
+preset/code is mapped to `click.BadParameter` at the boundary.
+
+### What changed for users
+
+- **Default `check` no longer reports advisory IUC findings.** The default preset
+  is `iuc` (fixable rules only — what `format` changes); advisory checks are now
+  **opt-in** via `--preset strict`. Under `strict`, advisory findings are shown
+  and informational (exit 0) unless `--strict` is also given. This supersedes the
+  §D3 behaviour where `check` always ran advisory checks: advisory is now a
+  selectable concern like every other rule, consistent with the preset model.
+- **`format --preset strict`** surfaces advisory findings as per-file notes
+  (via `TransformOutcome.notes`, fmt D15) but never mutates for them — only
+  fixable rules change a file.
+- **`upgrade` does not accept `--preset`** (presets are a format/check concept);
+  it rejects it with a clean message. `--select`/`--ignore` still adjust its
+  fixable rule set (e.g. `--ignore GTX006` to skip typo repair); the profile
+  upgrade itself always runs.
+
+### Rationale
+
+The orchestration had to sit *below* the CLI so a future MCP server
+(`galaxy-tool-refactor-mcp`) can reuse it without importing a `click` app; a
+library-first facade is the shared core (see the registry package's
+`docs/decisions.md` D1). Making advisory a preset concern (rather than an
+always-on `check` phase) keeps one consistent selection model across all three
+commands — the price is that bare `check` is now fixable-only; `--preset strict`
+restores "show me everything." The default `format`/`check`/`upgrade` behaviour is
+otherwise unchanged (the `iuc` preset is byte-identical to the old `format`
+pipeline; registry D3).
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/
+uv run galaxy-tool-refactor presets
+uv run galaxy-tool-refactor check --preset strict tool.xml   # advisory shown, exit 0
+uv run galaxy-tool-refactor format --select GTX001 tool.xml  # indent only
+```

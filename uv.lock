@@ -9,6 +9,7 @@ resolution-markers = [
 [manifest]
 members = [
     "galaxy-tool-refactor-cli",
+    "galaxy-tool-refactor-registry",
     "galaxy-tool-refactor-rules",
     "galaxy-tool-xml",
     "galaxy-tool-xml-check",
@@ -239,6 +240,40 @@ version = "0.1.0"
 source = { editable = "galaxy-tool-refactor-cli" }
 dependencies = [
     { name = "click" },
+    { name = "galaxy-tool-refactor-registry" },
+    { name = "galaxy-tool-refactor-rules" },
+    { name = "galaxy-tool-xml" },
+    { name = "galaxy-tool-xml-fmt" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = ">=8" },
+    { name = "galaxy-tool-refactor-registry", editable = "galaxy-tool-refactor-registry" },
+    { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
+    { name = "galaxy-tool-xml", editable = "galaxy-tool-xml" },
+    { name = "galaxy-tool-xml-fmt", editable = "galaxy-tool-xml-fmt" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=1.10" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "ruff", specifier = ">=0.5" },
+]
+
+[[package]]
+name = "galaxy-tool-refactor-registry"
+version = "0.0.1"
+source = { editable = "galaxy-tool-refactor-registry" }
+dependencies = [
     { name = "galaxy-tool-refactor-rules" },
     { name = "galaxy-tool-xml" },
     { name = "galaxy-tool-xml-check" },
@@ -255,7 +290,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "click", specifier = ">=8" },
     { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
     { name = "galaxy-tool-xml", editable = "galaxy-tool-xml" },
     { name = "galaxy-tool-xml-check", editable = "galaxy-tool-xml-check" },

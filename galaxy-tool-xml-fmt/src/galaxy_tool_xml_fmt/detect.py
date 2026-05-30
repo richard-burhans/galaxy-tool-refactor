@@ -32,6 +32,8 @@ if TYPE_CHECKING:
     from galaxy_tool_xml.document import ToolDocument
     from lxml import etree
 
+    from galaxy_tool_xml_fmt.rules import Rule
+
 
 def _trivia(element: etree._Element, /) -> tuple[str | None, str | None]:
     """The whitespace an fmt rule can touch: an element's ``text`` and ``tail``."""
@@ -47,8 +49,26 @@ def detect_tool_document(document: ToolDocument, /) -> list[Violation]:
     numbers match the source) and attributed to the rule that produced the final
     value.
     """
+    return detect_tool_document_subset(document, rule_classes=all_rules())
+
+
+def detect_tool_document_subset(
+    document: ToolDocument, *, rule_classes: tuple[type[Rule], ...]
+) -> list[Violation]:
+    """Like ``detect_tool_document`` but only for *rule_classes*.
+
+    Runs the chosen subset (in ``meta.order``) over a throwaway copy and reports
+    the net trivia change per element, attributed to the owning rule. This is the
+    per-rule detect seam the rule-selection facade
+    (``galaxy-tool-refactor-registry``) uses; the whole-pipeline
+    ``detect_tool_document`` is this called with ``all_rules()``.
+
+    The same caveat as ``format_tool_document_subset`` applies: an incoherent
+    single-rule subset may report churn a coherent subset would cancel out.
+    """
     original = document.tree
     work = copy.deepcopy(original)
+    ordered_rules = sorted(rule_classes, key=lambda cls: cls.meta.order)
     # Include Comment / PI nodes, not just elements: GTX001 and GTX003 rewrite the
     # *tail* of every child of an element, comments included (a blank line after a
     # top-level comment is a real format change), so omitting them would let
@@ -62,7 +82,7 @@ def detect_tool_document(document: ToolDocument, /) -> list[Violation]:
     # Per node, the last rule that changed its whitespace — after the pipeline
     # that is the rule which owns the node's final, net value.
     owner: dict[int, RuleMeta] = {}
-    for rule_cls in all_rules():
+    for rule_cls in ordered_rules:
         before = {id(node): _trivia(node) for node in work_nodes}
         apply_edits(rule_cls().apply(work))
         for node in work_nodes:

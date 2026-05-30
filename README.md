@@ -1,6 +1,6 @@
 # galaxy-tool-refactor
 
-A uv workspace housing six independently-installable Python packages for
+A uv workspace housing seven independently-installable Python packages for
 parsing, validating, formatting, linting, and refactoring Galaxy tool
 definition XML.
 
@@ -13,7 +13,8 @@ definition XML.
 | [`galaxy-tool-xml-codemod`](galaxy-tool-xml-codemod/README.md) | pre-alpha | Detect-primitive `CodemodCommand` framework + bundled structural codemods (`CANONICAL_CODEMODS`, `AUTO_UPGRADE_CODEMODS`); each rule has a detect (lint) and a fix phase. |
 | [`galaxy-tool-xml-fmt`](galaxy-tool-xml-fmt/README.md) | pre-release | Opinionated `black`-like cosmetic formatter (with a non-mutating `detect`). The only tier that writes XML. |
 | [`galaxy-tool-xml-check`](galaxy-tool-xml-check/README.md) | pre-alpha | Advisory, detect-only IUC best-practice checks (`IUC` codes); read-only, reports but never mutates. Depends only on tiers 1 + 0.5. |
-| [`galaxy-tool-refactor-cli`](galaxy-tool-refactor-cli/README.md) | pre-alpha | The `galaxy-tool-refactor` app CLI — composes the tiers into `format`, `upgrade`, and report-only `check` commands. |
+| [`galaxy-tool-refactor-registry`](galaxy-tool-refactor-registry/README.md) | pre-alpha | Unified, code-addressable rule registry over all three families + named presets (`cosmetic`/`iuc`/`strict`) + a library-first `run`/`upgrade`/`detect` API. The orchestration core the CLI (and a future MCP server) sit on. |
+| [`galaxy-tool-refactor-cli`](galaxy-tool-refactor-cli/README.md) | pre-alpha | The `galaxy-tool-refactor` app CLI — `format`, `upgrade`, report-only `check`, plus `presets` / `rules`, with `--preset` / `--select` / `--ignore` rule selection. |
 
 ## Quick start
 
@@ -38,32 +39,47 @@ composes them into the user-facing workflow:
  codemod (tier 2)   xml-fmt (3)    (advisory IUC checks, tier 3.5)
  structural         cosmetic       read-only; reports, never writes
               ↑        ↑        ↑
-              galaxy-tool-refactor-cli  ← the `galaxy-tool-refactor` app CLI (tier 4)
-              (composes codemod + fmt + check: `format`, `upgrade`, `check`)
+              galaxy-tool-refactor-registry  ← unified rule registry + presets (tier 3.6)
+              (library-first facade: run / upgrade / detect, introspectable)
+                          ↑                       ↑
+   galaxy-tool-refactor-cli (tier 4)     galaxy-tool-refactor-mcp (tier 4, future)
+   the `galaxy-tool-refactor` app CLI    agent-facing MCP server (placeholder)
 ```
 
 Every rule has a non-mutating **detect (lint)** phase alongside its **fix**
 phase (the `ruff check` / `ruff format` model). The lower tiers stay
 independent: `galaxy-tool-xml-fmt` — both its library and its CLI — is
 **cosmetic-only** and does **not** depend on `galaxy-tool-xml-codemod`;
-`galaxy-tool-xml-check` depends only on tiers 1 + 0.5. All cross-tier
-orchestration lives in the app (`galaxy-tool-refactor-cli`):
+`galaxy-tool-xml-check` depends only on tiers 1 + 0.5. Cross-tier orchestration
+lives in the **registry facade** (`galaxy-tool-refactor-registry`, tier 3.6),
+which the app CLI consumes:
 
-- `galaxy-tool-refactor format` — `CANONICAL_CODEMODS` (typo repair + attribute
-  order) then cosmetic formatting. Safe, idempotent; never changes `profile=`.
-- `galaxy-tool-refactor upgrade` — `AUTO_UPGRADE_CODEMODS` (repair, then
-  iterative profile upgrade) then cosmetic formatting. Opt-in, semantic.
+- `galaxy-tool-refactor format` — apply a preset's fixable rules then cosmetic
+  formatting. Default preset `iuc` = `CANONICAL_CODEMODS` (typo repair +
+  attribute / element order) + cosmetic — byte-identical to the historical
+  behaviour. Safe, idempotent; never changes `profile=`.
+- `galaxy-tool-refactor upgrade` — repair, then iterative profile upgrade, then
+  cosmetic formatting. Opt-in, semantic. No `--preset`; `--select`/`--ignore`
+  adjust its fixable rule set.
 - `galaxy-tool-refactor check` — report-only linter: prints
-  `file:line  CODE  message` for the *fixable* GTX rules (what `format` would
-  change) plus the *advisory* IUC best-practice checks (marked `(advisory)`).
-  Exits non-zero on any fixable finding; advisory findings are informational
-  unless `--strict`.
+  `file:line  CODE  message` for the selected rules. The default (`iuc`) reports
+  only *fixable* GTX findings; `--preset strict` adds the *advisory* IUC checks
+  (marked `(advisory)`). Exits non-zero on any fixable finding; advisory findings
+  are informational unless `--strict`.
+- `galaxy-tool-refactor presets` / `rules` — list the baked-in presets and rules.
+
+Rule selection (`--preset NAME`, `--select CODE…`, `--ignore CODE…`) is shared by
+`format`/`upgrade`/`check`, ruff-style (`--ignore` ▸ `--select` ▸ `--preset`).
+Presets and rules are developer-defined — there are no user-defined rules.
 
 For the full rationale, see `galaxy-tool-xml/docs/decisions.md` §9 (three-tier
-vision), `galaxy-tool-refactor-cli/docs/decisions.md` §D1–D3 (the app tier and
-the `format`/`upgrade`/`check` commands), `galaxy-tool-xml-fmt/docs/decisions.md`
-§D12 (fmt CLI back to cosmetic-only) + §D14 (cosmetic detect), and
-`galaxy-tool-xml-check/docs/decisions.md` D1 (the advisory check tier).
+vision), `galaxy-tool-refactor-cli/docs/decisions.md` §D1–D4 (the app tier, the
+`format`/`upgrade`/`check` commands, and the move onto the registry facade),
+`galaxy-tool-refactor-registry/docs/decisions.md` D1–D4 (the facade, presets, and
+selection), `galaxy-tool-xml-fmt/docs/decisions.md` §D12 (fmt CLI back to
+cosmetic-only) + §D14/§D15 (cosmetic detect + per-rule subset seams),
+`galaxy-tool-xml-check/docs/decisions.md` D1 (the advisory check tier), and
+`galaxy-tool-refactor-mcp/docs/vision.md` (the future MCP / agent direction).
 
 ## Running tests
 
@@ -73,6 +89,7 @@ uv run --package galaxy-tool-xml            pytest galaxy-tool-xml/tests/
 uv run --package galaxy-tool-xml-codemod    pytest galaxy-tool-xml-codemod/tests/
 uv run --package galaxy-tool-xml-fmt        pytest galaxy-tool-xml-fmt/tests/
 uv run --package galaxy-tool-xml-check      pytest galaxy-tool-xml-check/tests/
+uv run --package galaxy-tool-refactor-registry pytest galaxy-tool-refactor-registry/tests/
 uv run --package galaxy-tool-refactor-cli   pytest galaxy-tool-refactor-cli/tests/
 ```
 

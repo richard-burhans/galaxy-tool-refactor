@@ -53,7 +53,34 @@ def format_tool_document(document: ToolDocument) -> bytes:
     Returns:
         Canonical-form XML bytes (cosmetic-only).
     """
+    return format_tool_document_subset(document, rule_classes=all_rules())
+
+
+def format_tool_document_subset(
+    document: ToolDocument, *, rule_classes: tuple[type[Rule], ...]
+) -> bytes:
+    """Format *document* with only *rule_classes*, then serialise to bytes.
+
+    Like ``format_tool_document`` but runs a caller-chosen subset of the
+    cosmetic rules. The rules run in ``meta.order`` regardless of the order
+    *rule_classes* is given in (the formatter's whitespace rules are
+    order-sensitive; see ``docs/decisions.md`` D15). An empty *rule_classes*
+    serialises the tree unchanged.
+
+    This is the per-rule seam the rule-selection facade
+    (``galaxy-tool-refactor-registry``) uses. A coherent subset (the shipped
+    presets always include the full GTX001/GTX003/GTX004 trio) is idempotent;
+    an arbitrary single-rule subset is the caller's responsibility — running
+    one whitespace rule without the others can leave non-canonical trivia.
+
+    Args:
+        document: A parsed Galaxy tool document (mutated in place).
+        rule_classes: The cosmetic rules to run; reordered to ``meta.order``.
+
+    Returns:
+        XML bytes after applying the selected rules.
+    """
     tree = document.tree
-    for rule_cls in all_rules():
+    for rule_cls in sorted(rule_classes, key=lambda cls: cls.meta.order):
         apply_edits(rule_cls().apply(tree))
     return to_bytes(tree)

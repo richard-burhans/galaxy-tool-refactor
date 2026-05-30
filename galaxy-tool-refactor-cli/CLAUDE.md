@@ -5,8 +5,8 @@ Guidance for Claude Code working in this repository.
 ## Project
 
 `galaxy-tool-refactor-cli` is the **app tier** (tier 4) of the Galaxy tool
-refactoring framework: the only package that composes the lower tiers into a
-user-facing workflow.
+refactoring framework: the user-facing CLI front-end over the rule-registry
+facade.
 
 | Tier | Layer | Package |
 |---|---|---|
@@ -15,28 +15,41 @@ user-facing workflow.
 | 2 | structure | `galaxy-tool-xml-codemod` |
 | 3 | formatting | `galaxy-tool-xml-fmt` |
 | 3.5 | advisory checks | `galaxy-tool-xml-check` |
+| 3.6 | rule registry / presets | `galaxy-tool-refactor-registry` |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` *(this repo)* |
 
-It depends on codemod (tier 2), fmt (tier 3), and check (tier 3.5) and exposes
-the `galaxy-tool-refactor` CLI with three subcommands:
+Rule orchestration lives in the tier-3.6 **registry facade**
+(`galaxy-tool-refactor-registry`); this package depends on it (plus fmt's
+`cli_support` engine and tier-1 parsing) and does CLI plumbing only — it no
+longer imports the codemod / check tiers directly. It exposes the
+`galaxy-tool-refactor` CLI with five subcommands:
 
-- `format` — apply `CANONICAL_CODEMODS` (repair + attribute order) then fmt's
-  cosmetic rules. Safe, idempotent, never changes `profile=`.
-- `upgrade` — apply `AUTO_UPGRADE_CODEMODS` (repair, then iterative profile
-  upgrade) then cosmetic formatting. Opt-in and semantic.
-- `check` — report-only linter (mutates nothing) that composes the codemod +
-  fmt + check **detect** phases: `file:line  CODE  message` per finding. Fixable
-  GTX findings (what `format` would change) exit non-zero; advisory IUC findings
-  are marked `(advisory)` and informational unless `--strict`.
+- `format` — apply a preset's fixable rules then cosmetic formatting. Default
+  preset `iuc` = `CANONICAL_CODEMODS` (repair + attribute / element order) +
+  cosmetic — byte-identical to the historical behaviour. Safe, idempotent, never
+  changes `profile=`. Advisory rules in a selection are reported as notes, never
+  applied.
+- `upgrade` — repair, then iterative profile upgrade, then cosmetic formatting.
+  Opt-in and semantic. No `--preset`; `--select`/`--ignore` adjust its rule set.
+- `check` — report-only linter (mutates nothing) over the selected rules' detect
+  phases: `file:line  CODE  message` per finding. Default (`iuc`) reports only
+  *fixable* GTX findings; `--preset strict` adds the *advisory* IUC checks (marked
+  `(advisory)`). Fixable findings exit non-zero; advisory are informational unless
+  `--strict`.
+- `presets` / `rules` — introspection of the baked-in presets and rules.
 
-`format` and `upgrade` reuse fmt's `cli_support` engine (file walking,
-`--check`/`--diff`/`--quiet`, drift detection, summary) and differ only in which
-codemod pipeline they apply; `check` runs its own report-only loop (reusing
-`cli_support.iter_targets`/`is_tool_root`, not the write path). All serialize
-or report through the lower tiers — which is *why* this tier sits above them (a
-writer inside codemod would invert the tiers). See `docs/decisions.md` §D1
-(app tier), §D2 (`check`), §D3 (advisory findings); `galaxy-tool-xml-fmt/docs/
-decisions.md` §D12.
+Selection (`--preset` / `--select` / `--ignore`) is shared by
+`format`/`upgrade`/`check` (upgrade takes no `--preset`); precedence is ruff-style
+(`--ignore` ▸ `--select` ▸ `--preset`, where `--select` replaces the preset set).
+`format`/`upgrade` reuse fmt's `cli_support` engine (file walking,
+`--check`/`--diff`/`--quiet`, drift detection, summary), wrapping `facade.run` /
+`facade.upgrade` in the per-file transform; `check` runs its own report-only loop
+(`cli_support.iter_targets`/`is_tool_root` + `facade.detect`). The facade — not
+this package — composes the lower tiers, which is *why* the orchestration sits
+below the CLI (so a future MCP server can reuse it). See `docs/decisions.md` §D1
+(app tier), §D2 (`check`), §D3 (advisory findings), §D4 (registry facade +
+selection); `galaxy-tool-refactor-registry/docs/decisions.md` D1–D4;
+`galaxy-tool-xml-fmt/docs/decisions.md` §D12.
 
 ## Coding standards
 
@@ -59,9 +72,11 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
 
 ## Useful workspace references
 
-- `galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/canonical.py` — the
-  `CANONICAL_CODEMODS` / `AUTO_UPGRADE_CODEMODS` pipeline contracts this CLI runs.
+- `galaxy-tool-refactor-registry/src/galaxy_tool_refactor_registry/facade.py` —
+  the `run` / `upgrade` / `detect` / `list_presets` / `list_rules` entry points
+  this CLI wraps; `resolve.py` for `resolve_codes` / `resolve_upgrade_codes`.
 - `galaxy-tool-xml-fmt/src/galaxy_tool_xml_fmt/cli_support.py` — the shared
-  file-processing engine.
-- `galaxy-tool-xml-fmt/src/galaxy_tool_xml_fmt/format.py` — `format_tool_document`,
-  the serializer this CLI writes through.
+  file-processing engine (`run`, `iter_targets`, `is_tool_root`,
+  `TransformOutcome`).
+- `galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/canonical.py` — the
+  `CANONICAL_CODEMODS` / `AUTO_UPGRADE_CODEMODS` contracts the facade consumes.

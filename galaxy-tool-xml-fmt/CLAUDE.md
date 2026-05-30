@@ -5,7 +5,7 @@ Guidance for Claude Code working in this repository.
 ## Project
 
 `galaxy-tool-xml-fmt` is the **formatting** tier of the Galaxy tool
-refactoring framework — one of six tiers (this package depends only on tier 1
+refactoring framework — one of seven tiers (this package depends only on tier 1
 and the shared tier-0.5 rules metadata):
 
 | Tier | Layer | Package | Owns |
@@ -15,7 +15,8 @@ and the shared tier-0.5 rules metadata):
 | 2 | **structure** | `galaxy-tool-xml-codemod` | structural mutations |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` *(this repo)* | cosmetic formatting (+ non-mutating `detect`); the only tier that writes XML to disk |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only IUC best-practice checks |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | composes the tiers (`format`/`upgrade`/`check`) |
+| 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | unified rule registry + presets; library-first facade |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | composes the tiers via the facade (`format`/`upgrade`/`check`) |
 
 The fmt tool is opinionated like `black`: a single canonical
 formatting per input, no user-tunable style. The opinionated choice
@@ -84,12 +85,14 @@ Run these from the **workspace root** (`galaxy-tool-refactor/`):
 - `galaxy-tool-xml/docs/decisions.md` §3 (representation), §9
   (three-tier vision)
 - `galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/canonical.py` —
-  the `CANONICAL_CODEMODS` / `AUTO_UPGRADE_CODEMODS` contracts the tier-4
-  app runs (this package's CLI does not)
+  the `CANONICAL_CODEMODS` / `AUTO_UPGRADE_CODEMODS` contracts the tier-3.6
+  registry facade runs (this package's CLI does not)
+- `galaxy-tool-refactor-registry/` — the tier-3.6 facade that composes
+  codemod + fmt into `run` / `upgrade` / `detect` (it calls this package's
+  `format_tool_document_subset` / `detect_tool_document_subset`, fmt §D15)
 - `src/galaxy_tool_xml_fmt/cli.py` — the cosmetic-only CLI (thin wrapper
   over `cli_support`); `src/galaxy_tool_xml_fmt/cli_support.py` — the
   shared file-walking / drift-detection engine the app CLI also uses
-- `galaxy-tool-refactor-cli/` — the tier-4 app that orchestrates codemods
-  + fmt (`format` / `upgrade`)
+- `galaxy-tool-refactor-cli/` — the tier-4 app CLI (over the registry facade)
 - `../docs/corpus_data/combined_corpus_data.json` — the real-world
   distribution of tool XML idioms the formatter must preserve idempotently
