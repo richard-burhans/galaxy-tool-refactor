@@ -51,9 +51,8 @@ the element has no source position), `xpath` (`str`), and `message`. It is the
 read-only counterpart to the mutating tier-2 `Change` and tier-3 `Edit`.
 
 This lands as part of the detect/fix rule-split effort (see
-`galaxy-tool-xml-codemod/docs/decisions.md` §19 and
-`../../docs/detect_fix_split_plan.md`). Tier-2 `Change` projects onto a
-`Violation` via `Change.to_violation()`.
+`galaxy-tool-xml-codemod/docs/decisions.md` §19; the effort, PR1–5, merged in
+#15). Tier-2 `Change` projects onto a `Violation` via `Change.to_violation()`.
 
 ### Rationale
 

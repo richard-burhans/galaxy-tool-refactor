@@ -13,7 +13,7 @@ checks (`checks.py`, `IUC001`–`IUC012`), and the registry + runner (`detect.py
 `all_checks()` / `detect_violations()`). Each check is an LBYL query over a
 tier-1 `ToolDocument` that yields the shared tier-0.5 `Violation`; each carries a
 `RuleMeta` with the new `detect_only=True` flag (added to tier 0.5 in this PR).
-PR4 of the detect/fix rule-split effort (see `../../docs/detect_fix_split_plan.md`).
+PR4 of the detect/fix rule-split effort (PR1–5, merged in #15).
 
 ### Rationale
 
