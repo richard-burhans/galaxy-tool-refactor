@@ -116,3 +116,36 @@ uv run --package galaxy-tool-refactor-registry pytest galaxy-tool-refactor-regis
 # the regression guard: the iuc preset == the old format pipeline, byte for byte
 # (tests/test_facade.py::test_iuc_preset_is_byte_identical_to_today_format)
 ```
+
+## D5 (2026-05-30) — Imported `@PROFILE@` consensus analysis (Phase 3b-1)
+
+**Date:** 2026-05-30. First step of Phase 3b (imported profile-token upgrade).
+Reproduced-by: `uv run --package galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_macro_profile.py`.
+
+- **What we chose.** `macro_profile.py` — the pure decision core for upgrading a
+  `profile="@TOKEN@"` whose token is defined in an *imported* macro file (the
+  ~1,382-tool bulk; the inline case is `UpdateProfile`/GTX007). Two pieces kept
+  separate so the policy is testable without I/O: `profile_token_site(document)`
+  reads one tool and returns the defining macro file + token name + the tool's
+  `newest_valid_profile` target (or `None` for a literal/inline/unresolved
+  profile); `plan_from_sites(sites)` groups sites by the file they would edit and
+  decides, per file, whether the profile-using importers **agree** on one target
+  (every importer has a target and they are identical).
+- **The locked policy (data-driven).** Edit the imported token in place **only
+  when the importers agree**; otherwise report-and-skip. We do **not** build a
+  copy-on-write fork: the `macro-profile-ownership` sweep (PR #28) found 0 of 46
+  shared profile-macro files whose importers diverge, so an in-place bump always
+  satisfied every importer and fork machinery would never resolve a real
+  conflict — deferred until divergence has a consumer (defer-until-consumer).
+- **No direct-vs-deeper split.** We always edit the file that *defines* the
+  token (`TokenDefinition.source`), which is correct whether the token is in a
+  directly-imported file or deeper in the chain; the corpus has no deeper cases
+  anyway. Shared-file safety is carried entirely by the agreement check.
+- **Why the registry.** The analysis spans a *set* of tools (run-relative), which
+  is orchestration — it belongs in the facade tier, above the per-tool lower
+  tiers and below the CLI. It is library-first and exception-free (per-document,
+  no scanning/error-handling): the CLI does the path walk + parse-error handling
+  and feeds it `ProfileTokenSite`s. The orchestration that performs the edit
+  (via `Cursor.set_text` + `format_macro_document`) and writes the files is the
+  next step (3b-2).
