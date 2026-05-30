@@ -9,7 +9,9 @@ galaxy-tool-refactor/
 ├── galaxy-tool-xml-codemod/  Tier 2 (structure)
 ├── galaxy-tool-xml-fmt/      Tier 3 (formatting)
 ├── galaxy-tool-xml-check/    Tier 3.5 (advisory detect-only IUC checks)
-├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check)
+├── galaxy-tool-refactor-registry/ Tier 3.6 (unified rule registry + presets; library-first facade)
+├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + presets/rules)
+├── galaxy-tool-refactor-mcp/ Tier 4 (future MCP server — placeholder, NOT a workspace member yet)
 ├── scripts/                  Shared maintainer scripts (not installed)
 │   ├── corpus_check.py         validate | fmt | codemod | rules | check subcommands
 │   ├── fetch_schemas.py        download release XSDs
@@ -25,7 +27,7 @@ galaxy-tool-refactor/
 ## Install
 
 ```bash
-uv sync          # installs all six packages + dev deps into .venv
+uv sync          # installs all seven packages + dev deps into .venv
 ```
 
 ## Test
@@ -36,18 +38,20 @@ uv run --package galaxy-tool-xml            pytest galaxy-tool-xml/tests/
 uv run --package galaxy-tool-xml-codemod    pytest galaxy-tool-xml-codemod/tests/
 uv run --package galaxy-tool-xml-fmt        pytest galaxy-tool-xml-fmt/tests/
 uv run --package galaxy-tool-xml-check      pytest galaxy-tool-xml-check/tests/
+uv run --package galaxy-tool-refactor-registry pytest galaxy-tool-refactor-registry/tests/
 uv run --package galaxy-tool-refactor-cli   pytest galaxy-tool-refactor-cli/tests/
 ```
 
 ## Lint / type-check
 
 ```bash
-uv run ruff check galaxy-tool-refactor-rules/src galaxy-tool-xml/src galaxy-tool-xml-codemod/src galaxy-tool-xml-fmt/src galaxy-tool-xml-check/src galaxy-tool-refactor-cli/src
+uv run ruff check galaxy-tool-refactor-rules/src galaxy-tool-xml/src galaxy-tool-xml-codemod/src galaxy-tool-xml-fmt/src galaxy-tool-xml-check/src galaxy-tool-refactor-registry/src galaxy-tool-refactor-cli/src
 uv run mypy --config-file galaxy-tool-refactor-rules/pyproject.toml galaxy-tool-refactor-rules/src
 uv run mypy --config-file galaxy-tool-xml/pyproject.toml         galaxy-tool-xml/src
 uv run mypy --config-file galaxy-tool-xml-codemod/pyproject.toml galaxy-tool-xml-codemod/src
 uv run mypy --config-file galaxy-tool-xml-fmt/pyproject.toml     galaxy-tool-xml-fmt/src
 uv run mypy --config-file galaxy-tool-xml-check/pyproject.toml   galaxy-tool-xml-check/src
+uv run mypy --config-file galaxy-tool-refactor-registry/pyproject.toml galaxy-tool-refactor-registry/src
 uv run mypy --config-file galaxy-tool-refactor-cli/pyproject.toml galaxy-tool-refactor-cli/src
 ```
 
@@ -107,21 +111,34 @@ Tiers, each independently installable:
 | 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework + bundled structural codemods (each carries a `RuleMeta` GTX code; see `catalog.coded_codemods()`) + `CANONICAL_CODEMODS` contract. |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic rules (indent / blank line / empty-element shorthand) + the shared `cli_support` CLI engine. The only tier that writes XML to disk. |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice checks (`IUC` codes, `RuleMeta.detect_only`); read-only LBYL queries over tier 1 yielding `Violation`. Depends only on tiers 1 + 0.5. |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Composes tiers 2 + 3 + 3.5 into `format`, `upgrade`, and report-only `check`. |
+| 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | Unified, code-addressable `RuleHandle` over all three families + named presets (`cosmetic`/`iuc`/`strict`) + `run`/`upgrade`/`detect`. **Library-first** (no click/exit; structured I/O; introspectable). Depends on 0.5/1/2/3/3.5; lower tiers don't depend on it. |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `presets`, `rules`. |
+| 4 | **MCP server** *(future)* | `galaxy-tool-refactor-mcp` | Placeholder for an agent-facing MCP server over the registry facade. **Not implemented / not a workspace member yet** — see its `docs/vision.md`. |
 
-**Orchestration lives in the app tier.** Each lower tier is consumable
-standalone; none runs the end-to-end workflow. The app
-(`galaxy-tool-refactor-cli`) hard-depends on codemod (tier 2), fmt
-(tier 3), and check (tier 3.5), and owns three commands:
+**Orchestration lives in the registry facade (tier 3.6); the CLI is a thin
+front-end.** Each lower tier is consumable standalone; the facade composes them
+into one code-addressable rule set with presets and a library-first
+`run`/`upgrade`/`detect` API. The CLI (`galaxy-tool-refactor-cli`) depends on the
+facade (plus fmt's `cli_support` engine and tier-1 parsing) and owns five
+commands:
 
-- `galaxy-tool-refactor format` — `CANONICAL_CODEMODS` (repair +
-  attribute order + `<tool>` child-element order) then fmt's cosmetic
-  rules. Safe, idempotent; never changes `profile=`.
-- `galaxy-tool-refactor upgrade` — `AUTO_UPGRADE_CODEMODS` (repair, then
-  iterative profile upgrade) then cosmetic formatting. Opt-in, semantic.
-- `galaxy-tool-refactor check` — report-only linter over the codemod +
-  fmt + check **detect** phases. Fixable GTX findings exit non-zero;
-  advisory IUC findings are informational unless `--strict`.
+- `galaxy-tool-refactor format` — apply a preset's fixable rules (default `iuc` =
+  `CANONICAL_CODEMODS` + cosmetic, byte-identical to the historical behaviour)
+  then serialise. Safe, idempotent; never changes `profile=`. Advisory rules in a
+  selection (`--preset strict`) are reported as notes, never applied.
+- `galaxy-tool-refactor upgrade` — repair, then iterative profile upgrade, then
+  format. Opt-in, semantic. No `--preset` (presets are a format/check concept);
+  `--select`/`--ignore` adjust its fixable rule set.
+- `galaxy-tool-refactor check` — report-only over the selected rules' detect
+  phases. Fixable GTX findings exit non-zero; advisory IUC findings appear only
+  under `--preset strict` and are informational unless `--strict`.
+- `galaxy-tool-refactor presets` / `rules` — introspection of the baked-in
+  presets and rules.
+
+Selection is shared across `format`/`upgrade`/`check`: `--preset NAME`,
+`--select CODE…`, `--ignore CODE…` (ruff-style precedence `--ignore` ▸ `--select`
+▸ `--preset`; `--select` replaces the preset's set). Rules and presets are
+developer-defined — no user-defined rules.
 
 `galaxy-tool-xml-fmt`'s own CLI is **cosmetic-only** and has no codemod
 dependency (the former `[canonical]` extra is gone). The library
@@ -137,4 +154,8 @@ fmt-CLI-cosmetic-only reversal, and the `CANONICAL_CODEMODS` /
 fmt §D11) for the shared `RuleMeta` extraction and the cross-tier
 GTX registry; and `docs/iuc_best_practices.md` (+ codemod §17) for the
 IUC best-practices coverage map and the `<tool>` element-order codemod
-(GTX013).
+(GTX013); and `galaxy-tool-refactor-registry/docs/decisions.md` D1–D4
+(+ cli `docs/decisions.md` D4, fmt §D15) for the rule-registry facade,
+presets, per-rule selection, and the move of orchestration below the CLI.
+`galaxy-tool-refactor-mcp/docs/vision.md` records the (unbuilt) MCP /
+agent-extensibility direction the facade is shaped for.

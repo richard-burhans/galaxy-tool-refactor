@@ -1,8 +1,8 @@
 # galaxy-tool-refactor-cli
 
 The **app tier** of the Galaxy tool refactoring framework — the user-facing
-`galaxy-tool-refactor` CLI that composes the lower tiers into end-to-end
-workflows.
+`galaxy-tool-refactor` CLI, a thin front-end over the tier-3.6 rule-registry
+facade (`galaxy-tool-refactor-registry`).
 
 | Tier | Layer | Package |
 |---|---|---|
@@ -11,44 +11,54 @@ workflows.
 | 2 | structure | `galaxy-tool-xml-codemod` |
 | 3 | formatting | `galaxy-tool-xml-fmt` |
 | 3.5 | advisory checks | `galaxy-tool-xml-check` |
+| 3.6 | rule registry / presets | `galaxy-tool-refactor-registry` |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` *(this package)* |
 
-It depends on the codemod tier (structural transforms), the fmt tier (cosmetic
-formatting + serialization), and the check tier (advisory IUC checks), and
-exposes three commands:
+Rule orchestration lives in the registry facade; this package depends on it
+(plus fmt's `cli_support` engine and tier-1 parsing) and exposes five commands:
 
 ```bash
-# Safe, idempotent: structural canonicalisation + cosmetic formatting.
-# Never changes profile=.
+# Safe, idempotent: apply a preset's fixable rules + cosmetic formatting.
+# Default preset `iuc` = structural canonicalisation + cosmetic; never profile=.
 galaxy-tool-refactor format tool.xml
+galaxy-tool-refactor format --preset cosmetic tool.xml   # whitespace only
+galaxy-tool-refactor format --ignore GTX002 tool.xml     # all but param-reorder
 
-# Opt-in, semantic: repair typos, then upgrade profile= to the latest
-# reachable version (applying each step's structural migration). Reports the
-# steps applied and warns if a tool stalls below the latest profile.
+# Opt-in, semantic: repair typos, then upgrade profile= to the latest reachable
+# version (applying each step's structural migration), then format. Reports the
+# steps applied and warns if a tool stalls. No --preset; --select/--ignore tune it.
 galaxy-tool-refactor upgrade tool.xml
 
 # Report-only linter: one `file:line  CODE  message` per finding, mutating
-# nothing. Covers the fixable GTX rules (what `format` would change) plus the
-# advisory IUC best-practice checks (marked `(advisory)`). Exits non-zero on
-# any fixable finding; advisory findings are informational unless --strict.
+# nothing. Default (`iuc`) reports the fixable GTX rules; `--preset strict` adds
+# the advisory IUC checks (marked `(advisory)`). Exits non-zero on any fixable
+# finding; advisory findings are informational unless --strict.
 galaxy-tool-refactor check tool.xml
+galaxy-tool-refactor check --preset strict tool.xml
+
+# Introspection.
+galaxy-tool-refactor presets
+galaxy-tool-refactor rules
 ```
 
-`format` and `upgrade` honour `--check` (detect drift, exit non-zero, don't
-write — distinct from the `check` *command*), `--diff` (preview), and `--quiet`;
-`check` honours `--quiet` and `--strict`. The typical modernization flow is
-`upgrade` then `format`; `check` previews what those would change plus
-best-practice suggestions.
+`format`/`upgrade`/`check` share rule selection — `--preset NAME`,
+`--select CODE…`, `--ignore CODE…` (ruff-style precedence: `--ignore` ▸
+`--select` ▸ `--preset`; `--select` replaces the preset's set; `upgrade` takes no
+`--preset`). `format`/`upgrade` also honour `--check` (detect drift, exit
+non-zero, don't write — distinct from the `check` *command*), `--diff`, and
+`--quiet`; `check` honours `--quiet` and `--strict`. The typical modernization
+flow is `upgrade` then `format`.
 
 ## Why a separate tier
 
 Profile upgrade is semantic, fallible, and reports outcomes; canonicalisation +
 formatting is safe and idempotent. Keeping them in separate, explicit commands
 (rather than auto-upgrading inside "format my tool") lets users opt into
-modernization deliberately. The app also writes output via fmt's serializer, so
-it must sit *above* fmt — which is why orchestration lives here and not in the
-codemod or fmt CLIs. See `docs/decisions.md` §D1 (the app tier), §D2 (the
-report-only `check` command), and §D3 (advisory IUC findings in `check`).
+modernization deliberately. Rule orchestration sits *below* the CLI in the
+registry facade — both because output is written via fmt's serializer (so the
+orchestrator must sit above fmt) and so a future MCP server can reuse the same
+core. See `docs/decisions.md` §D1 (the app tier), §D2 (`check`), §D3 (advisory
+findings), §D4 (the registry facade + rule selection).
 
 ## Install / test
 

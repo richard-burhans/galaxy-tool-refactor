@@ -2,6 +2,7 @@
 members = [
     "galaxy-tool-refactor-rules",
     "galaxy-tool-refactor-cli",
+    "galaxy-tool-refactor-registry",
     "galaxy-tool-xml",
     "galaxy-tool-xml-fmt",
     "galaxy-tool-xml-codemod",

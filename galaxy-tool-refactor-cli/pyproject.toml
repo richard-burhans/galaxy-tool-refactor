@@ -6,12 +6,14 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Richard Burhans" }]
+# Orchestration now lives in the registry facade (tier 3.6); the CLI composes
+# it plus fmt's file-walking engine (cli_support) and tier-1 parsing. It no
+# longer depends on the codemod / check tiers directly — the facade wraps them.
 dependencies = [
     "galaxy-tool-refactor-rules",
     "galaxy-tool-xml",
-    "galaxy-tool-xml-codemod",
     "galaxy-tool-xml-fmt",
-    "galaxy-tool-xml-check",
+    "galaxy-tool-refactor-registry",
     "click>=8",
 ]
 
@@ -46,6 +48,5 @@ testpaths = ["tests"]
 [tool.uv.sources]
 galaxy-tool-refactor-rules = { workspace = true }
 galaxy-tool-xml = { workspace = true }
-galaxy-tool-xml-codemod = { workspace = true }
 galaxy-tool-xml-fmt = { workspace = true }
-galaxy-tool-xml-check = { workspace = true }
+galaxy-tool-refactor-registry = { workspace = true }

@@ -234,11 +234,14 @@ optional-extra rationale.
 > all cross-tier orchestration moved to a new tier-4 app
 > (`galaxy-tool-refactor-cli`); fmt's CLI is now cosmetic-only too. This
 > added tier 0.5 `galaxy-tool-refactor-rules` and tier 4 (and, on
-> 2026-05-30, tier 3.5 `galaxy-tool-xml-check`, bringing the workspace to
-> six packages). The independence principle above still holds — fmt never
-> depends on codemod. See `galaxy-tool-xml-fmt/docs/decisions.md` §D12,
-> `galaxy-tool-xml-codemod/docs/decisions.md` §16, and
-> `galaxy-tool-refactor-cli/docs/decisions.md` §D1.
+> 2026-05-30, tier 3.5 `galaxy-tool-xml-check`, and later tier 3.6
+> `galaxy-tool-refactor-registry` — the rule-registry facade the app CLI
+> now sits on — bringing the workspace to seven packages). The independence
+> principle above still holds — fmt never depends on codemod. See
+> `galaxy-tool-xml-fmt/docs/decisions.md` §D12,
+> `galaxy-tool-xml-codemod/docs/decisions.md` §16,
+> `galaxy-tool-refactor-cli/docs/decisions.md` §D1/§D4, and
+> `galaxy-tool-refactor-registry/docs/decisions.md` D1–D4.
 
 Full design: `docs/codemod-architecture.md` (the original architecture
 note; per-decision rationale on the implementation lives in each

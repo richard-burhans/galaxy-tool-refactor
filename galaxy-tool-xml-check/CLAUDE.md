@@ -15,6 +15,7 @@ never mutate.
 | 2 | structure | `galaxy-tool-xml-codemod` |
 | 3 | formatting | `galaxy-tool-xml-fmt` |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` *(this repo)* |
+| 3.6 | rule registry / presets | `galaxy-tool-refactor-registry` |
 | 4 | app / CLI | `galaxy-tool-refactor-cli` |
 
 It owns the IUC-coded **detect-only** rules (`RuleMeta.detect_only=True`): a

@@ -6,8 +6,8 @@ Guidance for Claude Code working in this repository.
 
 `galaxy-tool-refactor-rules` is the **rule-metadata** tier (tier 0.5) of the
 Galaxy tool refactoring framework. It is a tiny, dependency-free package that the
-codemod (tier 2), fmt (tier 3), check (tier 3.5), and app (tier 4) tiers all
-depend on:
+codemod (tier 2), fmt (tier 3), check (tier 3.5), registry (tier 3.6), and app
+(tier 4) tiers all depend on:
 
 | Tier | Layer | Package |
 |---|---|---|
@@ -16,6 +16,7 @@ depend on:
 | 2 | structure | `galaxy-tool-xml-codemod` |
 | 3 | formatting | `galaxy-tool-xml-fmt` |
 | 3.5 | advisory checks | `galaxy-tool-xml-check` |
+| 3.6 | rule registry / presets | `galaxy-tool-refactor-registry` |
 | 4 | app / CLI | `galaxy-tool-refactor-cli` |
 
 It owns the shared rule **metadata + diagnostics** vocabulary — three things:
