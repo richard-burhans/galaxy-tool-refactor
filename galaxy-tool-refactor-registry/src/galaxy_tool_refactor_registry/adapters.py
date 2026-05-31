@@ -83,6 +83,16 @@ def fmt_handle(cls: type[Rule], /) -> RuleHandle:
     def apply(document: ToolDocument) -> None:
         # Mutates the document's tree in place; the returned bytes are discarded
         # here (apply_selection serialises once at the end of the fmt phase).
+        #
+        # Caveat: this applies ONE fmt rule in isolation. fmt's whitespace rules
+        # are order-sensitive and can cancel each other's churn, so a single-rule
+        # apply can leave non-canonical trivia (same warning as
+        # `format_tool_document_subset`). The facade does NOT use this path — its
+        # `apply.apply_selection` batches all selected fmt rules through one
+        # `format_tool_document_subset` call so they run as a coherent group. This
+        # closure exists only to keep the `RuleHandle` interface uniform
+        # (`fixable` codemod/fmt rules both expose a non-None `apply`); call it
+        # per-rule only when you mean to.
         format_tool_document_subset(document, rule_classes=(cls,))
 
     return RuleHandle(

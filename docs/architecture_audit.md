@@ -1,0 +1,308 @@
+# Architectural audit — galaxy-tool-refactor
+
+**Date:** 2026-05-31  •  **Method:** single deep pass, reading every package's
+`src/` + `pyproject.toml` + selected tests against the contracts written in
+[`../ARCHITECTURE.md`](../ARCHITECTURE.md).  •  **Scope:** abstraction coherence
+and boundary integrity, *not* a line-level bug hunt (see `/code-review` for that).
+
+This audit measures the code against the just-written architecture baseline. The
+**headline is reassuring**: the tier boundaries hold exactly as documented — no
+sibling-tier cross-imports, no upward dependencies, the GTX/IUC namespace is
+collision-guarded, and the load-bearing "apply order reproduces `format`" contract
+is pinned by a regression test. The findings below are refinements, latent
+footguns, and doc-precision gaps, not structural breakage.
+
+Severity key: **High** = a violated invariant or a correctness hazard; **Medium**
+= a latent inconsistency that will bite a future maintainer; **Low** = cosmetic /
+documentation precision.
+
+Each finding is tagged **[fixed]** (applied in this pass), **[proposal]** (left
+for review — structural or needs a decision), or **[accepted]** (intentional;
+recorded so it isn't re-litigated).
+
+---
+
+## Dimension 1 — Boundary integrity ✅
+
+**Verdict: clean.** Verified by import grep + every `pyproject.toml` dependency list.
+
+- No sibling cross-imports: fmt ⊥ codemod, codemod ⊥ fmt, check ⊥ {codemod, fmt}.
+  (The single `galaxy_tool_xml_codemod` hit inside fmt is a docstring in
+  `format.py`, not an import.)
+- Nothing below tier 3.6 imports the registry.
+- The CLI (tier 4) imports the facade, fmt, and tier-1 parsing only — **not**
+  codemod or check directly, exactly as its `CLAUDE.md` claims.
+
+No findings.
+
+---
+
+## Dimension 2 — Abstraction consistency
+
+### 2.1 `RuleHandle.apply` for the fmt family is defined but never invoked — **Medium** [fixed]
+
+`adapters.fmt_handle` builds an `apply` closure that calls
+`format_tool_document_subset(document, rule_classes=(cls,))` for a single rule.
+But `apply.apply_selection` (`apply.py:55-59`) **bypasses** the fmt handles: it
+collects all selected fmt rule classes and runs them as one batch through
+`format_tool_document_subset`. So no facade code path ever calls a fmt handle's
+`apply` — for the fmt family the uniform `RuleHandle.apply` interface is dead
+within this repo.
+
+The bypass is *correct and intentional*: fmt rules are order-sensitive (GTX001 and
+GTX003 both rewrite top-level-child tails), so running them one-at-a-time via the
+per-rule handle could leave non-canonical intermediate trivia — the same
+incoherent-subset caveat `format_tool_document_subset` already documents. The
+hazard is that a future consumer (e.g. the MCP server) sees a uniform
+`handle.apply` and calls it per-rule, silently getting wrong output.
+
+**Fix applied:** added a caveat comment to `fmt_handle.apply` pointing at the
+batch path and the order-sensitivity, so the footgun is documented at the
+definition site. The interface stays uniform (the alternative — making fmt
+`apply` `None` — would break the `fixable ⇒ apply is not None` invariant).
+
+### 2.2 The three rule base classes are deliberately non-uniform — **Low** [accepted]
+
+`fmt.Rule` and `check.CheckRule` are `ABC`s with a single `@abstractmethod`
+(`apply` / `detect` respectively); `codemod.CodemodCommand` is a *plain* base class
+with concrete `detect`/`apply` and dynamic `detect_<Tag>` dispatch. All three
+declare `meta: ClassVar[RuleMeta]` but none enforces that subclasses set it. This
+asymmetry is inherent to the families' different mechanics (a codemod dispatches
+per element; a fmt rule/ check is a whole-tree pass) and `RuleHandle` exists
+precisely to normalise it. Recorded as intentional; no change.
+
+### 2.3 "apply" is overloaded across families — **Low** [accepted]
+
+`fmt.Rule.apply(tree)` *yields* `Edit`s (it describes — `apply_edits` mutates),
+whereas `codemod.CodemodCommand.apply` and `RuleHandle.apply` *mutate*. Documented
+in `ARCHITECTURE.md` §10. A rename (`Rule.apply` → `Rule.edits`) would be a clean
+consistency win but is a public-API change touching every rule + its tests —
+[proposal] below, not applied.
+
+---
+
+## Dimension 3 — Naming & vocabulary drift
+
+### 3.1 Stale reference to a renamed CLI function — **Low** [fixed]
+
+`scripts/corpus_check.py:3017` reads *"Mirrors the app CLI's
+`_detect_violations`"*, but the CLI has no such function — detection there is the
+inline `check_command` calling `facade.detect` (orchestration moved into the
+facade when tier 3.6 landed). **Fix applied:** updated the comment to reference
+the current `facade.detect` / `check_command` path.
+
+### 3.2 Two unrelated `_detect_advisory` names — **Low** [accepted]
+
+`facade._detect_advisory` (registry) and the import alias
+`from galaxy_tool_xml_check.detect import detect_violations as _detect_advisory`
+(`corpus_check.py:2951`) name two different things in two files. Confined to
+distinct modules, no shadowing; not worth churn. Recorded.
+
+---
+
+## Dimension 4 — Contract-enforcement gaps
+
+### 4.1 "fmt is the only serializer" is asserted in prose but not tested — **Medium** [proposal]
+
+The invariant appears in three `CLAUDE.md`s and `ARCHITECTURE.md`, and the code
+honours it (every output byte flows through `serializer.to_bytes`; `apply_selection`
+always ends in `format_tool_document_subset`). But nothing *guards* it — a future
+codemod that does `path.write_bytes(etree.tostring(...))` would pass CI.
+
+A grep over `src/` finds these `etree.tostring` / `write_bytes` sites; all are
+currently legitimate, which is exactly why they belong in an allowlist:
+
+| Site | Why it's allowed |
+|---|---|
+| `fmt/serializer.py:to_bytes` | the sanctioned serialiser |
+| `xml/document.py:157` | internal serialise-then-reparse to bind the typed model (not output) |
+| `xml/macros.py:247` | serialise to a **temp dir** for macro expansion (throwaway, not output) — see 6.1 |
+| `check/checks.py:67` | serialise one element to a `str` for content inspection (read-only) |
+| `codemod/_coarse_detect.py:53,55` | before/after `tostring` to detect change (internal compare) |
+| `registry/facade.py:89,175`, `registry/macro_profile.py:188` | write **fmt-produced** bytes to disk |
+
+**Proposal:** add an architecture test (in registry or a workspace-level
+`tests/`) that greps `*/src/**` for `etree.tostring(` / `.write_bytes(` and fails
+on any site not in the allowlist above. Left as a proposal because it needs a
+decision on where the test lives and how the allowlist is encoded.
+
+### 4.2 Positive: the byte-identity contract IS pinned — ✅ [accepted]
+
+`registry/tests/test_facade.py::test_iuc_preset_is_byte_identical_to_today_format`
+enforces "the `iuc` preset == the historical `format` pipeline, byte for byte"
+(registry decisions D4). Good — this is the highest-blast-radius contract and it
+is guarded.
+
+---
+
+## Dimension 5 — Duplication / missed reuse
+
+### 5.1 Two advisory-aggregation runners — **Low** [accepted]
+
+Tier 3.5 ships `detect.detect_violations(document)` (runs every check, sorts by
+line); the facade re-implements the same aggregation per-handle in
+`facade._detect_advisory`. They serve different callers (`detect_violations` is
+used by `scripts/corpus_check.py`; the facade path filters by the *selected*
+codes), so this is parallelism, not redundant duplication. The facade can't simply
+call `detect_violations` because it must honour the code selection. Recorded; no
+change.
+
+### 5.2 `Change.to_violation` vs the fmt detect projection — **Low** [accepted]
+
+Both tier-2 `Change.to_violation()` and the fmt net-diff `detect` construct
+`Violation`s, but from genuinely different inputs (a `Change`'s static fields vs a
+net trivia diff). No shared logic to extract. Recorded.
+
+---
+
+## Dimension 6 — Dead / reserved surface
+
+### 6.1 Tier 1 serialises XML to a temp file — refines the "writes to disk" claim — **Low** [fixed in ARCHITECTURE.md]
+
+`xml/macros.py:expand_from_tree` does `tool_path.write_bytes(etree.tostring(root))`
+into a `TemporaryDirectory` so Galaxy's path-based macro expander can run. This is
+a throwaway round-trip, not user-facing output — but it means the absolute claim
+*"fmt is the only tier that writes XML to disk"* (codemod `CLAUDE.md`) is loose.
+The precise invariant is *"fmt is the only tier that serialises **canonical
+output** XML."* **Fix applied:** `ARCHITECTURE.md` now states the precise form and
+notes the temp round-trip. (Aligning the codemod `CLAUDE.md` wording is 8.1 below.)
+
+### 6.2 `detect_tool_document` (full) has no in-`src` caller — **Low** [accepted]
+
+The whole-pipeline `detect_tool_document` is called only from fmt's own tests; all
+production detection goes through `detect_tool_document_subset` (the facade) or
+`detect_macro_document` (the CLI). It is the documented public pair to
+`format_tool_document` and is tested, so it stays. Recorded.
+
+### 6.3 `MacroModule` / `parse_macro_module` are reserved — **Low** [accepted]
+
+Defined in codemod `module.py` / `parse.py`, used nowhere in `src` outside their
+own package. This is the documented "Cursor is generic; the codemod base stays
+tool-only until a macro-subject codemod needs it" reservation (codemod decisions
+§20). Intentional reserved surface.
+
+### 6.4 IUC011 / IUC012 stubs — ✅ [accepted]
+
+Registered codes whose `detect` returns nothing, members of the `strict` preset so
+they are auto-covered when implemented (check decisions; `iuc_best_practices.md`).
+Documented reservation, not drift.
+
+---
+
+## Dimension 7 — Doc / code agreement
+
+### 7.1 "writes XML to disk" imprecision — **Low** [fixed in ARCHITECTURE.md] [proposal for CLAUDE.md]
+
+Covered in 6.1. `ARCHITECTURE.md` is corrected. **Proposal:** soften the same
+phrasing in `galaxy-tool-xml-codemod/CLAUDE.md` and the tier table in other
+`CLAUDE.md`s from "writes XML to disk" to "serialises canonical XML" — left as a
+proposal because those are owned package docs and the change, while safe, touches a
+deliberately-chosen contract phrasing.
+
+### 7.2 Otherwise: doc/code agreement is strong — ✅
+
+The per-package `CLAUDE.md`s and `decisions.md`s matched the code on every spot
+check (RuleMeta fields, the `RuleHandle` shape, preset membership, selection
+precedence, the CANONICAL/AUTO_UPGRADE split, GTX/IUC code assignments). The
+`decisions.md` section numbers cited from `ARCHITECTURE.md` all resolve.
+
+---
+
+## Summary
+
+| # | Finding | Severity | Status |
+|---|---|---|---|
+| 2.1 | fmt-family `RuleHandle.apply` defined but never called; per-rule fmt apply is a footgun | Medium | fixed (caveat comment) |
+| 4.1 | "fmt is the only serializer" not guarded by a test | Medium | proposal (allowlist arch-test) |
+| 2.3 | `apply` overloaded (fmt yields vs codemod mutates) | Low | proposal (rename `Rule.apply`→`edits`) |
+| 3.1 | stale `_detect_violations` reference in `corpus_check.py` | Low | fixed |
+| 6.1 / 7.1 | "writes XML to disk" looser than reality (tier-1 temp round-trip) | Low | fixed in ARCHITECTURE.md; CLAUDE.md align = proposal |
+| 2.2, 2.3, 3.2, 5.1, 5.2, 6.2, 6.3, 6.4 | intentional asymmetries / reserved surface | Low | accepted (recorded) |
+
+**No High-severity findings. No boundary violations.** The architecture is
+coherent and the documented contracts hold. Two items merit a maintainer
+decision: whether to add the serializer-allowlist test (4.1) and whether to rename
+`Rule.apply` for cross-family consistency (2.3).
+
+### Applied in this pass (safe fixes)
+1. `ARCHITECTURE.md` — precise "fmt is the only tier that *serialises* canonical
+   XML" wording + the tier-1 temp-round-trip note (6.1 / 7.1).
+2. `galaxy-tool-refactor-registry/src/.../adapters.py` — caveat comment on
+   `fmt_handle.apply` (2.1).
+3. `scripts/corpus_check.py` — corrected the stale `_detect_violations` comment (3.1).
+
+### Left for review (proposals)
+- Add a serializer-allowlist architecture test (4.1).
+- Rename `fmt.Rule.apply` → `Rule.edits` for cross-family clarity (2.3).
+- Align the "writes XML to disk" wording in the package `CLAUDE.md`s (7.1).
+
+---
+
+## Escalation — multi-agent re-derivation + adversarial verification (2026-05-31)
+
+The single pass above was escalated: **10 finder agents** (6 tier-scoped + 4
+cross-cutting dimension sweeps) independently re-derived findings from source
+against the `ARCHITECTURE.md` baseline, each candidate then **adversarially
+verified** by an agent prompted to *refute* it, and the survivors synthesised.
+**61 agents total; 50 candidate findings → 47 survived verification, 3 refuted;
+0 new High, 2 new Medium, 6 new Low, 18 independent re-confirmations.**
+
+**Headline:** escalation **validated the original audit** — every load-bearing
+invariant (single-source-of-truth tree, no-serializer-in-tier-1, deterministic
+profile resolution, lenient xsdata binding, collision-guarded GTX/IUC namespace,
+library-first facade) was independently re-derived and re-confirmed, and most
+would-be Medium/High candidates were *downgraded* to Low because the code already
+honours the contracts — only test/doc coverage lags. No new boundary violations,
+no new correctness hazards.
+
+### New findings it surfaced
+
+| # | Finding | Severity | Status |
+|---|---|---|---|
+| N1 | `preset_names()` returned a hardcoded literal while `presets()` is derived — adding a 4th preset would silently drop it from `list_presets`/`list_rules` (`presets.py:52`). Violated the derived-not-hardcoded contract (registry D3). | Medium | **fixed** — now `tuple(presets())` |
+| N2 | Tier-2 `codemod/pyproject.toml` declared an unused `click>=8` (zero `click` imports in `src/`) — contradicts the tier-independence dependency-encoding. | Medium | **fixed** — line removed |
+| N7 | `corpus_check.py::_check_detect` returned unsorted violations though its docstring says it mirrors the facade's sorted `detect`. Zero practical impact (consumer is order-independent). | Low | **fixed** — sort added |
+| N3 | Tier-1 result dataclasses (`XmlError`/`ParseResult`/`ValidationResult`/`MacroError`) are mutable while tier-0.5 results are frozen. Nothing mutates them; incidental. | Low | proposal (freeze or document) |
+| N5 | `check` tier has no in-package "`detect_violations` doesn't mutate" test (the facade's cross-tier test exercises the code, so the contract *is* guarded). | Low | proposal (mirror fmt's purity test) |
+| N6 | The `(sourceline, code)` sort key is duplicated at `check/detect.py:63`, `facade.py:67`, `facade.py:119`. | Low | proposal (shared helper in a registry/check util, not tier 0.5) |
+
+Plus a cluster of doc-comment refinements (N8): `upgrade_command`'s docstring is
+silent that macro files aren't cosmetically formatted; codemod `CLAUDE.md` names
+`MacroModule`→`MacroDocument` but not `Module`→`ToolDocument`; `applies_to`
+default is relied on implicitly by the 10 codemods. All Low / doc-only.
+
+### Corroboration that raises confidence in earlier findings
+- **§4.1 (serializer not test-guarded)** was independently re-derived — escalation
+  endorses the *same* allowlist-architecture-test recommendation and the baseline's
+  site inventory. Treat 4.1 as the priority proposal.
+- **New-adjacent:** the GTX/IUC collision guard (`registry.py:48`) exists and is
+  correct, but no test forces a *duplicate* to prove it fires — a natural companion
+  to the 4.1 allowlist test.
+- §2.2 (unenforced `meta`), §5.1 (advisory-aggregation parallelism), §5.2, §6.1/§7.1
+  (writes-to-disk imprecision, still loose in the two package `CLAUDE.md`s), §6.3,
+  §7.2 (doc/code agreement, full GTX/IUC table resolves) — all independently
+  re-confirmed.
+
+### Refuted (do not re-litigate)
+- "check's macro path bypasses the facade without explanation" — *necessary*
+  (`facade.detect` accepts only `Source | ToolDocument`, never `MacroDocument`);
+  documented in cli D5 + inline comment.
+- "`_upgrade_macro_profile_tokens` does redundant file reads" — the path reload is
+  *required* so macro `<import>`s resolve via `source_path` (cli D6).
+- A scout's claim about `Cursor` method names in `CLAUDE.md` — its evidence was
+  factually wrong; the real (minor) issue is doc incompleteness, not a missing method.
+
+### Escalation fixes applied (QA gate re-run, PASSED)
+4. `galaxy-tool-refactor-registry/src/.../presets.py` — `preset_names()` derived
+   from `presets()` (N1).
+5. `galaxy-tool-xml-codemod/pyproject.toml` — dropped unused `click` (N2);
+   `uv.lock` re-synced.
+6. `scripts/corpus_check.py` — parity sort in `_check_detect` (N7).
+
+### Net outstanding proposals (maintainer decision)
+1. **Serializer-allowlist architecture test** (4.1, corroborated) — highest value.
+2. Collision-guard "duplicate fires" test (escalation-new).
+3. Rename `fmt.Rule.apply` → `Rule.edits` (2.3).
+4. Freeze tier-1 result dataclasses (N3); add `check` purity test (N5); dedup sort
+   helper (N6); align `CLAUDE.md` "writes to disk" wording (7.1); doc-comment
+   touch-ups (N8).

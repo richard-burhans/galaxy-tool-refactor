@@ -9,7 +9,6 @@ authors = [{ name = "Richard Burhans" }]
 dependencies = [
     "galaxy-tool-refactor-rules",
     "galaxy-tool-xml",
-    "click>=8",
     "lxml>=5",
 ]
 

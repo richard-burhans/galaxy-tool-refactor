@@ -3014,10 +3014,12 @@ def _check_rule_registry() -> dict[str, _CheckRuleStat]:
 def _check_detect(document: ToolDocument) -> list[Violation]:
     """Unified detect over one tool — canonical codemods + fmt + advisory IUC.
 
-    Mirrors the app CLI's ``_detect_violations`` (non-mutating; each phase reads
-    the same document as-is — see that function for the pre-repair caveat on the
-    validates-nowhere population). Kept here rather than imported from the cli
-    package so the maintainer script does not depend on the app tier.
+    Mirrors the app's report-only detect path — the registry facade's
+    ``detect`` over the canonical + advisory selection, which the CLI's
+    ``check`` command wraps (non-mutating; each phase reads the same document
+    as-is — the same pre-repair caveat applies on the validates-nowhere
+    population). Kept here rather than going through the facade so the
+    maintainer script stays independent of the registry/app tiers.
     """
     module = Module(document)
     violations = [
@@ -3027,6 +3029,7 @@ def _check_detect(document: ToolDocument) -> list[Violation]:
     ]
     violations.extend(detect_tool_document(document))
     violations.extend(_detect_advisory(document))
+    violations.sort(key=lambda violation: (violation.sourceline, violation.code))
     return violations
 
 
