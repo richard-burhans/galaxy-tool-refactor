@@ -69,8 +69,12 @@ bash scripts/qa_gate.sh
 
 This is a mechanical backstop only — it does **not** replace the full pre-PR
 code + documentation audit (standards, doc/code agreement, stale-doc and
-stat-consistency review). New contributors approve the project hook on first use;
-in a session that predates the hook, open `/hooks` once (or restart) to load it.
+stat-consistency review). That audit is the **`/pre-pr-audit` skill**
+(`.claude/skills/pre-pr-audit/`) — invoke it before opening any PR; it owns the
+six-step checklist and calls `qa_gate.sh` as its final step. For deeper,
+design-level reviews of the abstractions there is the **`/architecture-audit`
+skill**. New contributors approve the project hook on first use; in a session that
+predates the hook, open `/hooks` once (or restart) to load it.
 
 ## Corpus scripts
 
