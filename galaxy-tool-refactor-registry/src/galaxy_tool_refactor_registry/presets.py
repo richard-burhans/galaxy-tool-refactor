@@ -50,8 +50,15 @@ def presets() -> dict[str, frozenset[str]]:
 
 
 def preset_names() -> tuple[str, ...]:
-    """Preset names in display order (cosmetic, iuc, strict)."""
-    return ("cosmetic", "iuc", "strict")
+    """Preset names in display order, derived from ``presets()``.
+
+    ``presets()`` is built in display order (cosmetic, iuc, strict) and dicts
+    preserve insertion order, so deriving the names from it — rather than
+    repeating a literal list — keeps the derived-not-hardcoded contract
+    (``docs/decisions.md`` D3): a fourth preset added to ``presets()`` shows up in
+    ``list_presets`` / ``list_rules`` automatically instead of silently vanishing.
+    """
+    return tuple(presets())
 
 
 def preset_description(name: str, /) -> str:
