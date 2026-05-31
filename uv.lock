@@ -402,7 +402,6 @@ name = "galaxy-tool-xml-codemod"
 version = "0.0.1"
 source = { editable = "galaxy-tool-xml-codemod" }
 dependencies = [
-    { name = "click" },
     { name = "galaxy-tool-refactor-rules" },
     { name = "galaxy-tool-xml" },
     { name = "lxml" },
@@ -417,7 +416,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "click", specifier = ">=8" },
     { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
     { name = "galaxy-tool-xml", editable = "galaxy-tool-xml" },
     { name = "lxml", specifier = ">=5" },
