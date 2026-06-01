@@ -760,3 +760,35 @@ ledger). This entry records *why the method is sound and where its boundary lies
   post-validate-failed result, or a new sticking point at a step we call additive,
   refutes the structural-soundness claim; a profile-gated runtime change missing
   from the ledger's Semantic column extends the boundary, not the soundness.
+
+## 23. `SEMANTIC_PROFILE_CHANGES` + the `upgrade` semantic-bump warning
+
+**Date:** 2026-06-01. Reproduced-by: `uv run --package galaxy-tool-xml-codemod
+pytest galaxy-tool-xml-codemod/tests/test_profile_semantics.py` and `uv run
+--package galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_facade.py -k upgrade`.
+
+- **What we chose.** §22 says we *cannot* auto-preserve runtime behaviour across a
+  profile bump — but we *can* warn. `profile_semantics.py` adds
+  `SEMANTIC_PROFILE_CHANGES` (profile version → the runtime default it introduces,
+  the machine-readable mirror of the ledger's Semantic column, sourced from the
+  Galaxy schema docs' `profile` attribute) and the pure
+  `semantic_changes_crossed(from_profile, to_profile)`. The registry facade's
+  `upgrade` captures the tool's runtime baseline **before** any rewrite (its
+  declared `profile=`, or `16.01` when undeclared — Galaxy's runtime default) and
+  the profile actually reached, and emits one advisory **note** listing the
+  crossed boundaries (it never blocks or mutates for them).
+- **Why a note in `upgrade`, not a check/IUC rule.** The risk is intrinsic to the
+  *upgrade transition* (baseline → target), not a static property of a tool, so it
+  has no meaning in `check`/`format` and needs no GTX/IUC code. It rides the same
+  `UpgradeResult.notes` channel as the upgrade summary, so the CLI surfaces it for
+  free.
+- **Baseline choices.** Undeclared `profile=` → `16.01` (the highest-impact case:
+  Galaxy runs no-profile tools as 16.01, so bumping to latest crosses everything).
+  A macro-token (unparseable) profile → no warning rather than a misleading one;
+  the target is `newest_valid_profile` so a rewritten inline token still measures
+  to a literal. `16.04` is included in the map (it predates the oldest vendored
+  XSD, `16.10`) precisely for the undeclared-baseline case.
+- **Keep in sync.** `SEMANTIC_PROFILE_CHANGES` and the ledger's Semantic column are
+  two views of one fact set; update both together (`test_profile_semantics.py`
+  pins the data shape).
