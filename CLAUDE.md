@@ -133,6 +133,11 @@ uv run python -m scripts.measure version-tokenization
 # cross each profile-behaviour code (backs codemod decisions §23 + the §22
 # soundness boundary; data = the vendored PROFILE_UPGRADE_CODES):
 uv run python -m scripts.measure semantic-upgrade-boundaries
+
+# Sizing for the format="input" runtime-gated fix (GTX015, codemod decisions §24):
+# output <data format="input"> tools split by data-input cardinality (the single
+# top-level data input subset is auto-fixable):
+uv run python -m scripts.measure output-format-input
 ```
 
 **Note:** invoke as `python -m scripts.X`, not `python scripts/X.py` — the
