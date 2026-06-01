@@ -23,7 +23,7 @@ from galaxy_tool_xml.document import ToolDocument
 from galaxy_tool_xml_check.detect import sort_violations
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.module import Module
-from galaxy_tool_xml_codemod.profile_semantics import semantic_changes_crossed
+from galaxy_tool_xml_codemod.profile_semantics import upgrade_codes_crossed
 from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 from galaxy_tool_xml_fmt.detect import detect_tool_document_subset
 
@@ -158,14 +158,18 @@ def _semantic_warning(baseline: str | None, target: str | None) -> str | None:
     """
     if baseline is None or target is None:
         return None
-    crossed = semantic_changes_crossed(from_profile=baseline, to_profile=target)
+    crossed = upgrade_codes_crossed(from_profile=baseline, to_profile=target)
     if not crossed:
         return None
-    versions = ", ".join(version for version, _ in crossed)
+    # The catalogue is profile-ascending, so first-seen dedup keeps release order.
+    releases = ", ".join(dict.fromkeys(change.profile for change in crossed))
+    must_fix = sum(1 for change in crossed if change.level == "must_fix")
+    must_fix_note = f" ({must_fix} must-fix)" if must_fix else ""
     return (
-        f"  profile {baseline}→{target} crosses {len(crossed)} runtime-behaviour"
-        f" change(s) the XSD can't verify ({versions}); review against"
-        " docs/profile_upgrades.md before relying on this upgrade."
+        f"  profile {baseline}→{target} crosses {len(crossed)} Galaxy"
+        f" profile-behaviour change(s){must_fix_note} the XSD can't verify"
+        f" (releases {releases}); review against docs/profile_upgrades.md before"
+        " relying on this upgrade."
     )
 
 

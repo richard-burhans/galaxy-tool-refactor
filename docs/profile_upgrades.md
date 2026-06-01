@@ -166,10 +166,20 @@ Semantic deltas are from the Galaxy schema docs `<tool> profile` attribute
 The behaviour takes effect for a tool **declaring** the *To* profile — i.e.
 bumping `profile=` into that row opts the tool into it.
 
-> This column is mirrored in code as `SEMANTIC_PROFILE_CHANGES`
-> (`galaxy-tool-xml-codemod/.../profile_semantics.py`), and `galaxy-tool-refactor
-> upgrade` emits an advisory **note** listing the boundaries a given bump crosses
-> (codemod `docs/decisions.md` §23). Keep the two in sync.
+> **Authoritative source = Galaxy's own catalogue.** As of 2026-06-01 this column
+> is backed by `PROFILE_UPGRADE_CODES`
+> (`galaxy-tool-xml-codemod/.../profile_semantics.py`), a faithful mirror of
+> Galaxy's `lib/galaxy/tool_util/upgrade/upgrade_codes.json` (keyed by Galaxy code
+> names, with `level` = must_fix/consider). `galaxy-tool-refactor upgrade` emits an
+> advisory **note** listing the releases a bump crosses (codemod `docs/decisions.md`
+> §23); the per-code corpus blast radius is `scripts/measure.py
+> semantic-upgrade-boundaries`. Where this prose column and Galaxy's catalogue
+> differ, the catalogue wins — e.g. Galaxy places the fully-qualified-reference
+> rule at **18.01** (`structured_like`), and **18.09** is the data-manager
+> virtualenv change. Two changes the schema docs describe (19.05 Python 2→3, 25.1
+> `<credentials>`) are **not** in Galaxy's upgrade catalogue and so are not in
+> `PROFILE_UPGRADE_CODES`. The pinnability of each is in
+> `galaxy-tool-xml-codemod/docs/behavior-preserving-upgrade.md`.
 
 | From → To | Structural class | Structural delta (XSD) | Semantic delta (runtime, not in XSD) | Corpus stuck | Automatable | Codemod |
 |---|---|---|---|---|---|---|

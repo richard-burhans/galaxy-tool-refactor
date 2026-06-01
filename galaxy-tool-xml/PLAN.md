@@ -341,7 +341,8 @@ Pure-Python (lxml + `packaging`). Per dignified-python, no module-level I/O — 
 - `_manifest() -> dict` — `@cache`; loads `manifest.json` via
   `importlib.resources.files("galaxy_tool_xml")` (`encoding="utf-8"`).
 - `available_profiles() -> list[str]` / `latest_profile() -> str`.
-- `resolve_profile(profile: str | None, *, on_missing="nearest") -> str` — `None` → latest;
+- `resolve_profile(profile: str | None, *, on_missing="nearest") -> str` — `None` →
+  Galaxy's 16.01 default → nearest vendored (16.10; revised 2026-06-01, see decisions §1.5);
   exact match → it. Otherwise (no exact match, **including a `profile` that
   `packaging.version.Version` cannot parse** — caught `InvalidVersion`) apply `on_missing`:
   `nearest` (largest vendored `Version` not newer than the profile; latest if newer than all
@@ -612,8 +613,9 @@ Prefixed with the required header. Concise; only non-discoverable things:
   removed in newer XSDs still parse (lenient config) but are absent from the model.
 - **Typo suggestions use the latest schema's vocabulary** — a name valid only in an *older*
   profile could rarely be mis-flagged. Profile-exact vocabulary is a later refinement.
-- **No-profile tools validate against the latest XSD** (the user's choice) — a deliberate
-  divergence from Galaxy's own convention (Galaxy defaults a missing `profile` to `"16.01"`).
+- **No-profile tools validate against `16.10`** — the nearest vendored XSD to Galaxy's
+  `"16.01"` legacy default for a missing `profile` (revised 2026-06-01 to match Galaxy;
+  was previously "latest". See `docs/decisions.md` §1.5).
 - **Vendored XSDs are a point-in-time snapshot** (~30 files, committed and shipped in the
   wheel; provenance in `PROVENANCE.md`). `fetch_schemas.py` is additive.
 - **CI is out of scope for v0.1** — no `.github/workflows`.

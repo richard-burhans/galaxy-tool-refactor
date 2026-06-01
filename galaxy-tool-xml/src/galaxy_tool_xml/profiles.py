@@ -25,6 +25,14 @@ logger = logging.getLogger(__name__)
 _ON_MISSING_MODES = frozenset({"nearest", "exact", "latest"})
 _XS = "{http://www.w3.org/2001/XMLSchema}"
 
+# Galaxy assigns a tool with no ``profile=`` its legacy default of "16.01"
+# (``parse_profile`` in galaxy/lib/galaxy/tool_util/parser/xml.py:
+# ``self.root.get("profile", "16.01")``). 16.01 predates our oldest vendored XSD
+# (16.10), so it resolves to 16.10 — the nearest vendored proxy. We match Galaxy's
+# runtime default rather than validating no-profile tools against the latest XSD;
+# see ``docs/decisions.md`` §1.5 / §4.
+GALAXY_DEFAULT_PROFILE = "16.01"
+
 
 class UnknownProfileError(Exception):
     """Raised when a profile cannot be resolved under ``on_missing="exact"``."""
@@ -90,15 +98,17 @@ def _nearest_profile(profile: str) -> str:
 def resolve_profile(profile: str | None, *, on_missing: str = "nearest") -> str:
     """Resolve a tool ``profile`` to an exact vendored XSD version.
 
-    ``None`` resolves to the latest vendored version. An exact vendored match
-    resolves to itself. Otherwise — including a ``profile`` that cannot be
-    parsed as a version — ``on_missing`` selects the strategy: ``nearest``
-    (default), ``exact`` (raise ``UnknownProfileError``), or ``latest``.
+    ``None`` (no declared profile) resolves the way Galaxy runs such a tool — its
+    ``16.01`` legacy default — which, predating the oldest vendored XSD, resolves
+    to the nearest vendored version (``16.10``). An exact vendored match resolves
+    to itself. Otherwise — including a ``profile`` that cannot be parsed as a
+    version — ``on_missing`` selects the strategy: ``nearest`` (default),
+    ``exact`` (raise ``UnknownProfileError``), or ``latest``.
     """
     if on_missing not in _ON_MISSING_MODES:
         raise ValueError(f"on_missing must be one of {sorted(_ON_MISSING_MODES)}")
     if profile is None:
-        return latest_profile()
+        return _nearest_profile(GALAXY_DEFAULT_PROFILE)
     if profile in _schemas():
         return profile
     if on_missing == "exact":

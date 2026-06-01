@@ -31,10 +31,11 @@ def test_model_version_override(data_dir: Path) -> None:
     assert ".v26_0." in type(document.model(version="26.0")).__module__
 
 
-def test_model_without_profile_uses_latest(data_dir: Path) -> None:
+def test_model_without_profile_uses_galaxy_default(data_dir: Path) -> None:
+    # No profile= -> Galaxy's 16.01 default -> nearest vendored model (oldest, 16.10).
     document = load_tool(data_dir / "tool_no_profile.xml")
-    latest = version_to_module(latest_profile())
-    assert f".{latest}." in type(document.model()).__module__
+    oldest = version_to_module(available_profiles()[0])
+    assert f".{oldest}." in type(document.model()).__module__
 
 
 def test_tool_class_latest_matches_its_module() -> None:

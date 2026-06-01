@@ -2598,6 +2598,171 @@ def _run_upgrade_headroom(args: argparse.Namespace) -> None:
     )
 
 
+# --- measurement: semantic-upgrade-boundaries -----------------------------------
+#
+# How many corpus tools would cross each runtime-behaviour (semantic) profile
+# boundary on `upgrade` — the blast radius of the warning in codemod
+# decisions.md §23. Baseline = the tool's macro-expanded declared profile, or
+# Galaxy's 16.01 runtime default when none is declared; target = newest_valid
+# (the pre-upgrade reachable profile — a slight undercount for the ~1.6% of tools
+# a structural upgrade_vN advances further). Pinnability per boundary is in
+# galaxy-tool-xml-codemod/docs/behavior-preserving-upgrade.md.
+
+# Galaxy upgrade codes a future `--preserve-behaviour` mode could pin CLEANLY (a
+# single documented attribute/element restores the old behaviour); the rest have
+# no XML opt-out knob (see galaxy-tool-xml-codemod/docs/behavior-preserving-upgrade.md).
+_PINNABLE_CLEAN = frozenset(
+    {
+        "16_04_exit_code",
+        "17_09_consider_provided_metadata_style",
+        "18_01_consider_home_directory",
+        "20_09_consider_set_e",
+    }
+)
+
+
+@dataclass
+class _SemanticBoundariesResult:
+    """Per-upgrade-code crossing counts for `upgrade`-to-latest across the corpus."""
+
+    n_unique_tools: int
+    n_no_valid_profile: int
+    n_unplaceable_baseline: int
+    n_considered: int
+    n_no_declaration_baseline: int
+    n_cross_any: int
+    n_cross_none: int
+    per_code: dict[str, int]
+    distribution: list[tuple[int, int]]
+    total_crossing_events: int
+    pinnable_clean_events: int
+    n_fully_pinnable_tools: int
+
+
+def _measure_semantic_upgrade_boundaries(
+    *, rows: list[dict[str, object]]
+) -> _SemanticBoundariesResult:
+    """Tally, per Galaxy upgrade code, how many tools `upgrade`-to-latest would cross.
+
+    A tool is *considered* when it validates somewhere (a target exists) and its
+    declared profile is placeable — a literal version, or absent (→ Galaxy's
+    16.01 runtime default). A macro-token / unparseable declaration is excluded
+    (the live warning skips it too). Crossed codes come from
+    ``upgrade_codes_crossed`` — the same function the warning uses (range-based,
+    so a code counts whenever its profile is crossed, not whether the tool trips it).
+    """
+    from galaxy_tool_xml_codemod.profile_semantics import upgrade_codes_crossed
+
+    unique = _unique_by_sha(rows)
+    per_code: Counter[str] = Counter()
+    distribution: Counter[int] = Counter()
+    n_no_valid = n_unplaceable = n_considered = n_no_decl = n_cross_any = 0
+    total_events = pinnable_clean = n_fully_pinnable = 0
+    for row in unique:
+        target = row.get("newest_valid")
+        if target in (None, "", _PROFILE_NONE) or _version_tuple(target) is None:
+            n_no_valid += 1
+            continue
+        declared = row.get("profile_expanded")
+        if declared in (None, "", _PROFILE_NONE):
+            # No profile= (the corpus writes the _PROFILE_NONE sentinel): Galaxy
+            # runs these as 16.01, so that is the runtime baseline.
+            baseline, no_declaration = "16.01", True
+        elif _version_tuple(declared) is not None:
+            baseline, no_declaration = str(declared), False
+        else:
+            # A macro token or "(expansion failed)" — can't place a baseline.
+            n_unplaceable += 1
+            continue
+        n_considered += 1
+        n_no_decl += int(no_declaration)
+        crossed = upgrade_codes_crossed(from_profile=baseline, to_profile=str(target))
+        distribution[len(crossed)] += 1
+        n_cross_any += int(bool(crossed))
+        codes = [change.code for change in crossed]
+        for code in codes:
+            per_code[code] += 1
+            total_events += 1
+            pinnable_clean += int(code in _PINNABLE_CLEAN)
+        if codes and all(code in _PINNABLE_CLEAN for code in codes):
+            n_fully_pinnable += 1
+    return _SemanticBoundariesResult(
+        n_unique_tools=len(unique),
+        n_no_valid_profile=n_no_valid,
+        n_unplaceable_baseline=n_unplaceable,
+        n_considered=n_considered,
+        n_no_declaration_baseline=n_no_decl,
+        n_cross_any=n_cross_any,
+        n_cross_none=n_considered - n_cross_any,
+        per_code=dict(per_code),
+        distribution=sorted(distribution.items()),
+        total_crossing_events=total_events,
+        pinnable_clean_events=pinnable_clean,
+        n_fully_pinnable_tools=n_fully_pinnable,
+    )
+
+
+def _report_semantic_upgrade_boundaries(
+    measurement: _SemanticBoundariesResult,
+) -> None:
+    from galaxy_tool_xml_codemod.profile_semantics import PROFILE_UPGRADE_CODES
+
+    considered = measurement.n_considered
+    print("\n=== semantic-upgrade-boundaries ===")
+    print(f"Unique tools (sha256 dedup):  {measurement.n_unique_tools}")
+    print(
+        f"  excluded: {measurement.n_no_valid_profile} validate nowhere"
+        f" (repair first); {measurement.n_unplaceable_baseline} unplaceable"
+        f" declared profile (macro token)"
+    )
+    print(f"Considered (placeable baseline + valid target):  {considered}")
+    print(
+        f"  of which {measurement.n_no_declaration_baseline} have no profile="
+        f" (baseline = Galaxy default 16.01)"
+    )
+    if considered:
+        pct = measurement.n_cross_any / considered * 100
+        print(
+            f"\nWould cross ≥1 Galaxy upgrade code on upgrade-to-latest (the warning"
+            f" fires):  {measurement.n_cross_any} ({pct:.1f}%);"
+            f" cross none:  {measurement.n_cross_none}"
+        )
+    print("\nPer-code crossings (tools the bump opts into this change), catalogue order:")
+    for change in PROFILE_UPGRADE_CODES:
+        count = measurement.per_code.get(change.code, 0)
+        if not count:
+            continue
+        tag = "pinnable" if change.code in _PINNABLE_CLEAN else "no-knob"
+        cpct = count / considered * 100 if considered else 0
+        print(
+            f"  {change.profile:6} {change.level:8} {count:6d} ({cpct:4.1f}%)"
+            f"  [{tag}] {change.code}"
+        )
+    print("\n#codes crossed per tool:")
+    for n_codes, n_tools in measurement.distribution:
+        print(f"  {n_codes:2d}:  {n_tools}")
+    print("\nPinnability (see behavior-preserving-upgrade.md):")
+    print(
+        f"  crossing-events total:                          "
+        f"{measurement.total_crossing_events}"
+    )
+    print(
+        f"  at a cleanly-pinnable code (4 CLEAN knobs):     "
+        f"{measurement.pinnable_clean_events}"
+    )
+    print(
+        f"  tools whose EVERY crossed code is cleanly pinnable: "
+        f"{measurement.n_fully_pinnable_tools}"
+        f"  (a --preserve-behaviour mode could fully cover these)"
+    )
+
+
+def _run_semantic_upgrade_boundaries(args: argparse.Namespace) -> None:
+    _report_semantic_upgrade_boundaries(
+        _measure_semantic_upgrade_boundaries(rows=_load_combined_data(path=args.data))
+    )
+
+
 # --- measurement: element-cardinality -------------------------------------------
 #
 # How many <test>/<requirement>/<conditional>/<collection>/<output_collection>
@@ -2790,6 +2955,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "param-types": _run_param_types,
     "collection-type-normalization": _run_collection_type_normalization,
     "upgrade-headroom": _run_upgrade_headroom,
+    "semantic-upgrade-boundaries": _run_semantic_upgrade_boundaries,
     "element-cardinality": _run_element_cardinality,
     "command-language": _run_command_language,
 }

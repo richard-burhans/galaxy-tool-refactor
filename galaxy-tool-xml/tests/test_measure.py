@@ -27,6 +27,7 @@ from scripts.measure import (
     _measure_macro_profile_tokens,
     _measure_macro_topology,
     _measure_param_types,
+    _measure_semantic_upgrade_boundaries,
     _measure_upgrade_headroom,
     _measure_version_tokenization,
     _ParamTypesResult,
@@ -266,6 +267,48 @@ def test_upgrade_headroom_structural_split() -> None:
     assert result.n_with_valid_profile == 5  # a, b, c, e, f
     assert result.n_at_latest == 4  # a, b, e, f
     assert result.n_below_latest == 1  # c
+
+
+def _semantic_rows() -> list[dict[str, object]]:
+    # (sha, newest_valid target, declared profile_expanded)
+    return [
+        _hrow("a", "26.1", "26.1"),  # at latest: crosses nothing
+        _hrow("b", "26.1", "19.01"),  # 8 boundaries (19.05..25.1)
+        _hrow("c", "26.1", _PROFILE_NONE),  # no profile= -> baseline 16.01 -> all 12
+        _hrow("d", "24.2", "24.1"),  # 24.2 only (not pinnable)
+        _hrow("e", "26.1", "@PROFILE@"),  # macro token -> unplaceable, excluded
+        _hrow("f", _PROFILE_NONE, "19.01"),  # validates nowhere -> excluded
+        _hrow("g", "17.09", "17.05"),  # 17.09 only (cleanly pinnable)
+        _hrow("h", "26.1", "(expansion failed)"),  # unplaceable -> excluded
+    ]
+
+
+def test_semantic_boundaries_population_split() -> None:
+    result = _measure_semantic_upgrade_boundaries(rows=_semantic_rows())
+    assert result.n_unique_tools == 8
+    assert result.n_no_valid_profile == 1  # f
+    assert result.n_unplaceable_baseline == 2  # e, h
+    assert result.n_considered == 5  # a, b, c, d, g
+    assert result.n_no_declaration_baseline == 1  # c (the _PROFILE_NONE sentinel)
+    assert result.n_cross_any == 4  # b, c, d, g
+    assert result.n_cross_none == 1  # a
+
+
+def test_semantic_boundaries_per_code_and_pinnability() -> None:
+    result = _measure_semantic_upgrade_boundaries(rows=_semantic_rows())
+    per = result.per_code
+    assert per["24_2_fix_test_case_validation"] == 3  # b, c, d
+    assert per["20_09_consider_set_e"] == 2  # b, c
+    assert per["17_09_consider_provided_metadata_style"] == 2  # c, g
+    assert per["16_04_exit_code"] == 1  # c only (no-profile baseline)
+    assert per["21_09_fix_from_work_dir_whitespace"] == 2  # b, c
+    # codes crossed: a=0, d & g =1, b=9, c=17 (every catalogued code)
+    assert dict(result.distribution) == {0: 1, 1: 2, 9: 1, 17: 1}
+    assert result.total_crossing_events == 28  # 0 + 9 + 17 + 1 + 1
+    # CLEAN events: 16_04_exit_code(c) + 17_09(c,g) + 18_01_home(c) + 20_09_set_e(b,c)
+    assert result.pinnable_clean_events == 6
+    # only g crosses solely cleanly-pinnable codes (17.09); d's 24.2 has no knob
+    assert result.n_fully_pinnable_tools == 1  # g
 
 
 def test_version_tuple_equates_zero_padded_versions() -> None:

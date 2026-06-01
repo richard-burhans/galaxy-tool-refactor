@@ -143,15 +143,16 @@ def test_upgrade_ignore_fixtypos_still_upgrades() -> None:
 
 
 def test_upgrade_warns_on_semantic_boundaries() -> None:
-    """A 24.1 tool bumped to latest crosses the 24.2 + 25.1 runtime changes."""
+    """A 24.1 tool bumped to latest crosses Galaxy's 24.2 upgrade code (must-fix)."""
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
     result = facade.upgrade(_UPGRADABLE, codes=resolve_upgrade_codes())
-    semantic = [n for n in result.notes if "runtime-behaviour" in n]
+    semantic = [n for n in result.notes if "profile-behaviour" in n]
     assert len(semantic) == 1
     note = semantic[0]
     assert "24.1→" in note
-    assert "24.2" in note and "25.1" in note
+    assert "24.2" in note  # the crossed release
+    assert "must-fix" in note  # 24_2_fix_test_case_validation is must_fix
     assert "docs/profile_upgrades.md" in note
 
 
@@ -165,11 +166,11 @@ def test_upgrade_no_profile_warns_from_1601_baseline() -> None:
         b'<outputs><data name="o"/></outputs></tool>'
     )
     result = facade.upgrade(no_profile, codes=resolve_upgrade_codes())
-    semantic = [n for n in result.notes if "runtime-behaviour" in n]
+    semantic = [n for n in result.notes if "profile-behaviour" in n]
     assert len(semantic) == 1
-    # baseline is Galaxy's 16.01 default; the high-impact boundaries are flagged.
+    # baseline is Galaxy's 16.01 default; crossed releases span 16.04..24.2.
     assert "16.01→" in semantic[0]
-    assert "19.05" in semantic[0] and "20.09" in semantic[0]
+    assert "16.04" in semantic[0] and "20.09" in semantic[0]
 
 
 def test_upgrade_already_latest_has_no_semantic_warning() -> None:

@@ -128,6 +128,11 @@ uv run python -m scripts.measure macro-fmt-idempotence
 # (literal version="<base>+galaxy<suffix>" whose base == a package requirement
 # version), split by whether a <macros> block exists or would need creating:
 uv run python -m scripts.measure version-tokenization
+
+# Per-Galaxy-upgrade-code blast radius: how many tools `upgrade`-to-latest would
+# cross each profile-behaviour code (backs codemod decisions §23 + the §22
+# soundness boundary; data = the vendored PROFILE_UPGRADE_CODES):
+uv run python -m scripts.measure semantic-upgrade-boundaries
 ```
 
 **Note:** invoke as `python -m scripts.X`, not `python scripts/X.py` — the
