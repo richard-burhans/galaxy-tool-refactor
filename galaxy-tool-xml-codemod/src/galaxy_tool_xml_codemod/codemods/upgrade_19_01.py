@@ -14,6 +14,13 @@ validate at the latest profile. It is a deliberate synthesis rather than a
 recovery of author intent, which is why it is a one-step upgrade codemod and not
 a cosmetic rule.
 
+It names only **direct** ``<outputs>`` children. An unnamed ``<data>`` nested
+inside an output ``<collection>`` is also ``OutputData`` (so also ``name``-required
+at 19.05), but collection-element naming has different semantics and no corpus
+tool needs it — the discovery sweep would report any that did. The synthesised
+names also avoid colliding with an existing ``<collection name=…>``, not just
+sibling ``<data>`` names (output identifiers share one namespace).
+
 It only does structure; ``UpdateProfile`` (run by the ``UpgradeToLatest`` loop)
 re-declares ``profile=`` afterwards. See ``docs/decisions.md`` §14.
 """
@@ -67,8 +74,14 @@ class Upgrade19_01(CodemodCommand):
         if outputs is None:
             return
         data_elements = outputs.findall("data")
+        # Output identifiers share one namespace, so seed the collision set with
+        # every already-named direct output child (``<data>`` AND ``<collection>``,
+        # …) — synthesising "output" next to <collection name="output"> would mint
+        # a duplicate output name.
         used = {
-            name for element in data_elements if (name := element.get("name"))
+            name
+            for child in outputs
+            if isinstance(child.tag, str) and (name := child.get("name"))
         }
         for element in data_elements:
             if element.get("name") is not None:
