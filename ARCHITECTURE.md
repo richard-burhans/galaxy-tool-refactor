@@ -173,13 +173,24 @@ will change.
     format-time pipeline. Never touches `profile=`.
   - `AUTO_UPGRADE_CODEMODS` = `FixTypos` → `UpgradeToLatest` — the **opt-in,
     semantic** profile-upgrade pipeline.
+- **`RuntimeGatedFix`** — `codemods/_runtime_gated.py`, registry in
+  `runtime_fixes.py` (`RUNTIME_GATED_FIXES` + `runtime_fixes_for(profile)`) — a
+  detect-primitive codemod plus an `introduced_profile` marker, for Galaxy
+  *runtime* behaviour changes the XSD does **not** enforce. The distinction:
+  validity-gated upgrades (`upgrade_vN`, in `UpgradeToLatest`) advance only when
+  `newest_valid_profile` improves; a runtime-gated fix is XSD-valid at every
+  profile, so the facade's `upgrade` applies it once a tool *reaches* its
+  introduction profile. Members (`FixFromWorkDirWhitespace` GTX014 @21.09,
+  `FixOutputFormatInput` GTX015 @16.04) are upgrade-only — in `coded_codemods()`,
+  not `CANONICAL_CODEMODS`.
 - **`catalog.coded_codemods()`** — `catalog.py` — *every* GTX-coded codemod
   (including the single-step `Upgrade19_01`…`Upgrade25_1` and `UpdateProfile` that
-  `UpgradeToLatest` drives internally), for the cross-tier registry.
+  `UpgradeToLatest` drives internally, and the runtime-gated GTX014/GTX015), for
+  the cross-tier registry.
 
 **Contract:** detect is the primitive; apply is derived; mutations are idempotent
 and the codemod tier never serialises (the facade routes output through fmt).
-*(codemod `docs/decisions.md` §11–18; the per-profile upgrade map + the
+*(codemod `docs/decisions.md` §11–18, §22–24; the per-profile upgrade map + the
 validity-vs-behaviour soundness boundary are in [`docs/profile_upgrades.md`](docs/profile_upgrades.md)
 and codemod `docs/decisions.md` §22.)*
 
@@ -270,8 +281,9 @@ given. This is what lets both the CLI and a future MCP server be thin adapters.
   — `registry.py` — the cached `code -> RuleHandle` index. `registry()` is the
   **selectable** set (canonical codemods + cosmetic fmt + advisory checks);
   `all_handles()` additionally includes the **upgrade-only** codemods
-  (GTX007–GTX012 — internal to `UpgradeToLatest` — plus the runtime-gated GTX014,
-  applied by the facade's `upgrade`), which are not independently selectable.
+  (GTX007–GTX012 — internal to `UpgradeToLatest` — plus the runtime-gated
+  GTX014–GTX015, applied by the facade's `upgrade`), which are not independently
+  selectable.
   `_index()` asserts the GTX/IUC namespace is **collision-free** — a reused code
   fails loudly here.
 - **Presets** — `presets.py` — named, developer-defined rule subsets, derived from
@@ -375,8 +387,9 @@ break.
    to one `detect` / `apply` shape.
 4. **GTX vs IUC code families.** GTX = fixable (codemod + fmt); IUC = advisory
    (`detect_only`). Codes are globally unique and collision-guarded by
-   `registry._index()`. Upgrade-only GTX codes (007–012) exist but are not
-   user-selectable.
+   `registry._index()`. Upgrade-only GTX codes exist but are not user-selectable:
+   007–012 (validity-gated, internal to `UpgradeToLatest`) and 014–015
+   (runtime-gated, applied by the facade's `upgrade` — see §4 below).
 5. **Dataclass-result convention.** Entry points return result dataclasses
    (`ParseResult`, `ValidationResult`, `FormatResult`, …) and don't raise on domain
    failures. Exceptions are reserved for the CLI boundary (chained `from e`) and
@@ -459,6 +472,8 @@ Each abstraction → its file → the decision record that justifies it.
 | `CodemodCommand`, `Cursor`, `Change` | `galaxy-tool-xml-codemod/src/.../codemod.py`, `cursor.py`, `change.py` | codemod `docs/decisions.md` §6, §19 |
 | `CANONICAL_CODEMODS` / `AUTO_UPGRADE_CODEMODS` | `galaxy-tool-xml-codemod/src/.../canonical.py` | codemod `docs/decisions.md` §16 |
 | upgrade codemods | `galaxy-tool-xml-codemod/src/.../upgrades.py`, `codemods/upgrade_*.py` | codemod `docs/decisions.md` §11–14 |
+| `PROFILE_UPGRADE_CODES` / `upgrade_codes_crossed` | `galaxy-tool-xml-codemod/src/.../profile_semantics.py` | codemod `docs/decisions.md` §22–23 |
+| `RuntimeGatedFix` / `runtime_fixes_for` | `galaxy-tool-xml-codemod/src/.../codemods/_runtime_gated.py`, `runtime_fixes.py` | codemod `docs/decisions.md` §24 |
 | `Rule`, `Edit`, serializer | `galaxy-tool-xml-fmt/src/.../rules.py`, `edits.py`, `serializer.py` | fmt `docs/decisions.md` §D3, §D11 |
 | `format_*` / `detect_*` | `galaxy-tool-xml-fmt/src/.../format.py`, `detect.py` | fmt `docs/decisions.md` §D15 |
 | `cli_support` engine | `galaxy-tool-xml-fmt/src/.../cli_support.py` | fmt `docs/decisions.md` §D12 |

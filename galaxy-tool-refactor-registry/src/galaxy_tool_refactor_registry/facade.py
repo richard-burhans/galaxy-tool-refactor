@@ -258,8 +258,9 @@ def list_presets() -> list[PresetInfo]:
 def list_rules(*, include_upgrade: bool = False) -> list[RuleInfo]:
     """Structured metadata for every rule, sorted by code.
 
-    With ``include_upgrade=True`` the upgrade-only codemods (GTX007–GTX012) are
-    listed too; by default only the selectable rules appear.
+    With ``include_upgrade=True`` the upgrade-only codemods (GTX007–GTX012 plus the
+    runtime-gated GTX014–GTX015) are listed too; by default only the selectable
+    rules appear.
     """
     handles = all_handles() if include_upgrade else registry()
     preset_map = presets()

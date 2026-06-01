@@ -237,6 +237,9 @@ def upgrade_command(
     the tool into newer Galaxy runtime defaults the XSD can't verify. When a bump
     crosses such a boundary (e.g. ``set -e``, Python 3, optional-value templating),
     a note lists the crossed versions to review — see ``docs/profile_upgrades.md``.
+    A few of those changes have a safe mechanical fix that is **applied
+    automatically** once the reached profile crosses them (e.g. stripping
+    whitespace from ``from_work_dir`` at 21.09); the rest are warn-only.
     """
     if preset is not None:
         raise click.BadParameter(

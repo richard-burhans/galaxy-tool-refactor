@@ -330,3 +330,68 @@ here as a record of what was decided and where it landed.
    and the codemod `CLAUDE.md` `Module`/`ToolDocument` symmetry are corrected.
    (The historical `galaxy-tool-xml-codemod/docs/architecture.md` was left as-is —
    it is explicitly marked a pre-implementation design note.)
+
+---
+
+## Re-audit after the profile-upgrade batch (#34–#40, 2026-06-01)
+
+**Method:** single deep pass (3 read-only Explore agents) refreshed against the
+baseline, then an **escalation** — 10 finder scouts (one per tier + one per
+cross-cutting dimension) re-deriving findings, each candidate adversarially
+verified, then synthesised (**69 agents total; 58 candidates → 57 survived
+verification, 1 refuted; counts after dedup: 1 doc-"High", 3 Medium, 5 Low, 11
+independent re-confirmations, 2 refuted**).
+
+**Headline:** the architecture **holds**. Escalation surfaced *no new structural
+defect and no boundary violation* — every load-bearing invariant the prior pass
+pinned was independently re-confirmed. The only new surface is a single root cause:
+the `RuntimeGatedFix` family (GTX014/GTX015) landed **after** this baseline was
+written, so prose/docstring/test *enumerations* of the upgrade-only set still said
+"GTX007–GTX012". The code is correct everywhere (`upgrade_only_codemods()` derives
+the set dynamically), so this was a documentation-and-test-spec lag, not a
+behavioural break. All of it is now fixed.
+
+### New findings (all applied this pass unless marked proposal)
+
+| # | Finding | Dim | Sev | Status |
+|---|---|---|---|---|
+| R1 | `ARCHITECTURE.md` upgrade-only enumerations omitted the runtime-gated pair (line 273 omitted GTX015; contract §4 omitted GTX014/015) — internally contradicting the doc's own rule-codes table | doc/code | High* | **fixed** |
+| R2 | `ARCHITECTURE.md` tier-2 prose + reference index had no `RuntimeGatedFix` family / validity-gated-vs-runtime-gated distinction; §-cite omitted §22–24 | doc/code | Medium | **fixed** (tier-2 bullet + 2 ref-index rows + cite §11–18, §22–24) |
+| R3 | CLI `upgrade` docstring silent that runtime-gated fixes auto-mutate the tool | doc/code | Medium | **fixed** (cli.py upgrade docstring) |
+| R4 | `test_registry.py` hardcoded the upgrade-only set `{GTX007..GTX012}` (omitted 014/015) with permissive `isdisjoint`/subset assertions — passed despite being incomplete; violates the derive-not-hardcode contract (registry D3) | contract-enforcement | Medium | **fixed** — both the selectable and upgrade-only sets now **derive** from `CANONICAL_CODEMODS` / `coded_codemods()` / `all_handles()−known_codes()` and assert equality, plus an explicit GTX014/015 wiring guard; `by_code` now checks 014/015 too |
+| R5 | Docstring/comment enumeration cluster: `registry.py` module docstring + namespace list, `facade.list_rules` docstring, registry `CLAUDE.md` "Selectable ≠ all", `cli/__init__.py` ("two commands" → it has five), `runtime_fixes.py` ordering comment | doc/code | Low | **fixed** (all sites) |
+| R6 | CLI declares an unused direct dependency on `galaxy-tool-refactor-rules` (reached only transitively via the facade) | boundary | Low | **fixed** (dropped from `dependencies` + `[tool.uv.sources]`; `uv sync` re-run) |
+| R7 | No CLI-level end-to-end test for a runtime-gated fix during `upgrade` (the facade + codemod layers have it; the 24.1 migration is double-covered) | contract-enforcement | Low | **proposal** (low risk — facade test covers it) |
+| R8 | `_is_newer` is byte-identical in `codemods/update_profile.py` and `registry/macro_profile.py` | duplication | Low | **proposal** (cross-tier; documented as mirrored; consolidating is optional and a tier-2-internal-only move) |
+
+\* R1 is doc-only; rated High by the synthesis because the baseline *contract
+statements* a contributor reasons from contradicted the same document's table.
+
+### Independent re-confirmations (no action — recorded so they aren't re-litigated)
+
+The escalation re-derived these from source and confirmed them: the
+serializer-allowlist test (§4.1) and the collision-guard "duplicate fires" test;
+the no-profile **16.01** runtime baseline (warning correctness depends on it) and
+`resolve_profile(None) → 16.01 → 16.10`; the four frozen tier-1 result dataclasses
+(note: a just-shipped fix, finding N3 — not a long-standing invariant); tier-0.5
+dependency-freedom; fmt cosmetic-only + the `Rule.edits` describe-vs-mutate split;
+check-tier purity + the IUC011/012 reserved stubs; and that the `RuntimeGatedFix`
+*design* is sound (the `introduced_profile` marker is runtime-test-enforced, not
+type-checker-enforced; membership in `coded_codemods()` keeps it collision-guarded;
+the facade applies `runtime_fixes_for(reached)` after `UpgradeToLatest`).
+
+### Refuted (do not re-litigate)
+
+- "Stale `SEMANTIC_PROFILE_CHANGES` references" — the only hit is in
+  `behavior-preserving-upgrade.md`, a design note that predates implementation;
+  production code uses `PROFILE_UPGRADE_CODES`.
+- "`runtime_fixes.py` is a third `_is_newer` duplication" — it is an inline
+  `Version(...)` comparison over *pre-validated* vendored profile strings (no
+  `InvalidVersion` guard), a different concern from the guarded helper.
+
+### Applied this pass (safe fixes)
+`ARCHITECTURE.md` (R1, R2, R5-partial), `galaxy-tool-refactor-cli/.../cli.py` +
+`__init__.py` (R3, R5), `galaxy-tool-refactor-registry/.../registry.py` +
+`facade.py` + `CLAUDE.md` (R5), `galaxy-tool-xml-codemod/.../runtime_fixes.py`
+comment (R5), `galaxy-tool-refactor-registry/tests/test_registry.py` (R4),
+`galaxy-tool-refactor-cli/pyproject.toml` + `uv.lock` (R6). QA gate re-run.
