@@ -26,8 +26,10 @@ def test_resolve_exact_match() -> None:
     assert resolve_profile("21.09") == "21.09"
 
 
-def test_resolve_none_is_latest() -> None:
-    assert resolve_profile(None) == latest_profile()
+def test_resolve_none_is_galaxy_default() -> None:
+    # No profile= -> Galaxy's 16.01 legacy default -> nearest vendored (oldest).
+    assert resolve_profile(None) == available_profiles()[0]
+    assert resolve_profile(None) != latest_profile()
 
 
 def test_resolve_nearest_not_newer() -> None:

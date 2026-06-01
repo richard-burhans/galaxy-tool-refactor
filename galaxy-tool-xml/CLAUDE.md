@@ -110,8 +110,9 @@ are hand-written and are not exempt.
   vocabulary comes from introspecting the generated model for the tool's own
   profile, with a macro skip-set so an un-expanded tool's macro constructs are
   never flagged.
-- No-profile tools validate against the latest XSD — a deliberate divergence
-  from Galaxy, which defaults a missing `profile` to `16.01`.
+- No-profile tools validate against `16.10` (our oldest vendored XSD), matching
+  Galaxy's `16.01` legacy default for a missing `profile` (`resolve_profile(None)`
+  → nearest vendored = 16.10). See `docs/decisions.md` §1.5.
 - Failure modes: syntax errors (`load_tool` raises, the others collect them),
   macro-expansion errors, and XSD validation errors. The XSD has no
   `targetNamespace`, so Galaxy tool XML is namespace-free.

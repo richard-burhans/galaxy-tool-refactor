@@ -20,9 +20,12 @@ def test_declared_profile_selects_matching_schema(data_dir: Path) -> None:
     assert result.declared_profile == "24.0"
 
 
-def test_no_profile_tool_uses_latest(data_dir: Path) -> None:
+def test_no_profile_tool_uses_galaxy_default(data_dir: Path) -> None:
+    # Galaxy runs a no-profile tool as its 16.01 legacy default; we validate
+    # against the nearest vendored XSD (the oldest, 16.10) — not the latest.
     result = validate_tool(data_dir / "tool_no_profile.xml")
-    assert result.schema_version == latest_profile()
+    assert result.schema_version == available_profiles()[0]
+    assert result.schema_version != latest_profile()
     assert result.declared_profile is None
     assert result.valid
 
