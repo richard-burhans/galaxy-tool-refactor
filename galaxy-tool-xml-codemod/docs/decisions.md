@@ -766,34 +766,48 @@ ledger). This entry records *why the method is sound and where its boundary lies
   refutes the structural-soundness claim; a profile-gated runtime change missing
   from the ledger's Semantic column extends the boundary, not the soundness.
 
-## 23. `SEMANTIC_PROFILE_CHANGES` + the `upgrade` semantic-bump warning
+## 23. `PROFILE_UPGRADE_CODES` (Galaxy-vendored) + the `upgrade` profile-bump warning
 
-**Date:** 2026-06-01. Reproduced-by: `uv run --package galaxy-tool-xml-codemod
-pytest galaxy-tool-xml-codemod/tests/test_profile_semantics.py` and `uv run
---package galaxy-tool-refactor-registry pytest
-galaxy-tool-refactor-registry/tests/test_facade.py -k upgrade`.
+**Date:** 2026-06-01 (data realigned to Galaxy's catalogue same day). Reproduced-by:
+`uv run --package galaxy-tool-xml-codemod pytest
+galaxy-tool-xml-codemod/tests/test_profile_semantics.py` and `uv run --package
+galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_facade.py -k upgrade`; corpus blast-radius
+via `uv run python -m scripts.measure semantic-upgrade-boundaries`.
 
 - **What we chose.** §22 says we *cannot* auto-preserve runtime behaviour across a
-  profile bump — but we *can* warn. `profile_semantics.py` adds
-  `SEMANTIC_PROFILE_CHANGES` (profile version → the runtime default it introduces,
-  the machine-readable mirror of the ledger's Semantic column, sourced from the
-  Galaxy schema docs' `profile` attribute) and the pure
-  `semantic_changes_crossed(from_profile, to_profile)`. The registry facade's
-  `upgrade` captures the tool's runtime baseline **before** any rewrite (its
-  declared `profile=`, or `16.01` when undeclared — Galaxy's runtime default) and
-  the profile actually reached, and emits one advisory **note** listing the
-  crossed boundaries (it never blocks or mutates for them).
+  profile bump — but we *can* warn. `profile_semantics.py` holds
+  `PROFILE_UPGRADE_CODES` and the pure `upgrade_codes_crossed(from_profile,
+  to_profile)`. The registry facade's `upgrade` captures the tool's runtime
+  baseline **before** any rewrite (its declared `profile=`, or `16.01` when
+  undeclared — Galaxy's runtime default) and the profile actually reached, and
+  emits one advisory **note** listing the crossed releases + a must-fix count (it
+  never blocks or mutates for them).
+- **Source of truth = Galaxy's own catalogue.** `PROFILE_UPGRADE_CODES` is a
+  faithful mirror of `galaxyproject/galaxy`'s
+  `lib/galaxy/tool_util/upgrade/upgrade_codes.json` (@ `b45c58a2`), keyed by
+  Galaxy's code names (`16_04_exit_code`, …), carrying `level`
+  (`must_fix`/`consider`), `niche`, the verbatim message, and the PR url. We mirror
+  the `must_fix` + `consider` codes; Galaxy's `ready` note is omitted. **Two
+  schema-doc behaviour changes Galaxy does NOT catalogue — 19.05 (Python 2→3) and
+  25.1 (`<credentials>`) — are intentionally absent** so the map stays a strict
+  mirror; revisit if Galaxy adds codes for them.
+- **Range-based, not detection-based.** Our warning fires for every code whose
+  profile lies in the bumped range; Galaxy's advisor *detects* per-tool whether
+  each code actually applies. Porting Galaxy's detection predicates is future work
+  (see `docs/behavior-preserving-upgrade.md`).
 - **Why a note in `upgrade`, not a check/IUC rule.** The risk is intrinsic to the
   *upgrade transition* (baseline → target), not a static property of a tool, so it
-  has no meaning in `check`/`format` and needs no GTX/IUC code. It rides the same
-  `UpgradeResult.notes` channel as the upgrade summary, so the CLI surfaces it for
-  free.
-- **Baseline choices.** Undeclared `profile=` → `16.01` (the highest-impact case:
-  Galaxy runs no-profile tools as 16.01, so bumping to latest crosses everything).
-  A macro-token (unparseable) profile → no warning rather than a misleading one;
-  the target is `newest_valid_profile` so a rewritten inline token still measures
-  to a literal. `16.04` is included in the map (it predates the oldest vendored
-  XSD, `16.10`) precisely for the undeclared-baseline case.
-- **Keep in sync.** `SEMANTIC_PROFILE_CHANGES` and the ledger's Semantic column are
-  two views of one fact set; update both together (`test_profile_semantics.py`
-  pins the data shape).
+  has no meaning in `check`/`format` and needs no GTX/IUC code. It rides the
+  `UpgradeResult.notes` channel, so the CLI surfaces it for free.
+- **Baseline choices.** Undeclared `profile=` → `16.01` (matches Galaxy's default
+  and tier-1's `resolve_profile(None)`; the highest-impact case). A macro-token
+  (unparseable) profile → no warning rather than a misleading one; the target is
+  `newest_valid_profile` so a rewritten inline token still measures to a literal.
+- **Corpus blast radius (2026-06-01).** Of 8,608 considered tools, **94.2% cross ≥1
+  code** on upgrade-to-latest (24.2 test-validation hits 92.3%); **0 tools have
+  *every* crossed code cleanly pinnable** — empirical confirmation of §22 that
+  behaviour-preserving upgrade is essentially never fully achievable.
+- **Keep in sync.** `PROFILE_UPGRADE_CODES`, the ledger's Semantic column, and
+  `docs/behavior-preserving-upgrade.md` are views of one fact set; re-vendor from
+  `upgrade_codes.json` together (`test_profile_semantics.py` pins the shape).
