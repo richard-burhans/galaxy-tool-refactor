@@ -48,7 +48,8 @@ Edit-on-tree vs. report-only). A single thin handle lets the registry, presets,
 and facade treat every rule the same and address it by `RuleMeta.code` — which is
 also the unit a future MCP tool or a plugin loader enumerates. The GTX/IUC code
 namespace is collision-free (fmt 001/003/004; canonical codemods 002/005/006/013;
-upgrade codemods 007–012; checks IUC001–012); `registry._index` asserts it so a
+upgrade codemods 007–012; runtime-gated fixes 014–015; checks IUC001–012);
+`registry._index` asserts it so a
 future code clash fails loudly rather than silently shadowing.
 
 ## D3 (2026-05-30) — Presets, default `iuc`, and selectable vs. upgrade-only
@@ -64,9 +65,10 @@ hardcoded code lists that can drift):
 - `strict` = `iuc` + every advisory IUC check (report-only).
 
 The selectable set (`registry()`, what `--select`/`--ignore` accept) is exactly
-canonical codemods + cosmetic fmt + advisory checks. The upgrade-only codemods
-(GTX007–GTX012) are internal to `UpgradeToLatest`'s loop and are **not**
-selectable; they surface only via `list_rules(include_upgrade=True)`.
+canonical codemods + cosmetic fmt + advisory checks. The upgrade-only codemods —
+GTX007–GTX012 (internal to `UpgradeToLatest`'s loop) and the runtime-gated
+GTX014–GTX015 (applied by `upgrade`) — are **not** selectable; they surface only
+via `list_rules(include_upgrade=True)`.
 
 ### Rationale
 
