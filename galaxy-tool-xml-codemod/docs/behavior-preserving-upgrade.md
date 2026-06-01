@@ -79,6 +79,71 @@ reach by Galaxy's design, and a tool that *looks* preserved but isn't is worse
 than an honest warning. Revisit 16.04 / 24.0 / 25.1 only if a concrete consumer
 needs them and corpus evidence shows the pinning edit is safe.
 
+## Galaxy-source findings (2026-06-01) — authoritative
+
+A follow-up investigation read Galaxy's own source. Galaxy ships a **tool upgrade
+advisor** at `lib/galaxy/tool_util/upgrade/` with a structured catalogue,
+`upgrade_codes.json` (18 codes, each `level` = `must_fix` / `consider` / `ready`,
+often with a legacy-restore recipe and the introducing PR). We now **vendor that
+catalogue** as `PROFILE_UPGRADE_CODES` (codemod `decisions.md` §23) — the
+authoritative source of truth. These findings **supersede the hand-built triage
+above** where they differ.
+
+### The four CLEAN pinnable knobs (confirmed against `tool_util/parser/xml.py`)
+
+For these, a single documented attribute/element restores the old behaviour while
+declaring the new profile — a `--preserve-behaviour` codemod could synthesise them:
+
+| Galaxy code | Profile | Exact edit to restore legacy behaviour |
+|---|---|---|
+| `16_04_exit_code` | 16.04 | add `<stdio><regex match=".*" source="stderr" level="fatal" description="Unknown error encountered"/></stdio>` (only if no `<stdio>` exists) |
+| `17_09_consider_provided_metadata_style` | 17.09 | `provided_metadata_style="legacy"` on `<outputs>` |
+| `18_01_consider_home_directory` | 18.01 | `use_shared_home="true"` on `<command>` |
+| `20_09_consider_set_e` | 20.09 | `strict="false"` on `<command>` |
+
+Every other code is **NONE / PARTIAL**: it restores only via `<requirements>`
+additions (the `*_python_environment` trio → `galaxy-util`), `<request_param_translation>`
+authoring, qualified `structured_like`, command/Cheetah handling of `None` vs `""`,
+or test reordering — author-owned content, not a profile-gated toggle. (This
+corrects the earlier guess that 16.04/24.0/25.1 were "partially pinnable" knobs.)
+
+### Making *more upgrades automatic* — the `must_fix` codes
+
+Pivotal architectural finding: **none of Galaxy's four `must_fix` gates are
+XSD-enforced** — they are runtime/semantic. Our existing `upgrade_vN` codemods are
+driven by `newest_valid_profile` (a change is needed only when the next profile's
+XSD blocks validation), so these gates **cannot ride the `UpgradeToLatest` loop**;
+automating them needs a **detect-driven** mechanism (the Phase-3 design decision).
+
+| Galaxy `must_fix` code | Profile | Auto? | Note |
+|---|---|---|---|
+| `21_09_fix_from_work_dir_whitespace` | 21.09 | **AUTO** | deterministic `value.strip()` on `<data from_work_dir>` — the one clean new-codemod win (measure frequency first) |
+| `16_04_fix_output_format` | 16.04 | AUTO-with-heuristic | `format="input"` → `format_source="X"` only when the tool has exactly one data input; else NEEDS-INTENT |
+| `16_04_fix_interpreter` | 16.04 | NEEDS-INTENT | rewriting `interpreter=` to a full `$__tool_directory__` call needs the script name/position — better as an advisory `check` |
+| `24_2_fix_test_case_validation` | 24.2 | NEEDS-INTENT | a bundle of parameter-model fixes (unknown-param, select-by-value, column-int, qualify names); decompose later |
+
+### Corpus blast radius (`scripts/measure.py semantic-upgrade-boundaries`, 2026-06-01)
+
+Of 8,608 considered tools, **94.2% cross ≥1 Galaxy upgrade code** on upgrade-to-latest;
+`24_2_fix_test_case_validation` alone hits 92.3%. Decisively: **0 tools have *every*
+crossed code cleanly pinnable** — so a `--preserve-behaviour` mode could *fully*
+preserve essentially no real tool (almost every upgrade also crosses a no-knob
+code). This is the empirical proof of the §22 boundary and the reason the §23
+warning, not auto-pinning, is the primary mechanism.
+
+### How Galaxy detects (vs our range-based warning)
+
+Galaxy's advisor takes a tool path, walks `ProfileMigration` steps from the tool's
+declared profile to the target, and emits a code only when a per-code **detection
+predicate** (structural xpath / typed-attr / for 24.2 the full test validator)
+fires. Our `upgrade_codes_crossed` is **range-based** (it flags every code whose
+profile is crossed, not whether the tool trips it) — coarser but dependency-free;
+porting Galaxy's predicates is the precondition for precise per-tool advice.
+*(Aside: three upstream codes are currently dead/buggy in Galaxy's detector —
+`17_09` queries a backtick-quoted attribute name, `21_09` adds an empty code
+string, `23_0` relies on a helper that ignores its xpath — so do not assume the
+catalogue and the live detector agree code-for-code.)*
+
 ## Methodology / reproduce / refute
 
 - **Behaviour deltas:** the Galaxy schema docs' `<tool> profile` attribute
