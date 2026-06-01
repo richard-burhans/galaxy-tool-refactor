@@ -73,7 +73,7 @@ def _is_pep440(value: str, /) -> bool:
     """Whether *value* parses as a PEP 440 version.
 
     ``packaging`` exposes no validity predicate, so the ``try``/``except`` is the
-    sanctioned third-party boundary (mirrors the codemod tier's ``_is_newer``).
+    sanctioned third-party boundary (mirrors ``profiles.is_newer_profile``).
     """
     try:
         Version(value)

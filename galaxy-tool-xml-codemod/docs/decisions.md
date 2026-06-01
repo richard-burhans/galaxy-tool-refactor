@@ -677,9 +677,9 @@ galaxy-tool-refactor-cli/tests/test_cli.py::test_upgrade_rewrites_inline_profile
   expands to (say) `16.01`, but the tool actually validates at a newer release.
   We want future expansions to be current **without clobbering the
   `@PROFILE@` reference** — IUC's token convention keeps the version in one
-  place. The old `UpdateProfile` was a deliberate no-op here (`_is_newer`
-  returns `False` for the unparseable `@PROFILE@` literal, so the attribute was
-  left alone). That was *safe* but did nothing.
+  place. The old `UpdateProfile` was a deliberate no-op here
+  (`profiles.is_newer_profile` returns `False` for the unparseable `@PROFILE@`
+  literal, so the attribute was left alone). That was *safe* but did nothing.
 - **What we chose.** `UpdateProfile.apply` now branches on the declaration: a
   parseable-and-stale literal is bumped as before; a `@TOKEN@` declaration is
   routed to `_upgrade_inline_profile_token`, which finds the matching

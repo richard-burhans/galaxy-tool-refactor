@@ -32,8 +32,8 @@ from typing import TYPE_CHECKING
 
 from galaxy_tool_xml.binding import load_macros, newest_valid_profile
 from galaxy_tool_xml.macros import token_definitions
+from galaxy_tool_xml.profiles import is_newer_profile
 from galaxy_tool_xml_fmt.format import format_macro_document
-from packaging.version import InvalidVersion, Version
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -144,17 +144,6 @@ class MacroProfileResult:
     skips: tuple[MacroTokenSkip, ...]
 
 
-def _is_newer(target: str, current: str, /) -> bool:
-    """Whether *target* is a strictly newer version than *current* (bump-up only).
-
-    Returns ``False`` when *current* is unparseable — the sanctioned packaging
-    boundary, mirroring ``UpdateProfile._is_newer`` (``packaging`` has no
-    validity predicate).
-    """
-    try:
-        return Version(target) > Version(current)
-    except InvalidVersion:
-        return False
 
 
 def apply_profile_token_plans(
@@ -181,7 +170,7 @@ def apply_profile_token_plans(
         if token is None:
             continue  # defensive: the defining file should carry the token
         current = (token.text or "").strip()
-        if not _is_newer(plan.target, current):
+        if not is_newer_profile(plan.target, current):
             continue  # already current, or token ahead of validity — no-op
         if write:
             token.text = plan.target

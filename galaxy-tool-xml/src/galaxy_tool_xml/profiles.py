@@ -123,6 +123,20 @@ def resolve_profile(profile: str | None, *, on_missing: str = "nearest") -> str:
     return resolved
 
 
+def is_newer_profile(target: str, baseline: str, /) -> bool:
+    """Whether *target* parses to a strictly newer version than *baseline*.
+
+    Returns ``False`` when *baseline* is not a parseable version (e.g. a macro
+    placeholder like ``@PROFILE@``) — an unrankable profile is never treated as
+    older, so a bump-up-only caller leaves it alone. The ``try``/``except`` is the
+    sanctioned ``packaging`` boundary (it exposes no validity predicate).
+    """
+    try:
+        return Version(target) > Version(baseline)
+    except InvalidVersion:
+        return False
+
+
 def _collapse_output_groups(schema_root: etree._Element) -> None:
     """Make the ``Output`` complex type's content model deterministic.
 
