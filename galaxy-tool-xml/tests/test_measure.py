@@ -34,6 +34,7 @@ from scripts.measure import (
     _ParamTypesResult,
     _render_macro_stats_page,
     _render_profile_ownership_page,
+    _tally_applicability,
     _version_tuple,
 )
 
@@ -348,6 +349,30 @@ def test_semantic_boundaries_per_code_and_pinnability() -> None:
     assert result.pinnable_clean_events == 6
     # only g crosses solely cleanly-pinnable codes (17.09); d's 24.2 has no knob
     assert result.n_fully_pinnable_tools == 1  # g
+
+
+def test_applicability_tally_narrows_crossed_to_tripped() -> None:
+    # baseline 16.01 -> 26.1 crosses all 17 codes; only the tripped ones apply.
+    samples = [
+        # trips just set -e and the always-on extra-file note (a 20.09 + a 16.04)
+        ("16.01", "26.1", frozenset({"20_09_consider_set_e"})),
+        # at-latest: crosses nothing, so applies nothing regardless of tripped
+        ("26.1", "26.1", frozenset({"20_09_consider_set_e"})),
+        # 24.1 -> 24.2 crosses only 24_2; the tool trips it
+        ("24.1", "24.2", frozenset({"24_2_fix_test_case_validation"})),
+        # 24.1 -> 24.2 crosses only 24_2; the tool does NOT trip it (no warning)
+        ("24.1", "24.2", frozenset()),
+    ]
+    result = _tally_applicability(samples=samples)
+    assert result.n_considered == 4
+    assert result.n_warn_range == 3  # all but the at-latest sample cross something
+    assert result.n_warn_applicable == 2  # only the two tripping a crossed code
+    # 24_2 is crossed by the full-span sample too (it crosses all 17 codes).
+    assert result.per_code_crossed["24_2_fix_test_case_validation"] == 3
+    assert result.per_code_applicable["24_2_fix_test_case_validation"] == 1
+    assert result.per_code_applicable["20_09_consider_set_e"] == 1
+    # applicable is always a subset of crossed
+    assert result.total_applicable_events <= result.total_crossed_events
 
 
 def test_version_tuple_equates_zero_padded_versions() -> None:

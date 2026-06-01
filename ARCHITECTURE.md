@@ -472,7 +472,7 @@ Each abstraction → its file → the decision record that justifies it.
 | `CodemodCommand`, `Cursor`, `Change` | `galaxy-tool-xml-codemod/src/.../codemod.py`, `cursor.py`, `change.py` | codemod `docs/decisions.md` §6, §19 |
 | `CANONICAL_CODEMODS` / `AUTO_UPGRADE_CODEMODS` | `galaxy-tool-xml-codemod/src/.../canonical.py` | codemod `docs/decisions.md` §16 |
 | upgrade codemods | `galaxy-tool-xml-codemod/src/.../upgrades.py`, `codemods/upgrade_*.py` | codemod `docs/decisions.md` §11–14 |
-| `PROFILE_UPGRADE_CODES` / `upgrade_codes_crossed` | `galaxy-tool-xml-codemod/src/.../profile_semantics.py` | codemod `docs/decisions.md` §22–23 |
+| `PROFILE_UPGRADE_CODES` / `upgrade_codes_crossed` / `upgrade_codes_applicable` | `galaxy-tool-xml-codemod/src/.../profile_semantics.py` | codemod `docs/decisions.md` §22–23, §25 |
 | `RuntimeGatedFix` / `runtime_fixes_for` | `galaxy-tool-xml-codemod/src/.../codemods/_runtime_gated.py`, `runtime_fixes.py` | codemod `docs/decisions.md` §24 |
 | `Rule`, `Edit`, serializer | `galaxy-tool-xml-fmt/src/.../rules.py`, `edits.py`, `serializer.py` | fmt `docs/decisions.md` §D3, §D11 |
 | `format_*` / `detect_*` | `galaxy-tool-xml-fmt/src/.../format.py`, `detect.py` | fmt `docs/decisions.md` §D15 |

@@ -781,8 +781,9 @@ via `uv run python -m scripts.measure semantic-upgrade-boundaries`.
   to_profile)`. The registry facade's `upgrade` captures the tool's runtime
   baseline **before** any rewrite (its declared `profile=`, or `16.01` when
   undeclared — Galaxy's runtime default) and the profile actually reached, and
-  emits one advisory **note** listing the crossed releases + a must-fix count (it
-  never blocks or mutates for them).
+  emits one advisory **note** of the form "*N of M crossed change(s) apply to this
+  tool*" + a must-fix count (it never blocks or mutates for them). The "*N of M*"
+  narrowing is the per-tool detection ported in §25.
 - **Source of truth = Galaxy's own catalogue.** `PROFILE_UPGRADE_CODES` is a
   faithful mirror of `galaxyproject/galaxy`'s
   `lib/galaxy/tool_util/upgrade/upgrade_codes.json` (@ `b45c58a2`), keyed by
@@ -792,10 +793,10 @@ via `uv run python -m scripts.measure semantic-upgrade-boundaries`.
   schema-doc behaviour changes Galaxy does NOT catalogue — 19.05 (Python 2→3) and
   25.1 (`<credentials>`) — are intentionally absent** so the map stays a strict
   mirror; revisit if Galaxy adds codes for them.
-- **Range-based, not detection-based.** Our warning fires for every code whose
-  profile lies in the bumped range; Galaxy's advisor *detects* per-tool whether
-  each code actually applies. Porting Galaxy's detection predicates is future work
-  (see `docs/behavior-preserving-upgrade.md`).
+- **Range-aware AND detection-aware (§25).** `upgrade_codes_crossed` is the
+  range filter (every code whose profile lies in the bumped interval);
+  `upgrade_codes_applicable` narrows it to the codes whose per-tool detector
+  fires, so the note reports only what applies to *this* tool — see §25.
 - **Why a note in `upgrade`, not a check/IUC rule.** The risk is intrinsic to the
   *upgrade transition* (baseline → target), not a static property of a tool, so it
   has no meaning in `check`/`format` and needs no GTX/IUC code. It rides the
@@ -864,3 +865,47 @@ galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace:FixFromWorkDirWhit
   **79** (the single-top-level-data-input subset of the tools with a
   `format="input"` output — the rest reported, not guessed). All idempotent; 0
   non-idempotent / post-validate-failed / crashed (no regressions retained).
+
+
+## 25. Per-tool detection for the `upgrade` semantic warning
+
+**Date:** 2026-06-01. Reproduced-by: `uv run --package galaxy-tool-xml-codemod
+pytest galaxy-tool-xml-codemod/tests/test_profile_semantics.py`; facade rewording
+`uv run --package galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_facade.py -k semantic`; corpus
+noise-reduction via `uv run python -m scripts.measure upgrade-codes-applicability`.
+
+- **The gap (§23).** The semantic note was *range-based*: it listed every
+  `PROFILE_UPGRADE_CODES` entry whose profile lay in the bumped range. The corpus
+  showed 94.2% of tools cross ≥1 code, so the note over-reported — most crossed
+  codes don't actually trip a given tool. Galaxy's own advisor *detects* per-tool.
+- **What we chose.** A `code → detector` table (`_DETECTORS` in
+  `profile_semantics.py`), each a read-only LBYL query over the tool's lxml tree,
+  ported from Galaxy's `lib/galaxy/tool_util/upgrade/__init__.py` @ `b45c58a2`.
+  `tripped_upgrade_codes(document)` returns the codes that fire (range-independent);
+  `upgrade_codes_applicable(...)` = `crossed ∩ tripped`. The facade captures
+  `tripped` on the **pre-upgrade** tree (GTX014/GTX015 mutate the very features the
+  detectors inspect) and the note becomes "*N of M crossed … apply to this tool*".
+  `PROFILE_UPGRADE_CODES` stays a pure data mirror — detection is a separate layer.
+- **We port Galaxy's *intent*, not its literal `b45c58a2` code**, which has
+  transcription bugs that make several predicates non-functional upstream
+  (documented in the module docstring): `17_09` queries a backtick-quoted attribute
+  name; `21_09` calls `add("")`; a `_find_all` helper ignores its xpath argument and
+  always returns `.//data[@from_work_dir]`, breaking `23_0` (which also targets
+  `<input>` where Galaxy tool XML uses `<param>`). Two codes can't be a literal
+  mirror: `24_2_fix_test_case_validation` needs Galaxy's parameter-model test-case
+  validator (no port) → **approximated** by the necessary condition "ships a
+  `<test>`"; `16_04_consider_implicit_extra_file_collection` Galaxy emits
+  **unconditionally** → always-true detector.
+- **Detection runs on the as-loaded (possibly un-expanded) tree**, matching the live
+  facade — a feature supplied only by an imported macro is not seen. Acceptable: the
+  note reflects exactly what the tool-as-given would report.
+- **Corpus noise reduction (2026-06-01, 8,608 considered).** Per-code crossing
+  *events* drop from **103,330 → 28,667 (27.7%)** once detection is applied — ~72%
+  of the old warning's lines were codes that didn't apply. Tool-level "warns at all"
+  barely moves (94.2% → 92.4%): nearly every tool still trips a near-universal code
+  (the always-on 16.04 note, `18_01` no-`use_shared_home`, `20_09` no-`strict`,
+  `24_2` has-tests). The win is *precision per code*, not on/off. Sanity-checked:
+  no inverted predicate; `16_04_fix_output_format`→107 and
+  `21_09_fix_from_work_dir_whitespace`→4 match the GTX015/GTX014 populations;
+  `17_09`→0 and `24_0_consider_python_environment`→0 are genuinely rare conditions.

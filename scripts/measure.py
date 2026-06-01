@@ -2763,6 +2763,168 @@ def _run_semantic_upgrade_boundaries(args: argparse.Namespace) -> None:
     )
 
 
+# --- measurement: upgrade-codes-applicability -----------------------------------
+#
+# How much per-tool detection narrows the `upgrade` semantic warning. For each
+# considered corpus tool, compare the codes a baseline->newest_valid bump CROSSES
+# (range-based `upgrade_codes_crossed`) against those that actually APPLY (the
+# per-tool detector fired, `tripped_upgrade_codes`). Backs codemod decisions.md
+# §23. Detection runs on the as-loaded (un-expanded) tree, mirroring the live
+# facade; it also sanity-checks each detector (e.g. an inverted predicate would
+# show applicable ~= crossed or ~= 0). Needs the corpus, so not run in CI.
+
+
+@dataclass
+class _ApplicabilityResult:
+    """Range-crossed vs per-tool-applicable upgrade-code counts across the corpus."""
+
+    n_considered: int
+    n_warn_range: int  # tools with >=1 crossed code (the old, range-based warning)
+    n_warn_applicable: int  # tools with >=1 applicable code (the new warning)
+    per_code_crossed: dict[str, int]
+    per_code_applicable: dict[str, int]
+    total_crossed_events: int
+    total_applicable_events: int
+
+
+def _tally_applicability(
+    *, samples: list[tuple[str, str, frozenset[str]]]
+) -> _ApplicabilityResult:
+    """Tally crossed-vs-applicable over ``(baseline, target, tripped)`` samples.
+
+    Pure (no IO), so it is unit-tested with synthetic samples. ``tripped`` is the
+    set of codes whose detector fired for that tool (range-independent).
+    """
+    from galaxy_tool_xml_codemod.profile_semantics import upgrade_codes_crossed
+
+    per_crossed: Counter[str] = Counter()
+    per_applicable: Counter[str] = Counter()
+    n_warn_range = n_warn_applicable = total_crossed = total_applicable = 0
+    for baseline, target, tripped in samples:
+        crossed = upgrade_codes_crossed(from_profile=baseline, to_profile=target)
+        if crossed:
+            n_warn_range += 1
+        applicable = [change for change in crossed if change.code in tripped]
+        if applicable:
+            n_warn_applicable += 1
+        for change in crossed:
+            per_crossed[change.code] += 1
+            total_crossed += 1
+        for change in applicable:
+            per_applicable[change.code] += 1
+            total_applicable += 1
+    return _ApplicabilityResult(
+        n_considered=len(samples),
+        n_warn_range=n_warn_range,
+        n_warn_applicable=n_warn_applicable,
+        per_code_crossed=dict(per_crossed),
+        per_code_applicable=dict(per_applicable),
+        total_crossed_events=total_crossed,
+        total_applicable_events=total_applicable,
+    )
+
+
+def _applicability_baseline(declared: object, /) -> str | None:
+    """The semantic baseline for a row's ``profile_expanded`` (mirrors the warning).
+
+    No declaration (the ``_PROFILE_NONE`` sentinel) -> Galaxy's 16.01 default; a
+    literal version -> itself; a macro token / failed expansion -> ``None`` (the
+    live warning skips it too).
+    """
+    if declared in (None, "", _PROFILE_NONE):
+        return "16.01"
+    if _version_tuple(declared) is not None:
+        return str(declared)
+    return None
+
+
+def _measure_upgrade_codes_applicability(
+    *, corpus_root: Path, rows: list[dict[str, object]]
+) -> _ApplicabilityResult:
+    """Build ``(baseline, target, tripped)`` samples from the corpus + JSON.
+
+    A tool is *considered* on the same terms as ``semantic-upgrade-boundaries``
+    (placeable baseline + valid ``newest_valid`` target). The row is joined to
+    the on-disk file by sha256 (the corpus dedup key), so no fragile path
+    reconstruction is needed; the file is loaded only for detection.
+    """
+    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_xml_codemod.profile_semantics import tripped_upgrade_codes
+
+    row_by_sha = {
+        str(row["sha256"]): row for row in rows if isinstance(row.get("sha256"), str)
+    }
+    samples: list[tuple[str, str, frozenset[str]]] = []
+    seen_sha: set[str] = set()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        sha = _sha256_of(path)
+        if sha in seen_sha:
+            continue
+        seen_sha.add(sha)
+        row = row_by_sha.get(sha)
+        if row is None:
+            continue
+        target = row.get("newest_valid")
+        if target in (None, "", _PROFILE_NONE) or _version_tuple(target) is None:
+            continue
+        baseline = _applicability_baseline(row.get("profile_expanded"))
+        if baseline is None:
+            continue
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        tripped = tripped_upgrade_codes(ToolDocument(root.getroottree()))
+        samples.append((baseline, str(target), tripped))
+    return _tally_applicability(samples=samples)
+
+
+def _report_upgrade_codes_applicability(measurement: _ApplicabilityResult) -> None:
+    from galaxy_tool_xml_codemod.profile_semantics import PROFILE_UPGRADE_CODES
+
+    considered = measurement.n_considered
+    print("\n=== upgrade-codes-applicability ===")
+    print(f"Considered tools (placeable baseline + valid target):  {considered}")
+    if considered:
+        rpct = measurement.n_warn_range / considered * 100
+        apct = measurement.n_warn_applicable / considered * 100
+        print(
+            f"Warning fires, range-based (>=1 code crossed):    "
+            f"{measurement.n_warn_range} ({rpct:.1f}%)"
+        )
+        print(
+            f"Warning fires, per-tool   (>=1 code applies):     "
+            f"{measurement.n_warn_applicable} ({apct:.1f}%)"
+        )
+    print(
+        f"Crossing events total {measurement.total_crossed_events}"
+        f" -> applicable {measurement.total_applicable_events}"
+        f" ({100 * measurement.total_applicable_events / measurement.total_crossed_events:.1f}%"
+        f" of crossings actually apply)"
+        if measurement.total_crossed_events
+        else "No crossings."
+    )
+    print("\nPer-code  crossed -> applies (catalogue order):")
+    for change in PROFILE_UPGRADE_CODES:
+        crossed = measurement.per_code_crossed.get(change.code, 0)
+        if not crossed:
+            continue
+        applies = measurement.per_code_applicable.get(change.code, 0)
+        print(
+            f"  {change.profile:6} {change.level:8} {crossed:6d} -> {applies:6d}"
+            f"  {change.code}"
+        )
+
+
+def _run_upgrade_codes_applicability(args: argparse.Namespace) -> None:
+    _report_upgrade_codes_applicability(
+        _measure_upgrade_codes_applicability(
+            corpus_root=args.corpus_root, rows=_load_combined_data(path=args.data)
+        )
+    )
+
+
 # --- measurement: element-cardinality -------------------------------------------
 #
 # How many <test>/<requirement>/<conditional>/<collection>/<output_collection>
@@ -3044,6 +3206,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "collection-type-normalization": _run_collection_type_normalization,
     "upgrade-headroom": _run_upgrade_headroom,
     "semantic-upgrade-boundaries": _run_semantic_upgrade_boundaries,
+    "upgrade-codes-applicability": _run_upgrade_codes_applicability,
     "element-cardinality": _run_element_cardinality,
     "command-language": _run_command_language,
     "output-format-input": _run_output_format_input,
@@ -3141,7 +3304,7 @@ def _build_parser() -> argparse.ArgumentParser:
             "Directory holding the swept corpus; used by the corpus-walking "
             "measurements (lenient-text-fields, param-types, macro-usage, "
             "collection-type-normalization, element-cardinality, "
-            "command-language). Default: %(default)s."
+            "command-language, upgrade-codes-applicability). Default: %(default)s."
         ),
     )
     parser.add_argument(

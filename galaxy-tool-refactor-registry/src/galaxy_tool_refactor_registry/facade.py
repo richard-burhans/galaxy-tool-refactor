@@ -23,7 +23,10 @@ from galaxy_tool_xml.document import ToolDocument
 from galaxy_tool_xml_check.detect import sort_violations
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.module import Module
-from galaxy_tool_xml_codemod.profile_semantics import upgrade_codes_crossed
+from galaxy_tool_xml_codemod.profile_semantics import (
+    tripped_upgrade_codes,
+    upgrade_codes_crossed,
+)
 from galaxy_tool_xml_codemod.runtime_fixes import runtime_fixes_for
 from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 from galaxy_tool_xml_fmt.detect import detect_tool_document_subset
@@ -148,29 +151,36 @@ def _semantic_baseline(declared_profile: str | None) -> str | None:
     return declared_profile
 
 
-def _semantic_warning(baseline: str | None, target: str | None) -> str | None:
+def _semantic_warning(
+    baseline: str | None, target: str | None, tripped: frozenset[str]
+) -> str | None:
     """Warn when the bump crosses runtime-behaviour the XSD can't verify.
 
     Profile upgrade is structurally sound but not behaviour-preserving (codemod
     ``docs/decisions.md`` §22): some bumps change runtime defaults. We can't
     auto-preserve them, so we surface the crossed boundaries for the user to
-    review. ``None`` (no warning) when either profile is unknown/unparseable or
-    no documented behaviour change lies in the bumped range.
+    review. Of the codes the bump *crosses*, only those whose per-tool detector
+    fired (*tripped*, captured on the pre-upgrade tool) actually *apply* — Galaxy's
+    advisor detects per-tool, so we do too. ``None`` (no warning) when either
+    profile is unknown/unparseable, nothing is crossed, or nothing applies.
     """
     if baseline is None or target is None:
         return None
     crossed = upgrade_codes_crossed(from_profile=baseline, to_profile=target)
     if not crossed:
         return None
+    applicable = [change for change in crossed if change.code in tripped]
+    if not applicable:
+        return None
     # The catalogue is profile-ascending, so first-seen dedup keeps release order.
-    releases = ", ".join(dict.fromkeys(change.profile for change in crossed))
-    must_fix = sum(1 for change in crossed if change.level == "must_fix")
-    must_fix_note = f" ({must_fix} must-fix)" if must_fix else ""
+    releases = ", ".join(dict.fromkeys(change.profile for change in applicable))
+    must_fix = sum(1 for change in applicable if change.level == "must_fix")
+    must_fix_note = f", {must_fix} must-fix" if must_fix else ""
     return (
-        f"  profile {baseline}→{target} crosses {len(crossed)} Galaxy"
-        f" profile-behaviour change(s){must_fix_note} the XSD can't verify"
-        f" (releases {releases}); review against docs/profile_upgrades.md before"
-        " relying on this upgrade."
+        f"  profile {baseline}→{target}: {len(applicable)} of {len(crossed)}"
+        f" crossed Galaxy profile-behaviour change(s) apply to this tool"
+        f"{must_fix_note} (releases {releases}); review against"
+        " docs/profile_upgrades.md before relying on this upgrade."
     )
 
 
@@ -191,8 +201,11 @@ def upgrade(
     rules in *codes* are reported as notes.
     """
     document = _to_document(source)
-    # Capture the runtime baseline BEFORE any codemod rewrites ``profile=``.
+    # Capture the runtime baseline AND which upgrade codes the tool trips BEFORE
+    # any codemod rewrites ``profile=`` or mutates the features detectors inspect
+    # (GTX014/GTX015 fix the very things some detectors look for).
     baseline = _semantic_baseline(document.profile)
+    tripped = tripped_upgrade_codes(document)
     advisory = _detect_advisory(document, codes)
     module = Module(document)
     if FixTypos.meta.code in codes:
@@ -220,7 +233,7 @@ def upgrade(
     summary = _upgrade_summary(steps, missing)
     # The profile actually reached (a literal version, even when ``profile=`` is a
     # macro token), so the warning is measured against where the tool landed.
-    semantic = _semantic_warning(baseline, newest_valid_profile(document))
+    semantic = _semantic_warning(baseline, newest_valid_profile(document), tripped)
     notes = tuple(
         note
         for note in (

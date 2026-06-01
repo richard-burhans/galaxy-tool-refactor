@@ -143,17 +143,34 @@ def test_upgrade_ignore_fixtypos_still_upgrades() -> None:
 
 
 def test_upgrade_warns_on_semantic_boundaries() -> None:
-    """A 24.1 tool bumped to latest crosses Galaxy's 24.2 upgrade code (must-fix)."""
+    """A 24.1 tool that ships tests trips Galaxy's 24.2 must-fix code on bump."""
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
-    result = facade.upgrade(_UPGRADABLE, codes=resolve_upgrade_codes())
+    with_tests = (
+        b'<tool id="m" name="M" version="1.0.0" profile="24.1">'
+        b"<command><![CDATA[echo x]]></command>"
+        b'<inputs><param name="i" type="data" format="BAM"/></inputs>'
+        b'<outputs><data name="o"/></outputs>'
+        b'<tests><test><param name="i" value="x.bam"/><output name="o"/></test>'
+        b"</tests></tool>"
+    )
+    result = facade.upgrade(with_tests, codes=resolve_upgrade_codes())
     semantic = [n for n in result.notes if "profile-behaviour" in n]
     assert len(semantic) == 1
     note = semantic[0]
     assert "24.1→" in note
+    assert "1 of 1" in note  # the one crossed 24.2 code applies (has tests)
     assert "24.2" in note  # the crossed release
     assert "must-fix" in note  # 24_2_fix_test_case_validation is must_fix
     assert "docs/profile_upgrades.md" in note
+
+
+def test_upgrade_silent_when_no_crossed_code_applies() -> None:
+    """_UPGRADABLE crosses 24.2 but ships no <test>, so 24_2 does not apply."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    result = facade.upgrade(_UPGRADABLE, codes=resolve_upgrade_codes())
+    assert not [n for n in result.notes if "profile-behaviour" in n]
 
 
 def test_upgrade_no_profile_warns_from_1601_baseline() -> None:

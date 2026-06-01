@@ -134,6 +134,11 @@ uv run python -m scripts.measure version-tokenization
 # soundness boundary; data = the vendored PROFILE_UPGRADE_CODES):
 uv run python -m scripts.measure semantic-upgrade-boundaries
 
+# How much per-tool detection narrows that warning: per code, range-crossed vs
+# actually-applicable counts across the corpus (backs codemod decisions §25;
+# needs the corpus, so not run in CI):
+uv run python -m scripts.measure upgrade-codes-applicability
+
 # Sizing for the format="input" runtime-gated fix (GTX015, codemod decisions §24):
 # output <data format="input"> tools split by data-input cardinality (the single
 # top-level data input subset is auto-fixable):

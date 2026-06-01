@@ -166,9 +166,12 @@ the `upgrade_codes.json` code(s) (mirrored as `PROFILE_UPGRADE_CODES` in
 version, with their `level` (`must_fix` / `consider`). "none documented" = no
 upgrade code at that step. The behaviour takes effect for a tool **declaring** the
 *To* profile (bumping `profile=` into that row opts in). `galaxy-tool-refactor
-upgrade` warns on the codes a bump crosses (codemod `docs/decisions.md` §23); the
-per-code corpus blast radius is `scripts/measure.py semantic-upgrade-boundaries`;
-pinnability is in `galaxy-tool-xml-codemod/docs/behavior-preserving-upgrade.md`.
+upgrade` warns on the codes a bump crosses **that actually apply to the tool**
+(per-tool detection ported from Galaxy's advisor; codemod `docs/decisions.md`
+§23 + §25). The per-code corpus blast radius is `scripts/measure.py
+semantic-upgrade-boundaries`, and crossed-vs-applicable is `scripts/measure.py
+upgrade-codes-applicability`; pinnability is in
+`galaxy-tool-xml-codemod/docs/behavior-preserving-upgrade.md`.
 
 > **Two scopes the catalogue doesn't cover, flagged inline:** (1) **16.04**'s four
 > codes (interpreter/output-format/exit-code/extra-file) predate the oldest vendored
