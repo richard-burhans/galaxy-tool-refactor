@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_xml.binding import newest_valid_profile
-from packaging.version import InvalidVersion, Version
+from galaxy_tool_xml.profiles import is_newer_profile
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
 from galaxy_tool_xml_codemod.codemods._coarse_detect import coarse_detect
@@ -43,20 +43,6 @@ if TYPE_CHECKING:
 
     from galaxy_tool_xml_codemod.change import Change
     from galaxy_tool_xml_codemod.module import Module
-
-
-def _is_newer(target: str, declared: str, /) -> bool:
-    """Whether vendored *target* is a strictly newer version than *declared*.
-
-    Returns ``False`` when *declared* is not a parseable version (e.g. a macro
-    placeholder like ``@PROFILE@``) — a profile we cannot compare is never
-    rewritten. The ``try``/``except`` is the sanctioned packaging boundary:
-    ``packaging`` exposes no validity predicate, mirroring ``profiles.py``.
-    """
-    try:
-        return Version(target) > Version(declared)
-    except InvalidVersion:
-        return False
 
 
 class UpdateProfile(CodemodCommand):
@@ -90,7 +76,7 @@ class UpdateProfile(CodemodCommand):
         if "@" in declared:
             self._upgrade_inline_profile_token(module, declared, target)
             return
-        if _is_newer(target, declared):
+        if is_newer_profile(target, declared):
             Cursor(document.root).set_attribute("profile", target)
 
     def _upgrade_inline_profile_token(
@@ -109,7 +95,7 @@ class UpdateProfile(CodemodCommand):
         if token is None:
             return
         current = token.text.strip() if token.text else ""
-        if _is_newer(target, current):
+        if is_newer_profile(target, current):
             token.set_text(target)
 
     @staticmethod

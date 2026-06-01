@@ -7,6 +7,7 @@ from galaxy_tool_xml.profiles import (
     UnknownProfileError,
     available_profiles,
     compiled_schema,
+    is_newer_profile,
     latest_profile,
     resolve_profile,
 )
@@ -51,6 +52,14 @@ def test_resolve_unparseable_profile_is_latest() -> None:
 def test_resolve_exact_mode_raises() -> None:
     with pytest.raises(UnknownProfileError):
         resolve_profile("99.9", on_missing="exact")
+
+
+def test_is_newer_profile() -> None:
+    assert is_newer_profile("24.2", "24.1") is True
+    assert is_newer_profile("24.1", "24.1") is False  # strictly newer only
+    assert is_newer_profile("24.0", "24.2") is False
+    # an unparseable baseline (e.g. a macro token) is never treated as older
+    assert is_newer_profile("26.1", "@PROFILE@") is False
 
 
 def test_resolve_latest_mode() -> None:
