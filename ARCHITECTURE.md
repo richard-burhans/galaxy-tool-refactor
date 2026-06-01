@@ -485,5 +485,6 @@ Each abstraction → its file → the decision record that justifies it.
 | GTX012 | `UpgradeToLatest` | `galaxy-tool-xml-codemod/.../upgrades.py` | codemod (upgrade-only orchestrator) |
 | GTX013 | `ReorderToolChildren` | `galaxy-tool-xml-codemod/.../reorder_tool_children.py` | codemod (canonical) |
 | GTX014 | `FixFromWorkDirWhitespace` | `galaxy-tool-xml-codemod/.../fix_from_work_dir_whitespace.py` | codemod (upgrade-only, runtime-gated) |
+| GTX015 | `FixOutputFormatInput` | `galaxy-tool-xml-codemod/.../fix_output_format_input.py` | codemod (upgrade-only, runtime-gated) |
 | IUC001–010 | `TestsPresent` … `HelpCdata` | `galaxy-tool-xml-check/.../checks.py` | check (advisory) |
 | IUC011–012 | `SingleQuotedCheetah`, `CommandAndJoining` | `galaxy-tool-xml-check/.../checks.py` | check (advisory, reserved stubs) |

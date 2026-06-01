@@ -843,17 +843,24 @@ galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace:FixFromWorkDirWhit
   change `profile=`. They surface only via `list_rules(include_upgrade=True)`.
   (Forks settled with the maintainer: upgrade-only path; a new family rather than
   extending `UpgradeToLatest`; first cut = the one pure-AUTO fix.)
-- **First fix: `FixFromWorkDirWhitespace` (GTX014, 21.09).** A deterministic
+- **Fix 1: `FixFromWorkDirWhitespace` (GTX014, 21.09).** A deterministic
   `value.strip()` on every `<data from_work_dir>` — semantics-preserving (whitespace
   was never significant pre-21.09 and is a bug at 21.09+). Plain detect-primitive
   (`detect_Data`), so it inherits detect-parity, idempotence, and the corpus sweep.
-- **Deferred (still warn-only, per §23 + `behavior-preserving-upgrade.md`).** The
-  other Galaxy `must_fix` runtime gates need author intent or a heuristic:
-  `16_04_fix_output_format` (`format="input"` → `format_source="X"`) is mechanical
-  only for single-data-input tools; `16_04_fix_interpreter` and
-  `24_2_fix_test_case_validation` need author judgement. They stay advisory until a
-  guarded codemod is justified.
-- **Corpus sizing (2026-06-01, `--source combined`).** Of 8,607 eligible tools,
-  `FixFromWorkDirWhitespace` modifies **4**; 8,607 idempotent, 0 non-idempotent /
-  post-validate-failed / crashed (no regressions retained). Small but real, and the
-  fix is a clean deterministic strip.
+- **Fix 2: `FixOutputFormatInput` (GTX015, 16.04).** Replaces an output
+  `<data format="input">` with `format_source="<input>"` — but **only** for a tool
+  with exactly one *top-level* `<param type="data">` (then the source is
+  unambiguous and an unqualified reference resolves). Tools with zero, two-or-more,
+  or a *nested* single data input are left for the §23 warning. It **overrides
+  `detect`** (not the per-tag walk) because choosing `format_source` needs whole-tool
+  context; `apply` still derives from `detect` (so detect/apply parity holds). Sized
+  first via `scripts/measure.py output-format-input` (the measure-before-build rule).
+- **Still deferred (warn-only, per §23 + `behavior-preserving-upgrade.md`).**
+  `16_04_fix_interpreter` and `24_2_fix_test_case_validation` need author judgement
+  (rewrite the command to call the runtime by path; correct a parameter model) —
+  no safe mechanical form, so they stay advisory.
+- **Corpus sizing (2026-06-01, `--source combined`, 8,607 eligible).**
+  `FixFromWorkDirWhitespace` modifies **4**; `FixOutputFormatInput` modifies
+  **79** (the single-top-level-data-input subset of the tools with a
+  `format="input"` output — the rest reported, not guessed). All idempotent; 0
+  non-idempotent / post-validate-failed / crashed (no regressions retained).
