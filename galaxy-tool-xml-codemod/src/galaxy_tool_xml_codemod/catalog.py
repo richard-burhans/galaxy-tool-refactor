@@ -11,6 +11,9 @@ formatter tier's ``all_rules()``.
 from __future__ import annotations
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
+from galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace import (
+    FixFromWorkDirWhitespace,
+)
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.codemods.reorder_param_attributes import (
     ReorderParamAttributes,
@@ -42,5 +45,6 @@ def coded_codemods() -> tuple[type[CodemodCommand], ...]:
         Upgrade24_1,
         Upgrade25_1,
         UpgradeToLatest,
+        FixFromWorkDirWhitespace,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
