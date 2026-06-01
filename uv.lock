@@ -241,7 +241,6 @@ source = { editable = "galaxy-tool-refactor-cli" }
 dependencies = [
     { name = "click" },
     { name = "galaxy-tool-refactor-registry" },
-    { name = "galaxy-tool-refactor-rules" },
     { name = "galaxy-tool-xml" },
     { name = "galaxy-tool-xml-fmt" },
 ]
@@ -257,7 +256,6 @@ dev = [
 requires-dist = [
     { name = "click", specifier = ">=8" },
     { name = "galaxy-tool-refactor-registry", editable = "galaxy-tool-refactor-registry" },
-    { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
     { name = "galaxy-tool-xml", editable = "galaxy-tool-xml" },
     { name = "galaxy-tool-xml-fmt", editable = "galaxy-tool-xml-fmt" },
 ]

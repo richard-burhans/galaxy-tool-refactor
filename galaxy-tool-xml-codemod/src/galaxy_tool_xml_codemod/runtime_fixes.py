@@ -29,7 +29,9 @@ from galaxy_tool_xml_codemod.codemods.fix_output_format_input import (
     FixOutputFormatInput,
 )
 
-# Every runtime-gated fix, in application order.
+# Every runtime-gated fix, ordered by ``introduced_profile`` ascending (16.04
+# before 21.09). Order is cosmetic — the fixes touch disjoint constructs and the
+# facade applies all whose introduction profile the tool reached (see §24).
 RUNTIME_GATED_FIXES: tuple[type[RuntimeGatedFix], ...] = (
     FixOutputFormatInput,
     FixFromWorkDirWhitespace,
