@@ -9,7 +9,9 @@ This file does **not** re-argue the *why behind the why* — each decision lives
 the owning package's `docs/decisions.md`, and the §-pointers in the
 [Reference index](#reference-index) lead there. For build / test / lint commands
 see the root [`CLAUDE.md`](CLAUDE.md); for the IUC best-practice coverage map see
-[`docs/iuc_best_practices.md`](docs/iuc_best_practices.md).
+[`docs/iuc_best_practices.md`](docs/iuc_best_practices.md); for the per-profile
+upgrade map (what each profile bump requires, and the validity-vs-behaviour
+soundness boundary) see [`docs/profile_upgrades.md`](docs/profile_upgrades.md).
 
 ---
 
@@ -177,7 +179,9 @@ will change.
 
 **Contract:** detect is the primitive; apply is derived; mutations are idempotent
 and the codemod tier never serialises (the facade routes output through fmt).
-*(codemod `docs/decisions.md` §11–18.)*
+*(codemod `docs/decisions.md` §11–18; the per-profile upgrade map + the
+validity-vs-behaviour soundness boundary are in [`docs/profile_upgrades.md`](docs/profile_upgrades.md)
+and codemod `docs/decisions.md` §22.)*
 
 ---
 
