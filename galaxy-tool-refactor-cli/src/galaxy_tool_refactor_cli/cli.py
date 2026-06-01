@@ -232,6 +232,11 @@ def upgrade_command(
     edit an imported macro file receives here — unlike ``format``, ``upgrade``
     does not cosmetically reformat macro files; the cosmetic pass runs on the
     tool files in PATHS. PATHS may be files or directories.
+
+    The upgrade is structural, not behaviour-preserving: bumping ``profile=`` opts
+    the tool into newer Galaxy runtime defaults the XSD can't verify. When a bump
+    crosses such a boundary (e.g. ``set -e``, Python 3, optional-value templating),
+    a note lists the crossed versions to review — see ``docs/profile_upgrades.md``.
     """
     if preset is not None:
         raise click.BadParameter(

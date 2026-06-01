@@ -166,6 +166,11 @@ Semantic deltas are from the Galaxy schema docs `<tool> profile` attribute
 The behaviour takes effect for a tool **declaring** the *To* profile — i.e.
 bumping `profile=` into that row opts the tool into it.
 
+> This column is mirrored in code as `SEMANTIC_PROFILE_CHANGES`
+> (`galaxy-tool-xml-codemod/.../profile_semantics.py`), and `galaxy-tool-refactor
+> upgrade` emits an advisory **note** listing the boundaries a given bump crosses
+> (codemod `docs/decisions.md` §23). Keep the two in sync.
+
 | From → To | Structural class | Structural delta (XSD) | Semantic delta (runtime, not in XSD) | Corpus stuck | Automatable | Codemod |
 |---|---|---|---|---|---|---|
 | 16.10 → 17.01 | additive | `+conversion`, EDAM `edam_operation(s)`/`edam_topic(s)`, `datatype_isinstance`, `shared_inputs` | none documented | 0 | none | — |

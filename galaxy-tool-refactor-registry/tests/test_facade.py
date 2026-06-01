@@ -142,6 +142,51 @@ def test_upgrade_ignore_fixtypos_still_upgrades() -> None:
     assert f'profile="{latest_profile()}"'.encode() in result.formatted
 
 
+def test_upgrade_warns_on_semantic_boundaries() -> None:
+    """A 24.1 tool bumped to latest crosses the 24.2 + 25.1 runtime changes."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    result = facade.upgrade(_UPGRADABLE, codes=resolve_upgrade_codes())
+    semantic = [n for n in result.notes if "runtime-behaviour" in n]
+    assert len(semantic) == 1
+    note = semantic[0]
+    assert "24.1→" in note
+    assert "24.2" in note and "25.1" in note
+    assert "docs/profile_upgrades.md" in note
+
+
+def test_upgrade_no_profile_warns_from_1601_baseline() -> None:
+    """A tool with no profile= runs as 16.01, so the bump to latest crosses many."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    no_profile = (
+        b'<tool id="m" name="M" version="1.0.0">'
+        b"<command><![CDATA[echo x]]></command><inputs/>"
+        b'<outputs><data name="o"/></outputs></tool>'
+    )
+    result = facade.upgrade(no_profile, codes=resolve_upgrade_codes())
+    semantic = [n for n in result.notes if "runtime-behaviour" in n]
+    assert len(semantic) == 1
+    # baseline is Galaxy's 16.01 default; the high-impact boundaries are flagged.
+    assert "16.01→" in semantic[0]
+    assert "19.05" in semantic[0] and "20.09" in semantic[0]
+
+
+def test_upgrade_already_latest_has_no_semantic_warning() -> None:
+    """A tool already declaring the latest profile isn't bumped, so no warning."""
+    from galaxy_tool_xml.profiles import latest_profile
+
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    at_latest = (
+        f'<tool id="m" name="M" version="1.0.0" profile="{latest_profile()}">'
+        "<command><![CDATA[echo x]]></command><inputs/>"
+        '<outputs><data name="o"/></outputs></tool>'
+    ).encode()
+    result = facade.upgrade(at_latest, codes=resolve_upgrade_codes())
+    assert not [n for n in result.notes if "runtime-behaviour" in n]
+
+
 def test_introspection_lists_presets_and_rules() -> None:
     presets_info = facade.list_presets()
     names = {p.name for p in presets_info}

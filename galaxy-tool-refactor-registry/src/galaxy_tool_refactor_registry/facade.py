@@ -18,11 +18,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from galaxy_tool_xml.binding import Source, load_tool
+from galaxy_tool_xml.binding import Source, load_tool, newest_valid_profile
 from galaxy_tool_xml.document import ToolDocument
 from galaxy_tool_xml_check.detect import sort_violations
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.module import Module
+from galaxy_tool_xml_codemod.profile_semantics import semantic_changes_crossed
 from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 from galaxy_tool_xml_fmt.detect import detect_tool_document_subset
 
@@ -133,6 +134,41 @@ def _upgrade_summary(steps: tuple[str, ...], missing: str | None) -> str | None:
     return "  " + "; ".join(parts)
 
 
+def _semantic_baseline(declared_profile: str | None) -> str | None:
+    """The runtime-behaviour baseline a profile bump is measured against.
+
+    A missing ``profile=`` runs under Galaxy's ``16.01`` default, so that is the
+    baseline. A declared literal version is itself. A macro-token (or otherwise
+    unparseable) profile can't be placed cheaply, so return ``None`` — the upgrade
+    proceeds, but we raise no semantic warning rather than a misleading one.
+    """
+    if declared_profile is None:
+        return "16.01"
+    return declared_profile
+
+
+def _semantic_warning(baseline: str | None, target: str | None) -> str | None:
+    """Warn when the bump crosses runtime-behaviour the XSD can't verify.
+
+    Profile upgrade is structurally sound but not behaviour-preserving (codemod
+    ``docs/decisions.md`` §22): some bumps change runtime defaults. We can't
+    auto-preserve them, so we surface the crossed boundaries for the user to
+    review. ``None`` (no warning) when either profile is unknown/unparseable or
+    no documented behaviour change lies in the bumped range.
+    """
+    if baseline is None or target is None:
+        return None
+    crossed = semantic_changes_crossed(from_profile=baseline, to_profile=target)
+    if not crossed:
+        return None
+    versions = ", ".join(version for version, _ in crossed)
+    return (
+        f"  profile {baseline}→{target} crosses {len(crossed)} runtime-behaviour"
+        f" change(s) the XSD can't verify ({versions}); review against"
+        " docs/profile_upgrades.md before relying on this upgrade."
+    )
+
+
 def upgrade(
     source: Source | ToolDocument,
     /,
@@ -148,6 +184,8 @@ def upgrade(
     cosmetic fmt rules. Advisory rules in *codes* are reported as notes.
     """
     document = _to_document(source)
+    # Capture the runtime baseline BEFORE any codemod rewrites ``profile=``.
+    baseline = _semantic_baseline(document.profile)
     advisory = _detect_advisory(document, codes)
     module = Module(document)
     if FixTypos.meta.code in codes:
@@ -163,10 +201,14 @@ def upgrade(
     steps = tuple(upgrader.upgrade_steps_applied())
     missing = upgrader.missing_upgrade()
     summary = _upgrade_summary(steps, missing)
+    # The profile actually reached (a literal version, even when ``profile=`` is a
+    # macro token), so the warning is measured against where the tool landed.
+    semantic = _semantic_warning(baseline, newest_valid_profile(document))
     notes = tuple(
         note
         for note in (
             summary,
+            semantic,
             *(render_advisory_note(violation) for violation in advisory),
         )
         if note is not None

@@ -206,5 +206,8 @@ IUC best-practices coverage map and the `<tool>` element-order codemod
 (GTX013); and `galaxy-tool-refactor-registry/docs/decisions.md` D1–D4
 (+ cli `docs/decisions.md` D4, fmt §D15) for the rule-registry facade,
 presets, per-rule selection, and the move of orchestration below the CLI.
+For the per-profile upgrade map (what each profile bump requires, the
+structural-vs-semantic split, and the validity-as-oracle soundness boundary)
+see `docs/profile_upgrades.md` (+ codemod `docs/decisions.md` §22).
 `galaxy-tool-refactor-mcp/docs/vision.md` records the (unbuilt) MCP /
 agent-extensibility direction the facade is shaped for.
