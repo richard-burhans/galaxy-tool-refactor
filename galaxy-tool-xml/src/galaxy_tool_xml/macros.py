@@ -29,7 +29,7 @@ from galaxy_tool_xml.document import ToolDocument
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(frozen=True)
 class MacroError:
     """A single macro-expansion failure (cycle, missing macro, bad ``<import>``)."""
 
