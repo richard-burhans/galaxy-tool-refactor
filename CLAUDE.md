@@ -139,6 +139,11 @@ uv run python -m scripts.measure semantic-upgrade-boundaries
 # needs the corpus, so not run in CI):
 uv run python -m scripts.measure upgrade-codes-applicability
 
+# Declared/defaulted profile vs the profile reached after `upgrade` (runs
+# UpgradeToLatest per tool): before/after distributions + shift summary. Writes
+# docs/upgrade_profile_shift_stats.md (needs the corpus, so not run in CI):
+uv run python -m scripts.measure upgrade-profile-shift
+
 # Sizing for the format="input" runtime-gated fix (GTX015, codemod decisions §24):
 # output <data format="input"> tools split by data-input cardinality (the single
 # top-level data input subset is auto-fixable):

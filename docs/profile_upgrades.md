@@ -159,6 +159,13 @@ the XSD diff; Corpus from the combined discovery sweep. Automatable:
 > 24.1→111, 25.1→5. Only sticking points: 24.1 (39), 21.05 (1, tool-bug), 21.09
 > (1, tool-bug). No transition outside the four below strands a real tool — the
 > empirical confirmation that every additive step needs no codemod.
+>
+> The **declared (or 16.01-defaulted) → reached** profile distribution this implies
+> — what `upgrade` actually moves — is `docs/upgrade_profile_shift_stats.md`
+> (`scripts/measure.py upgrade-profile-shift`): of all 9,358 unique tools (a wider
+> population than the eligible-only sweep above), 60.9% declare no profile (run as
+> 16.01), and **91.7% (8,582) reach 26.1** after `UpgradeToLatest`; 7.8% validate
+> nowhere (need `FixTypos` repair first).
 
 The **Semantic delta** column is keyed to Galaxy's own catalogue: each cell names
 the `upgrade_codes.json` code(s) (mirrored as `PROFILE_UPGRADE_CODES` in

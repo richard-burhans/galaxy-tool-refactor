@@ -2925,6 +2925,234 @@ def _run_upgrade_codes_applicability(args: argparse.Namespace) -> None:
     )
 
 
+# --- measurement: upgrade-profile-shift -----------------------------------------
+#
+# Where does `upgrade` move a tool's profile? Compares the profile the tool
+# *declares* (defaulting no-profile to Galaxy's 16.01 runtime default — the "as
+# reported, or as defaulted" baseline) against the profile it *reaches* after the
+# `UpgradeToLatest` pipeline runs. Unlike combined_corpus_stats.md's "newest valid
+# profile distribution" (the pre-upgrade validity ceiling), this runs the actual
+# structural upgrade codemods (GTX007-012), so a tool stuck below its ceiling by a
+# restrict-transition climbs. Runtime-gated fixes (GTX014/015) don't change the
+# profile, so they don't affect this. UpgradeToLatest-only (no FixTypos), matching
+# the reach figure in docs/profile_upgrades.md. Writes
+# docs/upgrade_profile_shift_stats.md. Needs the corpus, so not run in CI.
+
+
+@dataclass
+class _ProfileShiftResult:
+    """Declared/defaulted vs post-`upgrade` profile distributions across the corpus."""
+
+    n_tools: int
+    latest: str
+    before: dict[str, int]  # declared (no-profile -> 16.01) bucket -> count
+    after: dict[str, int]  # reached profile bucket -> count ("(none)" = nowhere)
+    n_at_latest_before: int
+    n_at_latest_after: int
+    n_advanced: int  # reached a strictly newer profile (both placeable)
+    n_unchanged: int  # reached the same profile
+    n_unplaceable_baseline: int  # declared a macro token / unparseable profile
+    n_after_validates_nowhere: int  # did not validate at any profile after upgrade
+
+
+def _baseline_bucket(declared: str | None, /) -> str:
+    """The "as reported, or as defaulted" baseline bucket for a declared profile.
+
+    No declaration -> ``"16.01"`` (Galaxy's runtime default, matching
+    ``resolve_profile(None)`` and the facade's ``_semantic_baseline``); a literal
+    version -> itself; a macro token / unparseable value -> a single
+    ``"(macro/unparseable)"`` bucket (the facade can't place it either).
+    """
+    if declared is None:
+        return "16.01"
+    if _version_tuple(declared) is not None:
+        return declared
+    return "(macro/unparseable)"
+
+
+def _tally_profile_shift(
+    *, samples: list[tuple[str, str]], latest: str
+) -> _ProfileShiftResult:
+    """Tally before/after profile buckets over ``(baseline, reached)`` samples.
+
+    Pure (no IO), so it is unit-tested with synthetic samples. ``reached`` is the
+    post-upgrade profile, or ``"(none)"`` when the tool validates nowhere.
+    """
+    before: Counter[str] = Counter()
+    after: Counter[str] = Counter()
+    n_at_before = n_at_after = n_advanced = n_unchanged = 0
+    n_unplaceable = n_nowhere = 0
+    for baseline, reached in samples:
+        before[baseline] += 1
+        after[reached] += 1
+        n_at_before += int(baseline == latest)
+        n_at_after += int(reached == latest)
+        before_v = _version_tuple(baseline)
+        reached_v = _version_tuple(reached)
+        if baseline == "(macro/unparseable)":
+            n_unplaceable += 1
+        if reached == "(none)":
+            n_nowhere += 1
+        if before_v is not None and reached_v is not None:
+            if reached_v > before_v:
+                n_advanced += 1
+            elif reached_v == before_v:
+                n_unchanged += 1
+    return _ProfileShiftResult(
+        n_tools=len(samples),
+        latest=latest,
+        before=dict(before),
+        after=dict(after),
+        n_at_latest_before=n_at_before,
+        n_at_latest_after=n_at_after,
+        n_advanced=n_advanced,
+        n_unchanged=n_unchanged,
+        n_unplaceable_baseline=n_unplaceable,
+        n_after_validates_nowhere=n_nowhere,
+    )
+
+
+def _measure_upgrade_profile_shift(*, corpus_root: Path) -> _ProfileShiftResult:
+    """Run ``UpgradeToLatest`` over the corpus and tally declared -> reached profile."""
+    from galaxy_tool_xml.binding import newest_valid_profile
+    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_xml.profiles import latest_profile
+    from galaxy_tool_xml_codemod.module import Module
+    from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
+
+    samples: list[tuple[str, str]] = []
+    seen_sha: set[str] = set()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        sha = _sha256_of(path)
+        if sha in seen_sha:
+            continue
+        seen_sha.add(sha)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        baseline = _baseline_bucket(root.get("profile"))
+        document = ToolDocument(root.getroottree(), source_path=path)
+        UpgradeToLatest().apply(Module(document))
+        reached = newest_valid_profile(document)
+        samples.append((baseline, reached if reached is not None else "(none)"))
+    return _tally_profile_shift(samples=samples, latest=latest_profile())
+
+
+def _profile_dist_rows(counts: dict[str, int], total: int, /) -> list[str]:
+    """Markdown table rows for a profile distribution, version order then specials."""
+
+    def sort_key(item: tuple[str, int]) -> tuple[int, tuple[int, ...]]:
+        version = _version_tuple(item[0])
+        return (0, version) if version is not None else (1, ())
+
+    bar_max = max(counts.values(), default=0)
+    rows: list[str] = []
+    for profile, count in sorted(counts.items(), key=sort_key):
+        pct = 100 * count / total if total else 0.0
+        bar = "█" * round(30 * count / bar_max) if bar_max else ""
+        rows.append(f"| {profile} | {count:,} | {pct:.1f}% | {bar} |")
+    return rows
+
+
+def _render_profile_shift_page(result: _ProfileShiftResult) -> str:
+    """Render the upgrade-profile-shift stats markdown page (deterministic)."""
+    total = result.n_tools
+
+    def pct(n: int) -> str:
+        return f"{100 * n / total:.1f}%" if total else "0.0%"
+
+    lines: list[str] = [
+        "# Upgrade profile-shift statistics",
+        "",
+        "Where `galaxy-tool-refactor upgrade` moves a tool's profile: the profile it",
+        "**declares** (no-profile defaulted to Galaxy's `16.01` runtime default — the",
+        '"as reported, or as defaulted" baseline) vs the profile it **reaches** after',
+        "the `UpgradeToLatest` pipeline runs. This differs from",
+        "`combined_corpus_stats.md`'s *newest valid profile distribution* (the",
+        "pre-upgrade validity ceiling): here the structural upgrade codemods",
+        "(GTX007-012) actually run, so a tool stuck below its ceiling by a",
+        "restrict-transition climbs. `UpgradeToLatest`-only (no `FixTypos`); the",
+        "runtime-gated fixes (GTX014/015) don't change `profile=`. See",
+        "`profile_upgrades.md` and codemod `docs/decisions.md` §11-14.",
+        "",
+        "Regenerate with (needs the corpus, so not run in CI):",
+        "",
+        "```sh",
+        "uv run python -m scripts.measure upgrade-profile-shift",
+        "```",
+        "",
+        f"Unique `<tool>` files (sha256-deduped): **{result.n_tools:,}**. "
+        f"Latest vendored profile: `{result.latest}`.",
+        "",
+        "## Shift summary",
+        "",
+        "| Measure | Tools | Share |",
+        "|---|--:|--:|",
+        f"| At latest **before** upgrade (declared = `{result.latest}`) "
+        f"| {result.n_at_latest_before:,} | {pct(result.n_at_latest_before)} |",
+        f"| At latest **after** upgrade | {result.n_at_latest_after:,} "
+        f"| {pct(result.n_at_latest_after)} |",
+        f"| Advanced (reached a newer profile) | {result.n_advanced:,} "
+        f"| {pct(result.n_advanced)} |",
+        f"| Unchanged (same profile) | {result.n_unchanged:,} "
+        f"| {pct(result.n_unchanged)} |",
+        f"| Macro-token / unplaceable baseline | {result.n_unplaceable_baseline:,} "
+        f"| {pct(result.n_unplaceable_baseline)} |",
+        f"| Validates nowhere after upgrade | {result.n_after_validates_nowhere:,} "
+        f"| {pct(result.n_after_validates_nowhere)} |",
+        "",
+        "## Declared (defaulted) profile distribution — before",
+        "",
+        "| Profile | Tools | % | Histogram |",
+        "|---|--:|--:|---|",
+        *_profile_dist_rows(result.before, total),
+        "",
+        "## Reached profile distribution — after `upgrade`",
+        "",
+        "| Profile | Tools | % | Histogram |",
+        "|---|--:|--:|---|",
+        *_profile_dist_rows(result.after, total),
+        "",
+        "`(none)` = validates at no profile after the run. Because this is "
+        "`UpgradeToLatest`-only, these are the tools that need a `FixTypos` repair "
+        "first (the full `galaxy-tool-refactor upgrade` runs `FixTypos` before "
+        "`UpgradeToLatest`, so it would carry many of them further). A sub-latest "
+        "literal profile (e.g. `24.1`) is a genuine sticking point — no registered "
+        "upgrade codemod advances it. The macro-token baselines counted above are "
+        "not lost: they appear here at the profile they actually reached.",
+    ]
+    return "\n".join(lines)
+
+
+def _report_upgrade_profile_shift(result: _ProfileShiftResult) -> None:
+    total = result.n_tools
+    print("\n=== upgrade-profile-shift ===")
+    print(f"Unique tools (sha256 dedup): {total}; latest = {result.latest}")
+    if total:
+        print(
+            f"  at latest before: {result.n_at_latest_before}"
+            f" ({100 * result.n_at_latest_before / total:.1f}%)"
+            f"  ->  after: {result.n_at_latest_after}"
+            f" ({100 * result.n_at_latest_after / total:.1f}%)"
+        )
+        print(
+            f"  advanced: {result.n_advanced}; unchanged: {result.n_unchanged};"
+            f" unplaceable baseline: {result.n_unplaceable_baseline};"
+            f" nowhere after: {result.n_after_validates_nowhere}"
+        )
+
+
+def _run_upgrade_profile_shift(args: argparse.Namespace) -> None:
+    result = _measure_upgrade_profile_shift(corpus_root=args.corpus_root)
+    _report_upgrade_profile_shift(result)
+    if not args.all:
+        out_path = _repo_root() / "docs" / "upgrade_profile_shift_stats.md"
+        out_path.write_text(_render_profile_shift_page(result) + "\n", encoding="utf-8")
+        print(f"\nwrote {_display_path(out_path)}")
+
+
 # --- measurement: element-cardinality -------------------------------------------
 #
 # How many <test>/<requirement>/<conditional>/<collection>/<output_collection>
@@ -3207,6 +3435,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "upgrade-headroom": _run_upgrade_headroom,
     "semantic-upgrade-boundaries": _run_semantic_upgrade_boundaries,
     "upgrade-codes-applicability": _run_upgrade_codes_applicability,
+    "upgrade-profile-shift": _run_upgrade_profile_shift,
     "element-cardinality": _run_element_cardinality,
     "command-language": _run_command_language,
     "output-format-input": _run_output_format_input,
@@ -3304,7 +3533,8 @@ def _build_parser() -> argparse.ArgumentParser:
             "Directory holding the swept corpus; used by the corpus-walking "
             "measurements (lenient-text-fields, param-types, macro-usage, "
             "collection-type-normalization, element-cardinality, "
-            "command-language, upgrade-codes-applicability). Default: %(default)s."
+            "command-language, upgrade-codes-applicability, "
+            "upgrade-profile-shift). Default: %(default)s."
         ),
     )
     parser.add_argument(
