@@ -13,6 +13,7 @@ from scripts.measure import (
     _COLLECTION_TYPE_MEMBERS,
     _MATCH_KEYS,
     _PROFILE_NONE,
+    _baseline_bucket,
     _classify_command_language,
     _collection_type_patterns,
     _count_unquoted_vars,
@@ -34,7 +35,9 @@ from scripts.measure import (
     _ParamTypesResult,
     _render_macro_stats_page,
     _render_profile_ownership_page,
+    _render_profile_shift_page,
     _tally_applicability,
+    _tally_profile_shift,
     _version_tuple,
 )
 
@@ -373,6 +376,46 @@ def test_applicability_tally_narrows_crossed_to_tripped() -> None:
     assert result.per_code_applicable["20_09_consider_set_e"] == 1
     # applicable is always a subset of crossed
     assert result.total_applicable_events <= result.total_crossed_events
+
+
+def test_baseline_bucket_defaults_and_buckets() -> None:
+    assert _baseline_bucket(None) == "16.01"  # no profile -> Galaxy default
+    assert _baseline_bucket("21.05") == "21.05"  # literal -> itself
+    assert _baseline_bucket("@PROFILE@") == "(macro/unparseable)"
+
+
+def test_profile_shift_tally_summarises_advance_and_distributions() -> None:
+    samples = [
+        ("16.01", "26.1"),  # no-profile default, advanced to latest
+        ("24.1", "26.1"),  # advanced (a stuck tool climbed past its ceiling)
+        ("26.1", "26.1"),  # already at latest, unchanged
+        ("(macro/unparseable)", "26.1"),  # token baseline -> still reaches latest
+        ("20.05", "(none)"),  # broke / validates nowhere after upgrade
+    ]
+    result = _tally_profile_shift(samples=samples, latest="26.1")
+    assert result.n_tools == 5
+    assert result.n_at_latest_before == 1  # only the 26.1 sample
+    assert result.n_at_latest_after == 4  # all but the "(none)" one
+    assert result.n_advanced == 2  # 16.01->26.1 and 24.1->26.1
+    assert result.n_unchanged == 1  # 26.1->26.1
+    assert result.n_unplaceable_baseline == 1  # the macro-token baseline
+    assert result.n_after_validates_nowhere == 1  # the 20.05 -> (none)
+    assert result.before["16.01"] == 1
+    assert result.after["26.1"] == 4
+
+
+def test_render_profile_shift_page_smoke() -> None:
+    result = _tally_profile_shift(
+        samples=[("16.01", "26.1"), ("24.1", "26.1"), ("20.05", "(none)")],
+        latest="26.1",
+    )
+    page = _render_profile_shift_page(result)
+    assert "# Upgrade profile-shift statistics" in page
+    assert "Declared (defaulted) profile distribution — before" in page
+    assert "Reached profile distribution — after `upgrade`" in page
+    assert "| 16.01 | 1 |" in page  # a before-row
+    assert "| 26.1 | 2 |" in page  # an after-row
+    assert "| (none) | 1 |" in page  # validates-nowhere bucket sorts last
 
 
 def test_version_tuple_equates_zero_padded_versions() -> None:
