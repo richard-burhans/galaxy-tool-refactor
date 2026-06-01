@@ -26,6 +26,7 @@ from scripts.measure import (
     _measure_macro_profile_ownership,
     _measure_macro_profile_tokens,
     _measure_macro_topology,
+    _measure_output_format_input,
     _measure_param_types,
     _measure_semantic_upgrade_boundaries,
     _measure_upgrade_headroom,
@@ -281,6 +282,44 @@ def _semantic_rows() -> list[dict[str, object]]:
         _hrow("g", "17.09", "17.05"),  # 17.09 only (cleanly pinnable)
         _hrow("h", "26.1", "(expansion failed)"),  # unplaceable -> excluded
     ]
+
+
+def test_output_format_input_buckets(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "r"
+    repo.mkdir(parents=True)
+    # auto-fixable: format="input" output + single top-level data input
+    (repo / "auto.xml").write_text(
+        '<tool><inputs><param type="data" name="i"/></inputs>'
+        '<outputs><data name="o" format="input"/></outputs></tool>',
+        encoding="utf-8",
+    )
+    # needs-intent: two data inputs
+    (repo / "multi.xml").write_text(
+        '<tool><inputs><param type="data" name="i"/><param type="data" name="j"/>'
+        '</inputs><outputs><data name="o" format="input"/></outputs></tool>',
+        encoding="utf-8",
+    )
+    # needs qualified ref: single data input nested in a conditional
+    (repo / "nested.xml").write_text(
+        '<tool><inputs><conditional name="c">'
+        '<param type="data" name="i"/></conditional></inputs>'
+        '<outputs><data name="o" format="input"/></outputs></tool>',
+        encoding="utf-8",
+    )
+    # not counted: no format="input"
+    (repo / "clean.xml").write_text(
+        '<tool><inputs><param type="data" name="i"/></inputs>'
+        '<outputs><data name="o" format="txt"/></outputs></tool>',
+        encoding="utf-8",
+    )
+    result = _measure_output_format_input(corpus_root=tmp_path)
+    assert result.n_tools_parsed == 4
+    assert result.n_tools_with_format_input == 3
+    assert result.n_auto_fixable == 1  # auto.xml only
+    buckets = result.by_data_input_bucket
+    assert buckets["1 top-level (auto-fixable)"] == 1
+    assert buckets["2+ data inputs"] == 1
+    assert buckets["1 nested (needs qualified ref)"] == 1
 
 
 def test_semantic_boundaries_population_split() -> None:

@@ -25,9 +25,15 @@ from galaxy_tool_xml_codemod.codemods._runtime_gated import RuntimeGatedFix
 from galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace import (
     FixFromWorkDirWhitespace,
 )
+from galaxy_tool_xml_codemod.codemods.fix_output_format_input import (
+    FixOutputFormatInput,
+)
 
 # Every runtime-gated fix, in application order.
-RUNTIME_GATED_FIXES: tuple[type[RuntimeGatedFix], ...] = (FixFromWorkDirWhitespace,)
+RUNTIME_GATED_FIXES: tuple[type[RuntimeGatedFix], ...] = (
+    FixOutputFormatInput,
+    FixFromWorkDirWhitespace,
+)
 
 
 def runtime_fixes_for(profile: str, /) -> tuple[type[RuntimeGatedFix], ...]:

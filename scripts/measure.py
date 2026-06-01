@@ -2911,6 +2911,94 @@ def _run_command_language(args: argparse.Namespace) -> None:
     _report_command_language(_measure_command_language(corpus_root=args.corpus_root))
 
 
+# --- measurement: output-format-input -------------------------------------------
+#
+# Sizes a candidate `format="input"` -> `format_source="X"` runtime-gated fix
+# (Galaxy's 16_04_fix_output_format must-fix code; behavior-preserving-upgrade.md).
+# The fix is mechanical only when a tool has exactly one data input addressable by
+# an unqualified name (a top-level `<param type="data">`); otherwise choosing the
+# source input is author intent. Counts tools with an output `<data format="input">`
+# and splits them by data-input cardinality to judge whether the codemod earns its
+# keep. (Macro walk is shallow — same caveat as param-types.)
+
+
+@dataclass
+class _OutputFormatInputResult:
+    """``format="input"`` output population, split by auto-fixability."""
+
+    n_tools_parsed: int
+    n_tools_with_format_input: int
+    n_format_input_elements: int
+    by_data_input_bucket: dict[str, int]
+    n_auto_fixable: int
+
+
+def _measure_output_format_input(*, corpus_root: Path) -> _OutputFormatInputResult:
+    """Count output ``<data format="input">`` and the single-top-level-input subset."""
+    n_tools = n_with = n_elements = n_auto = 0
+    buckets: Counter[str] = Counter()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        n_tools += 1
+        outputs = root.find("outputs")
+        if outputs is None:
+            continue
+        format_input = [d for d in outputs.iter("data") if d.get("format") == "input"]
+        if not format_input:
+            continue
+        n_with += 1
+        n_elements += len(format_input)
+        inputs = root.find("inputs")
+        data_params = (
+            [p for p in inputs.iter("param") if p.get("type") == "data"]
+            if inputs is not None
+            else []
+        )
+        if len(data_params) == 0:
+            buckets["0 data inputs"] += 1
+        elif len(data_params) == 1:
+            parent = data_params[0].getparent()
+            if parent is not None and parent.tag == "inputs":
+                buckets["1 top-level (auto-fixable)"] += 1
+                n_auto += 1
+            else:
+                buckets["1 nested (needs qualified ref)"] += 1
+        else:
+            buckets["2+ data inputs"] += 1
+    return _OutputFormatInputResult(
+        n_tools_parsed=n_tools,
+        n_tools_with_format_input=n_with,
+        n_format_input_elements=n_elements,
+        by_data_input_bucket=dict(buckets),
+        n_auto_fixable=n_auto,
+    )
+
+
+def _report_output_format_input(measurement: _OutputFormatInputResult) -> None:
+    print("\n=== output-format-input ===")
+    print(f"Tools parsed: {measurement.n_tools_parsed}")
+    print(
+        f"Tools with an output <data format=\"input\">: "
+        f"{measurement.n_tools_with_format_input}"
+        f"  ({measurement.n_format_input_elements} such elements)"
+    )
+    print("\nBy data-input cardinality (of those tools):")
+    for label, count in sorted(measurement.by_data_input_bucket.items()):
+        print(f"  {count:5d}  {label}")
+    print(
+        f"\nAuto-fixable (single top-level data input -> unqualified format_source): "
+        f"{measurement.n_auto_fixable}"
+    )
+
+
+def _run_output_format_input(args: argparse.Namespace) -> None:
+    _report_output_format_input(
+        _measure_output_format_input(corpus_root=args.corpus_root)
+    )
+
+
 # --- passthrough: corpus-check --------------------------------------------------
 #
 # corpus_check.py is the canonical (and slow) sweep step. Exposing it here as a
@@ -2958,6 +3046,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "semantic-upgrade-boundaries": _run_semantic_upgrade_boundaries,
     "element-cardinality": _run_element_cardinality,
     "command-language": _run_command_language,
+    "output-format-input": _run_output_format_input,
 }
 
 _PASSTHROUGH: dict[str, Callable[[argparse.Namespace, list[str]], int]] = {
