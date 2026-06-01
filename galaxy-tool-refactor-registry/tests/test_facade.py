@@ -173,6 +173,20 @@ def test_upgrade_no_profile_warns_from_1601_baseline() -> None:
     assert "16.04" in semantic[0] and "20.09" in semantic[0]
 
 
+def test_upgrade_applies_runtime_gated_from_work_dir_fix() -> None:
+    """Reaching >=21.09 strips a whitespace from_work_dir (a runtime-gated fix)."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    tool = (
+        b'<tool id="m" name="M" version="1.0.0" profile="24.0">'
+        b"<command><![CDATA[echo x]]></command><inputs/>"
+        b'<outputs><data name="o" from_work_dir=" out.txt "/></outputs></tool>'
+    )
+    result = facade.upgrade(tool, codes=resolve_upgrade_codes())
+    assert b'from_work_dir="out.txt"' in result.formatted
+    assert b'from_work_dir=" out.txt "' not in result.formatted
+
+
 def test_upgrade_already_latest_has_no_semantic_warning() -> None:
     """A tool already declaring the latest profile isn't bumped, so no warning."""
     from galaxy_tool_xml.profiles import latest_profile
