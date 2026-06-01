@@ -700,3 +700,63 @@ galaxy-tool-refactor-cli/tests/test_cli.py::test_upgrade_rewrites_inline_profile
   import-graph + shared-skip policy this single-file codemod intentionally
   doesn't carry (see the macro-aware plan; §20's defer-until-consumer rule).
   Idempotence and the imported/inline split are the regression guards.
+
+## 22. Soundness of validity-as-oracle: structural upgrade, not behaviour preservation
+
+**Date:** 2026-06-01. Reproduced-by: `uv run python -m scripts.corpus_check
+codemod galaxy_tool_xml_codemod.upgrades:UpgradeToLatest --source combined`
+(2026-06-01: 8,607 eligible, 0 non-idempotent / post-validate-failed / crashed,
+8,566 reach latest, residual 24.1 (39) + 21.05/21.09 (1 each, tool bugs)). The
+per-transition delta map is `docs/profile_upgrades.md` (the profile-upgrade
+ledger). This entry records *why the method is sound and where its boundary lies*
+— a question raised about the whole `UpdateProfile`/`UpgradeToLatest` design.
+
+- **The claim the design rests on.** `UpdateProfile` declares
+  `newest_valid_profile`, and an `upgrade_vN` is written **only** for a version
+  whose next-step XSD delta *blocks validation* (§14). The implicit premise: *a
+  tool that validates under profile X needs no XML change to be a valid profile-X
+  tool — just declare `profile="X"`.*
+- **Sound for STRUCTURAL acceptability (this is what we claim).** If the XML
+  satisfies X's XSD, then by definition no change is needed to satisfy X's XSD —
+  tautological. The corpus sweep backs the operational form: across 8,607 tools
+  the pipeline is idempotent, never produces a tool that fails post-validation,
+  and every transition *except* the four breaking ones (19.01→19.05, 24.0→24.1,
+  24.1→24.2, 25.1→26.0) carries every previously-valid tool forward untouched.
+  That is the empirical proof that **additive** schema steps (the large majority —
+  see the ledger) need no codemod: they remove and restrict nothing, so validity
+  at the newer profile holds for free.
+- **NOT sound for BEHAVIOURAL equivalence (the boundary).** Galaxy's `profile` is
+  "a runtime-compatibility contract, not just a schema selector" (§13). Some
+  profile bumps change *runtime defaults the XSD does not encode* — error/exit-code
+  detection, `set -e` / Cheetah strictness, output-metadata inference, command-line
+  quoting. A tool can validate under both the old and new profile and still
+  *behave differently* once `profile=` is bumped. XSD-validity says nothing about
+  whether behaviour was preserved.
+- **Decision / scope.** `UpdateProfile` + `UpgradeToLatest` are a **structural
+  revalidation + profile-declaration** tool: they bring `profile=` to the newest
+  profile a tool *structurally satisfies* and apply only the XSD-forced structural
+  migrations. They are **not** a behaviour-preserving upgrader, and they do not
+  attempt to pin pre-bump runtime defaults. This is consistent with upgrade being
+  **opt-in and semantic** (§16) — the user opts into the semantic act and is
+  expected to review runtime behaviour. Semantic/runtime profile changes are
+  **out of scope** for automatic upgrade; they are catalogued in the ledger's
+  Semantic column so a future, evidence-driven decision can revisit them.
+- **Why record it.** The structural-vs-behavioural distinction was load-bearing
+  but unwritten; the four `upgrade_vN` codemods are each tied to a concrete XSD
+  delta precisely because validity is the right oracle *for structure*. Writing
+  the boundary down keeps a future contributor from mistaking "reaches latest,
+  validates clean" for "behaves identically to before the bump."
+- **Alternative (rejected for now).** Aspire to behaviour-preserving upgrades:
+  enumerate every profile's runtime-default change and synthesise the
+  behaviour-pinning attributes on bump. Much larger, needs a per-profile semantic
+  catalogue (the ledger's Semantic column is the start), and risks over-editing
+  well-authored tools. Deferred; revisit if there is demand and the semantic
+  catalogue is complete enough to act on safely.
+- **Reproduce / refute.** The full method (three independent evidence
+  sources — XSD diff, combined-corpus sweep, Galaxy profile docs — with the exact
+  commands and the refutation paths for each) is documented in
+  `docs/profile_upgrades.md` § "Methodology — how these conclusions were reached
+  (and how to refute them)". In short: re-run the sweep — a non-idempotent or
+  post-validate-failed result, or a new sticking point at a step we call additive,
+  refutes the structural-soundness claim; a profile-gated runtime change missing
+  from the ledger's Semantic column extends the boundary, not the soundness.
