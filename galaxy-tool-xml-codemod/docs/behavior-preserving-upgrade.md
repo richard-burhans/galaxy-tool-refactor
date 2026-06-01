@@ -113,11 +113,13 @@ Pivotal architectural finding: **none of Galaxy's four `must_fix` gates are
 XSD-enforced** — they are runtime/semantic. Our existing `upgrade_vN` codemods are
 driven by `newest_valid_profile` (a change is needed only when the next profile's
 XSD blocks validation), so these gates **cannot ride the `UpgradeToLatest` loop**;
-automating them needs a **detect-driven** mechanism (the Phase-3 design decision).
+automating them needs a **detect-driven** mechanism. That mechanism now exists — the
+**`RuntimeGatedFix` family** the `upgrade` path applies once a tool reaches a fix's
+introduction profile (codemod `decisions.md` §24).
 
 | Galaxy `must_fix` code | Profile | Auto? | Note |
 |---|---|---|---|
-| `21_09_fix_from_work_dir_whitespace` | 21.09 | **AUTO** | deterministic `value.strip()` on `<data from_work_dir>` — the one clean new-codemod win (measure frequency first) |
+| `21_09_fix_from_work_dir_whitespace` | 21.09 | **AUTO — shipped** | `FixFromWorkDirWhitespace` (GTX014): deterministic `value.strip()` on `<data from_work_dir>`, applied as a runtime-gated fix during `upgrade` |
 | `16_04_fix_output_format` | 16.04 | AUTO-with-heuristic | `format="input"` → `format_source="X"` only when the tool has exactly one data input; else NEEDS-INTENT |
 | `16_04_fix_interpreter` | 16.04 | NEEDS-INTENT | rewriting `interpreter=` to a full `$__tool_directory__` call needs the script name/position — better as an advisory `check` |
 | `24_2_fix_test_case_validation` | 24.2 | NEEDS-INTENT | a bundle of parameter-model fixes (unknown-param, select-by-value, column-int, qualify names); decompose later |

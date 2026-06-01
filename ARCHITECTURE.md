@@ -270,9 +270,10 @@ given. This is what lets both the CLI and a future MCP server be thin adapters.
   — `registry.py` — the cached `code -> RuleHandle` index. `registry()` is the
   **selectable** set (canonical codemods + cosmetic fmt + advisory checks);
   `all_handles()` additionally includes the **upgrade-only** codemods
-  (GTX007–GTX012), which are internal to `UpgradeToLatest` and not independently
-  selectable. `_index()` asserts the GTX/IUC namespace is **collision-free** — a
-  reused code fails loudly here.
+  (GTX007–GTX012 — internal to `UpgradeToLatest` — plus the runtime-gated GTX014,
+  applied by the facade's `upgrade`), which are not independently selectable.
+  `_index()` asserts the GTX/IUC namespace is **collision-free** — a reused code
+  fails loudly here.
 - **Presets** — `presets.py` — named, developer-defined rule subsets, derived from
   the family registries (never a hand-maintained code list that can drift):
   `cosmetic` (fmt rules only), `iuc` (canonical codemods + cosmetic; the
@@ -483,5 +484,6 @@ Each abstraction → its file → the decision record that justifies it.
 | GTX008–011 | `Upgrade19_01` … `Upgrade25_1` | `galaxy-tool-xml-codemod/.../upgrade_*.py` | codemod (upgrade-only) |
 | GTX012 | `UpgradeToLatest` | `galaxy-tool-xml-codemod/.../upgrades.py` | codemod (upgrade-only orchestrator) |
 | GTX013 | `ReorderToolChildren` | `galaxy-tool-xml-codemod/.../reorder_tool_children.py` | codemod (canonical) |
+| GTX014 | `FixFromWorkDirWhitespace` | `galaxy-tool-xml-codemod/.../fix_from_work_dir_whitespace.py` | codemod (upgrade-only, runtime-gated) |
 | IUC001–010 | `TestsPresent` … `HelpCdata` | `galaxy-tool-xml-check/.../checks.py` | check (advisory) |
 | IUC011–012 | `SingleQuotedCheetah`, `CommandAndJoining` | `galaxy-tool-xml-check/.../checks.py` | check (advisory, reserved stubs) |

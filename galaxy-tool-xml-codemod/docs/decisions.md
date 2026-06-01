@@ -811,3 +811,49 @@ via `uv run python -m scripts.measure semantic-upgrade-boundaries`.
 - **Keep in sync.** `PROFILE_UPGRADE_CODES`, the ledger's Semantic column, and
   `docs/behavior-preserving-upgrade.md` are views of one fact set; re-vendor from
   `upgrade_codes.json` together (`test_profile_semantics.py` pins the shape).
+
+## 24. Runtime-gated fixes: a detect-driven family the `upgrade` path applies
+
+**Date:** 2026-06-01. Reproduced-by: `uv run --package galaxy-tool-xml-codemod
+pytest galaxy-tool-xml-codemod/tests/test_fix_from_work_dir_whitespace.py
+galaxy-tool-xml-codemod/tests/test_runtime_fixes.py`; corpus sizing via `uv run
+python -m scripts.corpus_check codemod
+galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace:FixFromWorkDirWhitespace`.
+
+- **The gap.** Some Galaxy `must_fix` upgrade codes (§23) are **runtime** behaviours
+  the XSD does **not** enforce — e.g. `21_09_fix_from_work_dir_whitespace`: from
+  21.09 Galaxy quotes `from_work_dir`, so surrounding whitespace becomes literal,
+  but a whitespace `from_work_dir` is XSD-valid at every profile. `UpgradeToLatest`
+  is **validity-gated** (it advances only when `newest_valid_profile` improves), so
+  applying such a fix changes nothing it can detect — it can't ride that loop.
+- **What we chose.** A new **`RuntimeGatedFix`** family (`codemods/_runtime_gated.py`):
+  an ordinary detect-primitive `CodemodCommand` plus an `introduced_profile`
+  ClassVar. `runtime_fixes.py` holds the `RUNTIME_GATED_FIXES` registry and
+  `runtime_fixes_for(profile)`. The **registry facade's `upgrade`** applies each fix
+  whose `introduced_profile` is at or below the profile the tool actually
+  **reached** — after `UpgradeToLatest`, before the cosmetic/reorder pass.
+- **Profile-conditioned (not unconditional).** A tool that stalls below a fix's
+  introduction profile is left untouched — Galaxy ran it under the old behaviour
+  (pre-21.09 Galaxy stripped `from_work_dir` itself), so the fix would be a no-op
+  there anyway, and conditioning keeps the family correct for fixes that are *not*
+  backward-no-ops.
+- **Upgrade-only.** Runtime-gated fixes are in `coded_codemods()` (so the registry
+  enumerates them and the GTX namespace stays collision-guarded) but **not** in
+  `CANONICAL_CODEMODS` — they never run under `format` / the `iuc` preset and never
+  change `profile=`. They surface only via `list_rules(include_upgrade=True)`.
+  (Forks settled with the maintainer: upgrade-only path; a new family rather than
+  extending `UpgradeToLatest`; first cut = the one pure-AUTO fix.)
+- **First fix: `FixFromWorkDirWhitespace` (GTX014, 21.09).** A deterministic
+  `value.strip()` on every `<data from_work_dir>` — semantics-preserving (whitespace
+  was never significant pre-21.09 and is a bug at 21.09+). Plain detect-primitive
+  (`detect_Data`), so it inherits detect-parity, idempotence, and the corpus sweep.
+- **Deferred (still warn-only, per §23 + `behavior-preserving-upgrade.md`).** The
+  other Galaxy `must_fix` runtime gates need author intent or a heuristic:
+  `16_04_fix_output_format` (`format="input"` → `format_source="X"`) is mechanical
+  only for single-data-input tools; `16_04_fix_interpreter` and
+  `24_2_fix_test_case_validation` need author judgement. They stay advisory until a
+  guarded codemod is justified.
+- **Corpus sizing (2026-06-01, `--source combined`).** Of 8,607 eligible tools,
+  `FixFromWorkDirWhitespace` modifies **4**; 8,607 idempotent, 0 non-idempotent /
+  post-validate-failed / crashed (no regressions retained). Small but real, and the
+  fix is a clean deterministic strip.

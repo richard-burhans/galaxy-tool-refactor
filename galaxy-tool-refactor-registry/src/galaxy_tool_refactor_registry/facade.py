@@ -24,6 +24,7 @@ from galaxy_tool_xml_check.detect import sort_violations
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.module import Module
 from galaxy_tool_xml_codemod.profile_semantics import upgrade_codes_crossed
+from galaxy_tool_xml_codemod.runtime_fixes import runtime_fixes_for
 from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 from galaxy_tool_xml_fmt.detect import detect_tool_document_subset
 
@@ -183,9 +184,11 @@ def upgrade(
     """Profile-upgrade *source*, plus the fixable rules in *codes*, then format.
 
     ``UpgradeToLatest`` always runs (it is the command's purpose); ``FixTypos``
-    runs first when its code is in *codes* (the repair precondition). Any other
-    selected codemods run after the upgrade (canonical order), then the selected
-    cosmetic fmt rules. Advisory rules in *codes* are reported as notes.
+    runs first when its code is in *codes* (the repair precondition). Runtime-gated
+    fixes for the reached profile then apply (e.g. the 21.09 ``from_work_dir``
+    strip — a correctness fix the XSD can't enforce). Any other selected codemods
+    run after (canonical order), then the selected cosmetic fmt rules. Advisory
+    rules in *codes* are reported as notes.
     """
     document = _to_document(source)
     # Capture the runtime baseline BEFORE any codemod rewrites ``profile=``.
@@ -196,6 +199,16 @@ def upgrade(
         FixTypos().apply(module)
     upgrader = UpgradeToLatest()
     upgrader.apply(module)
+
+    # Runtime-gated fixes correct profile behaviours the XSD does not enforce, so
+    # they ride neither the validity loop nor the selection. Apply each fix whose
+    # introduction profile the tool actually reached; one that stalled below it is
+    # left alone (Galaxy ran it under the old behaviour). Upgrade-only — never in
+    # `format`/canonical.
+    reached = newest_valid_profile(document)
+    if reached is not None:
+        for fix in runtime_fixes_for(reached):
+            fix().apply(module)
 
     # The remaining fixable rules (any selected reorderers + cosmetic fmt) run
     # through the shared apply pipeline; FixTypos already ran as the repair
