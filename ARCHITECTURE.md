@@ -185,7 +185,8 @@ and the codemod tier never serialises (the facade routes output through fmt).
 
 Opinionated cosmetic formatting like `black`: one canonical style, no knobs. The
 opinion lives here so lower tiers can ignore trivia. **This is the only tier that
-writes XML to disk.**
+serialises canonical output XML.** (Tier 1 does an internal serialise-then-reparse
+and a throwaway temp-dir round-trip for macro expansion — neither is output.)
 
 - **`Rule`** — `rules.py` — stateless ABC carrying `meta: ClassVar[RuleMeta]`; its
   single method `edits(tree) -> Iterable[Edit]` *describes* mutations (it yields

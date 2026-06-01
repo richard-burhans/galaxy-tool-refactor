@@ -11,8 +11,9 @@ entry cites a date and the rationale for the call.
 ### Decision
 
 Internally, the formatter is organised as a registry of **rules**. Each
-rule is a stateless `ABC` subclass; rules are registered at module-import
-time via a `@register` decorator and listed by `all_rules()`. Each rule
+rule is a stateless `ABC` subclass; the active rules are enumerated by
+`all_rules()` — a `@cache`d, `meta.order`-sorted tuple (no import-time
+registration). Each rule
 implements `edits(tree) -> Iterable[Edit]` (named for what it does — it
 *describes* edits; the separate `apply_edits()` mutates), where `Edit` is a
 discriminated union of frozen dataclasses describing canonical-form

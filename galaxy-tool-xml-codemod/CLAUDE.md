@@ -13,7 +13,7 @@ and the shared tier-0.5 rules metadata):
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | shared `RuleMeta` + `Violation` |
 | 1 | **parsing & validation** | `galaxy-tool-xml` | parsing, profile-aware XSD validation, typed views |
 | 2 | **structure** | `galaxy-tool-xml-codemod` *(this repo)* | structural mutations (attribute order, element shape) |
-| 3 | **formatting** | `galaxy-tool-xml-fmt` | whitespace / indentation / shorthand; the only tier that writes XML to disk |
+| 3 | **formatting** | `galaxy-tool-xml-fmt` | whitespace / indentation / shorthand; the only tier that serialises canonical output XML |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only IUC best-practice checks |
 | 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | unified rule registry + presets; library-first facade |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | composes the tiers via the facade (`format`/`upgrade`/`check`) |
@@ -27,7 +27,7 @@ with typed mutation primitives (``set_attribute``, ``delete_attribute``,
 ``rename_attribute``, ``rename_tag``, ``reorder_attributes``,
 ``reorder_children``, ``remove``, ``add_child``, ``attribute_names``,
 ``set_text`` — the token-aware ``@PROFILE@`` rewrite, §21), a
-``Module`` wrapper, a ``parse_module`` entry
+``Module`` wrapper (over a tier-1 ``ToolDocument``), a ``parse_module`` entry
 point (plus ``MacroModule`` / ``parse_macro_module`` — the macro-file
 counterparts wrapping a tier-1 ``MacroDocument``; ``Cursor`` is generic, so its
 mutators work on a ``<macros>`` tree unchanged. The ``CodemodCommand`` base
