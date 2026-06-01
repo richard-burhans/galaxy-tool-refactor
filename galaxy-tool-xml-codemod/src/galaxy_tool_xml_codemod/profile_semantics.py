@@ -20,17 +20,43 @@ deliberate choice (see ``../../docs/profile_upgrades.md``); add them only if Gal
 adds upgrade codes for them.
 
 ``upgrade_codes_crossed`` answers "which of these does a baseline→target bump
-cross", so the ``upgrade`` path can warn (it cannot auto-preserve them). It is a
-**range-based** signal (every code whose profile lies in the bumped range), unlike
-Galaxy's advisor which *detects* per-tool whether each code actually applies —
-porting that detection is future work.
+*cross*" (range-based: every code whose profile lies in the bumped range).
+``upgrade_codes_applicable`` narrows that to the codes that actually *apply* to a
+given tool, by running a per-code detector — a port of Galaxy's own advisor
+(``lib/galaxy/tool_util/upgrade/__init__.py`` @ ``b45c58a2``). The ``upgrade``
+path warns on the *applicable* set, so a tool that trips none stays quiet.
+
+**We port Galaxy's documented intent, not its literal b45c58a2 code**, which has
+several transcription bugs that make some predicates non-functional upstream
+(recorded here so the deviation is deliberate, see ``docs/decisions.md`` §23):
+
+- ``17_09``: Galaxy queries an attribute literally named ```provided_metadata_style```
+  (backticks included) — never matches; we use the bare attribute name.
+- ``21_09``: Galaxy calls ``advice_collection.add("")`` (empty code) instead of
+  ``21_09_fix_from_work_dir_whitespace``; we add the intended code.
+- ``23_0``: Galaxy scans ``.//input[@type='text']`` via a ``_find_all`` helper that
+  ignores its argument and always returns ``.//data[@from_work_dir]``; we scan the
+  real text parameters (``<param type="text">``) for a missing ``optional``.
+
+Two codes can't be a literal mirror regardless: ``24_2_fix_test_case_validation``
+needs Galaxy's parameter-model test-case validator (we have no port), so we
+**approximate** with the necessary condition "the tool ships a ``<test>``" (no
+tests ⇒ the code cannot trip); and ``16_04_consider_implicit_extra_file_collection``
+Galaxy emits **unconditionally**, so its detector is always-true.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from packaging.version import InvalidVersion, Version
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from galaxy_tool_xml.document import ToolDocument
+    from lxml import etree
 
 
 @dataclass(frozen=True)
@@ -319,4 +345,157 @@ def upgrade_codes_crossed(
         change
         for change in PROFILE_UPGRADE_CODES
         if low < Version(change.profile) <= high
+    ]
+
+
+# --- per-tool detection (a port of Galaxy's upgrade advisor) --------------------
+#
+# Each predicate is a read-only LBYL query over the tool's lxml root, mirroring
+# the corresponding `ProfileMigration.advise` branch in Galaxy's
+# `lib/galaxy/tool_util/upgrade/__init__.py` @ b45c58a2. The deviations from that
+# commit's literal code (its transcription bugs, and the two non-mirrorable codes)
+# are documented in the module docstring.
+
+
+def _command(root: etree._Element, /) -> etree._Element | None:
+    """The tool's top-level ``<command>`` (Galaxy's ``_command_el``)."""
+    return root.find("command")
+
+
+def _detects_interpreter(root: etree._Element, /) -> bool:
+    command = _command(root)
+    return command is not None and bool(command.get("interpreter"))
+
+
+def _detects_output_format_input(root: etree._Element, /) -> bool:
+    return root.find(".//data[@format='input']") is not None
+
+
+def _detects_no_error_handling(root: etree._Element, /) -> bool:
+    return (
+        root.find(".//stdio") is None
+        and root.find(".//command[@detect_errors]") is None
+    )
+
+
+def _detects_provided_metadata_style(root: etree._Element, /) -> bool:
+    outputs = root.find("outputs")
+    return outputs is not None and outputs.get("provided_metadata_style") is not None
+
+
+def _detects_structured_like(root: etree._Element, /) -> bool:
+    return root.find(".//outputs/collection[@structured_like]") is not None
+
+
+def _detects_no_shared_home(root: etree._Element, /) -> bool:
+    command = _command(root)
+    return command is not None and command.get("use_shared_home") is None
+
+
+def _detects_inputs_config(root: etree._Element, /) -> bool:
+    return root.find(".//configfiles/inputs") is not None
+
+
+def _detects_output_collection_order(root: etree._Element, /) -> bool:
+    # Galaxy flags a test ``<output_collection>`` whose parsed form carries
+    # ``element_tests`` — i.e. it asserts on individual elements. In the XML that
+    # is an ``<output_collection>`` (only ever a test construct) with an
+    # ``<element>`` descendant.
+    return any(
+        output_collection.find(".//element") is not None
+        for output_collection in root.iter("output_collection")
+    )
+
+
+def _detects_no_strict(root: etree._Element, /) -> bool:
+    command = _command(root)
+    return command is not None and command.get("strict") is None
+
+
+def _detects_from_work_dir_whitespace(root: etree._Element, /) -> bool:
+    for data in root.findall(".//data[@from_work_dir]"):
+        value = data.get("from_work_dir") or ""
+        if value != value.strip():
+            return True
+    return False
+
+
+def _detects_non_optional_text(root: etree._Element, /) -> bool:
+    return any(
+        param.get("optional") is None
+        for param in root.findall(".//param[@type='text']")
+    )
+
+
+def _detects_has_test(root: etree._Element, /) -> bool:
+    # Approximation of Galaxy's run-the-test-case-validator check: a tool with no
+    # ``<test>`` cannot produce a test-case validation error.
+    return root.find("tests/test") is not None
+
+
+def _tool_type_is(*tool_types: str) -> Callable[[etree._Element], bool]:
+    """A detector that fires when the root ``tool_type`` is one of *tool_types*."""
+
+    def detector(root: etree._Element, /) -> bool:
+        return root.get("tool_type") in tool_types
+
+    return detector
+
+
+# code name -> per-tool detector. Keys are kept in sync with PROFILE_UPGRADE_CODES
+# by ``test_every_code_has_a_detector``.
+_DETECTORS: dict[str, Callable[[etree._Element], bool]] = {
+    "16_04_fix_interpreter": _detects_interpreter,
+    # Galaxy emits this one unconditionally within the 16.04 migration.
+    "16_04_consider_implicit_extra_file_collection": lambda _root: True,
+    "16_04_fix_output_format": _detects_output_format_input,
+    "16_04_exit_code": _detects_no_error_handling,
+    "17_09_consider_provided_metadata_style": _detects_provided_metadata_style,
+    "18_01_consider_structured_like": _detects_structured_like,
+    "18_01_consider_home_directory": _detects_no_shared_home,
+    "18_09_consider_python_environment": _tool_type_is("manage_data"),
+    "20_05_consider_inputs_as_json_changes": _detects_inputs_config,
+    "20_09_consider_output_collection_order": _detects_output_collection_order,
+    "20_09_consider_set_e": _detects_no_strict,
+    "21_09_fix_from_work_dir_whitespace": _detects_from_work_dir_whitespace,
+    "21_09_consider_python_environment": _tool_type_is("data_source"),
+    "23_0_consider_optional_text": _detects_non_optional_text,
+    "24_0_consider_python_environment": _tool_type_is("data_source_async"),
+    "24_0_request_cleaning": _tool_type_is("data_source_async", "data_source"),
+    "24_2_fix_test_case_validation": _detects_has_test,
+}
+
+
+def tripped_upgrade_codes(document: ToolDocument, /) -> frozenset[str]:
+    """The codes whose per-tool detector fires for *document* (range-independent).
+
+    Detection reads the lxml tree as-is, so capture this against the
+    **pre-upgrade** tool: the ``upgrade`` codemods (GTX014/GTX015) mutate the very
+    features some detectors look for, so detecting after they run would
+    under-report. Intersect the result with ``upgrade_codes_crossed`` for the
+    range-aware applicable set (``upgrade_codes_applicable`` does exactly that).
+    """
+    root = document.root
+    return frozenset(
+        code for code, detector in _DETECTORS.items() if detector(root)
+    )
+
+
+def upgrade_codes_applicable(
+    *, document: ToolDocument, from_profile: str, to_profile: str
+) -> list[ProfileUpgradeCode]:
+    """The crossed upgrade codes that actually *apply* to *document*.
+
+    Narrows ``upgrade_codes_crossed`` to the codes whose per-tool detector fires
+    for *document*, mirroring Galaxy's advisor (which detects rather than just
+    ranging over the bumped interval). Result preserves catalogue order; ``[]``
+    when no code is both crossed and applicable.
+    """
+    tripped = tripped_upgrade_codes(document)
+    return [
+        change
+        for change in upgrade_codes_crossed(
+            from_profile=from_profile, to_profile=to_profile
+        )
+        if change.code in tripped
     ]
