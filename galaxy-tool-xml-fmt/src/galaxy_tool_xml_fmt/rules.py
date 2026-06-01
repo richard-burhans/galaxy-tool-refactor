@@ -5,10 +5,13 @@ The ``RuleMeta`` descriptor each rule carries lives in the shared
 codemod tier expose one uniform rule-metadata vocabulary.
 
 
-Rules are stateless ABCs whose ``apply()`` method inspects an lxml tree and
+Rules are stateless ABCs whose ``edits()`` method inspects an lxml tree and
 yields ``Edit``s describing the canonical-form mutations to perform. The
 pipeline (``format.format_tool_document``) instantiates each rule per format
-call and feeds its edits to ``apply_edits``.
+call and feeds its edits to ``apply_edits``. (The method is ``edits``, not
+``apply``, because — unlike codemod's ``CodemodCommand.apply`` and the registry's
+``RuleHandle.apply`` — it *describes* edits rather than mutating; ``apply_edits``
+performs them. See ``ARCHITECTURE.md`` §10.)
 
 The complete set of active rules is declared in ``format.all_rules()``.
 
@@ -40,6 +43,6 @@ class Rule(ABC):
     meta: ClassVar[RuleMeta]
 
     @abstractmethod
-    def apply(self, tree: etree._ElementTree) -> Iterable[Edit]:
+    def edits(self, tree: etree._ElementTree) -> Iterable[Edit]:
         """Yield ``Edit``s that transform *tree* toward canonical form."""
         ...

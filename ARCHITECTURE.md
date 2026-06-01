@@ -188,7 +188,7 @@ opinion lives here so lower tiers can ignore trivia. **This is the only tier tha
 writes XML to disk.**
 
 - **`Rule`** — `rules.py` — stateless ABC carrying `meta: ClassVar[RuleMeta]`; its
-  single method `apply(tree) -> Iterable[Edit]` *describes* mutations (it yields
+  single method `edits(tree) -> Iterable[Edit]` *describes* mutations (it yields
   `Edit`s; it does not itself touch the tree). The three active rules: `GTX001`
   `CanonicalIndent` (`rule_indent.py`), `GTX003` `BlankLineBetweenSections`
   (`rule_blank_line.py`, tool-only), `GTX004` `EmptyElementShorthand`
@@ -393,13 +393,15 @@ break.
 Honest notes a maintainer should know — these are *intentional* today but are the
 natural places to look when reasoning about consistency.
 
-- **"apply" means two things.** fmt's `Rule.apply(tree)` *yields* `Edit`s (it
-  describes; `apply_edits` mutates), whereas codemod's `CodemodCommand.apply` and
-  the registry's `RuleHandle.apply` *mutate*. The detect-vs-fix method surface
-  also differs per family: codemod has both `detect` + `apply`; fmt's `Rule` has
-  only the edit-yielding `apply` (its detect is the separate net-diff in
-  `detect.py`); check's `CheckRule` has only `detect`. `RuleHandle` is the adapter
-  that hides this.
+- **"describe" vs "mutate" is named in the method.** fmt's `Rule.edits(tree)`
+  *yields* `Edit`s (it describes; `apply_edits` mutates), whereas codemod's
+  `CodemodCommand.apply` and the registry's `RuleHandle.apply` *mutate* — so
+  `apply` consistently means "mutate in place" across the codebase, and the
+  describe-only fmt surface is `edits`, not `apply`. The detect-vs-fix method
+  surface also differs per family: codemod has both `detect` + `apply`; fmt's
+  `Rule` has only the edit-yielding `edits` (its detect is the separate net-diff
+  in `detect.py`); check's `CheckRule` has only `detect`. `RuleHandle` is the
+  adapter that hides this.
 - **Two advisory-aggregation paths.** Tier 3.5 ships `detect_violations()` (used by
   the corpus scripts), while the facade re-aggregates per-handle in
   `_detect_advisory`. Both are correct; they are parallel runners for different
