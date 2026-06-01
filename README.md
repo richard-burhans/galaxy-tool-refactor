@@ -96,7 +96,7 @@ uv run --package galaxy-tool-refactor-cli   pytest galaxy-tool-refactor-cli/test
 ## Corpus scripts
 
 Shared maintainer scripts live in `scripts/`. The corpus (cloned Galaxy tool
-repositories) is stored in `corpus/` (gitignored) and seeded from
+repositories) is stored in `.local/corpus/` (gitignored) and seeded from
 `corpus_sources.json`.
 
 Invoke the scripts as modules (`python -m scripts.X`), not as files — they

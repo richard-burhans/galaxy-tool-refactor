@@ -116,8 +116,11 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 The two `<command>`-CDATA-text heuristics (IUC011/IUC012) are **reserved
 placeholders** — registered codes, no-op `detect` — pending tuning to avoid
 noise (distinguishing an unquoted Cheetah `$var` or a command-joining `&` from
-legitimate shell text inside CDATA is heuristic). "Profile recency" is omitted:
-it overlaps GTX007 / the `upgrade` command.
+legitimate shell text inside CDATA is heuristic). For *why* the command text is
+shell at all (Cheetah → whitespace-flatten → `#!/bin/sh` + `set -e`), which
+grounds both heuristics, see
+[`galaxy_processing_model.md`](galaxy_processing_model.md). "Profile recency" is
+omitted: it overlaps GTX007 / the `upgrade` command.
 
 **Not promising for the human-judgment remainder.** "tests are *meaningful*",
 "help is *useful* prose", "names are *descriptive*", "the requirement exists on

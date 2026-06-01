@@ -1,4 +1,8 @@
-corpus/
+# Machine-local scratch, never committed: the cloned corpus (.local/corpus,
+# seeded from corpus_sources.json) and external source clones for inspection
+# (e.g. .local/galaxy-src = a clone of galaxyproject/galaxy used to verify
+# Galaxy-internal behaviour locally).
+.local/
 .venv/
 __pycache__/
 *.pyc

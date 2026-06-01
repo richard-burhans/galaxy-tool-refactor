@@ -10,7 +10,10 @@ templating, …) the XSD cannot see.
 ``b45c58a2``, vendored 2026-06-01) — the authoritative source of truth, keyed by
 Galaxy's code names. We mirror the ``must_fix`` and ``consider`` codes (the changes
 a bump introduces); Galaxy's single ``ready`` note (``16_04_ready_interpreter`` — a
-"you're fine" message, not a change) is omitted.
+"you're fine" message, not a change) is omitted. (Re-verified 2026-06-01 against
+``dev`` @ ``c6e0ee3``: the catalogue is unchanged — our 17 codes == that file's 18
+minus the omitted ``ready`` note — and the three buggy detectors below still
+exhibit their documented faults.)
 
 **Two profile behaviour changes the Galaxy schema docs describe are intentionally
 absent**, because Galaxy's ``upgrade_codes.json`` does not catalogue them: the

@@ -23,8 +23,10 @@ galaxy-tool-refactor/
 │   └── regenerate.py           regenerate per-version xsdata models
 ├── docs/
 │   └── corpus_data/            per-tool JSON/TSV from corpus sweeps
-├── corpus/                   cloned Galaxy tool repos (gitignored)
-└── corpus_sources.json       list of GitHub repos to clone
+├── corpus_sources.json       list of GitHub repos to clone (committed seed list)
+└── .local/                   machine-local scratch, gitignored (NOT committed)
+    ├── corpus/                 cloned Galaxy tool repos (seeded from corpus_sources.json)
+    └── galaxy-src/             clone of galaxyproject/galaxy for source inspection
 ```
 
 ## Install
@@ -148,6 +150,11 @@ uv run python -m scripts.measure upgrade-profile-shift
 # output <data format="input"> tools split by data-input cardinality (the single
 # top-level data input subset is auto-fixable):
 uv run python -m scripts.measure output-format-input
+
+# <help> markup-format distribution: per-tool implicit-RST vs explicit
+# format="markdown"/other (backs docs/galaxy_processing_model.md — RST renders
+# server-side, markdown renders client-side; both supported):
+uv run python -m scripts.measure help-formats
 ```
 
 **Note:** invoke as `python -m scripts.X`, not `python scripts/X.py` — the

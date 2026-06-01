@@ -87,7 +87,7 @@ from scripts._shared import unique_by_sha as _unique_by_sha
 logger = logging.getLogger("corpus_check")
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_CORPUS_ROOT = _REPO_ROOT / "corpus"
+_CORPUS_ROOT = _REPO_ROOT / ".local" / "corpus"
 _CORPUS_SOURCES_FILE = _REPO_ROOT / "corpus_sources.json"
 
 # --- validate subcommand paths -----------------------------------------------

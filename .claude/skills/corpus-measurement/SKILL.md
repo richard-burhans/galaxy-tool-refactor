@@ -35,7 +35,7 @@ Two standing rules for this repo, one workflow:
 
 2. **Add the measurement** in `scripts/measure.py`, following the established triple:
    - `_measure_<slug>(...) -> <ResultDataclass>` — **pure**, no printing; takes
-     `corpus_root: Path` (walks `corpus/`) or `rows: list[dict]` (the committed
+     `corpus_root: Path` (walks `.local/corpus/`) or `rows: list[dict]` (the committed
      `docs/corpus_data/combined_corpus_data.json`). All counting logic lives here.
    - `_report_<slug>(result) -> None` — formats/prints, shaped so the headline numbers
      lift straight into a decision-doc entry or a question.

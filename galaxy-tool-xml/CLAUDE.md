@@ -94,7 +94,7 @@ are hand-written and are not exempt.
   (JSON + TSV) emitted alongside the aggregate `../docs/*_corpus_stats.md`
   artifacts; both regenerate together on a full `corpus_check.py validate` sweep.
   Toolshed row
-  versions come from `corpus/galaxy-toolshed/manifest.json`, which
+  versions come from `.local/corpus/galaxy-toolshed/manifest.json`, which
   `fetch_toolshed.py` populates by capturing each clone's tip changeset
   before `.hg/` is removed. The combined stats markdown also carries two
   failure-reason tables (macro-expansion failures, no-valid-profile
