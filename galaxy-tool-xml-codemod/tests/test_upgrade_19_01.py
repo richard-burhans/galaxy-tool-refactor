@@ -60,6 +60,45 @@ def test_avoids_collision_with_existing_name() -> None:
     assert names == ["output", "output2"]
 
 
+def test_avoids_collision_with_collection_name() -> None:
+    """Output identifiers share one namespace: don't mint a name a <collection> uses.
+
+    A bare <data> next to <collection name="output"> must not be synthesised as
+    "output" (that would be a duplicate output identifier); it gets "output2".
+    """
+    xml = (
+        b'<tool id="m" name="M" version="1.0.0" profile="19.01">'
+        b"<command><![CDATA[echo x]]></command><inputs/>"
+        b'<outputs><collection name="output" type="list"/>'
+        b'<data from_work_dir="b"/></outputs></tool>'
+    )
+    module = parse_module(xml)
+    Upgrade19_01().apply(module)
+    data = module.document.root.find("outputs/data")
+    assert data is not None
+    assert data.get("name") == "output2"
+
+
+def test_leaves_collection_nested_unnamed_data_out_of_scope() -> None:
+    """Only direct <outputs> children are named (documented scope).
+
+    A <data> nested inside a <collection> is also name-required at 19.05, but the
+    codemod deliberately scopes to top-level outputs (no corpus tool needs the
+    nested case). Pin that boundary so a future change to it is deliberate.
+    """
+    xml = (
+        b'<tool id="m" name="M" version="1.0.0" profile="19.01">'
+        b"<command><![CDATA[echo x]]></command><inputs/>"
+        b'<outputs><collection name="c" type="list">'
+        b'<data from_work_dir="x"/></collection></outputs></tool>'
+    )
+    module = parse_module(xml)
+    Upgrade19_01().apply(module)
+    nested = module.document.root.find("outputs/collection/data")
+    assert nested is not None
+    assert nested.get("name") is None
+
+
 def test_noop_when_all_outputs_named() -> None:
     xml = (
         b'<tool id="m" name="M" version="1.0.0" profile="19.01">'

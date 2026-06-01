@@ -99,6 +99,32 @@ def test_skips_when_collection_already_has_filter() -> None:
     assert etree.tostring(module.document.root) == before
 
 
+def test_handles_each_collection_independently() -> None:
+    """Two collections in one tool: the hoistable one is hoisted, the mixed one left."""
+    module = parse_module(
+        _tool(
+            b'<collection name="ok" type="paired">'
+            b'<data name="forward" format="txt"><filter>cond</filter></data>'
+            b'<data name="reverse" format="txt"><filter>cond</filter></data>'
+            b"</collection>"
+            b'<collection name="mixed" type="list">'
+            b'<data name="a" format="txt"><filter>x</filter></data>'
+            b'<data name="b" format="txt"><filter>y</filter></data>'
+            b"</collection>"
+        )
+    )
+    Upgrade24_0().apply(module)
+    ok = module.document.root.find("outputs/collection[@name='ok']")
+    mixed = module.document.root.find("outputs/collection[@name='mixed']")
+    assert ok is not None and mixed is not None
+    # hoistable collection: filter hoisted, children cleared
+    assert [f.text for f in ok.findall("filter")] == ["cond"]
+    assert all(d.find("filter") is None for d in ok.findall("data"))
+    # mixed collection: untouched (per-element filters differ)
+    assert mixed.find("filter") is None
+    assert [d.find("filter").text for d in mixed.findall("data")] == ["x", "y"]
+
+
 def test_is_idempotent() -> None:
     module = parse_module(_STUCK)
     Upgrade24_0().apply(module)

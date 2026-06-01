@@ -42,6 +42,19 @@ def test_noop_when_no_trackster_conf() -> None:
     assert etree.tostring(module.document.root) == before
 
 
+def test_removes_every_trackster_conf_at_any_depth() -> None:
+    """The removal walks the whole tree, so multiple / nested occurrences all go."""
+    xml = (
+        b'<tool id="m" name="M" version="1.0.0" profile="25.1">'
+        b"<command><![CDATA[echo x]]></command><inputs/>"
+        b'<outputs><data name="o" format="txt"><trackster_conf/></data>'
+        b"<trackster_conf/></outputs><trackster_conf/></tool>"
+    )
+    module = parse_module(xml)
+    Upgrade25_1().apply(module)
+    assert not list(module.document.root.iter("trackster_conf"))
+
+
 def test_is_idempotent() -> None:
     module = parse_module(_STUCK)
     Upgrade25_1().apply(module)
