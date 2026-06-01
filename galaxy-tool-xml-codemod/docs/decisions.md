@@ -751,7 +751,12 @@ ledger). This entry records *why the method is sound and where its boundary lies
   behaviour-pinning attributes on bump. Much larger, needs a per-profile semantic
   catalogue (the ledger's Semantic column is the start), and risks over-editing
   well-authored tools. Deferred; revisit if there is demand and the semantic
-  catalogue is complete enough to act on safely.
+  catalogue is complete enough to act on safely. **Investigated in
+  `docs/behavior-preserving-upgrade.md`** (2026-06-01): Galaxy's `profile` is an
+  all-or-nothing opt-in with no general per-behaviour opt-out, so full preservation
+  is unachievable by XML edits; only a small subset (e.g. 17.09
+  `provided_metadata_style="legacy"`) is pinnable. The §23 warning is the primary
+  mechanism; auto-pinning would be a narrow opt-in enhancement at most.
 - **Reproduce / refute.** The full method (three independent evidence
   sources — XSD diff, combined-corpus sweep, Galaxy profile docs — with the exact
   commands and the refutation paths for each) is documented in
