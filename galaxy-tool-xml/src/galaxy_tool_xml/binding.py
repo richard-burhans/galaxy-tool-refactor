@@ -229,7 +229,9 @@ def validate_tool(
 
     ``target`` is a source (path, ``bytes``, or binary stream) or an already
     parsed ``ToolDocument``. The profile is resolved from ``profile``, then the
-    tool's own ``profile`` attribute, then the latest vendored version.
+    tool's own ``profile`` attribute, then — when neither is set — Galaxy's
+    ``16.01`` legacy default, which resolves to the nearest vendored XSD (``16.10``,
+    the oldest). See ``profiles.resolve_profile`` / ``docs/decisions.md`` §1.5.
 
     Because the Galaxy XSD is a post-macro-expansion schema, ``macro_handling``
     controls how macros are dealt with before validation: ``off`` validates the
