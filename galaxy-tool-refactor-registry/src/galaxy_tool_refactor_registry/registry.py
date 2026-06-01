@@ -29,6 +29,26 @@ from galaxy_tool_refactor_registry.errors import UnknownRuleCode
 from galaxy_tool_refactor_registry.handle import RuleHandle
 
 
+def _build_index(
+    entries: list[tuple[RuleHandle, bool]],
+) -> dict[str, tuple[RuleHandle, bool]]:
+    """Index *entries* by ``RuleHandle.meta.code``; raise on any duplicate.
+
+    Pure and uncached so the collision guard is testable in isolation (feed it
+    two entries that share a code) without touching the real rule registrations
+    or the ``@cache``d ``_index`` table.
+    """
+    index: dict[str, tuple[RuleHandle, bool]] = {}
+    for handle, selectable in entries:
+        code = handle.meta.code
+        if code in index:
+            raise ValueError(
+                f"duplicate rule code {code!r}: two rules share one code"
+            )
+        index[code] = (handle, selectable)
+    return index
+
+
 @cache
 def _index() -> dict[str, tuple[RuleHandle, bool]]:
     """Build ``code -> (handle, selectable)`` for every baked-in rule.
@@ -40,16 +60,7 @@ def _index() -> dict[str, tuple[RuleHandle, bool]]:
     entries.extend((codemod_handle(cls), False) for cls in upgrade_only_codemods())
     entries.extend((fmt_handle(cls), True) for cls in fmt_rules())
     entries.extend((check_handle(cls), True) for cls in advisory_checks())
-
-    index: dict[str, tuple[RuleHandle, bool]] = {}
-    for handle, selectable in entries:
-        code = handle.meta.code
-        if code in index:
-            raise ValueError(
-                f"duplicate rule code {code!r}: two rules share one code"
-            )
-        index[code] = (handle, selectable)
-    return index
+    return _build_index(entries)
 
 
 def registry() -> dict[str, RuleHandle]:

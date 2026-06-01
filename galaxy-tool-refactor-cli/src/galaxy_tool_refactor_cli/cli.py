@@ -228,8 +228,10 @@ def upgrade_command(
     upgraded by bumping that token in place — but only when every profile-using
     importer in this run agrees on the target profile; a macro file whose
     importers disagree is reported and left untouched (no over-declaration). The
-    inline-token case is handled per-file by GTX007. PATHS may be files or
-    directories.
+    inline-token case is handled per-file by GTX007. That token bump is the *only*
+    edit an imported macro file receives here — unlike ``format``, ``upgrade``
+    does not cosmetically reformat macro files; the cosmetic pass runs on the
+    tool files in PATHS. PATHS may be files or directories.
     """
     if preset is not None:
         raise click.BadParameter(

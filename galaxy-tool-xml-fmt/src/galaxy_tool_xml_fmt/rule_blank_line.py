@@ -36,7 +36,7 @@ class BlankLineBetweenSections(Rule):
         order=90,
     )
 
-    def apply(self, tree: etree._ElementTree) -> Iterable[Edit]:
+    def edits(self, tree: etree._ElementTree) -> Iterable[Edit]:
         """Yield ``SetTail`` edits adding a blank line between each top-level child."""
         root = tree.getroot()
         if root.tag != "tool":

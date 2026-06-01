@@ -36,7 +36,7 @@ class CanonicalIndent(Rule):
         applies_to=frozenset({"tool", "macro"}),
     )
 
-    def apply(self, tree: etree._ElementTree) -> Iterable[Edit]:
+    def edits(self, tree: etree._ElementTree) -> Iterable[Edit]:
         """Yield ``SetText``/``SetTail`` edits normalising indentation to 4 spaces."""
         return list(_walk(tree.getroot(), depth=0))
 

@@ -53,6 +53,17 @@ def all_checks() -> tuple[type[CheckRule], ...]:
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 
 
+def sort_violations(violations: list[Violation]) -> list[Violation]:
+    """Sort *violations* in place by ``(sourceline, code)`` and return them.
+
+    The canonical ordering for any aggregated ``Violation`` list — line first,
+    code as the stable tie-breaker. Shared so this tier, the registry facade, and
+    any future aggregator agree on one key (audit ``§N6``).
+    """
+    violations.sort(key=lambda violation: (violation.sourceline, violation.code))
+    return violations
+
+
 def detect_violations(document: ToolDocument) -> list[Violation]:
     """Run every advisory check over *document*; return findings sorted by line."""
     violations = [
@@ -60,5 +71,4 @@ def detect_violations(document: ToolDocument) -> list[Violation]:
         for check_cls in all_checks()
         for violation in check_cls().detect(document)
     ]
-    violations.sort(key=lambda violation: (violation.sourceline, violation.code))
-    return violations
+    return sort_violations(violations)

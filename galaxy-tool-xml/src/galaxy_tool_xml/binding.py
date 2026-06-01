@@ -38,7 +38,7 @@ _MACRO_MODES = frozenset({"off", "skip", "strip", "expand"})
 _STRING_SOURCE = "<string>"
 
 
-@dataclass
+@dataclass(frozen=True)
 class XmlError:
     """A single XML well-formedness or XSD-validation error."""
 
@@ -51,7 +51,7 @@ class XmlError:
         return f"{self.source}:{self.line}:{self.column}: {self.message}"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ParseResult:
     """The outcome of a lenient parse."""
 
@@ -64,7 +64,7 @@ class ParseResult:
         return not self.syntax_errors
 
 
-@dataclass
+@dataclass(frozen=True)
 class ValidationResult:
     """The outcome of a profile-aware validation."""
 

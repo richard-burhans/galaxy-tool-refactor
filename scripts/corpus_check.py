@@ -1472,7 +1472,7 @@ def _format_with_stats(document: ToolDocument) -> tuple[bytes, Counter[str]]:
     tree = document.tree
     rule_edits: Counter[str] = Counter()
     for rule_cls in all_rules():
-        edits = list(rule_cls().apply(tree))
+        edits = list(rule_cls().edits(tree))
         if edits:
             rule_edits[rule_cls.meta.code] += len(edits)
         apply_edits(edits)
@@ -2488,7 +2488,7 @@ class _FmtRuleSweep:
 
 def _fmt_rule_apply(tree: etree._ElementTree, rule_cls: type[Rule]) -> int:
     """Apply ONE fmt rule to *tree* in place; return its edit count."""
-    edits = list(rule_cls().apply(tree))
+    edits = list(rule_cls().edits(tree))
     apply_edits(edits)
     return len(edits)
 
