@@ -160,54 +160,51 @@ the XSD diff; Corpus from the combined discovery sweep. Automatable:
 > (1, tool-bug). No transition outside the four below strands a real tool — the
 > empirical confirmation that every additive step needs no codemod.
 
-Semantic deltas are from the Galaxy schema docs `<tool> profile` attribute
-([docs.galaxyproject.org/en/latest/dev/schema.html](https://docs.galaxyproject.org/en/latest/dev/schema.html));
-"none documented" = no profile-gated runtime behaviour documented at that step.
-The behaviour takes effect for a tool **declaring** the *To* profile — i.e.
-bumping `profile=` into that row opts the tool into it.
+The **Semantic delta** column is keyed to Galaxy's own catalogue: each cell names
+the `upgrade_codes.json` code(s) (mirrored as `PROFILE_UPGRADE_CODES` in
+`galaxy-tool-xml-codemod/.../profile_semantics.py`) whose profile == the *To*
+version, with their `level` (`must_fix` / `consider`). "none documented" = no
+upgrade code at that step. The behaviour takes effect for a tool **declaring** the
+*To* profile (bumping `profile=` into that row opts in). `galaxy-tool-refactor
+upgrade` warns on the codes a bump crosses (codemod `docs/decisions.md` §23); the
+per-code corpus blast radius is `scripts/measure.py semantic-upgrade-boundaries`;
+pinnability is in `galaxy-tool-xml-codemod/docs/behavior-preserving-upgrade.md`.
 
-> **Authoritative source = Galaxy's own catalogue.** As of 2026-06-01 this column
-> is backed by `PROFILE_UPGRADE_CODES`
-> (`galaxy-tool-xml-codemod/.../profile_semantics.py`), a faithful mirror of
-> Galaxy's `lib/galaxy/tool_util/upgrade/upgrade_codes.json` (keyed by Galaxy code
-> names, with `level` = must_fix/consider). `galaxy-tool-refactor upgrade` emits an
-> advisory **note** listing the releases a bump crosses (codemod `docs/decisions.md`
-> §23); the per-code corpus blast radius is `scripts/measure.py
-> semantic-upgrade-boundaries`. Where this prose column and Galaxy's catalogue
-> differ, the catalogue wins — e.g. Galaxy places the fully-qualified-reference
-> rule at **18.01** (`structured_like`), and **18.09** is the data-manager
-> virtualenv change. Two changes the schema docs describe (19.05 Python 2→3, 25.1
-> `<credentials>`) are **not** in Galaxy's upgrade catalogue and so are not in
-> `PROFILE_UPGRADE_CODES`. The pinnability of each is in
-> `galaxy-tool-xml-codemod/docs/behavior-preserving-upgrade.md`.
+> **Two scopes the catalogue doesn't cover, flagged inline:** (1) **16.04**'s four
+> codes (interpreter/output-format/exit-code/extra-file) predate the oldest vendored
+> XSD (16.10), so they have no transition row — they gate the *no-profile* baseline
+> (a no-profile tool runs as 16.01; see the soundness §22). (2) A few real runtime
+> changes the Galaxy **schema docs** describe are **not** in `upgrade_codes.json` —
+> 19.01 `<stdio>`-prepend, 19.05 Python 2→3, 25.1 `<credentials>` — marked
+> "(schema docs; not an upgrade code)" in the cell.
 
 | From → To | Structural class | Structural delta (XSD) | Semantic delta (runtime, not in XSD) | Corpus stuck | Automatable | Codemod |
 |---|---|---|---|---|---|---|
 | 16.10 → 17.01 | additive | `+conversion`, EDAM `edam_operation(s)`/`edam_topic(s)`, `datatype_isinstance`, `shared_inputs` | none documented | 0 | none | — |
 | 17.01 → 17.05 | additive | `+decompress`, `meta_ref`, `refresh_on_change`, `input_dataset` | none documented | 0 | none | — |
-| 17.05 → 17.09 | additive* | metadata hooks (`+hook`, `provided_metadata_*`, `default_identifier_source`); `ftype` decl relocated (not dropped) | `provided_metadata_style` defaults to `"default"` (legacy via `"legacy"`) | 0 | none | — |
-| 17.09 → 18.01 | additive* | `+import`/`token`/`xml` (macro elems); `request_parameter_translation` → `request_param_translation` (rename) | per-job separate `$HOME` | 0 | none | — |
+| 17.05 → 17.09 | additive* | metadata hooks (`+hook`, `provided_metadata_*`, `default_identifier_source`); `ftype` decl relocated (not dropped) | `17_09_consider_provided_metadata_style` (consider, niche): galaxy.json metadata format; restore via `provided_metadata_style="legacy"` | 0 | none | — |
+| 17.09 → 18.01 | additive* | `+import`/`token`/`xml` (macro elems); `request_parameter_translation` → `request_param_translation` (rename) | `18_01_consider_structured_like` (consider): `structured_like` must be fully qualified; `18_01_consider_home_directory` (consider, niche): per-job `$HOME`, restore via `use_shared_home="true"` | 0 | none | — |
 | 18.01 → 18.05 | additive | no tool-facing decl change | none documented | 0 | none | — |
-| 18.05 → 18.09 | additive | `+data_style`, `tags` | **input refs must be fully qualified (`|`)**; illegal `default` values rejected; no Galaxy py-env for `manage_data` | 0 | none | — |
-| 18.09 → 19.01 | additive | `+has_h5_attribute`/`has_h5_keys` assertions | `<stdio>` checks now prepend to preset checks | 0 | none | — |
-| **19.01 → 19.05** | **restrict** | output element restructure (`Output*` groups); **`name` required on output `<data>`** | **default Python 2.7 → 3.5** | **9** | **auto** | **GTX008** |
+| 18.05 → 18.09 | additive | `+data_style`, `tags` | `18_09_consider_python_environment` (consider): data-manager tools run without Galaxy's virtualenv (the fully-qualified-reference rule is **18.01**'s `structured_like`, not here) | 0 | none | — |
+| 18.09 → 19.01 | additive | `+has_h5_attribute`/`has_h5_keys` assertions | `<stdio>` checks prepend to preset checks (schema docs; not an upgrade code) | 0 | none | — |
+| **19.01 → 19.05** | **restrict** | output element restructure (`Output*` groups); **`name` required on output `<data>`** | default Python 2.7 → 3.5 (schema docs; not an upgrade code) | **9** | **auto** | **GTX008** |
 | 19.05 → 19.09 | additive | `+entry_points`/`port`/`url`, `xrefs`, `has_n_lines` | none documented | 0 | none | — |
 | 19.09 → 20.01 | additive | `+assert_command_version`, `has_size` | none documented | 0 | none | — |
-| 20.01 → 20.05 | additive | `+delta_frac`, `sort_by` | **inputs JSON: unselected optionals → `None` (not `"None"`); multi-select → list (not comma-string)** | 0 | none | — |
-| 20.05 → 20.09 | additive | `+file_sources`, `recurse`/`sort_by`/`filename` | **`set -e` (command exits on non-zero status)**; assume collection-element sort order | 0 | none | — |
+| 20.01 → 20.05 | additive | `+delta_frac`, `sort_by` | `20_05_consider_inputs_as_json_changes` (consider): unselected optional select/data_column → JSON `null` (not `"None"`); multiples → lists | 0 | none | — |
+| 20.05 → 20.09 | additive | `+file_sources`, `recurse`/`sort_by`/`filename` | `20_09_consider_set_e` (consider): `set -e`, restore via `strict="false"`; `20_09_consider_output_collection_order` (consider): collection-element sort order significant in tests | 0 | none | — |
 | 20.09 → 21.01 | additive | `+creator`/`person`/`organization` (schema.org `Thing`) | none documented | 0 | none | — |
 | 21.01 → 21.05 | additive | `+meta_file_key` | none documented | 0 | none | — |
-| 21.05 → 21.09 | additive* | `+required_files`/`include`/`exclude`; (one tool strands here — `has_size/@delta_frac` tool-bug) | `from_work_dir` whitespace no longer stripped; no Galaxy py-venv for `data_source` | 1 (tool-bug) | needs-thought | — |
+| 21.05 → 21.09 | additive* | `+required_files`/`include`/`exclude`; (one tool strands here — `has_size/@delta_frac` tool-bug) | `21_09_fix_from_work_dir_whitespace` (must_fix → auto-fixed by **GTX014**): `from_work_dir` whitespace becomes literal; `21_09_consider_python_environment` (consider): `data_source` tools lose Galaxy's venv | 1 (tool-bug) | needs-thought | — |
 | 21.09 → 22.01 | additive | test-assertion expansion (`TestAssertions*` groups, `xml_element`, …) | none documented | 1 (tool-bug) | needs-thought | — |
 | 22.01 → 22.05 | additive | `+resource`; job `action` reorg | none documented | 0 | none | — |
-| 22.05 → 23.0 | additive | `+sep`, `reverse_sort_order` | **optional text params templated as `None` (was `""`)** | 0 | none | — |
+| 22.05 → 23.0 | additive | `+sep`, `reverse_sort_order` | `23_0_consider_optional_text` (consider): inferred-optional text params template as `None` (was `""`) | 0 | none | — |
 | 23.0 → 23.1 | additive | `+has_json_property_with_*` assertions | none documented | 0 | none | — |
 | 23.1 → 23.2 | additive | `+collection`/`element`/`default` (in test output context) | none documented | 0 | none | — |
-| 23.2 → 24.0 | additive | `+macro`/`param`/`request_body`/`request_headers` (HTTP data source) | no Galaxy py-env for `data_source_async`; undeclared request params dropped | 0 | none | — |
+| 23.2 → 24.0 | additive | `+macro`/`param`/`request_body`/`request_headers` (HTTP data source) | `24_0_consider_python_environment` (consider): `data_source_async` loses Galaxy's venv; `24_0_request_cleaning` (consider): undeclared request params dropped | 0 | none | — |
 | **24.0 → 24.1** | **restrict** | `<filter>` no longer allowed in a `<collection>`'s child `<data>`; discover-datasets attrs moved to `OutputDiscoverDatasetsCommon` | none documented | **1** | **auto** | **GTX009** |
-| **24.1 → 24.2** | **restrict** | `format`/`ftype` gain a `pattern` facet (`FormatList`/`Format`, lowercase tokens); `TestAssertion` group consolidated | `data_column` params require a valid `data_ref` | **39** (residual; was 53) | **partial** | **GTX010** |
+| **24.1 → 24.2** | **restrict** | `format`/`ftype` gain a `pattern` facet (`FormatList`/`Format`, lowercase tokens); `TestAssertion` group consolidated | `24_2_fix_test_case_validation` (must_fix): stricter `<test>` validation — `data_column` params require a valid `data_ref` | **39** (residual; was 53) | **partial** | **GTX010** |
 | 24.2 → 25.0 | additive | `+fields`/`icon`, data-table `src`/`table_name` | none documented | 0 | none | — |
-| 25.0 → 25.1 | additive | `+credentials`/`secret`/`variable` | credentials via `<credentials>`, not user preferences | 0 | none | — |
+| 25.0 → 25.1 | additive | `+credentials`/`secret`/`variable` | tool credentials via `<credentials>`, not user prefs (schema docs; not an upgrade code) | 0 | none | — |
 | **25.1 → 26.0** | **restrict** | `<trackster_conf>` dropped; `<action>` + `name`/`output_name` attrs removed; `+min`/`max` | none documented | **5** | **auto** (trackster) | **GTX011** |
 | 26.0 → 26.1 | additive | `+credentials`/`secret`/`variable` (top-level) | none documented | 0 | none (latest) | — |
 
@@ -217,7 +214,8 @@ sweep before treating any such row as breaking.
 
 > **The semantic column is the crux of the soundness boundary.** Rows like
 > 19.01→19.05 (Python 3), 20.01→20.05 (JSON `None`/lists), 20.05→20.09 (`set -e`),
-> 18.05→18.09 (qualified input refs), and 22.05→23.0 (optional text → `None`) are
+> 17.09→18.01 (`structured_like` must be qualified), and 22.05→23.0 (optional text
+> → `None`) are
 > **structurally additive yet behaviourally loaded**: a tool validates identically
 > before and after, so `UpdateProfile` will bump it with no codemod — but the
 > bumped tool *runs* under the new defaults. This is precisely why "validates at X"
