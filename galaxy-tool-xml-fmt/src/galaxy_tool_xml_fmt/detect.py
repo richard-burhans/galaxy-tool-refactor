@@ -107,7 +107,7 @@ def _detect_over_tree(
     owner: dict[int, RuleMeta] = {}
     for rule_cls in ordered_rules:
         before = {id(node): _trivia(node) for node in work_nodes}
-        apply_edits(rule_cls().apply(work))
+        apply_edits(rule_cls().edits(work))
         for node in work_nodes:
             if _trivia(node) != before[id(node)]:
                 owner[id(node)] = rule_cls.meta

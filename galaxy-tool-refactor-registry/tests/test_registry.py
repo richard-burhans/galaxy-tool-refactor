@@ -6,6 +6,7 @@ import pytest
 
 from galaxy_tool_refactor_registry.errors import UnknownRuleCode
 from galaxy_tool_refactor_registry.registry import (
+    _build_index,
     advisory_codes,
     all_handles,
     by_code,
@@ -66,3 +67,15 @@ def test_fixable_handles_have_apply() -> None:
 def test_every_code_unique_across_families() -> None:
     """The build-time guard means one handle per code; sizes line up."""
     assert len(all_handles()) == len({h.meta.code for h in all_handles().values()})
+
+
+def test_duplicate_code_raises() -> None:
+    """The collision guard fires when two handles share one code.
+
+    ``test_every_code_unique_across_families`` proves the *real* registry has no
+    duplicate; this proves the guard that keeps it that way actually raises —
+    feeding ``_build_index`` the same handle twice (so its ``meta.code`` collides).
+    """
+    handle = by_code("GTX002")
+    with pytest.raises(ValueError, match="duplicate rule code 'GTX002'"):
+        _build_index([(handle, True), (handle, True)])

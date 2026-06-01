@@ -231,10 +231,13 @@ decision: whether to add the serializer-allowlist test (4.1) and whether to rena
    `fmt_handle.apply` (2.1).
 3. `scripts/corpus_check.py` — corrected the stale `_detect_violations` comment (3.1).
 
-### Left for review (proposals)
-- Add a serializer-allowlist architecture test (4.1).
-- Rename `fmt.Rule.apply` → `Rule.edits` for cross-family clarity (2.3).
-- Align the "writes XML to disk" wording in the package `CLAUDE.md`s (7.1).
+### Left for review (proposals) — all resolved 2026-06-01
+- ~~Add a serializer-allowlist architecture test (4.1).~~ **DONE**
+- ~~Rename `fmt.Rule.apply` → `Rule.edits` for cross-family clarity (2.3).~~ **DONE**
+- ~~Align the "writes XML to disk" wording in the package `CLAUDE.md`s (7.1).~~ **DONE**
+
+> The full disposition (incl. the escalation-new items N3/N5/N6/N8 and the
+> collision-guard test) is recorded under **Net outstanding proposals** below.
 
 ---
 
@@ -300,9 +303,30 @@ default is relied on implicitly by the 10 codemods. All Low / doc-only.
 6. `scripts/corpus_check.py` — parity sort in `_check_detect` (N7).
 
 ### Net outstanding proposals (maintainer decision)
-1. **Serializer-allowlist architecture test** (4.1, corroborated) — highest value.
-2. Collision-guard "duplicate fires" test (escalation-new).
-3. Rename `fmt.Rule.apply` → `Rule.edits` (2.3).
-4. Freeze tier-1 result dataclasses (N3); add `check` purity test (N5); dedup sort
-   helper (N6); align `CLAUDE.md` "writes to disk" wording (7.1); doc-comment
-   touch-ups (N8).
+
+All resolved on 2026-06-01 (branch `chore/architecture-audit-proposals`); kept
+here as a record of what was decided and where it landed.
+
+1. ~~**Serializer-allowlist architecture test** (4.1, corroborated) — highest
+   value.~~ **DONE** —
+   `galaxy-tool-refactor-registry/tests/test_serializer_allowlist.py` greps every
+   `*/src/**` for `etree.tostring(` / `.write_bytes(` against the allowlist of the
+   10 sanctioned sites (and a companion test that flags stale allowlist entries).
+2. ~~Collision-guard "duplicate fires" test (escalation-new).~~ **DONE** —
+   extracted the pure `_build_index(entries)` helper out of the `@cache`d
+   `registry._index()`; `test_registry.py::test_duplicate_code_raises` feeds it a
+   duplicate code and asserts `ValueError`.
+3. ~~Rename `fmt.Rule.apply` → `Rule.edits` (2.3).~~ **DONE** — `fmt.Rule.edits`
+   now names the describe-only surface; `apply` consistently means "mutate in
+   place" across families. ABC + 3 impls + 2 fmt callers + 2 corpus-script callers
+   + `ARCHITECTURE.md` §5/§10 + fmt `decisions.md`.
+4. ~~Freeze tier-1 result dataclasses (N3); add `check` purity test (N5); dedup
+   sort helper (N6); align `CLAUDE.md` "writes to disk" wording (7.1); doc-comment
+   touch-ups (N8).~~ **DONE** — `XmlError`/`ParseResult`/`ValidationResult`/
+   `MacroError` are now `frozen=True`; `check/tests/test_detect.py` pins
+   `detect_violations` purity; the `(sourceline, code)` key is now the shared
+   `check.detect.sort_violations` (used by both facade sites); the four active
+   tier tables say "serialises canonical output XML"; `upgrade_command` docstring
+   and the codemod `CLAUDE.md` `Module`/`ToolDocument` symmetry are corrected.
+   (The historical `galaxy-tool-xml-codemod/docs/architecture.md` was left as-is —
+   it is explicitly marked a pre-implementation design note.)

@@ -53,7 +53,7 @@ def _apply_rules(
 ) -> bytes:
     """Run *rule_classes* (in ``meta.order``) over *tree*; serialise to bytes."""
     for rule_cls in sorted(rule_classes, key=lambda cls: cls.meta.order):
-        apply_edits(rule_cls().apply(tree))
+        apply_edits(rule_cls().edits(tree))
     return to_bytes(tree)
 
 

@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 
 from galaxy_tool_xml.binding import Source, load_tool
 from galaxy_tool_xml.document import ToolDocument
+from galaxy_tool_xml_check.detect import sort_violations
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.module import Module
 from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
@@ -64,8 +65,7 @@ def _detect_advisory(
         handle = reg[code]
         if not handle.fixable:
             violations.extend(handle.detect(document))
-    violations.sort(key=lambda violation: (violation.sourceline, violation.code))
-    return violations
+    return sort_violations(violations)
 
 
 def run(
@@ -116,7 +116,7 @@ def detect(
         violations.extend(
             detect_tool_document_subset(document, rule_classes=fmt_classes)
         )
-    violations.sort(key=lambda violation: (violation.sourceline, violation.code))
+    sort_violations(violations)
     advisory = frozenset(code for code in codes if not reg[code].fixable)
     return DetectResult(violations=violations, advisory_codes=advisory)
 
