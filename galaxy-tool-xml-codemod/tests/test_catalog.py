@@ -17,6 +17,7 @@ _EXPECTED_CODES = {
     "GTX012",  # UpgradeToLatest
     "GTX013",  # ReorderToolChildren
     "GTX014",  # FixFromWorkDirWhitespace (runtime-gated)
+    "GTX015",  # FixOutputFormatInput (runtime-gated)
 }
 
 
