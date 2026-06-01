@@ -13,7 +13,7 @@ and the shared tier-0.5 rules metadata):
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | shared `RuleMeta` + `Violation` |
 | 1 | **parsing & validation** | `galaxy-tool-xml` | parse · XSD validate · typed views |
 | 2 | **structure** | `galaxy-tool-xml-codemod` | structural mutations |
-| 3 | **formatting** | `galaxy-tool-xml-fmt` *(this repo)* | cosmetic formatting (+ non-mutating `detect`); the only tier that writes XML to disk |
+| 3 | **formatting** | `galaxy-tool-xml-fmt` *(this repo)* | cosmetic formatting (+ non-mutating `detect`); the only tier that serialises canonical output XML |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only IUC best-practice checks |
 | 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | unified rule registry + presets; library-first facade |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | composes the tiers via the facade (`format`/`upgrade`/`check`) |

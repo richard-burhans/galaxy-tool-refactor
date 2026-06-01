@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from galaxy_tool_xml.binding import load_tool
+from lxml import etree
 
 from galaxy_tool_xml_check.detect import all_checks, detect_violations
 
@@ -31,3 +32,15 @@ def test_detect_violations_sorted_by_line() -> None:
     lines = [violation.sourceline for violation in violations]
     assert lines == sorted(lines)
     assert violations  # several findings on a bare tool
+
+
+def test_detect_violations_does_not_mutate_the_input() -> None:
+    """The advisory tier is read-only: the document tree is untouched.
+
+    The cross-tier facade test exercises this path, but the contract belongs to
+    this tier — pin it here too (audit ``§N5``, mirroring fmt's purity test).
+    """
+    document = load_tool(b'<tool id="X" name="N" version="bad!"><inputs/></tool>')
+    before = etree.tostring(document.root)
+    detect_violations(document)
+    assert etree.tostring(document.root) == before

@@ -1,0 +1,265 @@
+# Profile-upgrade ledger
+
+A living map of every vendored Galaxy tool-XSD profile and **what is required to
+carry a tool from each profile to the next**. Its purpose is to make the
+automate-or-not decision for each `upgrade_vN` codemod legible: which steps are a
+safe, mechanical, behaviour-preserving transform, and which need human judgement.
+
+> **Update this doc as discovery continues.** Rows marked `TBD` are not yet
+> analysed; the Corpus column is refreshed from the discovery sweep.
+
+Related: the soundness boundary this ledger rests on is recorded in
+[`galaxy-tool-xml-codemod/docs/decisions.md` §22](../galaxy-tool-xml-codemod/docs/decisions.md);
+the upgrade machinery itself is §13 (`UpdateProfile`) and §14 (`UpgradeToLatest`).
+
+---
+
+## The soundness boundary (why this ledger is structured the way it is)
+
+The upgrade machinery rests on one claim:
+
+> A tool that **validates** under profile *X* needs no XML modification to *be* a
+> valid profile-*X* tool — `UpdateProfile` simply declares `profile="X"`.
+
+This is **sound for *structural* (XSD) acceptability** and is exactly why most
+transitions need no codemod (see below). It is **NOT sufficient for *behavioural*
+equivalence**: Galaxy's `profile` is a *runtime-compatibility contract*, not only
+a schema selector. Some profile bumps change runtime defaults (error/exit-code
+detection, `set -e` / Cheetah strictness, output-metadata inference, command-line
+quoting) that the XSD does **not** encode. A tool can validate under both the old
+and new profile yet *behave* differently once bumped.
+
+Consequences for this ledger:
+
+- **Structural** column = what the XSD changed (what *could* break validation).
+- **Semantic** column = runtime behaviour the bump changes that the XSD is silent
+  on (the risk validation cannot see). This is the column that gates `auto`.
+- A transition is **`auto`** only when the structural delta is mechanically and
+  behaviour-safely resolvable *and* the semantic column carries no
+  behaviour-changing risk for the affected construct. Otherwise `needs-thought`.
+
+## Why most transitions need no codemod
+
+A **purely additive** schema change — new elements / attributes / assertion kinds,
+removing and restricting nothing — cannot invalidate a tool that was valid under
+the older profile: everything it used is still allowed. So for additive
+transitions, "validates at the newer profile" holds for every previously-valid
+tool, and `UpdateProfile` carries it forward with no content change. Only
+transitions that **remove** a construct or **add a restriction** (a `pattern`
+facet, a new `required`, a forbidden nesting) can strand a tool — those are the
+only candidates for an `upgrade_vN`.
+
+## Methodology — how these conclusions were reached (and how to refute them)
+
+Every safety claim here rests on **three independent evidence sources**, each
+reproducible. The verdict for a transition is their synthesis; any one of them
+failing is grounds to revise a row.
+
+### 1. Structural delta — what *could* break validity (XSD diff)
+
+The committed per-release XSDs are the source of truth. For any transition:
+
+```bash
+diff galaxy-tool-xml/src/galaxy_tool_xml/schema/galaxy-<from>.xsd \
+     galaxy-tool-xml/src/galaxy_tool_xml/schema/galaxy-<to>.xsd
+```
+
+Vendored set + commit/branch provenance: `…/schema/manifest.json` (28 XSDs,
+16.10→26.1, each pinned to a Galaxy release-branch commit). The per-transition
+signal used to classify each row (net-new / net-gone element & attribute
+declarations, plus `pattern`/`use="required"`/`enumeration` churn) is produced by:
+
+```bash
+# from galaxy-tool-xml/src/galaxy_tool_xml/schema/
+for adjacent pair (a,b): diff a b | grep -E '^[<>]' \
+  | grep -oE '<xs:(element|attribute|group|attributeGroup) name="[^"]+"'   # added vs removed decls
+  ; diff a b | grep -cE 'pattern value|use="required"|xs:enumeration'      # restriction churn
+```
+
+**The logical core:** a **purely additive** schema step — one that *adds* element
+/ attribute / assertion declarations and *removes or restricts nothing* — cannot
+invalidate a tool that was valid under the older profile, because every construct
+the tool used is still permitted. So for additive steps, "validates at the newer
+profile" holds for **every** previously-valid tool, with no content change. Only
+**removals** and **new restrictions** (a `pattern` facet, a new `required`, a
+newly-forbidden nesting) can strand a tool — those are the only `upgrade_vN`
+candidates, and in this corpus they are exactly four steps.
+
+**Limitation (and why source 2 is needed):** the name-diff heuristic is coarse —
+a *relocated* or *renamed* declaration shows up as net-gone even though no tool is
+actually stranded (marked `additive*`). The XSD diff tells you what is *possible*,
+not what *happens*. The corpus sweep is the empirical arbiter.
+
+### 2. Corpus evidence — what *actually* breaks (combined sweep)
+
+```bash
+uv run python -m scripts.corpus_check codemod \
+    galaxy_tool_xml_codemod.upgrades:UpgradeToLatest --source combined
+```
+
+This runs the full upgrade pipeline over **both** corpora — GitHub
+(`corpus_sources.json`, 21 repos) and the Galaxy ToolShed
+(`scripts/fetch_toolshed.py`), sha256-deduplicated — and reports, for every tool:
+whether it reached the latest profile, and if not, the version it **stuck** at
+(`STICKING POINT … need upgrade codemod for <version>`), plus per-`upgrade_vN`
+advance counts. A tool is "stuck at V" when, after the pipeline, its
+`newest_valid_profile` is V < latest. Eligibility = "validates at some vendored
+profile" (`eligibility.py`).
+
+The sweep is also the **soundness gate**: it re-parses and re-applies to assert
+**idempotence**, and re-validates every output to assert **post-validity**. The
+2026-06-01 run: 8,607 eligible, **0 non-idempotent / 0 post-validate-failed /
+0 crashed**, 8,566 reach latest, only the four breaking steps advance any tool,
+residual = the 24.1 macro-reachability/uncoercible cases + 2 tool-bugs.
+
+**How to refute the structural-soundness claim with this:** re-run the sweep. If
+any tool comes back **non-idempotent** or **post-validate-failed**, or a *new*
+`STICKING POINT` appears at a step we call additive, the "additive ⇒ safe" /
+"validity is the right structural oracle" claim is broken for that step — open it
+as a row to scope. New corpus repos or a new vendored XSD are the likely triggers.
+
+### 3. Semantic delta — what validity *cannot* see (Galaxy docs)
+
+Profile-gated **runtime** behaviour is **not derivable from the XSD**; it lives in
+Galaxy's tool-execution code and is documented under the `<tool> profile`
+attribute in the Galaxy schema docs:
+[docs.galaxyproject.org/en/latest/dev/schema.html](https://docs.galaxyproject.org/en/latest/dev/schema.html)
+(authoritative source = `lib/galaxy/tool_util/parser/` / the profile handling in
+the Galaxy repo). The Semantic column transcribes those notes per version.
+
+**How to refute / extend the semantic findings:** read the `profile` attribute
+documentation for the version in question (or the Galaxy source that branches on
+`profile`); if a profile bump changes a runtime default not listed in the Semantic
+column, add it. A demonstrated case where a tool validates identically at X and
+X+1 but *runs* differently after the bump **supports** the boundary in §22 (it is
+the boundary); it does not refute the *structural* soundness, which is about
+validity only.
+
+### Synthesis → the `Automatable` verdict
+
+`none` when the step is additive **and** strands no corpus tool (UpdateProfile
+carries it; the Semantic cell flags any behaviour the bump opts into). `auto` when
+a step is a **restrict** that strands tools **and** the fix is a mechanical,
+behaviour-preserving transform verified idempotent + post-valid by the sweep.
+`needs-thought` when the fix would be lossy or require a semantic judgement (left
+stuck and reported, never guessed).
+
+---
+
+## Ledger
+
+28 vendored profiles (`16.10` → `26.1`); `26.1` is latest. Structural class from
+the XSD diff; Corpus from the combined discovery sweep. Automatable:
+`none` = no codemod needed · `auto` = mechanical & behaviour-safe codemod ·
+`needs-thought` = lossy/semantic, left stuck & reported.
+
+> **Sweep run 2026-06-01** (`--source combined`): 8,607 eligible · 7,227 modified ·
+> **8,607 idempotent · 0 non-idempotent · 0 post-validate-failed · 0 crashed** ·
+> **8,566 reached latest (26.1), 41 below**. Per-step advances: 19.01→9, 24.0→1,
+> 24.1→111, 25.1→5. Only sticking points: 24.1 (39), 21.05 (1, tool-bug), 21.09
+> (1, tool-bug). No transition outside the four below strands a real tool — the
+> empirical confirmation that every additive step needs no codemod.
+
+Semantic deltas are from the Galaxy schema docs `<tool> profile` attribute
+([docs.galaxyproject.org/en/latest/dev/schema.html](https://docs.galaxyproject.org/en/latest/dev/schema.html));
+"none documented" = no profile-gated runtime behaviour documented at that step.
+The behaviour takes effect for a tool **declaring** the *To* profile — i.e.
+bumping `profile=` into that row opts the tool into it.
+
+| From → To | Structural class | Structural delta (XSD) | Semantic delta (runtime, not in XSD) | Corpus stuck | Automatable | Codemod |
+|---|---|---|---|---|---|---|
+| 16.10 → 17.01 | additive | `+conversion`, EDAM `edam_operation(s)`/`edam_topic(s)`, `datatype_isinstance`, `shared_inputs` | none documented | 0 | none | — |
+| 17.01 → 17.05 | additive | `+decompress`, `meta_ref`, `refresh_on_change`, `input_dataset` | none documented | 0 | none | — |
+| 17.05 → 17.09 | additive* | metadata hooks (`+hook`, `provided_metadata_*`, `default_identifier_source`); `ftype` decl relocated (not dropped) | `provided_metadata_style` defaults to `"default"` (legacy via `"legacy"`) | 0 | none | — |
+| 17.09 → 18.01 | additive* | `+import`/`token`/`xml` (macro elems); `request_parameter_translation` → `request_param_translation` (rename) | per-job separate `$HOME` | 0 | none | — |
+| 18.01 → 18.05 | additive | no tool-facing decl change | none documented | 0 | none | — |
+| 18.05 → 18.09 | additive | `+data_style`, `tags` | **input refs must be fully qualified (`|`)**; illegal `default` values rejected; no Galaxy py-env for `manage_data` | 0 | none | — |
+| 18.09 → 19.01 | additive | `+has_h5_attribute`/`has_h5_keys` assertions | `<stdio>` checks now prepend to preset checks | 0 | none | — |
+| **19.01 → 19.05** | **restrict** | output element restructure (`Output*` groups); **`name` required on output `<data>`** | **default Python 2.7 → 3.5** | **9** | **auto** | **GTX008** |
+| 19.05 → 19.09 | additive | `+entry_points`/`port`/`url`, `xrefs`, `has_n_lines` | none documented | 0 | none | — |
+| 19.09 → 20.01 | additive | `+assert_command_version`, `has_size` | none documented | 0 | none | — |
+| 20.01 → 20.05 | additive | `+delta_frac`, `sort_by` | **inputs JSON: unselected optionals → `None` (not `"None"`); multi-select → list (not comma-string)** | 0 | none | — |
+| 20.05 → 20.09 | additive | `+file_sources`, `recurse`/`sort_by`/`filename` | **`set -e` (command exits on non-zero status)**; assume collection-element sort order | 0 | none | — |
+| 20.09 → 21.01 | additive | `+creator`/`person`/`organization` (schema.org `Thing`) | none documented | 0 | none | — |
+| 21.01 → 21.05 | additive | `+meta_file_key` | none documented | 0 | none | — |
+| 21.05 → 21.09 | additive* | `+required_files`/`include`/`exclude`; (one tool strands here — `has_size/@delta_frac` tool-bug) | `from_work_dir` whitespace no longer stripped; no Galaxy py-venv for `data_source` | 1 (tool-bug) | needs-thought | — |
+| 21.09 → 22.01 | additive | test-assertion expansion (`TestAssertions*` groups, `xml_element`, …) | none documented | 1 (tool-bug) | needs-thought | — |
+| 22.01 → 22.05 | additive | `+resource`; job `action` reorg | none documented | 0 | none | — |
+| 22.05 → 23.0 | additive | `+sep`, `reverse_sort_order` | **optional text params templated as `None` (was `""`)** | 0 | none | — |
+| 23.0 → 23.1 | additive | `+has_json_property_with_*` assertions | none documented | 0 | none | — |
+| 23.1 → 23.2 | additive | `+collection`/`element`/`default` (in test output context) | none documented | 0 | none | — |
+| 23.2 → 24.0 | additive | `+macro`/`param`/`request_body`/`request_headers` (HTTP data source) | no Galaxy py-env for `data_source_async`; undeclared request params dropped | 0 | none | — |
+| **24.0 → 24.1** | **restrict** | `<filter>` no longer allowed in a `<collection>`'s child `<data>`; discover-datasets attrs moved to `OutputDiscoverDatasetsCommon` | none documented | **1** | **auto** | **GTX009** |
+| **24.1 → 24.2** | **restrict** | `format`/`ftype` gain a `pattern` facet (`FormatList`/`Format`, lowercase tokens); `TestAssertion` group consolidated | `data_column` params require a valid `data_ref` | **39** (residual; was 53) | **partial** | **GTX010** |
+| 24.2 → 25.0 | additive | `+fields`/`icon`, data-table `src`/`table_name` | none documented | 0 | none | — |
+| 25.0 → 25.1 | additive | `+credentials`/`secret`/`variable` | credentials via `<credentials>`, not user preferences | 0 | none | — |
+| **25.1 → 26.0** | **restrict** | `<trackster_conf>` dropped; `<action>` + `name`/`output_name` attrs removed; `+min`/`max` | none documented | **5** | **auto** (trackster) | **GTX011** |
+| 26.0 → 26.1 | additive | `+credentials`/`secret`/`variable` (top-level) | none documented | 0 | none (latest) | — |
+
+\* "additive*" = the diff shows a relocation/rename rather than a true removal; no
+corpus tool is stranded, so it behaves as additive in practice. Confirm per the
+sweep before treating any such row as breaking.
+
+> **The semantic column is the crux of the soundness boundary.** Rows like
+> 19.01→19.05 (Python 3), 20.01→20.05 (JSON `None`/lists), 20.05→20.09 (`set -e`),
+> 18.05→18.09 (qualified input refs), and 22.05→23.0 (optional text → `None`) are
+> **structurally additive yet behaviourally loaded**: a tool validates identically
+> before and after, so `UpdateProfile` will bump it with no codemod — but the
+> bumped tool *runs* under the new defaults. This is precisely why "validates at X"
+> does not prove "behaves the same at X" (codemod decisions §22). Automatic
+> `upgrade_vN` codemods address only the **restrict** rows; the semantic risk on a
+> bump is the user's to review (upgrade is opt-in/semantic, §16).
+
+---
+
+## Detailed notes — the breaking transitions
+
+### 19.01 → 19.05 — `name` required on output `<data>` (GTX008)
+**Delta:** 19.05 restructured the output groups and made `name` **required** on
+output `<data>`. **Stuck:** 9 tools (all `ucsb-phylogenetics/ucsb_phylogenetics`),
+bare `<data from_work_dir="…"/>` with no `name`. **Auto rationale:** the 9 stuck
+tools never *reference* the output name (not in `<command>`, not in a `<test>`), so
+a synthesised, collision-free placeholder (`output`, `output2`, …) is
+behaviour-neutral. This is a *synthesis* (placeholder identity), not recovery of
+author intent — a judgement call on a one-repo signal. **Semantic check:** TBD —
+confirm no 19.02–19.05 runtime default change interacts with unnamed outputs.
+
+### 24.0 → 24.1 — `<filter>` forbidden inside a collection's `<data>` (GTX009)
+**Delta:** a collection element now admits only `actions`/`change_format`; a
+top-level output `<data><filter>` is still fine. **Stuck:** 1 (`phac-nml/kat_filter`),
+whose paired collection's two `<data>` carried the *same* filter. **Auto
+rationale:** an identical all-or-nothing filter on every child is equivalent to one
+filter on the `<collection>`, so hoist + drop is semantics-preserving. Refuses
+non-equivalent cases (differing/partial child filters, a collection that already
+has its own filter) — those stay stuck and are reported. **Also in this delta:**
+discover-datasets attributes (`directory`/`ext`/`pattern`/`recurse`/`sort_by`/
+`visible`) were moved into a shared group; confirm via sweep that no tool strands
+on that move (none observed).
+
+### 24.1 → 24.2 — `format`/`ftype` pattern facet (GTX010) — **partial**
+**Delta:** `format` (and `ftype`) gained a `pattern` facet: `FormatList`
+(`<param>`, comma-separated `[a-z0-9._-]` tokens) / `Format` (`<data>`, one such
+token). **Stuck:** 53 → 39 residual after the codemod. **Auto rationale:**
+lowercase + whitespace-strip per comma token is semantics-preserving (Galaxy
+datatype extensions are lowercase; whitespace was never significant); a value that
+normalises to empty is dropped (empty restriction = no restriction). **`needs-thought`
+residual (~39):** ~18 with a coercible value living in an **imported macro file**
+the per-tool codemod can't reach (cross-file normalisation — see
+`galaxy-tool-xml-codemod/docs/macro-aware-normalization.md`); ~11 non-datatype junk
+(`?`, `plain text`, `$var`); ~9 single-token-context comma-lists with no basis to
+pick one datatype. These are reported, not guessed.
+
+### 25.1 → 26.0 — `<trackster_conf>` dropped (GTX011)
+**Delta:** the obsolete top-level `<trackster_conf>` (Trackster viz config) is
+removed in 26.0; the diff also shows `<action>` and `name`/`output_name` attributes
+removed and `min`/`max` added. **Stuck:** 5. **Auto rationale (trackster):** the
+element is obsolete with no replacement, so removal is the only path and is
+behaviour-neutral (Trackster is gone). **Resolved:** the 2026-06-01 combined sweep
+strands no tool on the `<action>` / `name` / `output_name` removals — GTX011's
+`<trackster_conf>`-only scope advances all 5 stuck tools to latest, so no extra
+case to scope here.
+
+### 21.05 / 21.09 residuals — tool bugs, not version deltas (no codemod)
+1 tool each strands here on constructs that were removed with no equivalent
+(`has_size/@delta_frac`; a semantically-invalid collection `type`). These are bad
+tools, not a one-step migration; left stuck and reported (`needs-thought`).

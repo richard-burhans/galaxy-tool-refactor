@@ -38,7 +38,7 @@ class EmptyElementShorthand(Rule):
         applies_to=frozenset({"tool", "macro"}),
     )
 
-    def apply(self, tree: etree._ElementTree) -> Iterable[Edit]:
+    def edits(self, tree: etree._ElementTree) -> Iterable[Edit]:
         """Yield ``ClearText`` edits collapsing whitespace-only leaf elements."""
         edits: list[Edit] = []
         for element in tree.iter():
