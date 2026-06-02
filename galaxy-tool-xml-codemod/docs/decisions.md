@@ -946,24 +946,29 @@ macro-expansion-detection-gap`.
   through `<expand macro="stdio"/>`. Across these macro-bearing tools the raw tree
   fires that code 1,590 times (984 over-flag + 606 genuine post-expansion) — a **62%
   false-positive rate within the macro set**. *Under-report* (the macro
-  supplies the trigger, unseen on the raw tree — the gap this bullet describes): **317
-  tools (6.2%)**, led by `23_0_consider_optional_text` (262), then `18_01` /
-  `20_09_consider_set_e` (30 each) and `24_2_fix_test_case_validation` (22). The
-  expanded-view port (first bullet) **eliminates these 984 over-flags and catches the
-  317 under-reports** in the live `upgrade` warning. It also makes a future
+  supplies the trigger, unseen on the raw tree — the gap this bullet describes): **344
+  tools (6.7%)**, led by `23_0_consider_optional_text` (262), then
+  `20_09_consider_set_e` (38), `18_01` (30) and `24_2_fix_test_case_validation` (22).
+  (The §28 `set_e` tightening raised its under-report 30 → 38: a macro that injects
+  command *sequencing* now correctly flips a raw single-command to applicable
+  post-expansion.) The expanded-view port (first bullet) **eliminates these 984
+  over-flags and catches the 344 under-reports** in the live `upgrade` warning. It
+  also makes a future
   `16_04_exit_code` auto-fix safe to *gate* on the detector — but the hard rule still
   stands at the codemod layer: never inject `<stdio>` off the **raw** tree (codemods
   operate on the raw tree; 984 tools already have it via a macro → double-inject). See
   `docs/upgrade_research/16_04_exit_code.md`.
-- **Corpus noise reduction (2026-06-01, 8,608 considered).** Per-code crossing
-  *events* drop from **103,330 → 28,667 (27.7%)** once detection is applied — ~72%
-  of the old warning's lines were codes that didn't apply. Tool-level "warns at all"
-  barely moves (94.2% → 92.4%): nearly every tool still trips a near-universal code
-  (the always-on 16.04 note, `18_01` no-`use_shared_home`, `20_09` no-`strict`,
-  `24_2` has-tests). The win is *precision per code*, not on/off. Sanity-checked:
-  no inverted predicate; `16_04_fix_output_format`→107 and
-  `21_09_fix_from_work_dir_whitespace`→4 match the GTX015/GTX014 populations;
-  `17_09`→0 and `24_0_consider_python_environment`→0 are genuinely rare conditions.
+- **Corpus noise reduction (2026-06-01, 8,608 considered; set_e refreshed 2026-06-02
+  for §28).** Per-code crossing *events* drop from **103,330 → 27,367 (26.5%)** once
+  detection is applied — ~73% of the old warning's lines were codes that didn't apply.
+  Tool-level "warns at all" barely moves (94.2% → 92.3%): nearly every tool still
+  trips a near-universal code (the always-on 16.04 note, `18_01` no-`use_shared_home`,
+  `20_09` `set_e` on a multi-statement command, `24_2` has-tests). The win is
+  *precision per code*, not on/off. Sanity-checked: no inverted predicate;
+  `16_04_fix_output_format`→107 and `21_09_fix_from_work_dir_whitespace`→4 match the
+  GTX015/GTX014 populations; `17_09`→0 and `24_0_consider_python_environment`→0 are
+  genuinely rare conditions. (The §28 `set_e` tightening drops its applicable count
+  to **4,674** — the −1,300 that moves the aggregate from 28,667 to 27,367.)
 
 ## 26. `NormalizeBooleanValues` (GTX017) — boolean case repair
 
@@ -1082,8 +1087,8 @@ single-statement predicate is unit-tested in
 - **Per-code audit (all 17).**
   | Code | Today | Verdict |
   |---|---|---|
-  | `20_09_consider_set_e` | `_detects_no_strict` (any command) | **Tighten** — a single simple command is provably unaffected by `set -e`; sized below. |
-  | `23_0_consider_optional_text` | any `<param type="text">` w/o `optional` | **Candidate** — tighten toward Galaxy's real "accepts empty string" condition; needs its own sizing. |
+  | `20_09_consider_set_e` | `_detects_set_e` (no `strict=` **and** not a lone command) | **Tightened (shipped)** — a single simple command is provably unaffected by `set -e`; sized below. |
+  | `23_0_consider_optional_text` | any `<param type="text">` w/o `optional` | **Deferred** — the sound suppressor is "a validator that rejects the empty string", but an exploratory scan over the 2,805 firing tools found only ~16% carry *any* text-param validator, and the *provably* empty-rejecting subset is smaller still (`empty_field` always; `regex`/`length` only for some patterns/mins — needs per-validator Galaxy-source grounding). Modest payoff for materially more work than `set_e`; left coarse. |
   | `16_04_consider_implicit_extra_file_collection` | `lambda: True` | **Keep coarse** — Galaxy emits it unconditionally; reliance on implicit working-dir discovery is not statically provable-absent. |
   | `18_01_consider_home_directory` | `_detects_no_shared_home` | **Keep coarse** — `$HOME` dependence can live inside an invoked binary; absence unprovable from XML. |
   | `24_2_fix_test_case_validation` | `_detects_has_test` | **Keep coarse** — a sound tightening needs a port of Galaxy's parameter-model test-case validator (large, separate effort). |
@@ -1096,13 +1101,23 @@ single-statement predicate is unit-tested in
   change their behaviour and the note is a false positive. The conservative heuristic
   (`_command_text_is_single_simple_statement`) never suppresses an ambiguous body, so
   it can only *remove* false positives.
-- **Why the tightening is gated on a cost call, not shipped here.** `20_09_consider_set_e`
-  is a `consider`-level **advisory note** — it never blocks an upgrade or mutates a
-  tool. Changing its detector, however, shifts committed raw-tree corpus numbers across
-  *three* measures (`upgrade-codes-applicability`'s §25 `103,330 → 28,667` aggregate +
-  the 92.4% tool-level figure; `macro-expansion-detection-gap`'s `20_09` under-report
-  count; and `upgrade_behavior_block_stats.md`), each of which must be **regenerated
-  from its standing command** (never hand-edited — §5 of the pre-PR audit). The audit
-  + sizing land now (this section + the `set-e-tightening` measure); the detector edit
-  + its multi-measure regen are a scoped follow-up, taken only if the 20.6% advisory
-  precision gain is judged worth the regen churn.
+- **The tightening, and its multi-measure regen (shipped 2026-06-02).**
+  `_detects_set_e` replaces the old `_detects_no_strict` mirror: it still requires no
+  `strict=`, and additionally suppresses a *provably single simple command*
+  (`_command_text_is_single_simple_statement`, shared with the `set-e-tightening`
+  measure so the sizing can't drift). `20_09_consider_set_e` is a `consider`-level
+  **advisory note** — it never blocks an upgrade or mutates a tool — but the detector
+  feeds three raw-tree corpus measures, all **regenerated from their standing
+  commands** (never hand-edited — §5 of the pre-PR audit):
+  - `upgrade-codes-applicability`: set_e applies **5,974 → 4,674**; aggregate crossing
+    events **28,667 → 27,367 (27.7% → 26.5%)**; tool-level "warns at all" **92.4% →
+    92.3%** (§25 updated).
+  - `macro-expansion-detection-gap`: set_e under-report **30 → 38** (a macro injecting
+    command *sequencing* now correctly flips a raw single-command to applicable
+    post-expansion); total under-report **317 → 344** (§25 updated).
+  - `upgrade_behavior_block_stats.md` (regenerated artifact): set_e as a
+    must_fix+consider first-blocker **415 → 388**; the 27 freed tools re-block later
+    (23.0 +7, 24.2 +17, reach-latest +3 — conservation holds).
+  The change diverges *tighter* than Galaxy's advisor (more precise, never
+  under-reporting), inside the §22 boundary. `23_0_consider_optional_text` remains a
+  candidate pending its own sizing.

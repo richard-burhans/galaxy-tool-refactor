@@ -47,7 +47,7 @@ Reaches latest behavior-preservingly: **2,567**; stuck: **5,305**.
 
 ## Blocking on `must_fix` + `consider`
 
-Reaches latest behavior-preservingly: **239**; stuck: **7,633**.
+Reaches latest behavior-preservingly: **242**; stuck: **7,630**.
 
 | Profile | Level | Behavior code (first blocker) | Tools stuck |
 |---|---|---|--:|
@@ -56,7 +56,7 @@ Reaches latest behavior-preservingly: **239**; stuck: **7,633**.
 | 18.01 | consider | `18_01_consider_structured_like` | 1 |
 | 18.01 | consider | `18_01_consider_home_directory` | 296 |
 | 20.09 | consider | `20_09_consider_output_collection_order` | 64 |
-| 20.09 | consider | `20_09_consider_set_e` | 415 |
+| 20.09 | consider | `20_09_consider_set_e` | 388 |
 | 21.09 | consider | `21_09_consider_python_environment` | 4 |
-| 23.0 | consider | `23_0_consider_optional_text` | 311 |
-| 24.2 | must_fix | `24_2_fix_test_case_validation` | 845 |
+| 23.0 | consider | `23_0_consider_optional_text` | 318 |
+| 24.2 | must_fix | `24_2_fix_test_case_validation` | 862 |
