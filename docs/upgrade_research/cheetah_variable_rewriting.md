@@ -37,9 +37,15 @@ Cheetah is a full text-templating language (Python-backed): placeholders (`$x`,
 `${...}`), directives (`#if`/`#for`/`#set`/`#def`/`#import`/`#echo`/`#raw`/`#slurp`/
 `#while`/`#try`), `##` comments, `\$`/`$$` escaping, and **arbitrary embedded Python**
 (`#set $x = re.sub(...)`, `${ ... }` expressions). Galaxy applies it via
-`fill_template` (`lib/galaxy/util/template.py`) with the **default Cheetah compiler**
-and `python_template_version="3"` — i.e. **no dialect restriction**; the whole
-language is in play.
+`fill_template` (`lib/galaxy/util/template.py`), passing
+`python_template_version=tool.python_template_version` (`evaluation.py:767-768`) —
+the tool's explicit attribute (`xml.py:752-756`) or, when absent, `Version("3.5")`
+for profile ≥ 19.05 else `Version("2.7")` (`tools/__init__.py:1353-1358`). The
+literal `"3"` is only `fill_template`'s signature default (`template.py:115`), which
+the evaluation path never hits. Either way there is **no dialect restriction** that
+helps a rewriter — the whole language is in play. For a tool on a profile below
+19.05 (a minority of the corpus), Cheetah compiles under **2.7** and succeeds only
+via the futurize / lib2to3 (`fissix`) py2 retry (`template.py:138-152, 195-211`).
 
 Sections Galaxy Cheetah-processes (so a complete tool would have to handle all of
 them):
@@ -99,7 +105,10 @@ wrapper classes.
 - Variable shapes: `$x.y` dotted **56.8%**, `${...}` braced **42.3%**, `$x(...)` call
   **12.5%**, `$x[...]` indexing **2.6%**, `$__x__` specials **29.0%**, `$UPPER`
   env-style **17.7%**.
-- Hazards for naive rewriting: `##` comments **19.7%**, escaped `\$` **18.3%**.
+- Hazards for naive rewriting: `##` comments **19.7%** (an *upper bound* — the `##`
+  regex also matches shell `${var##*/}`, so the true Cheetah-comment share is lower
+  and the hazard-free addressable subset is correspondingly a conservative
+  under-estimate; see `../cheetah_command_stats.md`), escaped `\$` **18.3%**.
 - Macro interplay: **48.4%** of tools use `<expand>`; **15.9%** of Cheetah text
   carries an `@TOKEN@`.
 
@@ -113,10 +122,10 @@ plain — **56.8% use dotted attribute access**, which is fine to *detect* but r
 | Approach | Correctness | Cost / risk | Verdict |
 |---|---|---|---|
 | **A. Regex heuristic** (what we have: `scripts/measure.py:1721` `_CHEETAH_VAR`, `_count_unquoted_vars:1736`) | Approximate — false +/− on comments, `#raw`, `\$`, strings | Zero deps, fast | Fine for **metrics** and conservative **detection**; unsafe as the sole basis for rewriting |
-| **B. Cheetah compile → AST of generated Python** (stdlib `ast` or **libCST**) | High (Cheetah's own parser) | **Cheetah is NOT installed** in our venv (verified), and **neither is libCST** (verified) — would add CT3 (+ optionally libCST) as a dependency; relies on the private `_CHEETAH_generatedModuleCode`; maps placeholders to `VFFSL(...)` calls but mapping edits *back* to source offsets is non-trivial; fails on templates Galaxy only compiles via the py2 futurize retry | Promising for **analysis/validation**; awkward for **source rewriting** |
+| **B. Cheetah compile → AST of generated Python** (stdlib `ast` or **libCST**) | High (Cheetah's own parser) | **Cheetah is NOT installed** in our venv (verified), and **neither is libCST** (verified) — would add CT3 (+ optionally libCST) as a dependency; relies on the private `_CHEETAH_generatedModuleCode`; maps placeholders to `VFFSL(...)` calls but mapping edits *back* to source offsets is non-trivial; must replicate Galaxy's per-tool 2.7-vs-3.5 compile — the py2 futurize retry is the **normal** compile mode for sub-19.05 tools, not a rare failure | Promising for **analysis/validation**; awkward for **source rewriting** |
 | **C. Custom Cheetah grammar** (lark/pyparsing) | Can be high for the subset we model | Large effort; perpetual drift from real Cheetah; re-implements a moving target | Only if B proves unworkable and the payoff is large |
 | **D. Hybrid, scoped** — regex/structured detection that **bails out** on any hazard (directive, dotted target, `#raw`, comment, configfile coupling, `<expand>`) and only acts on a provably-simple shape | High *on the subset it accepts* | Low coverage by design; must `log()`/report what it skipped | **Most realistic first step** for any rewrite |
-| **E. Dynamic sentinel oracle** — render the template with Cheetah, binding names to locatable sentinel values, and read the *output* (see the section below) | High *as an oracle* (uses real Cheetah) | Needs CT3; needs a permissive search list; only the *taken* `#if`/`#for` branch renders; embedded Python can eat the sentinel; tells you the value's place in *output*, not its *source span* | Strong for **verification / detection**, not for **locating** edits |
+| **E. Dynamic sentinel oracle** — render the template with Cheetah, binding names to locatable sentinel values, and read the *output* (see the section below) | High *as an oracle* (uses real Cheetah) | Needs CT3 and must replicate Galaxy's per-tool 2.7-vs-3.5 selection + futurize retry (or it diverges for sub-19.05 tools); needs a permissive search list; only the *taken* `#if`/`#for` branch renders; embedded Python can eat the sentinel; tells you the value's place in *output*, not its *source span* | Strong for **verification / detection**, not for **locating** edits |
 
 Prior art confirms the difficulty: **Galaxy itself never statically extracts
 variables** — it evaluates templates at runtime with a real context; its command
@@ -198,7 +207,12 @@ Honest obstacles (all real):
 3. **Only the taken branch renders.** `#if`/`#elif` mean a reference in the *other*
    branch never appears — the conditional-opacity problem, now dynamic. Honest detection
    needs to force all branches (re-render with the condition toggled), which is
-   combinatorial in the number of conditionals.
+   combinatorial in the number of conditionals. (For differential *verification* this
+   is a soundness trap, not merely a detection gap: a candidate edit inside an
+   unexercised `#if`/`#elif` branch renders identically for original and rewrite, so
+   verification passes **vacuously** — a false behaviour-preserving certificate. This
+   is precisely why E-as-verifier is sound only on the directive-free subset Approach D
+   accepts: D refuses any `#if`, so the D+E pipeline never hands E a branch.)
 4. **Embedded Python can eat the sentinel.** `#import re` / `#set $x = re.sub(p, r, $y)`
    may transform the marker beyond recognition → false negatives for *detection*
    (differential verification still holds, since the transform is identical on both

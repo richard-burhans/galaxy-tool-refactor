@@ -28,13 +28,19 @@ mirrors it (`command is not None and command.get("use_shared_home") is None`).
 
 ## Mechanical-fix feasibility
 
-**Not mechanically decidable.** Whether the tool relies on a shared home depends on
-what its command/scripts read from `$HOME` — invisible in the XML. Auto-adding
-`use_shared_home="true"` everywhere would wrongly pin the legacy behaviour for the
-vast majority that don't need it (Galaxy itself notes "most tools should not depend
-on global state"). Galaxy lists this among the "could be more precise" items it
-deliberately leaves as advice (`upgrade/__init__.py:9`).
+**A behaviour-preserving restore is mechanical and well-defined**: inject
+`use_shared_home="true"` on `<command>` — a single attribute Galaxy's parser honours
+(`command_el.get('use_shared_home')` flips `job_home` vs `shared_home`, `xml.py:301-307`),
+which faithfully pins the pre-18.01 shared-home default. This is the same shape as the
+`16_04_exit_code` (`<stdio>`) and `20_09_consider_set_e` (`strict="false"`)
+legacy-restore opt-ins.
+
+The catch is *desirability*, identical to `set_e`'s "set -e is the safer modern
+default" caveat: most tools don't need shared home (Galaxy notes "most tools should
+not depend on global state"), so pinning it over-applies. Galaxy lists this among the
+"could be more precise" items it deliberately leaves as advice (`upgrade/__init__.py:9`).
 
 ## Status / recommendation
 
-Detect/report-only. Niche; no codemod.
+Detect/report-only — a legacy-restore opt-in (`use_shared_home="true"`), not applied
+by default because it pins worse behaviour. Niche; no codemod today.

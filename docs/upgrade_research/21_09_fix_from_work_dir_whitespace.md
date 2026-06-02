@@ -49,10 +49,16 @@ bug — it calls `advice_collection.add("")` with an empty code — documented i
 
 ## The faithful fix
 
-Strip surrounding whitespace from the `from_work_dir` attribute. This is
-**always safe**: pre-21.09 Galaxy stripped it anyway (so stripping matches the old
-behaviour), and post-21.09 stripping yields the path the author obviously intended.
-There is no ambiguity and no author intent required.
+Strip surrounding whitespace from the `from_work_dir` attribute. For the upgrade
+scenario this targets — a tool **crossing** from profile `<21.09` to `>=21.09` —
+the strip is **behaviour-preserving**: pre-21.09 Galaxy already stripped the value
+(`xml.py:603`), so the stripped path is the one the tool ran with. (For a tool
+*already* at `>=21.09`, stripping is a correctness fix to an already-broken
+whitespace path, not behaviour preservation — but the whitespace `from_work_dir`
+occurrences are a handful of **pre-21.09** tools, GTX014's entire applicable
+population, none already at ≥ 21.09; codemod `docs/decisions.md` §25,
+`scripts/measure.py upgrade-codes-applicability`.) There is no ambiguity and no
+author intent required.
 
 ## What GTX014 already does
 

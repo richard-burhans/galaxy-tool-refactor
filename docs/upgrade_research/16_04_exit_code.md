@@ -36,9 +36,17 @@ return (root.find(".//stdio") is None
 
 ## Mechanical-fix feasibility
 
-**Behaviour-preserving fix is mechanical and well-defined**: inject the legacy
-stderr-fatal `<stdio>` block quoted in the message. That reproduces the pre-16.04
-error semantics exactly for any tool lacking error handling.
+**A mechanical fix exists**: inject the legacy stderr-fatal `<stdio>` block quoted
+in the message — Galaxy's own verbatim recommended snippet. It is *faithful to
+Galaxy's advice* but **not byte-for-byte equivalent to the true legacy default**.
+The pre-16.04 default (`output_checker.py:194`, `if stderr:`) fails a job only when
+stderr is a **non-empty** string and ignores the exit code, whereas the injected
+`<regex match=".*" source="stderr" level="fatal">` is evaluated via
+`re.search(".*", stderr, re.IGNORECASE)` (`output_checker.py:77`), and `.*` matches
+the **empty** string — so a clean successful run with empty stderr is OK under the
+legacy default but **fatal** under the injected block. That is the common success
+path, not a rare edge: a known fidelity gap to disclose if/when this becomes an
+opt-in `RuntimeGatedFix`.
 
 The caveat is *desirability*: doing so **pins the legacy (stderr-based) behaviour**,
 which is generally worse than exit-code detection — the modern recommendation is to

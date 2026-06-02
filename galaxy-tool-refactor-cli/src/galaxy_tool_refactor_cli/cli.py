@@ -228,10 +228,12 @@ def upgrade_command(
     upgraded by bumping that token in place — but only when every profile-using
     importer in this run agrees on the target profile; a macro file whose
     importers disagree is reported and left untouched (no over-declaration). The
-    inline-token case is handled per-file by GTX007. That token bump is the *only*
-    edit an imported macro file receives here — unlike ``format``, ``upgrade``
-    does not cosmetically reformat macro files; the cosmetic pass runs on the
-    tool files in PATHS. PATHS may be files or directories.
+    inline-token case is handled per-file by GTX007. The token value is the *only*
+    semantic edit, but the macro file it lives in **is** reserialised through fmt's
+    ``format_macro_document`` when the token is bumped (so a bumped file is also
+    cosmetically normalised — GTX001/GTX004); ``upgrade`` runs no *separate*
+    cosmetic macro pass over un-bumped macro files the way ``format`` does. PATHS
+    may be files or directories.
 
     The upgrade is structural, not behaviour-preserving: bumping ``profile=`` opts
     the tool into newer Galaxy runtime defaults the XSD can't verify. When a bump
