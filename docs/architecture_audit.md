@@ -378,7 +378,8 @@ dependency-freedom; fmt cosmetic-only + the `Rule.edits` describe-vs-mutate spli
 check-tier purity + the IUC011/012 reserved stubs; and that the `RuntimeGatedFix`
 *design* is sound (the `introduced_profile` marker is runtime-test-enforced, not
 type-checker-enforced; membership in `coded_codemods()` keeps it collision-guarded;
-the facade applies `runtime_fixes_for(reached)` after `UpgradeToLatest`).
+the facade applies `runtime_fixes_for(reached, *, baseline)` after `UpgradeToLatest`
+— crossing-gated since 2026-06-02, codemod §24).
 
 ### Refuted (do not re-litigate)
 

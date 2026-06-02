@@ -815,11 +815,17 @@ via `uv run python -m scripts.measure semantic-upgrade-boundaries`.
 
 ## 24. Runtime-gated fixes: a detect-driven family the `upgrade` path applies
 
-**Date:** 2026-06-01. Reproduced-by: `uv run --package galaxy-tool-xml-codemod
-pytest galaxy-tool-xml-codemod/tests/test_fix_from_work_dir_whitespace.py
-galaxy-tool-xml-codemod/tests/test_runtime_fixes.py`; corpus sizing via `uv run
-python -m scripts.corpus_check codemod
-galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace:FixFromWorkDirWhitespace`.
+**Date:** 2026-06-01 (crossing-gate + format_source guard added 2026-06-02).
+Reproduced-by: `uv run --package galaxy-tool-xml-codemod pytest
+galaxy-tool-xml-codemod/tests/test_fix_from_work_dir_whitespace.py
+galaxy-tool-xml-codemod/tests/test_runtime_fixes.py
+galaxy-tool-xml-codemod/tests/test_fix_output_format_input.py`; crossing-gate at the
+facade via `uv run --package galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_facade.py -k "runtime or crossing"`; corpus
+sizing via `uv run python -m scripts.corpus_check codemod
+galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace:FixFromWorkDirWhitespace`
+and the format_source-guard breakdown via `uv run python -m scripts.measure
+output-format-input`.
 
 - **The gap.** Some Galaxy `must_fix` upgrade codes (§23) are **runtime** behaviours
   the XSD does **not** enforce — e.g. `21_09_fix_from_work_dir_whitespace`: from
@@ -830,14 +836,30 @@ galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace:FixFromWorkDirWhit
 - **What we chose.** A new **`RuntimeGatedFix`** family (`codemods/_runtime_gated.py`):
   an ordinary detect-primitive `CodemodCommand` plus an `introduced_profile`
   ClassVar. `runtime_fixes.py` holds the `RUNTIME_GATED_FIXES` registry and
-  `runtime_fixes_for(profile)`. The **registry facade's `upgrade`** applies each fix
-  whose `introduced_profile` is at or below the profile the tool actually
-  **reached** — after `UpgradeToLatest`, before the cosmetic/reorder pass.
-- **Profile-conditioned (not unconditional).** A tool that stalls below a fix's
-  introduction profile is left untouched — Galaxy ran it under the old behaviour
-  (pre-21.09 Galaxy stripped `from_work_dir` itself), so the fix would be a no-op
-  there anyway, and conditioning keeps the family correct for fixes that are *not*
-  backward-no-ops.
+  `runtime_fixes_for(reached, *, baseline)`. The **registry facade's `upgrade`**
+  applies each fix the tool **crosses** — after `UpgradeToLatest`, before the
+  cosmetic/reorder pass.
+- **Crossing-gated, on *both* bounds (2026-06-02).** A fix applies only when
+  `baseline < introduced_profile <= reached`, where `baseline` is the tool's
+  pre-upgrade runtime baseline (a missing `profile=` resolves to `16.01`; a
+  macro-token/unparseable baseline ⇒ apply **no** runtime fixes and let the §23
+  warning report). Two tools are left untouched: one that **stalls below** a fix
+  (Galaxy ran it under the old behaviour — pre-21.09 Galaxy stripped `from_work_dir`
+  itself, so the fix is a no-op there), *and* one that **already declares** a profile
+  at or above the fix's introduction. The original cut gated on `reached` only, which
+  was a behaviour-*preservation* gap: an already-≥boundary tool with the deprecated
+  construct currently runs under the *new* Galaxy behaviour (e.g. Galaxy disables
+  `format="input"` from 16.04; quotes `from_work_dir` from 21.09), so rewriting it
+  would *change* current behaviour, not preserve it. The lower bound closes that. For
+  the two **shipped** fixes the gate skips **0** tools on the current corpus: 0 of the
+  109 auto-fixable `format="input"` tools already declare profile ≥16.04 (`scripts/
+  measure output-format-input`), and all 4 whitespace `from_work_dir` tools predate
+  21.09 (profile 16.07) — so it is a soundness backstop with no behaviour change
+  today. The real beneficiary is the planned GTX016 `interpreter=` fix: the
+  adversarial review found bucket-A `interpreter=` tools that *already* declare ≥16.04
+  (Galaxy ignores `interpreter=` for any profile ≠ 16.01), which the gate will
+  correctly leave alone — to be sized by its own measure when GTX016 lands. (Surfaced
+  by the upgrade-soundness adversarial review, 2026-06-02.)
 - **Upgrade-only.** Runtime-gated fixes are in `coded_codemods()` (so the registry
   enumerates them and the GTX namespace stays collision-guarded) but **not** in
   `CANONICAL_CODEMODS` — they never run under `format` / the `iuc` preset and never
@@ -852,10 +874,18 @@ galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace:FixFromWorkDirWhit
   `<data format="input">` with `format_source="<input>"` — but **only** for a tool
   with exactly one *top-level* `<param type="data">` (then the source is
   unambiguous and an unqualified reference resolves). Tools with zero, two-or-more,
-  or a *nested* single data input are left for the §23 warning. It **overrides
-  `detect`** (not the per-tag walk) because choosing `format_source` needs whole-tool
-  context; `apply` still derives from `detect` (so detect/apply parity holds). Sized
-  first via `scripts/measure.py output-format-input` (the measure-before-build rule).
+  or a *nested* single data input are left for the §23 warning. An output that
+  **already carries a `format_source`** is also skipped (2026-06-02): `format="input"`
+  is inert there — Galaxy's format_source branch wins at runtime
+  (`tools/actions/__init__.py`) — so overwriting the author's source (which may point
+  at a collection or a different input) would change behaviour. `scripts/measure
+  output-format-input` sizes it: **6** co-present `format="input"` elements exist in the
+  corpus but **0** fall in the auto-fixable subset (all 6 belong to tools with 0 or 2+
+  data inputs, which GTX015 never fired on), so the guard is a soundness backstop, not
+  a count change. It **overrides `detect`** (not the
+  per-tag walk) because choosing `format_source` needs whole-tool context; `apply`
+  still derives from `detect` (so detect/apply parity holds). Sized first via
+  `scripts/measure.py output-format-input` (the measure-before-build rule).
 - **Still deferred (warn-only, per §23 + `behavior-preserving-upgrade.md`).**
   `16_04_fix_interpreter` and `24_2_fix_test_case_validation` need author judgement
   (rewrite the command to call the runtime by path; correct a parameter model) —

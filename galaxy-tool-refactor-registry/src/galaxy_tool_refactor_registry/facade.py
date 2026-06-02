@@ -214,13 +214,16 @@ def upgrade(
     upgrader.apply(module)
 
     # Runtime-gated fixes correct profile behaviours the XSD does not enforce, so
-    # they ride neither the validity loop nor the selection. Apply each fix whose
-    # introduction profile the tool actually reached; one that stalled below it is
-    # left alone (Galaxy ran it under the old behaviour). Upgrade-only — never in
-    # `format`/canonical.
+    # they ride neither the validity loop nor the selection. Apply each fix the tool
+    # actually CROSSES (`baseline < introduced_profile <= reached`): a tool that
+    # stalled below it is left alone (Galaxy ran it under the old behaviour), and one
+    # that already declared a profile at/above it is left alone too (Galaxy already
+    # applied the new behaviour — rewriting would change, not preserve, behaviour).
+    # `baseline` is the pre-upgrade runtime baseline captured above. Upgrade-only —
+    # never in `format`/canonical.
     reached = newest_valid_profile(document)
     if reached is not None:
-        for fix in runtime_fixes_for(reached):
+        for fix in runtime_fixes_for(reached, baseline_profile=baseline):
             fix().apply(module)
 
     # The remaining fixable rules (any selected reorderers + cosmetic fmt) run
