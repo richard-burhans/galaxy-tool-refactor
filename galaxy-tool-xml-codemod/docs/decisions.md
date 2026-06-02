@@ -929,9 +929,15 @@ macro-expansion-detection-gap`.
   validator (no port) → **approximated** by the necessary condition "ships a
   `<test>`"; `16_04_consider_implicit_extra_file_collection` Galaxy emits
   **unconditionally** → always-true detector.
-- **Detection runs on the as-loaded (possibly un-expanded) tree**, matching the live
-  facade — a feature supplied only by an imported macro is not seen. Acceptable: the
-  note reflects exactly what the tool-as-given would report.
+- **Detection runs on the macro-expanded tree (2026-06-02, the expanded-view port).**
+  `tripped_upgrade_codes` detects on `expanded_detection_root` (tier-1 read-only
+  accessor, raw fallback when macros can't expand), mirroring Galaxy's advisors,
+  which parse the tool *post-macro-expansion* — so a feature supplied only by an
+  imported macro is now seen, closing the divergence sized below for the live
+  `upgrade` warning. The corpus *diagnostic* measures (`upgrade-codes-applicability`,
+  `upgrade-behavior-blocks`) deliberately stay **raw-tree** analyses via the
+  `detect_codes_on_root` primitive — the numbers in this section are raw-tree
+  baselines; the `macro-expansion-detection-gap` measure quantifies the live shift.
 - **Sized the raw-vs-expanded divergence (2026-06-02, `macro-expansion-detection-gap`,
   5,113 macro-bearing tools compared).** Running the detectors on the raw tree vs the
   macro-expanded tree disagrees in two directions. *Over-flag* (raw fires, but a macro
@@ -942,11 +948,12 @@ macro-expansion-detection-gap`.
   false-positive rate within the macro set**. *Under-report* (the macro
   supplies the trigger, unseen on the raw tree — the gap this bullet describes): **317
   tools (6.2%)**, led by `23_0_consider_optional_text` (262), then `18_01` /
-  `20_09_consider_set_e` (30 each) and `24_2_fix_test_case_validation` (22). This is a
-  *report-only* note today, so the divergence is cosmetic precision, not a correctness
-  bug — but it bounds the payoff of an expanded-view detector port and sets one hard
-  rule: a future auto-fix for `16_04_exit_code` must **never** inject `<stdio>` off the
-  raw tree (984 tools already have it via a macro → double-inject). See
+  `20_09_consider_set_e` (30 each) and `24_2_fix_test_case_validation` (22). The
+  expanded-view port (first bullet) **eliminates these 984 over-flags and catches the
+  317 under-reports** in the live `upgrade` warning. It also makes a future
+  `16_04_exit_code` auto-fix safe to *gate* on the detector — but the hard rule still
+  stands at the codemod layer: never inject `<stdio>` off the **raw** tree (codemods
+  operate on the raw tree; 984 tools already have it via a macro → double-inject). See
   `docs/upgrade_research/16_04_exit_code.md`.
 - **Corpus noise reduction (2026-06-01, 8,608 considered).** Per-code crossing
   *events* drop from **103,330 → 28,667 (27.7%)** once detection is applied — ~72%

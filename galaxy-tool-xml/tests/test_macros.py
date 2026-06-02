@@ -8,11 +8,52 @@ from galaxy_tool_xml.macros import (
     TokenDefinition,
     expand_from_path,
     expand_from_tree,
+    expanded_detection_root,
     has_macros,
     imported_macro_paths,
     strip_macros,
     token_definitions,
 )
+
+
+def test_expanded_detection_root_no_macros_returns_raw_identity() -> None:
+    document = load_tool(b'<tool id="t"><command>run</command></tool>')
+    # No macros: nothing to expand — the raw root is returned unchanged.
+    assert expanded_detection_root(document) is document.root
+
+
+def test_expanded_detection_root_expands_inline_macro() -> None:
+    document = load_tool(
+        b'<tool id="t"><macros><xml name="extra"><citations/></xml></macros>'
+        b'<command>run</command><expand macro="extra"/></tool>'
+    )
+    assert document.root.find(".//expand") is not None  # raw carries the <expand> call
+    root = expanded_detection_root(document)
+    assert root.find(".//expand") is None  # expansion resolved the <expand>
+
+
+def test_expanded_detection_root_falls_back_when_import_unresolvable() -> None:
+    # An imported macro with no source path can't be resolved → raw fallback.
+    document = load_tool(
+        b'<tool id="t"><macros><import>macros.xml</import></macros>'
+        b'<command>run</command><expand macro="stdio"/></tool>'
+    )
+    assert expanded_detection_root(document) is document.root
+
+
+def test_expanded_detection_root_expands_imported_macro(tmp_path: Path) -> None:
+    (tmp_path / "macros.xml").write_text(
+        '<macros><xml name="stdio">'
+        '<stdio><exit_code range="1:" level="fatal"/></stdio></xml></macros>',
+        encoding="utf-8",
+    )
+    (tmp_path / "tool.xml").write_text(
+        '<tool id="t"><macros><import>macros.xml</import></macros>'
+        '<command>run</command><expand macro="stdio"/></tool>',
+        encoding="utf-8",
+    )
+    document = load_tool(tmp_path / "tool.xml")  # source_path set → imports resolve
+    assert expanded_detection_root(document).find(".//stdio") is not None
 
 
 def test_has_macros_true(data_dir: Path) -> None:

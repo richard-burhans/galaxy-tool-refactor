@@ -29,6 +29,13 @@ given tool, by running a per-code detector — a port of Galaxy's own advisor
 (``lib/galaxy/tool_util/upgrade/__init__.py`` @ ``b45c58a2``). The ``upgrade``
 path warns on the *applicable* set, so a tool that trips none stays quiet.
 
+Detection runs on the **macro-expanded** tree (``tripped_upgrade_codes`` uses
+``galaxy_tool_xml.macros.expanded_detection_root``, raw fallback when expansion
+fails), mirroring Galaxy's advisor, which parses the tool post-expansion — so a
+construct supplied only by an ``<expand>`` (e.g. a shared ``<stdio>`` macro) is
+seen, not falsely flagged. ``detect_codes_on_root`` is the raw-tree primitive used
+by the corpus diagnostics that compare raw vs expanded explicitly (decisions §25).
+
 **We port Galaxy's documented intent, not its literal b45c58a2 code**, which has
 several transcription bugs that make some predicates non-functional upstream
 (recorded here so the deviation is deliberate, see ``docs/decisions.md`` §23):
@@ -53,6 +60,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from galaxy_tool_xml.macros import expanded_detection_root
 from packaging.version import InvalidVersion, Version
 
 if TYPE_CHECKING:
@@ -469,27 +477,42 @@ _DETECTORS: dict[str, Callable[[etree._Element], bool]] = {
 }
 
 
-def tripped_upgrade_codes(document: ToolDocument, /) -> frozenset[str]:
-    """The codes whose per-tool detector fires for *document* (range-independent).
+def detect_codes_on_root(root: etree._Element, /) -> frozenset[str]:
+    """The upgrade codes whose per-tool detector fires on *root* **as given**.
 
-    Detection reads the lxml tree as-is, so capture this against the
-    **pre-upgrade** tool: the ``upgrade`` codemods (GTX014/GTX015) mutate the very
-    features some detectors look for, so detecting after they run would
-    under-report. Intersect the result with ``upgrade_codes_crossed`` for the
-    range-aware applicable set (``upgrade_codes_applicable`` does exactly that).
-
-    The tree is read **un-expanded**, so a construct supplied only by a macro is
-    invisible here: a macro-supplied ``<stdio>`` over-flags ``16_04_exit_code``,
-    and a macro-supplied trigger under-reports other codes. The divergence is
-    sized by the ``macro-expansion-detection-gap`` measure (codemod
-    ``docs/decisions.md`` §25); it is cosmetic for this report-only note, but any
-    *fix* gated on a detector must reckon with it (e.g. never inject ``<stdio>``
-    off the raw tree).
+    The raw-tree primitive: runs the ``_DETECTORS`` table directly against *root*
+    with **no** macro expansion. ``tripped_upgrade_codes`` layers Galaxy's
+    post-expansion view on top; corpus *diagnostics* that compare raw vs expanded
+    detection explicitly (the ``macro-expansion-detection-gap`` measure) call this
+    on each tree directly.
     """
-    root = document.root
     return frozenset(
         code for code, detector in _DETECTORS.items() if detector(root)
     )
+
+
+def tripped_upgrade_codes(document: ToolDocument, /) -> frozenset[str]:
+    """The codes whose per-tool detector fires for *document* (range-independent).
+
+    Detection runs on the macro-**expanded** tree (``expanded_detection_root``),
+    mirroring Galaxy's own advisors, which parse the tool *post-macro-expansion* —
+    so a construct supplied only by an ``<expand>`` (e.g. a shared ``<stdio>``
+    macro) is seen, not falsely flagged. When the tool's macros cannot be expanded
+    (unresolvable ``<import>``, no source path) it falls back to the raw tree — a
+    conservative over-report, never silent.
+
+    Capture this against the **pre-upgrade** tool: the ``upgrade`` codemods
+    (GTX014/GTX015) mutate the very features some detectors look for, so detecting
+    after they run would under-report. Intersect the result with
+    ``upgrade_codes_crossed`` for the range-aware applicable set
+    (``upgrade_codes_applicable`` does exactly that).
+
+    The raw-vs-expanded divergence this closes is sized by the
+    ``macro-expansion-detection-gap`` measure (codemod ``docs/decisions.md`` §25):
+    on the raw tree ~984 tools were over-flagged for ``16_04_exit_code``
+    (macro-supplied ``<stdio>``) and ~317 under-reported for other codes.
+    """
+    return detect_codes_on_root(expanded_detection_root(document))
 
 
 def upgrade_codes_applicable(

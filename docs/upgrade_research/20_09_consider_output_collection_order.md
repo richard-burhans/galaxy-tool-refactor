@@ -25,8 +25,9 @@ upgrade and need their `<element>` order rearranged. Galaxy's message:
 
 Galaxy parses the tests and adds the code when any test `output_collection` has
 `element_tests` (`lib/galaxy/tool_util/upgrade/__init__.py:195-203`). Our
-`_detects_output_collection_order` approximates this on the raw tree: any
-`<output_collection>` (a test-only construct) with an `<element>` descendant.
+`_detects_output_collection_order` approximates this: any `<output_collection>`
+(a test-only construct) with an `<element>` descendant. (Like all upgrade-code
+detectors it runs on the macro-expanded tree — PR4, codemod `docs/decisions.md` §25.)
 
 ## Mechanical-fix feasibility
 

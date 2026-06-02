@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from galaxy_tool_xml.binding import load_tool
 from packaging.version import Version
 
 from galaxy_tool_xml_codemod.profile_semantics import (
     _DETECTORS,
     PROFILE_UPGRADE_CODES,
+    detect_codes_on_root,
     upgrade_codes_applicable,
     upgrade_codes_crossed,
 )
@@ -156,6 +159,42 @@ def test_detects_exit_code_when_no_error_handling() -> None:
     assert _applies(bare, "16_04_exit_code")
     assert not _applies(has_stdio, "16_04_exit_code")
     assert not _applies(detect_errs, "16_04_exit_code")
+
+
+def test_macro_supplied_stdio_does_not_over_flag_exit_code(tmp_path: Path) -> None:
+    """Detection mirrors Galaxy's post-expansion view: a ``<stdio>`` reached only
+    through an imported ``<expand macro="stdio"/>`` must NOT over-flag
+    ``16_04_exit_code`` — even though it is absent from the raw tool tree."""
+    (tmp_path / "macros.xml").write_text(
+        '<macros><xml name="stdio">'
+        '<stdio><exit_code range="1:" level="fatal"/></stdio></xml></macros>',
+        encoding="utf-8",
+    )
+    (tmp_path / "tool.xml").write_text(
+        '<tool id="t" name="T"><macros><import>macros.xml</import></macros>'
+        '<command>echo</command><expand macro="stdio"/></tool>',
+        encoding="utf-8",
+    )
+    document = load_tool(tmp_path / "tool.xml")
+    applicable = {
+        change.code
+        for change in upgrade_codes_applicable(
+            document=document, from_profile="16.01", to_profile="26.1"
+        )
+    }
+    assert "16_04_exit_code" not in applicable  # macro-supplied <stdio> is seen
+    # The raw tree alone would over-flag it — the bug this port fixes.
+    assert "16_04_exit_code" in detect_codes_on_root(document.root)
+
+
+def test_unresolvable_macro_falls_back_to_raw_detection() -> None:
+    """When expansion can't run (unresolvable import, no source path), detection
+    falls back to the raw tree — a conservative over-report, never silent."""
+    xml = (
+        b'<tool id="t" name="T"><macros><import>missing.xml</import></macros>'
+        b"<command>echo</command></tool>"
+    )
+    assert _applies(xml, "16_04_exit_code")  # raw fallback still flags the no-stdio
 
 
 def test_detects_tool_type_python_environment_codes() -> None:

@@ -57,20 +57,22 @@ should we?" case.
 
 ## Macro-expansion hazard (sizing)
 
-`_detects_no_error_handling` runs on the **raw** tree, but a tool's `<stdio>` is very
-often supplied by an imported macro (`<expand macro="stdio"/>`), invisible until
-expansion. The `macro-expansion-detection-gap` measure (2026-06-02, 5,113 macro-bearing
-tools compared) found **984 tools (19.2%) where this code fires on the raw tree but
-not after expansion** — i.e. they already have error handling via a macro. For this
-code raw reports 1,590 hits but only 606 are genuine post-expansion: a **62%
+A tool's `<stdio>` is very often supplied by an imported macro
+(`<expand macro="stdio"/>`), invisible on the raw tree until expansion. The
+`macro-expansion-detection-gap` measure (2026-06-02, 5,113 macro-bearing tools
+compared) found **984 tools (19.2%) where this code fires on the raw tree but not
+after expansion** — i.e. they already have error handling via a macro. On the raw
+tree this code reports 1,590 hits but only 606 are genuine post-expansion: a **62%
 false-positive rate**, the single largest raw-vs-expanded divergence in the corpus
 (reproduce: `uv run python -m scripts.measure macro-expansion-detection-gap`).
 
-**Hard rule for any future fix:** a `<stdio>`-injecting auto-fix must run off the
-**macro-expanded** view (or otherwise prove no macro supplies `<stdio>`). Injecting on
-the raw tree would **double-inject** error handling into those 984 tools. As a
-report-only detector this divergence is only cosmetic over-reporting; it becomes a
-correctness bug the moment a fix acts on it.
+**Detection is fixed (PR4, 2026-06-02):** `tripped_upgrade_codes` now runs on the
+macro-**expanded** tree (`expanded_detection_root`, raw fallback), so the live
+`upgrade` warning no longer over-flags those 984 tools (codemod `docs/decisions.md`
+§25). **The hazard remains for any future *fix*:** a `<stdio>`-injecting auto-fix
+runs as a codemod over the **raw** tree, so it must first prove no macro supplies
+`<stdio>` (e.g. detect on the expanded view) — injecting on the raw tree would
+**double-inject** error handling into those 984 tools.
 
 ## Status / recommendation
 
