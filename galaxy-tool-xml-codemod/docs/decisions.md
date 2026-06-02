@@ -797,6 +797,23 @@ via `uv run python -m scripts.measure semantic-upgrade-boundaries`.
   range filter (every code whose profile lies in the bumped interval);
   `upgrade_codes_applicable` narrows it to the codes whose per-tool detector
   fires, so the note reports only what applies to *this* tool — see §25.
+- **The positive complement: a behaviour-preserving verdict (2026-06-02).** The
+  warning's silence (no applicable code) was previously implicit — a tool that
+  cleanly clears every crossed boundary just got *no* note, indistinguishable
+  from "we didn't look". `crossed_and_applicable_codes(baseline, target, tripped)`
+  is now the single source the warning and a new verdict both read, so they can
+  never disagree on what applies. `upgrade_is_behavior_preserving` returns the
+  affirmative: `True` when the bump crosses **no applicable** code, `False` when
+  ≥1 applies, `None` when undetermined (an unparseable/macro-token profile — kept
+  *distinct* from "parseable, crosses nothing", which is `True`). The facade
+  surfaces it as `UpgradeResult.behavior_preserving` and, when the bump actually
+  advanced the profile, an explicit clean-pass note ("*upgrade crosses no
+  behaviour change that applies to this tool — behavior-preserving*"). This is the
+  "prove the construct is absent ⇒ the tool is free to move past it" framing,
+  made an explicit signal rather than mere absence. It is **conservative**: a tool
+  whose only applicable code is auto-neutralised by a runtime-gated fix
+  (GTX014/015/016, §24) is still reported `False` for now — under-claiming safety
+  is the sound direction under §22; crediting auto-fixed codes is deferred.
 - **Why a note in `upgrade`, not a check/IUC rule.** The risk is intrinsic to the
   *upgrade transition* (baseline → target), not a static property of a tool, so it
   has no meaning in `check`/`format` and needs no GTX/IUC code. It rides the

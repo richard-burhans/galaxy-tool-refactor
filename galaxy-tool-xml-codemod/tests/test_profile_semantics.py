@@ -11,9 +11,11 @@ from galaxy_tool_xml_codemod.profile_semantics import (
     _DETECTORS,
     PROFILE_UPGRADE_CODES,
     _command_text_is_single_simple_statement,
+    crossed_and_applicable_codes,
     detect_codes_on_root,
     upgrade_codes_applicable,
     upgrade_codes_crossed,
+    upgrade_is_behavior_preserving,
 )
 
 
@@ -72,6 +74,79 @@ def test_unparseable_profile_yields_no_codes() -> None:
     """A macro-token profile can't be placed, so it crosses nothing (no false alarm)."""
     assert upgrade_codes_crossed(from_profile="@PROFILE@", to_profile="26.1") == []
     assert upgrade_codes_crossed(from_profile="16.01", to_profile="@TOKEN@") == []
+
+
+# --- crossed_and_applicable_codes + the behaviour-preserving verdict ------------
+
+
+def test_crossed_and_applicable_splits_the_same_tripped_set() -> None:
+    """The helper returns (crossed, applicable) with applicable = crossed ∩ tripped."""
+    tripped = frozenset({"20_09_consider_set_e"})
+    pair = crossed_and_applicable_codes(
+        baseline="20.05", target="20.09", tripped=tripped
+    )
+    assert pair is not None
+    crossed, applicable = pair
+    assert "20_09_consider_set_e" in {c.code for c in crossed}
+    assert [c.code for c in applicable] == ["20_09_consider_set_e"]
+
+
+def test_crossed_and_applicable_none_for_unparseable_profile() -> None:
+    """A macro-token (unparseable) profile is undetermined, not 'crosses nothing'."""
+    assert (
+        crossed_and_applicable_codes(
+            baseline="@PROFILE@", target="26.1", tripped=frozenset()
+        )
+        is None
+    )
+    assert (
+        crossed_and_applicable_codes(
+            baseline=None, target="26.1", tripped=frozenset()
+        )
+        is None
+    )
+
+
+def test_behavior_preserving_true_when_nothing_applies() -> None:
+    """A bump that crosses codes none of which trip is behaviour-preserving."""
+    # 24.1 -> latest crosses only 24_2; an empty tripped set means it doesn't apply.
+    assert (
+        upgrade_is_behavior_preserving(
+            baseline="24.1", target="26.1", tripped=frozenset()
+        )
+        is True
+    )
+
+
+def test_behavior_preserving_false_when_a_crossed_code_applies() -> None:
+    assert (
+        upgrade_is_behavior_preserving(
+            baseline="24.1",
+            target="26.1",
+            tripped=frozenset({"24_2_fix_test_case_validation"}),
+        )
+        is False
+    )
+
+
+def test_behavior_preserving_ignores_an_applicable_but_uncrossed_code() -> None:
+    """A tripped code outside the bumped range must not flip the verdict."""
+    # 24.1 -> latest does not cross 16_04_exit_code (16.04 < 24.1 baseline).
+    assert (
+        upgrade_is_behavior_preserving(
+            baseline="24.1", target="26.1", tripped=frozenset({"16_04_exit_code"})
+        )
+        is True
+    )
+
+
+def test_behavior_preserving_none_for_unparseable_profile() -> None:
+    assert (
+        upgrade_is_behavior_preserving(
+            baseline="@PROFILE@", target="26.1", tripped=frozenset()
+        )
+        is None
+    )
 
 
 # --- per-tool detection (upgrade_codes_applicable) ------------------------------

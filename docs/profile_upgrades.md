@@ -175,7 +175,11 @@ upgrade code at that step. The behaviour takes effect for a tool **declaring** t
 *To* profile (bumping `profile=` into that row opts in). `galaxy-tool-refactor
 upgrade` warns on the codes a bump crosses **that actually apply to the tool**
 (per-tool detection ported from Galaxy's advisor; codemod `docs/decisions.md`
-§23 + §25). The per-code corpus blast radius is `scripts/measure.py
+§23 + §25). When a bump that advances the profile crosses **no** applicable code,
+the inverse is surfaced affirmatively: `UpgradeResult.behavior_preserving` is
+`True` and a clean-pass note says so — proving the governed construct is absent
+lets the tool move past the boundary behaviour-safely (codemod §23). The per-code
+corpus blast radius is `scripts/measure.py
 semantic-upgrade-boundaries`, and crossed-vs-applicable is `scripts/measure.py
 upgrade-codes-applicability`; pinnability is in
 `galaxy-tool-xml-codemod/docs/behavior-preserving-upgrade.md`.

@@ -565,6 +565,51 @@ def tripped_upgrade_codes(document: ToolDocument, /) -> frozenset[str]:
     return detect_codes_on_root(expanded_detection_root(document))
 
 
+def crossed_and_applicable_codes(
+    *, baseline: str | None, target: str | None, tripped: frozenset[str]
+) -> tuple[list[ProfileUpgradeCode], list[ProfileUpgradeCode]] | None:
+    """``(crossed, applicable)`` for a ``baseline``→``target`` bump, or ``None``.
+
+    ``crossed`` is every code the bump's profile range covers; ``applicable``
+    narrows that to the codes whose per-tool detector already fired (*tripped*,
+    captured on the pre-upgrade tree by the caller). ``None`` when either profile
+    is **unparseable** (e.g. a macro token) — the bump can't be placed, so neither
+    the warning nor the behaviour verdict can be computed (distinct from a
+    parseable bump that simply crosses nothing, which is ``([], [])``).
+
+    The single source of truth for both the ``upgrade`` semantic warning and the
+    behaviour-preserving verdict, so the two can never disagree on what applies.
+    """
+    if baseline is None or target is None:
+        return None
+    if _version_or_none(baseline) is None or _version_or_none(target) is None:
+        return None
+    crossed = upgrade_codes_crossed(from_profile=baseline, to_profile=target)
+    applicable = [change for change in crossed if change.code in tripped]
+    return crossed, applicable
+
+
+def upgrade_is_behavior_preserving(
+    *, baseline: str | None, target: str | None, tripped: frozenset[str]
+) -> bool | None:
+    """Whether a ``baseline``→``target`` bump crosses no code that *applies*.
+
+    ``True`` when no crossed code's per-tool detector fired (so the bump changes
+    no runtime behaviour the tool actually exercises); ``False`` when at least one
+    applies; ``None`` when undetermined (a profile is unparseable — see
+    ``crossed_and_applicable_codes``). Capture *tripped* on the **pre-upgrade**
+    tree, as the ``upgrade`` path does. This is the positive complement of the
+    §23 warning: same applicable set, surfaced as a clean-pass signal.
+    """
+    pair = crossed_and_applicable_codes(
+        baseline=baseline, target=target, tripped=tripped
+    )
+    if pair is None:
+        return None
+    _crossed, applicable = pair
+    return not applicable
+
+
 def upgrade_codes_applicable(
     *, document: ToolDocument, from_profile: str, to_profile: str
 ) -> list[ProfileUpgradeCode]:
