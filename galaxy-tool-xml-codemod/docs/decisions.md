@@ -1056,3 +1056,53 @@ galaxy_tool_xml_codemod.codemods.fix_interpreter:FixInterpreter`.
   profile); those are still rewritten by the live `upgrade` when they cross 16.04. The
   `upgrade-behavior-blocks` `16_04_fix_interpreter` stuck count drops **1,726 → 316** (the
   residual is bucket B/C).
+
+## 28. Per-tool detector **precision** audit — tightening the near-universal codes
+
+**Date:** 2026-06-02. Reproduced-by: `uv run python -m scripts.measure
+set-e-tightening` (the sizing) and `uv run python -m scripts.measure
+upgrade-codes-applicability` (the per-code applicable baseline); the
+single-statement predicate is unit-tested in
+`galaxy-tool-xml/tests/test_measure.py`.
+
+- **The gap.** §25's per-tool detection already narrows the `upgrade` warning to the
+  codes whose detector fires, but tool-level "warns at all" barely moved (94.2% →
+  92.4%) because a few detectors faithfully mirror Galaxy's **coarse** advisor and
+  fire near-universally: `16_04_consider_implicit_extra_file_collection`
+  (`lambda: True`), `20_09_consider_set_e` / `18_01_consider_home_directory` (any
+  `<command>`), `24_2_fix_test_case_validation` (any `<test>`). They test "has a
+  command / has tests", not whether the *changed construct* is genuinely present.
+- **The governing rule (one-directional).** A detector may be tightened **only** when
+  the absence of the governed construct is *provable from the static (macro-expanded)
+  XML*; any ambiguity keeps the warning (never a false "safe"). This is *more precise
+  than Galaxy's coarse check, never less* — consistent with §25's "port the **intent**,
+  not the literal code" (we already fix Galaxy's transcription bugs). It stays inside
+  the §22 boundary: we only ever **narrow** false positives, never claim a behavioural
+  guarantee.
+- **Per-code audit (all 17).**
+  | Code | Today | Verdict |
+  |---|---|---|
+  | `20_09_consider_set_e` | `_detects_no_strict` (any command) | **Tighten** — a single simple command is provably unaffected by `set -e`; sized below. |
+  | `23_0_consider_optional_text` | any `<param type="text">` w/o `optional` | **Candidate** — tighten toward Galaxy's real "accepts empty string" condition; needs its own sizing. |
+  | `16_04_consider_implicit_extra_file_collection` | `lambda: True` | **Keep coarse** — Galaxy emits it unconditionally; reliance on implicit working-dir discovery is not statically provable-absent. |
+  | `18_01_consider_home_directory` | `_detects_no_shared_home` | **Keep coarse** — `$HOME` dependence can live inside an invoked binary; absence unprovable from XML. |
+  | `24_2_fix_test_case_validation` | `_detects_has_test` | **Keep coarse** — a sound tightening needs a port of Galaxy's parameter-model test-case validator (large, separate effort). |
+  | `16_04_exit_code` | `_detects_no_error_handling` | Already a real construct test. |
+  | all other codes | narrow construct / `tool_type` tests | Already precise. |
+- **`set_e` sizing (2026-06-02, `set-e-tightening`, combined corpus).** Of **9,311**
+  command-bearing tools the current detector fires on (no `strict=`), **1,915 (20.6%)**
+  are a *provably single simple command* — one non-comment statement line, no Cheetah
+  control flow, no sequencing/pipeline/background metacharacter — so `set -e` cannot
+  change their behaviour and the note is a false positive. The conservative heuristic
+  (`_command_text_is_single_simple_statement`) never suppresses an ambiguous body, so
+  it can only *remove* false positives.
+- **Why the tightening is gated on a cost call, not shipped here.** `20_09_consider_set_e`
+  is a `consider`-level **advisory note** — it never blocks an upgrade or mutates a
+  tool. Changing its detector, however, shifts committed raw-tree corpus numbers across
+  *three* measures (`upgrade-codes-applicability`'s §25 `103,330 → 28,667` aggregate +
+  the 92.4% tool-level figure; `macro-expansion-detection-gap`'s `20_09` under-report
+  count; and `upgrade_behavior_block_stats.md`), each of which must be **regenerated
+  from its standing command** (never hand-edited — §5 of the pre-PR audit). The audit
+  + sizing land now (this section + the `set-e-tightening` measure); the detector edit
+  + its multi-measure regen are a scoped follow-up, taken only if the 20.6% advisory
+  precision gain is judged worth the regen churn.

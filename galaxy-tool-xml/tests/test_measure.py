@@ -17,6 +17,7 @@ from scripts.measure import (
     _cheetah_feature_flags,
     _classify_command_language,
     _collection_type_patterns,
+    _command_text_is_single_simple_statement,
     _count_unquoted_vars,
     _cross_source_key_matches,
     _ExpansionGapResult,
@@ -1220,3 +1221,32 @@ def test_version_tokenization_buckets(tmp_path: Path) -> None:
     assert result.n_candidates_have_macros == 1  # candidate_macros.xml
     assert result.n_version_equals_req_no_suffix == 1
     assert result.n_other_literal == 1
+
+
+# --- set-e-tightening: the single-simple-statement predicate ---------------------
+
+
+def test_single_simple_statement_accepts_a_lone_command() -> None:
+    simple = _command_text_is_single_simple_statement
+    assert simple("samtools sort in.bam")
+    # A leading/trailing newline and a Cheetah comment line don't change it.
+    assert simple("\n## run it\nsamtools sort in.bam\n")
+    # A shell line-continuation folds to one statement.
+    assert simple("samtools sort \\\n  -o out.bam in.bam")
+
+
+def test_single_simple_statement_rejects_sequencing_and_control() -> None:
+    simple = _command_text_is_single_simple_statement
+    # Sequencing / pipeline / background / substitution metacharacters.
+    assert not simple("a && b")
+    assert not simple("a ; b")
+    assert not simple("a | b")
+    assert not simple("a || b")
+    assert not simple("server &")
+    assert not simple("echo $(date)")
+    assert not simple("echo `date`")
+    # Two non-comment statement lines.
+    assert not simple("cp a b\ncp c d")
+    # Cheetah control flow can expand to several commands.
+    assert not simple("#if $x\nrun a\n#end if")
+    assert not simple("#for $i in $r\nrun $i\n#end for")
