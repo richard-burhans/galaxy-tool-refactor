@@ -939,3 +939,45 @@ noise-reduction via `uv run python -m scripts.measure upgrade-codes-applicabilit
   no inverted predicate; `16_04_fix_output_format`→107 and
   `21_09_fix_from_work_dir_whitespace`→4 match the GTX015/GTX014 populations;
   `17_09`→0 and `24_0_consider_python_environment`→0 are genuinely rare conditions.
+
+## 26. `NormalizeBooleanValues` (GTX017) — boolean case repair
+
+**Date:** 2026-06-02. Reproduced-by: `uv run --package galaxy-tool-xml-codemod
+pytest galaxy-tool-xml-codemod/tests/test_normalize_boolean_values.py` and `uv run
+--package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_boolean_values.py`;
+corpus recovery via `uv run python -m scripts.corpus_check codemod
+galaxy_tool_xml_codemod.codemods.normalize_boolean_values:NormalizeBooleanValues`.
+
+- **The gap.** The Galaxy XSD types boolean attributes `xs:boolean`, which accepts
+  only `true`/`false`/`1`/`0`. Tools that write Python-style `True`/`False` (or
+  `Yes`/`No`/`On`/`Off`) validate at **no** profile even though Galaxy's runtime
+  `string_as_bool` reads them case-insensitively. The corpus categorises **36**
+  tools as failing solely for this reason (`invalid boolean ('True'/'False' …)`,
+  `combined_corpus_data.json`).
+- **`FixTypos` cannot reach it.** `corrections.py` is driven by the *lenient*
+  generated model, whose permissive-boolean enum lists `"True"`/`"False"` as legal
+  values — so `suggest_corrections` never flags them. A separate repair is needed.
+- **What we chose.** A sibling validation-driven codemod, `NormalizeBooleanValues`,
+  in the same family as `FixTypos`: it acts only on a globally-invalid tool, rewrites
+  recognized boolean spellings to canonical `xs:boolean`, and (per profile,
+  newest-first) keeps the change only if it restores validity, else reverts to a
+  byte-identical snapshot. The rewrite mirrors `string_as_bool`, so it is
+  **behaviour-preserving**. It is added to `CANONICAL_CODEMODS` (so `format` / the
+  `iuc` preset repair it) and `AUTO_UPGRADE_CODEMODS` (repair-before-upgrade), and
+  the shared snapshot/restore helper is factored to `codemods/_validation_repair.py`.
+- **Schema-type-aware, never a blind replace.** Tier 1's
+  `boolean_values.suggest_boolean_normalizations` descends the tree and the model
+  classes in lockstep (the `corrections.py` technique), reporting only attributes
+  the model types as boolean *at the element they appear on*. This is load-bearing:
+  the corpus's offending values sit on literal-string attributes too — `value="True"`
+  on `<option>` (18×) is a value the tool passes to the command, and lowercasing it
+  would silently change behaviour. Per-element typing excludes it; per-profile typing
+  handles `optional`, which is `xs:boolean` under some profiles and a free string
+  under others.
+- **Corpus recovery (2026-06-02).** Of **708** globally-invalid eligible tools,
+  **21** are rewritten and reach full validity at the latest profile (26.1);
+  **0 non-idempotent, 0 post-validate-failed, 0 crashed**. The recovered set is
+  smaller than the 36 categorised because some carry the boolean value on an
+  attribute the newer schema accepts permissively (so they fail elsewhere) or have
+  additional blocking issues; `NormalizeBooleanValues` and `FixTypos` target
+  disjoint failure modes, so the canonical pipeline now repairs both.

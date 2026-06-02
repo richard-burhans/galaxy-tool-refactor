@@ -40,6 +40,7 @@ from lxml import etree
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
 from galaxy_tool_xml_codemod.codemods._coarse_detect import coarse_detect
+from galaxy_tool_xml_codemod.codemods._validation_repair import restore_root
 from galaxy_tool_xml_codemod.cursor import Cursor
 
 if TYPE_CHECKING:
@@ -51,26 +52,6 @@ if TYPE_CHECKING:
 # Cascading typos (one fix exposing the next) converge in a handful of rounds;
 # the cap guarantees termination even if a correction can never be applied.
 _MAX_ROUNDS = 5
-
-
-def _restore_root(live: etree._Element, source: etree._Element, /) -> None:
-    """Overwrite *live*'s entire state in place from *source*.
-
-    ``live`` keeps its identity (the frozen ``Module`` holds the document by
-    reference, and the sweep reads it after ``apply`` returns), so the tree is
-    not swapped — its tag, attributes, text, tail, and children are rewritten
-    from a deep copy of ``source``. Children are grafted as deep copies so a
-    reused snapshot stays pristine across profile attempts.
-    """
-    live.tag = source.tag
-    live.text = source.text
-    live.tail = source.tail
-    live.attrib.clear()
-    live.attrib.update(source.attrib)
-    for child in list(live):
-        live.remove(child)
-    for child in source:
-        live.append(copy.deepcopy(child))
 
 
 def _resolve(
@@ -152,11 +133,11 @@ class FixTypos(CodemodCommand):
             return  # already valid somewhere — not this codemod's population
         snapshot = copy.deepcopy(document.root)
         for version in reversed(available_profiles()):
-            _restore_root(document.root, snapshot)
+            restore_root(document.root, snapshot)
             self._repair_for_profile(document, version)
             if validate_tool(document, profile=version).valid:
                 return
-        _restore_root(document.root, snapshot)
+        restore_root(document.root, snapshot)
 
     def _repair_for_profile(self, document: ToolDocument, version: str, /) -> None:
         """Apply this profile's suggested corrections until stable (bounded)."""

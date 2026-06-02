@@ -12,8 +12,8 @@ cross-tier orchestration. It depends on the codemod tier (tier 2) and the fmt
 tier (tier 3) and exposes two commands (a third, report-only `check`, was added
 in §D2 over the check tier):
 
-- `format` — apply `CANONICAL_CODEMODS` (typo repair + attribute order) then
-  fmt's cosmetic rules. Safe, idempotent; never changes `profile=`.
+- `format` — apply `CANONICAL_CODEMODS` (typo + boolean-case repair + attribute
+  order) then fmt's cosmetic rules. Safe, idempotent; never changes `profile=`.
 - `upgrade` — apply `AUTO_UPGRADE_CODEMODS` (typo repair, then iterative profile
   upgrade) then cosmetic formatting. Opt-in and semantic; reports the profile
   steps applied and warns on stalls.

@@ -60,8 +60,10 @@ Three presets, derived from the family registries (single source of truth, no
 hardcoded code lists that can drift):
 
 - `cosmetic` = fmt cosmetic rules (GTX001/003/004).
-- `iuc` = `CANONICAL_CODEMODS` (GTX006/002/005/013) + cosmetic — **the default**,
-  byte-identical to the previous `format` pipeline (pinned by a regression test).
+- `iuc` = `CANONICAL_CODEMODS` (GTX006/017/002/005/013) + cosmetic — **the
+  default**. Byte-identical to the previous `format` pipeline on already-valid
+  tools (pinned by a regression test); GTX017 (`NormalizeBooleanValues`), like
+  GTX006 (`FixTypos`), is a no-op unless the tool validates nowhere.
 - `strict` = `iuc` + every advisory IUC check (report-only).
 
 The selectable set (`registry()`, what `--select`/`--ignore` accept) is exactly

@@ -56,6 +56,7 @@ from galaxy_tool_xml.binding import ParseResult, ValidationResult, XmlError, Too
 from galaxy_tool_xml.document import ToolDocument, MacroDocument
 from galaxy_tool_xml.macros import MacroError, imported_macro_paths, token_definitions, TokenDefinition
 from galaxy_tool_xml.corrections import suggest_corrections, Correction
+from galaxy_tool_xml.boolean_values import suggest_boolean_normalizations, normalize_boolean_token, BooleanNormalization
 from galaxy_tool_xml.profiles import available_profiles, latest_profile, UnknownProfileError
 from galaxy_tool_xml.models.registry import model_module, tool_class
 from galaxy_tool_xml.models.any_tool import AnyTool
@@ -67,7 +68,8 @@ from galaxy_tool_xml.models.any_tool import AnyTool
 faithfully preserving CDATA, comments, and attribute order. `binding.py` parses
 and validates; `profiles.py` resolves the per-release vendored XSD; `macros.py`
 handles Galaxy macros (the sole `galaxy-util` adapter); `corrections.py` suggests
-near-miss typo fixes; `models/` holds an xsdata-generated read-only typed model
+near-miss typo fixes; `boolean_values.py` reports schema-boolean attribute value
+normalizations (`True` → `true`); `models/` holds an xsdata-generated read-only typed model
 for every vendored schema version, reached via `ToolDocument.model()`.
 
 ## License

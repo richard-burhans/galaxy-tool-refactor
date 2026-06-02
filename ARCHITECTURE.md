@@ -168,11 +168,14 @@ will change.
   difference is that a `Change` carries its mutation as a **closure over a Cursor
   call** rather than re-enumerating every mutation kind.
 - **Pipeline contracts** — `canonical.py`:
-  - `CANONICAL_CODEMODS` = `FixTypos` → `ReorderParamAttributes` →
-    `ReorderToolAttributes` → `ReorderToolChildren` — the **safe, idempotent**
-    format-time pipeline. Never touches `profile=`.
-  - `AUTO_UPGRADE_CODEMODS` = `FixTypos` → `UpgradeToLatest` — the **opt-in,
-    semantic** profile-upgrade pipeline.
+  - `CANONICAL_CODEMODS` = `FixTypos` → `NormalizeBooleanValues` →
+    `ReorderParamAttributes` → `ReorderToolAttributes` → `ReorderToolChildren` —
+    the **safe, idempotent** format-time pipeline. Never touches `profile=`.
+    (`FixTypos` and `NormalizeBooleanValues` are validity-restoring no-ops unless
+    the tool validates nowhere.)
+  - `AUTO_UPGRADE_CODEMODS` = `FixTypos` → `NormalizeBooleanValues` →
+    `UpgradeToLatest` — the **opt-in, semantic** profile-upgrade pipeline
+    (repair-before-upgrade).
 - **`RuntimeGatedFix`** — `codemods/_runtime_gated.py`, registry in
   `runtime_fixes.py` (`RUNTIME_GATED_FIXES` + `runtime_fixes_for(reached, *,
   baseline)`) — a detect-primitive codemod plus an `introduced_profile` marker, for
@@ -503,5 +506,6 @@ Each abstraction → its file → the decision record that justifies it.
 | GTX013 | `ReorderToolChildren` | `galaxy-tool-xml-codemod/.../reorder_tool_children.py` | codemod (canonical) |
 | GTX014 | `FixFromWorkDirWhitespace` | `galaxy-tool-xml-codemod/.../fix_from_work_dir_whitespace.py` | codemod (upgrade-only, runtime-gated) |
 | GTX015 | `FixOutputFormatInput` | `galaxy-tool-xml-codemod/.../fix_output_format_input.py` | codemod (upgrade-only, runtime-gated) |
+| GTX017 | `NormalizeBooleanValues` | `galaxy-tool-xml-codemod/.../normalize_boolean_values.py` | codemod (canonical, validation-driven) |
 | IUC001–010 | `TestsPresent` … `HelpCdata` | `galaxy-tool-xml-check/.../checks.py` | check (advisory) |
 | IUC011–012 | `SingleQuotedCheetah`, `CommandAndJoining` | `galaxy-tool-xml-check/.../checks.py` | check (advisory, reserved stubs) |

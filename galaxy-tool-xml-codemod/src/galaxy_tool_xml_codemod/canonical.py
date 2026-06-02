@@ -16,9 +16,14 @@ command, run before fmt's cosmetic rules). Front-to-back:
 1. ``FixTypos`` — repair near-miss spelling typos. A no-op unless the tool
    validates at no profile, so it only acts on broken tools; running it first
    lets the rest of the pipeline see a validatable tree.
-2. ``ReorderParamAttributes`` / ``ReorderToolAttributes`` — tidy attribute order
+2. ``NormalizeBooleanValues`` — canonicalize Python-style boolean attribute
+   values (``True``/``Yes``/…) to ``xs:boolean`` (``true``/``false``) on
+   schema-boolean attributes. Like ``FixTypos`` a no-op unless the tool validates
+   nowhere; behaviour-preserving and the sibling repair ``FixTypos`` cannot reach
+   (the lenient model accepts ``True``).
+3. ``ReorderParamAttributes`` / ``ReorderToolAttributes`` — tidy attribute order
    once the tree is settled.
-3. ``ReorderToolChildren`` — reorder the root ``<tool>``'s child elements to the
+4. ``ReorderToolChildren`` — reorder the root ``<tool>``'s child elements to the
    IUC convention (element-level tidying after attribute-level). Validity-safe:
    the schema's ``<tool>`` content model is order-free (``xs:all``).
 
@@ -28,20 +33,24 @@ that is the upgrade pipeline's job.
 ``AUTO_UPGRADE_CODEMODS`` — the opt-in profile-upgrade pipeline (the app's
 ``upgrade`` command). Front-to-back:
 
-1. ``FixTypos`` — repair first, so a broken-and-outdated tool becomes
-   validatable and therefore upgradable in one pass.
+1. ``FixTypos`` / ``NormalizeBooleanValues`` — repair first, so a broken-and-
+   outdated tool becomes validatable and therefore upgradable in one pass.
 2. ``UpgradeToLatest`` — iteratively upgrade the (now possibly repaired) tool
    toward the latest profile, re-declaring its profile between steps. This
    subsumes ``UpdateProfile`` (it runs it internally each round).
 
-``FixTypos`` intentionally appears in both pipelines; it is idempotent, so
-running it in whichever pipeline the user invokes is harmless.
+``FixTypos`` / ``NormalizeBooleanValues`` intentionally appear in both pipelines;
+both are idempotent, so running them in whichever pipeline the user invokes is
+harmless.
 """
 
 from __future__ import annotations
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
+from galaxy_tool_xml_codemod.codemods.normalize_boolean_values import (
+    NormalizeBooleanValues,
+)
 from galaxy_tool_xml_codemod.codemods.reorder_param_attributes import (
     ReorderParamAttributes,
 )
@@ -55,6 +64,7 @@ from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 
 CANONICAL_CODEMODS: tuple[type[CodemodCommand], ...] = (
     FixTypos,
+    NormalizeBooleanValues,
     ReorderParamAttributes,
     ReorderToolAttributes,
     ReorderToolChildren,
@@ -62,5 +72,6 @@ CANONICAL_CODEMODS: tuple[type[CodemodCommand], ...] = (
 
 AUTO_UPGRADE_CODEMODS: tuple[type[CodemodCommand], ...] = (
     FixTypos,
+    NormalizeBooleanValues,
     UpgradeToLatest,
 )

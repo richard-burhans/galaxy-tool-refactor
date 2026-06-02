@@ -35,16 +35,18 @@ stays tool-only until a macro-subject codemod needs it — see ``docs/decisions.
 §20), and the bundled codemods exposed via two ordered pipeline
 contracts in ``canonical.py``:
 
-- ``CANONICAL_CODEMODS`` = ``FixTypos`` → ``ReorderParamAttributes`` →
-  ``ReorderToolAttributes`` → ``ReorderToolChildren`` (the safe
-  canonical/format pipeline; ``ReorderToolChildren`` = GTX013, IUC #52
-  element order, validity-safe because ``<tool>`` is ``xs:all``).
-- ``AUTO_UPGRADE_CODEMODS`` = ``FixTypos`` → ``UpgradeToLatest`` (the
-  opt-in profile-upgrade pipeline).
+- ``CANONICAL_CODEMODS`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
+  ``ReorderParamAttributes`` → ``ReorderToolAttributes`` →
+  ``ReorderToolChildren`` (the safe canonical/format pipeline;
+  ``ReorderToolChildren`` = GTX013, IUC #52 element order, validity-safe
+  because ``<tool>`` is ``xs:all``).
+- ``AUTO_UPGRADE_CODEMODS`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
+  ``UpgradeToLatest`` (the opt-in profile-upgrade pipeline).
 
-``FixTypos`` and ``UpgradeToLatest`` (which loops ``UpdateProfile`` +
-single-step ``upgrade_vN`` codemods from ``upgrades.py``) are
-validation-driven and override ``apply``. The upgrade registry is grown
+``FixTypos``, ``NormalizeBooleanValues`` (GTX017 — boolean-case repair, the
+``True``/``False`` → ``true``/``false`` fix ``FixTypos`` cannot reach), and
+``UpgradeToLatest`` (which loops ``UpdateProfile`` + single-step ``upgrade_vN``
+codemods from ``upgrades.py``) are validation-driven and override ``apply``. The upgrade registry is grown
 empirically from ``corpus_check codemod`` discovery sweeps; see
 ``docs/decisions.md`` §11–14, §16 for the canonical/upgrade split, and
 §17–18 for the element-order codemod (GTX013) + the `codemod` sweep's

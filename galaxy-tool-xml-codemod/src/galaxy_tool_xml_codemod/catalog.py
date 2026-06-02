@@ -18,6 +18,9 @@ from galaxy_tool_xml_codemod.codemods.fix_output_format_input import (
     FixOutputFormatInput,
 )
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
+from galaxy_tool_xml_codemod.codemods.normalize_boolean_values import (
+    NormalizeBooleanValues,
+)
 from galaxy_tool_xml_codemod.codemods.reorder_param_attributes import (
     ReorderParamAttributes,
 )
@@ -50,5 +53,6 @@ def coded_codemods() -> tuple[type[CodemodCommand], ...]:
         UpgradeToLatest,
         FixFromWorkDirWhitespace,
         FixOutputFormatInput,
+        NormalizeBooleanValues,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
