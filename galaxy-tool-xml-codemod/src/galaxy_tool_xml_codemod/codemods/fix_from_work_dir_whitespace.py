@@ -3,8 +3,10 @@
 From profile 21.09 Galaxy quotes ``from_work_dir`` output filenames, so leading or
 trailing whitespace in the attribute becomes a literal part of the path (Galaxy's
 ``21_09_fix_from_work_dir_whitespace`` *must-fix* upgrade code). Before 21.09 Galaxy
-stripped the value itself, so stripping it is a no-op there and a correctness fix at
-21.09+ — always safe.
+stripped the value itself, so stripping it is a no-op pre-21.09 and, for a tool
+upgraded **across** the 21.09 boundary, behaviour-preserving (the stripped path is
+what Galaxy ran pre-21.09); for a tool *already* at 21.09+ it is a correctness fix
+to an already-broken path (0 such tools in the corpus).
 
 This is a **runtime-gated fix**, not a validity-gated ``upgrade_vN``: a whitespace
 ``from_work_dir`` is XSD-valid at every profile, so stripping it does not change

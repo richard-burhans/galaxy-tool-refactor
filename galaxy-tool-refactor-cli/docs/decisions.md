@@ -180,9 +180,13 @@ The app `format` and `check` commands now process macro-library files
 (`<macros>` root), not just tools. `format` cosmetically formats them
 (`format_macro_document` via `cli_support.run`'s `macro_transform`); `check`
 reports their cosmetic drift (`detect_macro_document`, all fixable). `upgrade`
-passes no `macro_transform` (it does not *cosmetically* format macro files); its
-**semantic** macro edit — the token-aware imported-`@PROFILE@` bump — landed in
-§D6 below, not as a `macro_transform`.
+passes no `macro_transform`, so it runs no *separate* cosmetic pass over macro
+files the way `format` does; its **semantic** macro edit — the token-aware
+imported-`@PROFILE@` bump — landed in §D6 below, not as a `macro_transform`.
+Note that bump path nonetheless reserialises the file it edits through
+`format_macro_document` (`macro_profile.py`), so a *bumped* macro file is
+cosmetically normalised as a side effect (registry §D5); only un-bumped macro
+files are left untouched by `upgrade`.
 
 Macro files get **cosmetic rules only** (codemods are tool-only,
 `RuleMeta.applies_to={"tool"}`), so the macro transform bypasses the registry

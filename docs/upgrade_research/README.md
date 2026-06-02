@@ -38,7 +38,7 @@ mechanical-fix feasibility · status.
 | `16_04_exit_code` | 16.04 | possible *legacy-restore* (`<stdio>`), but pins worse behaviour | [note](16_04_exit_code.md) |
 | `17_09_consider_provided_metadata_style` | 17.09 | none (niche) | [note](17_09_consider_provided_metadata_style.md) |
 | `18_01_consider_structured_like` | 18.01 | partial/hard (qualify names) | [note](18_01_consider_structured_like.md) |
-| `18_01_consider_home_directory` | 18.01 | none (intent-dependent) | [note](18_01_consider_home_directory.md) |
+| `18_01_consider_home_directory` | 18.01 | possible *legacy-restore* (`use_shared_home="true"`), but pins worse behaviour | [note](18_01_consider_home_directory.md) |
 | `18_09_consider_python_environment` | 18.09 | none (deps invisible in XML) | [note](18_09_consider_python_environment.md) |
 | `20_05_consider_inputs_as_json_changes` | 20.05 | none (fix is in the script) | [note](20_05_consider_inputs_as_json_changes.md) |
 | `20_09_consider_output_collection_order` | 20.09 | none (test-order semantics) | [note](20_09_consider_output_collection_order.md) |
@@ -77,6 +77,11 @@ the notes are labelled accordingly; approximate `grep`-based figures are marked.
   bucket-A `RuntimeGatedFix` (would be GTX016), the largest behaviour-block with a
   well-defined faithful rewrite. Size bucket A with a measure first.
 - **Legacy-restore opt-ins** (mechanical but pin the older behaviour, so not
-  best-practice): `16_04_exit_code`, `20_09_consider_set_e`.
+  best-practice): `16_04_exit_code`, `20_09_consider_set_e`,
+  `18_01_consider_home_directory`. The distinguishing criterion: a code qualifies as
+  a legacy-restore opt-in iff its detector fires on the **absence** of the restore
+  attribute, so a single attribute/element injection faithfully pins the old default.
+  (`17_09` does not qualify — its detector fires on attribute *presence*, see its
+  note — so there is no inject-to-restore fix.)
 - **Everything else:** detect/report-only — the fix needs author intent, the wrapped
   script, dependency knowledge, or Galaxy's full parameter model.

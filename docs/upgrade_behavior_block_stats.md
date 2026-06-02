@@ -21,6 +21,12 @@ The latter is dominated by `16_04_consider_implicit_extra_file_collection`,
 which Galaxy emits **unconditionally** — so essentially every sub-16.04 tool
 stalls at 16.04 immediately.
 
+`24_2_fix_test_case_validation` counts are an **upper bound** (ships `<test>`;
+not validated): its detector fires on tools that merely *ship* a `<test>` —
+we don't vendor Galaxy's parameter-model validator — not on tools whose tests
+actually fail, so the true blocker count is a smaller subset (see
+`upgrade_research/24_2_fix_test_case_validation.md`).
+
 Regenerate with (needs the corpus, so not run in CI):
 
 ```sh

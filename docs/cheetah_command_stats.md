@@ -8,9 +8,14 @@ variables in those sections can be located/rewritten mechanically.
 Galaxy Cheetah-processes `<command>`, inline `<configfile>` (XML tools'
 default engine), env-var templates, and output `label`s (`lib/galaxy/tools/evaluation.py:767,952`, `tools/actions/__init__.py:1091`).
 This survey covers the two large ones: `<command>` and inline `<configfile>`.
-Because it is a regex heuristic, directive counts are roughly a **lower**
-bound (a construct can hide) and shape counts roughly an **upper** bound (a
-`$x` inside a `##` comment or `#raw` block still matches).
+Because it is a regex heuristic (not a Cheetah parse), counts are noisy in
+**both** directions: a construct can hide from the pattern (under-count), and
+a `#`-keyword or `$x` sitting inside a `##` comment or a `#raw`…`#end raw`
+block still matches even though Cheetah would not treat it as live
+(over-count). The directive over-count is negligible in practice (only a
+handful of commands match a directive *solely* inside a comment/raw block),
+so the trivial-vs-directive headline is, if anything, conservative for the
+trivial (easy) subset.
 
 Regenerate with (needs the corpus, so not run in CI):
 
@@ -75,3 +80,10 @@ The `#set` / `#for` / `#def` rows are the scope-introducing hazards: each
 binds Cheetah-local names that can shadow tool parameters, so a parameter
 rename cannot be a blind textual substitution. See the research doc for what
 this implies for feasibility.
+
+The `##` (Cheetah comment) row is an **upper bound** on Cheetah comments: the
+regex `##` also matches POSIX shell parameter expansion `${var##*/}` (a common
+basename idiom in `ln -s` setups), so an unknown fraction of these tools carry
+shell `##`, not a Cheetah comment — do not read its share as Cheetah-comment
+prevalence. The direction is conservative (it makes the hazard-free subset look
+smaller), so it does not threaten the feasibility conclusion.

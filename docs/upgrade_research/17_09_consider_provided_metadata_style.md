@@ -36,6 +36,14 @@ module docstring). Our detector uses the **bare** attribute name
 (`_detects_provided_metadata_style`: `outputs.get("provided_metadata_style") is not None`),
 i.e. it fires when an `<outputs provided_metadata_style="…">` is already present.
 
+There is a second-order oddity worth flagging: even after de-backticking, Galaxy's
+predicate fires when the attribute is **already present**, whereas the advice ("add
+`provided_metadata_style="legacy"`") is only actionable for tools that **lack** it —
+so the warning targets the population that least needs it and stays silent for the
+rest. This is harmless because the code is detect/report-only and niche, and we mirror
+Galaxy's intent deliberately (per the `profile_semantics.py` docstring / codemod
+`docs/decisions.md` §23) — there is no inject-to-restore fix here.
+
 ## Mechanical-fix feasibility
 
 Niche and low-value. The legacy-restore recipe (add `provided_metadata_style="legacy"`)

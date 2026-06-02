@@ -36,12 +36,17 @@ parsed test case against it:
 - The model is **strict**: `create_model_strict` sets
   `ConfigDict(extra="forbid", …)` (`lib/galaxy/tool_util_models/parameters.py`), so
   **unknown/misspelled parameter names** are rejected.
-- **`select` must be a value, not a label**: `SelectParameterModel.py_type_if_required`
-  builds a `Literal` type from option **values** only — a test using the option
-  label fails.
-- **`data_column` must be an integer index**: `case.py:123-149` only coerces a
-  column-name string (e.g. `"c1: Transaction_date"`) for profile < 24.2; at ≥ 24.2 it
-  leaves it a string, and the model expects `StrictInt` → fails.
+- **`select` must be a value, not a label** — *for static-option selects only*:
+  `SelectParameterModel.py_type_if_required` builds a `Literal` type from option
+  **values**, so a test using the option label fails. This applies **only** to
+  static-option selects; a dynamic-options select (`options is None`,
+  `parameters.py:1808-1809`) validates as `StrictStr` (`parameters.py:1725`) and
+  accepts any string, so it never trips this rule.
+- **`data_column` must be an integer index** — *for the column-name case only*: an
+  integer-as-string value (e.g. `"1"`) is coerced to `int` **unconditionally at any
+  profile** (`case.py:133-139`); only the column-**name** pattern `"c1: …"`
+  (`COLUMN_NAME_STR_PATTERN`) is profile-gated — coerced for profile < 24.2, left a
+  string at ≥ 24.2 where the model expects `StrictInt` → fails (`case.py:140-148`).
 - **Fully-qualified names**: nested params must use `parent|child` paths
   (`visitor.py:130-136` `flat_state_path`, paths built in `case.py`).
 
@@ -60,7 +65,12 @@ ships any `tests/test` (a necessary condition — no `<test>` ⇒ the code can't
 We do **not** vendor Galaxy's parameter-model validator, so we cannot tell whether a
 given tool's tests *actually* fail. Consequence: our **4,498 over-counts** — it is
 "tools that ship tests and are below 24.2," an upper bound. The true number is some
-(likely large) subset whose tests violate one of the four rules.
+subset whose tests violate one of the four rules — and **smaller than the four-rule
+list suggests**, because two of the rules have escape hatches that exempt most cases:
+the select rule applies only to *static*-option selects (dynamic-options selects
+accept any string), and the `data_column` rule fails only on column-*name* strings
+(integer-as-string values coerce at any profile). So the true-failure subset is
+materially below 4,498.
 
 ## The faithful fix (per violation)
 
@@ -81,6 +91,17 @@ parameter model (option value mapping, column semantics) and sometimes author in
 - **Fixing** is mixed: name-qualification could be mechanical given the parsed model,
   but select/column corrections are ambiguous. A reliable codemod is **not**
   straightforward.
+
+**Why the select label→value fix is not mechanically safe** (recorded so it isn't
+revisited as "easy"): (1) dynamic-options selects (`from_dataset` / `from_data_table`
+/ `dynamic_options=` code) carry no value table — Galaxy validates them as `StrictStr`
+(`parameters.py:1724-1725`; `options` stays `None`), so a blind rewrite has nothing to
+map against and would corrupt currently-valid values; (2) for a static select the test
+value alone cannot be classified as a label-needing-rewrite vs an already-correct value
+vs a label that coincidentally equals another option's value (the `Literal` is built
+from values only, `parameters.py:1720`). If a fix is ever scoped, restrict it to
+static-options selects with the parsed option set, and guard idempotence for values
+that already validate.
 
 ## Status / recommendation
 

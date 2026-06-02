@@ -6,7 +6,7 @@
 | **Profile** | 16.04 |
 | **Level** | `must_fix` |
 | **Auto-fix today** | **GTX015** `FixOutputFormatInput` (partial) |
-| **Stuck tools** (must_fix-only) | **18** residual (see `../upgrade_behavior_block_stats.md`) |
+| **Stuck tools** (must_fix-only) | **18** — tools where this code is the *first* must_fix blocker in the sequential profile walk (a subset of the 41 ambiguous; the rest stall earlier at 16.04 on `16_04_fix_interpreter`). See `../upgrade_behavior_block_stats.md` |
 | **Galaxy PR** | https://github.com/galaxyproject/galaxy/pull/1688 |
 
 > Galaxy-source citations from `.local/galaxy-src/` @ `c6e0ee3`.
@@ -66,10 +66,14 @@ covers ~109 of ~150 corpus tools with a `format="input"` output (size it via
 ## Mechanical-fix feasibility
 
 - **Already covered** for the sole-data-input case (GTX015).
-- The **residual 18** stuck tools are the genuinely ambiguous cases: multiple data
-  inputs (which one?), zero data inputs (nothing to inherit from), or a nested
+- GTX015 leaves **41** tools unfixed — the genuinely ambiguous cases (per
+  `scripts/measure.py output-format-input`): 38 with multiple data inputs (which
+  one?), 2 with zero data inputs (nothing to inherit from), and 1 with a nested
   single data input (the unqualified name wouldn't resolve). These need author
-  intent and should stay detect/report-only.
+  intent and should stay detect/report-only. (The **18** in the header is a
+  different metric — the count of tools where this code is the *first* must_fix
+  blocker in the sequential profile walk; most ambiguous tools stall earlier at
+  16.04 on `16_04_fix_interpreter`, so 18 is a subset of the 41.)
 
 ## Status / recommendation
 
