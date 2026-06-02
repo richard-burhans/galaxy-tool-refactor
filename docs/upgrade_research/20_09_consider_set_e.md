@@ -25,9 +25,16 @@ its `<command>`. Galaxy's message:
 ## Detection
 
 Galaxy adds the code when `<command>` has **no** `strict` attribute
-(`lib/galaxy/tool_util/upgrade/__init__.py:205-209`). Our `_detects_no_strict`
-mirrors it (`command is not None and command.get("strict") is None`). It is a frequent
-first blocker (~415 tools in `../upgrade_behavior_block_stats.md`).
+(`lib/galaxy/tool_util/upgrade/__init__.py:205-209`). Our `_detects_set_e`
+**tightens** that coarse mirror (codemod `docs/decisions.md` §28): it still requires no
+`strict=`, but additionally suppresses a *provably single simple command*, which `set
+-e` cannot change (it only matters across a sequence). The conservative
+`_command_text_is_single_simple_statement` predicate never suppresses an ambiguous body
+(Cheetah control flow, any sequencing/pipeline/background metacharacter, or >1 statement
+line keeps the note), so it only ever removes false positives. Sized by `scripts.measure
+set-e-tightening`: **1,915 of 9,311 (20.6%)** firing tools are suppressed. It remains a
+frequent first blocker (**388 tools** in `../upgrade_behavior_block_stats.md`, down from
+415 before the tightening).
 
 ## Mechanical-fix feasibility
 

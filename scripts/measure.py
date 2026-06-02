@@ -2945,37 +2945,10 @@ def _run_upgrade_codes_applicability(args: argparse.Namespace) -> None:
 # provably-single-simple command (the sound suppression). Heuristic over the
 # `<command>` CDATA text, NOT a Cheetah/shell parse; conservative — any control
 # directive or sequencing/pipeline/background metacharacter counts as NOT simple,
-# so it never suppresses a tool `set -e` could affect. Needs the corpus, not in CI.
-
-# A shell metacharacter that can sequence / pipeline / background two commands.
-_SET_E_SEQUENCING = re.compile(r"(;|&&|\|\||\||&|\$\(|`)")
-# A Cheetah control-flow directive line, whose body can expand to >1 command.
-_CHEETAH_CONTROL = re.compile(
-    r"(?m)^\s*#(if|for|while|try|else|elif|end|set|def|import|from)\b"
-)
-
-
-def _command_text_is_single_simple_statement(text: str, /) -> bool:
-    """Whether *text* (a ``<command>`` body) is provably one simple shell command.
-
-    Pure (string in, bool out), so it is unit-tested with synthetic bodies; it is
-    the sizing predicate behind the §28 ``set_e`` tightening. ``set -e`` can only
-    change behaviour across a *sequence*, so a single simple command is provably
-    unaffected. Conservative — Cheetah control flow, any
-    sequencing/pipeline/background metacharacter, or more than one non-comment
-    statement line returns ``False`` (keep the note), so it never under-reports.
-    """
-    joined = text.replace("\\\n", "")  # fold shell line-continuations to one line
-    if _CHEETAH_CONTROL.search(joined):
-        return False
-    statements = [
-        line
-        for line in joined.splitlines()
-        if line.strip() and not line.strip().startswith("#")
-    ]
-    if len(statements) != 1:
-        return False
-    return _SET_E_SEQUENCING.search(statements[0]) is None
+# so it never suppresses a tool `set -e` could affect. The sizing reuses the SAME
+# predicate the shipped detector uses (`profile_semantics.
+# _command_text_is_single_simple_statement`, imported in the measure below) so the
+# two can't drift. Needs the corpus, not in CI.
 
 
 @dataclass
@@ -2988,6 +2961,10 @@ class _SetETighteningResult:
 
 def _measure_set_e_tightening(*, corpus_root: Path) -> _SetETighteningResult:
     """Count current ``set_e`` detector hits vs the sound single-command suppression."""
+    from galaxy_tool_xml_codemod.profile_semantics import (
+        _command_text_is_single_simple_statement,
+    )
+
     seen: set[str] = set()
     n_tools = n_with = fires = simple = 0
     for path in _iter_corpus_tool_xmls(corpus_root):

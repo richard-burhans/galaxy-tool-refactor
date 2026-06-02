@@ -10,6 +10,7 @@ from packaging.version import Version
 from galaxy_tool_xml_codemod.profile_semantics import (
     _DETECTORS,
     PROFILE_UPGRADE_CODES,
+    _command_text_is_single_simple_statement,
     detect_codes_on_root,
     upgrade_codes_applicable,
     upgrade_codes_crossed,
@@ -235,10 +236,35 @@ def test_detects_optional_text_and_set_e() -> None:
         b'<inputs><param name="p" type="text" optional="true"/></inputs></tool>'
     )
     assert not _applies(optional_text, "23_0_consider_optional_text")
-    # A command without strict= trips set -e; the inert tool sets it, so it does not.
-    no_strict = b'<tool id="t" name="T"><command>x</command></tool>'
-    assert _applies(no_strict, "20_09_consider_set_e")
+    # set -e (20.09) only affects a SEQUENCE: a multi-statement command without
+    # strict= applies; a single simple command is suppressed; strict= never trips
+    # (codemod decisions §28).
+    chained = b'<tool id="t" name="T"><command>a &amp;&amp; b</command></tool>'
+    assert _applies(chained, "20_09_consider_set_e")
+    single_cmd = b'<tool id="t" name="T"><command>x</command></tool>'
+    assert not _applies(single_cmd, "20_09_consider_set_e")
     assert not _applies(_INERT_TOOL, "20_09_consider_set_e")
+
+
+def _tool_with_command(body: bytes, /) -> bytes:
+    return b'<tool id="t" name="T"><command><![CDATA[' + body + b"]]></command></tool>"
+
+
+def test_set_e_tightening_suppresses_provably_single_commands() -> None:
+    """The §28 tightening: a lone command can't be changed by set -e, so no note."""
+    suppressed = (
+        b"samtools sort in.bam",
+        b"## go\nsamtools sort in.bam",  # comment line + one real statement
+    )
+    for body in suppressed:
+        assert not _applies(_tool_with_command(body), "20_09_consider_set_e")
+    kept = (
+        b"a | b",  # pipeline
+        b"a\nb",  # two statement lines
+        b"#if $x\nrun\n#end if",  # Cheetah control flow can expand to many commands
+    )
+    for body in kept:
+        assert _applies(_tool_with_command(body), "20_09_consider_set_e")
 
 
 def test_24_2_is_a_necessary_condition_on_having_tests() -> None:
@@ -250,3 +276,26 @@ def test_24_2_is_a_necessary_condition_on_having_tests() -> None:
     no_tests = b'<tool id="t" name="T"><command>x</command></tool>'
     assert _applies(with_tests, "24_2_fix_test_case_validation")
     assert not _applies(no_tests, "24_2_fix_test_case_validation")
+
+
+def test_command_text_single_simple_statement_predicate() -> None:
+    """The §28 set_e suppression predicate: pure string -> bool, conservative."""
+    simple = _command_text_is_single_simple_statement
+    # Provably single simple commands -> suppress (set -e can't change them).
+    assert simple("samtools sort in.bam")
+    assert simple("\n## comment\nsamtools sort in.bam\n")  # comment + 1 statement
+    assert simple("samtools sort \\\n  -o out.bam in.bam")  # line-continuation
+    # Anything that could sequence/expand to >1 command -> keep the note.
+    for kept in (
+        "a && b",
+        "a ; b",
+        "a | b",
+        "a || b",
+        "server &",
+        "echo $(date)",
+        "echo `date`",
+        "cp a b\ncp c d",
+        "#if $x\nrun a\n#end if",
+        "#for $i in $r\nrun $i\n#end for",
+    ):
+        assert not simple(kept), kept
