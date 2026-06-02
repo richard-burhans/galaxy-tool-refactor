@@ -113,9 +113,10 @@ plain — **56.8% use dotted attribute access**, which is fine to *detect* but r
 | Approach | Correctness | Cost / risk | Verdict |
 |---|---|---|---|
 | **A. Regex heuristic** (what we have: `scripts/measure.py:1721` `_CHEETAH_VAR`, `_count_unquoted_vars:1736`) | Approximate — false +/− on comments, `#raw`, `\$`, strings | Zero deps, fast | Fine for **metrics** and conservative **detection**; unsafe as the sole basis for rewriting |
-| **B. Cheetah compile → AST of generated Python** | High (Cheetah's own parser) | **Cheetah is NOT installed** in our venv (verified) — would add the CT3 dependency; relies on the private `_CHEETAH_generatedModuleCode`; maps placeholders to `VFFSL(...)` calls but mapping edits *back* to source offsets is non-trivial; fails on templates Galaxy only compiles via the py2 futurize retry | Promising for **analysis/validation**; awkward for **source rewriting** |
+| **B. Cheetah compile → AST of generated Python** (stdlib `ast` or **libCST**) | High (Cheetah's own parser) | **Cheetah is NOT installed** in our venv (verified), and **neither is libCST** (verified) — would add CT3 (+ optionally libCST) as a dependency; relies on the private `_CHEETAH_generatedModuleCode`; maps placeholders to `VFFSL(...)` calls but mapping edits *back* to source offsets is non-trivial; fails on templates Galaxy only compiles via the py2 futurize retry | Promising for **analysis/validation**; awkward for **source rewriting** |
 | **C. Custom Cheetah grammar** (lark/pyparsing) | Can be high for the subset we model | Large effort; perpetual drift from real Cheetah; re-implements a moving target | Only if B proves unworkable and the payoff is large |
 | **D. Hybrid, scoped** — regex/structured detection that **bails out** on any hazard (directive, dotted target, `#raw`, comment, configfile coupling, `<expand>`) and only acts on a provably-simple shape | High *on the subset it accepts* | Low coverage by design; must `log()`/report what it skipped | **Most realistic first step** for any rewrite |
+| **E. Dynamic sentinel oracle** — render the template with Cheetah, binding names to locatable sentinel values, and read the *output* (see the section below) | High *as an oracle* (uses real Cheetah) | Needs CT3; needs a permissive search list; only the *taken* `#if`/`#for` branch renders; embedded Python can eat the sentinel; tells you the value's place in *output*, not its *source span* | Strong for **verification / detection**, not for **locating** edits |
 
 Prior art confirms the difficulty: **Galaxy itself never statically extracts
 variables** — it evaluates templates at runtime with a real context; its command
@@ -142,15 +143,90 @@ relevant checks are regex-based. Our own `_count_unquoted_vars` is explicitly la
 - **(4) Rewrite expressions / semantics — NOT FEASIBLE mechanically.** Arbitrary
   embedded Python; equivalent to program transformation.
 
+## Two ideas evaluated (2026-06-02): libCST, and a dynamic sentinel oracle
+
+### Can we leverage libCST?
+
+**Not for the Cheetah source itself — only for its compiled Python, and even then it
+adds little.** libCST is a *Python* concrete-syntax-tree library; a Cheetah command
+block (`#if`, `$x`, `${...}`) is **not valid Python**, so libCST cannot parse it. The
+only thing libCST could parse is the Python that Cheetah *compiles the template into*
+(`Template.compile(...)._CHEETAH_generatedModuleCode`) — i.e. it's a variant of
+Approach B's analysis side, swapping stdlib `ast` for libCST. There:
+
+- Galaxy's generated code looks up variables as `VFFSL(SL, "name", …)` (the NameMapper;
+  see `.local/galaxy-src` `lib/galaxy/util/template.py:177-180`, which itself rewrites
+  those calls textually). Walking the module for `VFFSL` calls *does* enumerate the
+  referenced names — but stdlib `ast` already does that; libCST's lossless,
+  round-trippable CST buys nothing because **we'd never serialise the generated Python
+  back into Cheetah source**. The hard part — mapping a finding back to a *source span
+  in the XML* — is unsolved by either.
+- libCST is **not installed** here (verified), so it would be a new dependency.
+- (Aside: the planned tier-2 *matcher language* is described as "LibCST-matcher-shaped"
+  — but that's for matching the **XML/structural** tree, not Cheetah. Different problem;
+  no reuse.)
+
+**Verdict:** libCST is not a path to locating/rewriting Cheetah variables in source. At
+most it's an ergonomic alternative to `ast` for analysing the generated Python, which
+`ast` already covers. Don't pursue it for this.
+
+### Render-with-a-sentinel-and-verify oracle
+
+The idea: bind the suspected variable to a unique, locatable value (e.g.
+`" GTX_a1b2 "`), render the template through Cheetah, and check **where/whether
+the sentinel lands in the output** — using Cheetah itself (the only correct parser) as
+an oracle. This is genuinely useful, but as a **verifier/detector**, not a locator:
+
+- **Best use — differential verification of a candidate edit.** Render the *original*
+  and a *proposed rewrite* under a battery of sentinel contexts; if every output matches
+  modulo the intended change, the edit is behaviour-preserving — *without* having to
+  perfectly parse or scope-analyse the template. This pairs with cheap structural/regex
+  *locating* (Approach A/D): locate loosely, then **prove safe** by rendering. For the
+  interpreter codemod specifically, it directly validates the "first token = script"
+  guess by reproducing Galaxy's runtime `split()[0]` on the rendered line.
+- **Also — reference detection.** Bind each parameter to a distinct sentinel, render,
+  and see which sentinels appear → which params are actually used.
+
+Honest obstacles (all real):
+1. **Needs CT3 installed** (same cost/availability as Approach B; not installed today).
+2. **The search list must never raise `NotFound`.** Galaxy binds inputs as *wrapper
+   objects* with dynamic attributes/methods (`$input.ext`, `$input.metadata.dbkey`,
+   `$x.get(...)`), and Cheetah's NameMapper raises on any unresolved access
+   (`template.py:153-156`). So we'd need a *permissive* magic namespace whose
+   `__getattr__`/`__getitem__`/`__call__`/`__str__` all return locatable sentinels —
+   and which is simultaneously truthy/iterable/comparable so `#if`/`#for` don't crash.
+3. **Only the taken branch renders.** `#if`/`#elif` mean a reference in the *other*
+   branch never appears — the conditional-opacity problem, now dynamic. Honest detection
+   needs to force all branches (re-render with the condition toggled), which is
+   combinatorial in the number of conditionals.
+4. **Embedded Python can eat the sentinel.** `#import re` / `#set $x = re.sub(p, r, $y)`
+   may transform the marker beyond recognition → false negatives for *detection*
+   (differential verification still holds, since the transform is identical on both
+   sides).
+5. **It reads output, not source.** The oracle confirms *that/where a value flows*, not
+   *which characters in the XML to edit*. It complements locating; it doesn't replace it.
+
+**Verdict:** worth prototyping — but framed as a **safety oracle** layered on top of a
+cheap locator (locate with A/D, *verify* with E), and as a *detection* aid with the
+branch/transform caveats above. It does not, by itself, solve the locate-and-rewrite
+problem, and it carries the same CT3 dependency as Approach B.
+
 ## Open questions (live worklist)
 
 - [ ] **Size the truly-safe subset.** Extend the measure (or add a sibling) to count
   tools whose command is directive-free **and** has no dotted/indexed/call shapes, no
   `##`/`\$`, no inline configfile, and no `<expand>` — the population a hazard-bailing
   rewriter (Approach D) could touch. This is the real "addressable" number.
-- [ ] **Prototype Approach B offline.** Is Cheetah/CT3 installable as a *dev-only*
-  tool (not a runtime dep of any tier)? Measure parse-success rate across the corpus
-  and whether the generated-AST placeholder set can be mapped back to source spans.
+- [ ] **Prototype Approach B + the sentinel oracle (E) offline.** Is Cheetah/CT3
+  installable as a *dev-only* tool (not a runtime dep of any tier)? Then: (B) measure
+  parse-success across the corpus and whether the generated-AST `VFFSL` set maps back
+  to source spans; (E) build a permissive sentinel search list and measure how often a
+  render succeeds without `NotFound`, and prototype *differential verification* of a
+  trivial edit. Both share the CT3 dependency.
+- [x] **libCST?** Evaluated 2026-06-02 — **no**: libCST parses Python, not Cheetah;
+  it would only apply to Cheetah's *generated* Python (where stdlib `ast` already
+  suffices) and doesn't solve source back-mapping. Not installed either. (See section
+  above.)
 - [ ] **Macro/`<expand>` strategy.** Decide expand-first-then-analyse vs
   inline-only-and-skip-expanders. Back-mapping edits to macro files is a sub-project.
 - [ ] **Per-use-case scoping rules**, written as explicit bail-out predicates, with a
@@ -164,6 +240,9 @@ relevant checks are regex-based. Our own `_count_unquoted_vars` is explicitly la
 
 No implementation yet. If/when we build anything, start at use case (1)/(2) on the
 **hazard-free subset**, using Approach **D** (structured detection that bails out
-loudly on every construct it can't prove safe), and only consider Approach B once a
-measurement shows the safe subset is too small and CT3-as-dev-dep parses the corpus
-reliably. Treat use cases (3)/(4) as research, not roadmap.
+loudly on every construct it can't prove safe). The most promising *upgrade* to that is
+**D + E**: locate cheaply (D), then **verify each candidate edit by differential
+sentinel rendering** (E) — letting Cheetah itself certify behaviour-preservation rather
+than trusting a static parse. Approach **B** (and libCST) are analysis-only and gated on
+a CT3 dev-dependency proving itself; **C** is a last resort. Treat use cases (3)/(4) as
+research, not roadmap.
