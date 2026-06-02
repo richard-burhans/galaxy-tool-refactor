@@ -44,7 +44,7 @@ from pathlib import Path
 logger = logging.getLogger("fetch_toolshed")
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_CORPUS_ROOT = _REPO_ROOT / "corpus"
+_CORPUS_ROOT = _REPO_ROOT / ".local" / "corpus"
 _TOOLSHED_ROOT = _CORPUS_ROOT / "galaxy-toolshed"
 _TOOLSHED_MANIFEST = _TOOLSHED_ROOT / "manifest.json"
 _TOOLSHED_HOST = "https://toolshed.g2.bx.psu.edu"

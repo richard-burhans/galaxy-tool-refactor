@@ -55,7 +55,7 @@ def _repo_root() -> Path:
 
 
 def _corpus_root() -> Path:
-    return _repo_root() / "corpus"
+    return _repo_root() / ".local" / "corpus"
 
 
 def _display_path(path: Path) -> str:
@@ -3389,6 +3389,97 @@ def _run_output_format_input(args: argparse.Namespace) -> None:
     )
 
 
+# --- measurement: help-formats --------------------------------------------------
+#
+# Buckets each unique tool by how its <help> declares a markup format. Galaxy's
+# XSD (HelpFormatType) allows format="restructuredtext" | "markdown", and
+# parse_help defaults a missing format to "restructuredtext". Both are supported:
+# RST is rendered to HTML server-side, while markdown is passed raw to the Vue
+# client and rendered there (see docs/galaxy_processing_model.md). This sizes how
+# many corpus tools declare a non-default help format. Format values are
+# normalised to lowercase; an absent/blank attribute counts as implicit
+# reStructuredText.
+
+_HELP_FORMAT_EXAMPLE_CAP = 10
+
+
+@dataclass
+class _HelpFormatsResult:
+    """How unique corpus tools declare their ``<help>`` markup format."""
+
+    n_unique_tools: int
+    n_without_help: int
+    n_help_implicit_rst: int
+    explicit_format_buckets: list[tuple[str, int]]
+    markdown_example_ids: list[str]
+
+
+def _measure_help_formats(*, corpus_root: Path) -> _HelpFormatsResult:
+    """Bucket each unique tool's ``<help>`` by its declared ``format`` attribute."""
+    seen: set[str] = set()
+    n_tools = 0
+    n_without = 0
+    n_implicit = 0
+    buckets: Counter[str] = Counter()
+    markdown_ids: list[str] = []
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        n_tools += 1
+        help_elem = root.find("help")
+        if help_elem is None:
+            n_without += 1
+            continue
+        raw = help_elem.get("format")
+        if raw is None or not raw.strip():
+            n_implicit += 1
+            continue
+        value = raw.strip().lower()
+        buckets[value] += 1
+        if value == "markdown" and len(markdown_ids) < _HELP_FORMAT_EXAMPLE_CAP:
+            markdown_ids.append(root.get("id") or path.name)
+    return _HelpFormatsResult(
+        n_unique_tools=n_tools,
+        n_without_help=n_without,
+        n_help_implicit_rst=n_implicit,
+        explicit_format_buckets=buckets.most_common(),
+        markdown_example_ids=markdown_ids,
+    )
+
+
+def _report_help_formats(measurement: _HelpFormatsResult) -> None:
+    total = measurement.n_unique_tools
+    with_help = total - measurement.n_without_help
+    n_explicit = sum(count for _, count in measurement.explicit_format_buckets)
+    print("\n=== help-formats ===")
+    print(f"Unique tools (sha256 dedup):        {total}")
+    print(f"Tools with no <help>:               {measurement.n_without_help}")
+    print(f"Tools with <help>:                  {with_help}")
+    print(f"  implicit format (no attr -> rst): {measurement.n_help_implicit_rst}")
+    print(f"  explicit format= attribute:       {n_explicit}")
+    for value, count in measurement.explicit_format_buckets:
+        pct = count / total * 100 if total else 0
+        print(f'      {count:5d}  ({pct:4.1f}%)  format="{value}"')
+    if measurement.markdown_example_ids:
+        print(
+            '\n  format="markdown" example tool ids '
+            "(schema-legal but not RST-rendered):"
+        )
+        for tool_id in measurement.markdown_example_ids:
+            print(f"      {tool_id}")
+
+
+def _run_help_formats(args: argparse.Namespace) -> None:
+    _report_help_formats(_measure_help_formats(corpus_root=args.corpus_root))
+
+
 # --- passthrough: corpus-check --------------------------------------------------
 #
 # corpus_check.py is the canonical (and slow) sweep step. Exposing it here as a
@@ -3439,6 +3530,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "element-cardinality": _run_element_cardinality,
     "command-language": _run_command_language,
     "output-format-input": _run_output_format_input,
+    "help-formats": _run_help_formats,
 }
 
 _PASSTHROUGH: dict[str, Callable[[argparse.Namespace, list[str]], int]] = {

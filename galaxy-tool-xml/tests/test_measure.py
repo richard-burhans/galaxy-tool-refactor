@@ -23,6 +23,7 @@ from scripts.measure import (
     _measure_command_iuc_heuristics,
     _measure_command_language,
     _measure_element_cardinality,
+    _measure_help_formats,
     _measure_macro_fmt_idempotence,
     _measure_macro_profile_ownership,
     _measure_macro_profile_tokens,
@@ -85,6 +86,69 @@ def test_param_types_empty_corpus(tmp_path: Path) -> None:
     assert result.n_tools_parsed == 0
     assert result.n_params_total == 0
     assert len(result.type_counts) == 0
+
+
+# --- help-formats ----------------------------------------------------------------
+
+
+@pytest.fixture()
+def help_formats_corpus(tmp_path: Path) -> Path:
+    """Synthetic corpus exercising every <help> format bucket + sha dedup."""
+    repo = tmp_path / "owner" / "help-repo"
+    repo.mkdir(parents=True)
+    (repo / "no_help.xml").write_text(
+        '<tool id="t_nohelp"><inputs/></tool>', encoding="utf-8"
+    )
+    (repo / "implicit.xml").write_text(
+        '<tool id="t_implicit"><help>plain rst</help></tool>', encoding="utf-8"
+    )
+    (repo / "blank_format.xml").write_text(
+        '<tool id="t_blank"><help format="  ">still rst</help></tool>',
+        encoding="utf-8",
+    )
+    (repo / "rst.xml").write_text(
+        '<tool id="t_rst"><help format="restructuredtext">x</help></tool>',
+        encoding="utf-8",
+    )
+    md_xml = '<tool id="t_md"><help format="markdown">x</help></tool>'
+    (repo / "md.xml").write_text(md_xml, encoding="utf-8")
+    # Case-insensitive normalisation: "Markdown" buckets with "markdown".
+    (repo / "md_upper.xml").write_text(
+        '<tool id="t_md2"><help format="Markdown">x</help></tool>', encoding="utf-8"
+    )
+    (repo / "plain.xml").write_text(
+        '<tool id="t_plain"><help format="plain_text">x</help></tool>',
+        encoding="utf-8",
+    )
+    # Byte-identical to md.xml -> deduped by sha256 (not double-counted).
+    (repo / "md_dup.xml").write_text(md_xml, encoding="utf-8")
+    (repo / "not_a_tool.xml").write_text("<data/>", encoding="utf-8")
+    return tmp_path
+
+
+def test_help_formats_buckets(help_formats_corpus: Path) -> None:
+    result = _measure_help_formats(corpus_root=help_formats_corpus)
+    # 7 unique tool roots: no_help, implicit, blank_format, rst, md, md2, plain.
+    # md_dup is byte-identical to md (sha dedup); not_a_tool is not a <tool>.
+    assert result.n_unique_tools == 7
+    assert result.n_without_help == 1
+    # implicit (no attr) and blank (whitespace-only attr) both count as rst.
+    assert result.n_help_implicit_rst == 2
+    assert dict(result.explicit_format_buckets) == {
+        "markdown": 2,
+        "restructuredtext": 1,
+        "plain_text": 1,
+    }
+    assert set(result.markdown_example_ids) == {"t_md", "t_md2"}
+
+
+def test_help_formats_empty_corpus(tmp_path: Path) -> None:
+    result = _measure_help_formats(corpus_root=tmp_path)
+    assert result.n_unique_tools == 0
+    assert result.n_without_help == 0
+    assert result.n_help_implicit_rst == 0
+    assert result.explicit_format_buckets == []
+    assert result.markdown_example_ids == []
 
 
 # --- cross-source match-key sanity check (§10.11 / §6) ---------------------------

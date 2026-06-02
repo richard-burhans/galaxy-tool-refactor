@@ -234,7 +234,7 @@ No `conftest.py` change needed — `_codegen` is a normal package module.
 
 A maintainer/QA script (not a CI test — the corpus is thousands of files and
 needs network). It shallow-clones `galaxyproject/tools-iuc` (cached in a
-gitignored `corpus/`; `--corpus-dir` can point at an existing checkout), walks
+gitignored `.local/corpus/`; `--corpus-dir` can point at an existing checkout), walks
 `tools/**/*.xml`, keeps files whose root element is `<tool>`, and for each
 exercises the public API end-to-end — `parse_tool` → `model()` → `validate_tool`
 → `newest_valid_profile` → `suggest_corrections` — catching any **unexpected
@@ -272,7 +272,7 @@ keep the fixture so the bug can never silently return.
 
 `git rm` the committed `models/galaxy.py` and old generated `models/__init__.py`.
 Add to `.gitignore`: `src/galaxy_tool_xml/models/v*/`,
-`src/galaxy_tool_xml/models/any_tool.py`, and `corpus/` (the cached tools-iuc
+`src/galaxy_tool_xml/models/any_tool.py`, and `.local/corpus/` (the cached tools-iuc
 clone). Committed under `models/` afterward: only `__init__.py` and `registry.py`.
 
 ## Public API: before → after
