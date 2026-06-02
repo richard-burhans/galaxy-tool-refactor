@@ -141,6 +141,13 @@ uv run python -m scripts.measure semantic-upgrade-boundaries
 # needs the corpus, so not run in CI):
 uv run python -m scripts.measure upgrade-codes-applicability
 
+# Raw-tree vs post-macro-expansion detector divergence: per consider/must_fix code,
+# over-flag (raw fires, a macro supplies the construct -> Galaxy would not) vs
+# under-report (macro supplies the trigger -> the §25 gap) vs agree. Sizes the
+# detection gap behind the macro-expansion detector port (backs codemod decisions
+# §25; needs the corpus, so not run in CI):
+uv run python -m scripts.measure macro-expansion-detection-gap
+
 # Declared/defaulted profile vs the profile reached after `upgrade` (runs
 # UpgradeToLatest per tool): before/after distributions + shift summary. Writes
 # docs/upgrade_profile_shift_stats.md (needs the corpus, so not run in CI):

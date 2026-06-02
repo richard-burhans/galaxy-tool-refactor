@@ -477,6 +477,14 @@ def tripped_upgrade_codes(document: ToolDocument, /) -> frozenset[str]:
     features some detectors look for, so detecting after they run would
     under-report. Intersect the result with ``upgrade_codes_crossed`` for the
     range-aware applicable set (``upgrade_codes_applicable`` does exactly that).
+
+    The tree is read **un-expanded**, so a construct supplied only by a macro is
+    invisible here: a macro-supplied ``<stdio>`` over-flags ``16_04_exit_code``,
+    and a macro-supplied trigger under-reports other codes. The divergence is
+    sized by the ``macro-expansion-detection-gap`` measure (codemod
+    ``docs/decisions.md`` §25); it is cosmetic for this report-only note, but any
+    *fix* gated on a detector must reckon with it (e.g. never inject ``<stdio>``
+    off the raw tree).
     """
     root = document.root
     return frozenset(
