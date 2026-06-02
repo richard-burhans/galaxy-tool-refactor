@@ -31,13 +31,16 @@ from scripts.measure import (
     _measure_output_format_input,
     _measure_param_types,
     _measure_semantic_upgrade_boundaries,
+    _measure_upgrade_behavior_blocks,
     _measure_upgrade_headroom,
     _measure_version_tokenization,
     _ParamTypesResult,
+    _render_behavior_block_page,
     _render_macro_stats_page,
     _render_profile_ownership_page,
     _render_profile_shift_page,
     _tally_applicability,
+    _tally_behavior_blocks,
     _tally_profile_shift,
     _version_tuple,
 )
@@ -486,6 +489,127 @@ def test_version_tuple_equates_zero_padded_versions() -> None:
     assert _version_tuple("20.5") == _version_tuple("20.05") == (20, 5)
     assert _version_tuple("@PROFILE@") is None
     assert _version_tuple(None) is None
+
+
+# --- upgrade-behavior-blocks ----------------------------------------------------
+
+
+def _puc(code: str, profile: str, level: str) -> object:
+    """A synthetic ``ProfileUpgradeCode`` for the pure-tally tests."""
+    from galaxy_tool_xml_codemod.profile_semantics import ProfileUpgradeCode
+
+    return ProfileUpgradeCode(
+        code=code, profile=profile, level=level, niche=False, message="", url=None
+    )
+
+
+def test_tally_behavior_blocks_picks_lowest_blocker_per_policy() -> None:
+    samples = [
+        # a must_fix at 16.04 dominates a later consider under both policies
+        (_puc("mf16", "16.04", "must_fix"), _puc("c20", "20.09", "consider")),
+        # consider-only: reaches latest under must_fix-only, stuck under both
+        (_puc("c17", "17.09", "consider"),),
+        # nothing applicable/unfixable: reaches latest under either policy
+        (),
+        # first blocker differs by policy: consider@18.01 (both) vs must_fix@24.2
+        (_puc("c18", "18.01", "consider"), _puc("mf24", "24.2", "must_fix")),
+    ]
+    result = _tally_behavior_blocks(samples=samples, n_excluded=2, latest="26.1")  # type: ignore[arg-type]
+    assert result.n_considered == 4
+    assert result.n_excluded == 2
+    assert result.latest == "26.1"
+
+    # must_fix-only: c17-only and the empty sample both reach latest.
+    assert result.must_fix.reached_latest == 2
+    assert result.must_fix.stuck_total == 2
+    assert result.must_fix.per_code == {"mf16": 1, "mf24": 1}
+
+    # must_fix + consider: only the empty sample reaches latest.
+    assert result.must_fix_and_consider.reached_latest == 1
+    assert result.must_fix_and_consider.stuck_total == 3
+    assert result.must_fix_and_consider.per_code == {"mf16": 1, "c17": 1, "c18": 1}
+
+
+def test_render_behavior_block_page_smoke() -> None:
+    result = _tally_behavior_blocks(
+        samples=[
+            (_puc("16_04_fix_interpreter", "16.04", "must_fix"),),
+            (),
+        ],  # type: ignore[arg-type]
+        n_excluded=1,
+        latest="26.1",
+    )
+    page = _render_behavior_block_page(result)
+    assert "# Upgrade behavior-block statistics" in page
+    assert "Blocking on `must_fix` only" in page
+    assert "Blocking on `must_fix` + `consider`" in page
+    assert "`16_04_fix_interpreter`" in page
+
+
+@pytest.fixture()
+def behavior_corpus(tmp_path: Path) -> Path:
+    """Synthetic corpus exercising the behavior-block stop + auto-fix subtraction."""
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # No profile -> baseline 16.01. An interpreter command is a must_fix at 16.04
+    # with no auto-fix -> stuck on 16_04_fix_interpreter.
+    (repo / "interp.xml").write_text(
+        '<tool><command interpreter="python">run</command>'
+        "<inputs/><outputs/></tool>",
+        encoding="utf-8",
+    )
+    # profile 21.05 -> the only crossed applicable code is the 21.09 from_work_dir
+    # whitespace must_fix, which GTX014 auto-fixes -> reaches latest (both policies).
+    (repo / "workdir.xml").write_text(
+        '<tool profile="21.05"><command>run</command>'
+        '<outputs><data name="o" from_work_dir=" out.txt "/></outputs></tool>',
+        encoding="utf-8",
+    )
+    # No profile + format="input" output + a sole top-level data input -> GTX015
+    # auto-fixes the must_fix; <stdio/> silences the 16.04 exit-code consider, so
+    # under must_fix-only it reaches latest, and under both it stalls on the
+    # unconditional 16_04_consider_implicit_extra_file_collection.
+    (repo / "fmt_sole.xml").write_text(
+        '<tool><inputs><param type="data" name="inp"/></inputs>'
+        '<outputs><data name="o" format="input"/></outputs><stdio/></tool>',
+        encoding="utf-8",
+    )
+    # Two data inputs -> GTX015 cannot pick one, so 16_04_fix_output_format remains
+    # a must_fix blocker.
+    (repo / "fmt_multi.xml").write_text(
+        '<tool><inputs><param type="data" name="a"/><param type="data" name="b"/>'
+        '</inputs><outputs><data name="o" format="input"/></outputs><stdio/></tool>',
+        encoding="utf-8",
+    )
+    # A macro-token profile cannot be ranged -> excluded.
+    (repo / "macro.xml").write_text(
+        '<tool profile="@PROFILE@"><inputs/></tool>', encoding="utf-8"
+    )
+    return tmp_path
+
+
+def test_measure_behavior_blocks_applies_autofix_and_stop(
+    behavior_corpus: Path,
+) -> None:
+    result = _measure_upgrade_behavior_blocks(corpus_root=behavior_corpus)
+    assert result.n_considered == 4  # interp, workdir, fmt_sole, fmt_multi
+    assert result.n_excluded == 1  # the @PROFILE@ tool
+
+    # must_fix-only: workdir (GTX014) and fmt_sole (GTX015) reach latest; interp and
+    # fmt_multi stall on their unfixable must_fix codes.
+    must_fix = result.must_fix
+    assert must_fix.reached_latest == 2
+    assert must_fix.per_code == {
+        "16_04_fix_interpreter": 1,
+        "16_04_fix_output_format": 1,
+    }
+
+    # must_fix + consider: only workdir (baseline 21.05, no applicable consider)
+    # reaches latest; the three 16.01-baseline tools stall at 16.04.
+    both = result.must_fix_and_consider
+    assert both.reached_latest == 1
+    assert both.per_code["16_04_fix_interpreter"] == 1
+    assert both.per_code["16_04_consider_implicit_extra_file_collection"] == 2
 
 
 # --- element-cardinality --------------------------------------------------------
