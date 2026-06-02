@@ -46,42 +46,71 @@ _CHEETAH_DIRECTIVE_LINE = re.compile(
 )
 
 
-def first_command_token(body: str, /) -> str | None:
-    """Return the first content token of a command *body*, or ``None``.
+def first_command_token_span(body: str, /) -> tuple[str, int] | None:
+    """The first content token of a command *body* and its anchor offset, or ``None``.
 
-    Skips blank lines and ``##`` Cheetah comments. Returns ``None`` if the first
+    Skips blank lines and ``##`` Cheetah comments; returns ``None`` if the first
     content line is a Cheetah directive (the script is then not statically first).
+    The second element is the **character offset in *body* of the chosen content
+    line** — a rewrite must restrict itself to ``body[offset:]`` so a script name
+    appearing inside a leading ``##`` comment (or any skipped line) is never
+    mistargeted; only the real, first invocation is rewritten.
     """
-    for raw_line in body.splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("##"):
+    offset = 0
+    for raw_line in body.splitlines(keepends=True):
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("##"):
+            offset += len(raw_line)
             continue
-        if _CHEETAH_DIRECTIVE_LINE.match(line):
+        if _CHEETAH_DIRECTIVE_LINE.match(stripped):
             return None
-        return line.split()[0]
+        return stripped.split()[0], offset
     return None
 
 
-def interpreter_rewrite_target(
-    root: etree._Element, /, *, tool_dir: Path | None = None
-) -> str | None:
-    """The script token a ``16_04_fix_interpreter`` rewrite would prepend a path to.
+def first_command_token(body: str, /) -> str | None:
+    """Return the first content token of a command *body*, or ``None`` (see span)."""
+    span = first_command_token_span(body)
+    return span[0] if span is not None else None
 
-    Returns the token (e.g. ``"myscript.py"``) when *root* is "bucket A" — a
+
+def interpreter_rewrite(
+    root: etree._Element, /, *, tool_dir: Path | None = None
+) -> tuple[str, str, int] | None:
+    """The full ``16_04_fix_interpreter`` rewrite plan, or ``None`` if not bucket A.
+
+    Returns ``(interpreter, token, offset)`` when *root* is "bucket A" — a
     single-token standard ``interpreter`` whose command body begins with a literal
-    script filename — else ``None``. When *tool_dir* is given, the named script must
-    exist beside the tool (kills false positives); the check is skipped when it is
-    ``None`` (the caller could not locate the tool directory).
+    script filename — where *offset* is the body anchor for the rewrite (see
+    ``first_command_token_span``). Else ``None`` (bucket B/C). When *tool_dir* is
+    given the named script must exist beside the tool (kills false positives); the
+    check is skipped when it is ``None``.
     """
     command = root.find("command")
     if command is None:
         return None
     interpreter = command.get("interpreter")
-    if interpreter not in _STANDARD_INTERPRETERS:
+    if interpreter is None or interpreter not in _STANDARD_INTERPRETERS:
         return None
-    token = first_command_token("".join(command.itertext()))
-    if token is None or not _SCRIPT_TOKEN.match(token):
+    span = first_command_token_span("".join(command.itertext()))
+    if span is None:
+        return None
+    token, offset = span
+    if not _SCRIPT_TOKEN.match(token):
         return None
     if tool_dir is not None and not (tool_dir / token).is_file():
         return None
-    return token
+    return interpreter, token, offset
+
+
+def interpreter_rewrite_target(
+    root: etree._Element, /, *, tool_dir: Path | None = None
+) -> str | None:
+    """The script token a ``16_04_fix_interpreter`` rewrite would path-qualify.
+
+    The token-only view of ``interpreter_rewrite`` (the corpus
+    ``interpreter-bucket-split`` measure's bucket-A predicate); ``None`` when not
+    bucket A. See ``interpreter_rewrite`` for the full plan the codemod uses.
+    """
+    plan = interpreter_rewrite(root, tool_dir=tool_dir)
+    return plan[1] if plan is not None else None

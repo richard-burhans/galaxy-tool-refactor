@@ -38,7 +38,7 @@ the CLI and a future MCP server (`galaxy-tool-refactor-mcp`) sit on top of it.
   registry asserts the GTX/IUC code namespace is collision-free.
 - **Selectable ≠ all.** `registry()` is the selectable set (canonical codemods +
   cosmetic fmt + advisory checks). The upgrade-only codemods — GTX007–GTX012
-  (validity-gated, internal to `UpgradeToLatest`) and GTX014–GTX015 (runtime-gated,
+  (validity-gated, internal to `UpgradeToLatest`) and GTX014–GTX016 (runtime-gated,
   applied by `upgrade`) — appear only in `all_handles()` /
   `list_rules(include_upgrade=True)`.
 - **Apply ordering reproduces `format`.** Codemods in `CANONICAL_CODEMODS` order,

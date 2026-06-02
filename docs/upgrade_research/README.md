@@ -25,7 +25,7 @@ mechanical-fix feasibility · status.
 
 | Code | Profile | Auto-fix today | Mechanical feasibility | Note |
 |---|---|---|---|---|
-| `16_04_fix_interpreter` | 16.04 | none | **feasible (conservative)** — bucket-A rewrite to `$__tool_directory__` | [note](16_04_fix_interpreter.md) |
+| `16_04_fix_interpreter` | 16.04 | **GTX016** `FixInterpreter` — bucket-A rewrite to `$__tool_directory__` (runtime-gated) | [note](16_04_fix_interpreter.md) |
 | `16_04_fix_output_format` | 16.04 | **GTX015** (partial) | covered for sole-data-input; residual is ambiguous | [note](16_04_fix_output_format.md) |
 | `21_09_fix_from_work_dir_whitespace` | 21.09 | **GTX014** (full) | fully solved (always-safe strip) | [note](21_09_fix_from_work_dir_whitespace.md) |
 | `24_2_fix_test_case_validation` | 24.2 | none | low — needs Galaxy's param-model validator; mostly detect-only | [note](24_2_fix_test_case_validation.md) |
@@ -73,9 +73,8 @@ the notes are labelled accordingly; approximate `grep`-based figures are marked.
 
 - **Auto-fixed already:** `21_09_fix_from_work_dir_whitespace` (GTX014, full),
   `16_04_fix_output_format` (GTX015, the unambiguous subset).
-- **Best new-codemod candidate:** `16_04_fix_interpreter` — a conservative,
-  bucket-A `RuntimeGatedFix` (would be GTX016), the largest behaviour-block with a
-  well-defined faithful rewrite. Size bucket A with a measure first.
+- **Shipped:** `16_04_fix_interpreter` → **GTX016** `FixInterpreter`, a conservative
+  bucket-A `RuntimeGatedFix` — the largest behaviour-block, dropped 1,726 → 316 stuck.
 - **Legacy-restore opt-ins** (mechanical but pin the older behaviour, so not
   best-practice): `16_04_exit_code`, `20_09_consider_set_e`,
   `18_01_consider_home_directory`. The distinguishing criterion: a code qualifies as

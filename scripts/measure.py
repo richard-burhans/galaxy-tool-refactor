@@ -3452,6 +3452,7 @@ def _measure_upgrade_behavior_blocks(*, corpus_root: Path) -> _BehaviorBlockResu
     from galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace import (
         FixFromWorkDirWhitespace,
     )
+    from galaxy_tool_xml_codemod.codemods.fix_interpreter import FixInterpreter
     from galaxy_tool_xml_codemod.codemods.fix_output_format_input import (
         FixOutputFormatInput,
     )
@@ -3461,6 +3462,7 @@ def _measure_upgrade_behavior_blocks(*, corpus_root: Path) -> _BehaviorBlockResu
     )
 
     autofix: dict[str, type[CodemodCommand]] = {
+        "16_04_fix_interpreter": FixInterpreter,
         "16_04_fix_output_format": FixOutputFormatInput,
         "21_09_fix_from_work_dir_whitespace": FixFromWorkDirWhitespace,
     }

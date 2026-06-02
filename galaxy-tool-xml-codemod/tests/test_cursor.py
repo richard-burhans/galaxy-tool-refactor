@@ -24,6 +24,20 @@ def test_text_reads_and_set_text_replaces_element_text() -> None:
     assert cursor.get_attribute("name") == "@PROFILE@"  # attributes untouched
 
 
+def test_set_text_cdata_wraps_and_preserves_shell_operators() -> None:
+    cursor = Cursor(etree.fromstring(b"<command><![CDATA[echo x]]></command>"))
+    cursor.set_text("run.sh && echo <done>", cdata=True)
+    serialized = etree.tostring(cursor._element)
+    # CDATA wrapper kept; && and < stay literal inside it.
+    assert b"<![CDATA[run.sh && echo <done>]]>" in serialized
+
+
+def test_set_text_without_cdata_escapes_markup() -> None:
+    cursor = Cursor(etree.fromstring(b"<command>x</command>"))
+    cursor.set_text("a && b")
+    assert b"a &amp;&amp; b" in etree.tostring(cursor._element)  # plain text escapes
+
+
 def test_cursor_tag_returns_element_tag(minimal_tool_path: Path) -> None:
     """``cursor.tag`` returns the lxml element's tag as a string."""
     cursor = _root_cursor(minimal_tool_path)

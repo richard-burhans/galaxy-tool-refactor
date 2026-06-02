@@ -1006,3 +1006,53 @@ galaxy_tool_xml_codemod.codemods.normalize_boolean_values:NormalizeBooleanValues
   attribute the newer schema accepts permissively (so they fail elsewhere) or have
   additional blocking issues; `NormalizeBooleanValues` and `FixTypos` target
   disjoint failure modes, so the canonical pipeline now repairs both.
+
+## 27. `FixInterpreter` (GTX016) — inline a deprecated `<command interpreter=…>`
+
+**Date:** 2026-06-02. Reproduced-by: `uv run --package galaxy-tool-xml-codemod
+pytest galaxy-tool-xml-codemod/tests/test_fix_interpreter.py
+galaxy-tool-xml-codemod/tests/test_interpreter.py`; corpus sizing `uv run python -m
+scripts.measure interpreter-bucket-split`; idempotence + post-validity `uv run python
+-m scripts.corpus_check codemod
+galaxy_tool_xml_codemod.codemods.fix_interpreter:FixInterpreter`.
+
+- **The gap.** `16_04_fix_interpreter` is the single largest behaviour-block (1,726
+  tools stuck at 16.04). Before 16.04 Galaxy ran `<command interpreter="python">script.py
+  …</command>` as `python '<tool_dir>/script.py' …` (first substituted token, resolved
+  under the tool dir, interpreter prepended; `evaluation.py:781-787`); from 16.04 the
+  attribute is ignored, so an upgraded tool breaks unless rewritten.
+- **What we chose — a conservative bucket-A runtime-gated fix.** `FixInterpreter`
+  (`RuntimeGatedFix`, `introduced_profile="16.04"`) rewrites `<command interpreter="I">S
+  …</command>` → `<command>I '$__tool_directory__/S' …</command>` and drops the attribute,
+  for "bucket A": a single-token standard interpreter (`_STANDARD_INTERPRETERS`) whose
+  body begins with a literal script filename (`_SCRIPT_TOKEN`). Bucket B (leading Cheetah
+  / `$var` first token) and C (multi-token interpreter) cannot be reproduced statically
+  and stay in the §23 warning. Wired into `RUNTIME_GATED_FIXES`; the crossing-gate (§24)
+  applies it only when a tool crosses 16.04. **Not** in `CANONICAL_CODEMODS`.
+- **Positional splice, not `str.replace` over the raw body** (adversarial-review finding).
+  The rewrite is anchored at the offset `first_command_token_span` located (the first
+  non-blank, non-`##` content line) — `body[:offset] + body[offset:].replace(S, …, 1)` —
+  so a script name appearing inside a leading `##` comment is never mistargeted (the
+  `redup.xml` mistarget the sweep is blind to, since the mangled output stays valid +
+  idempotent). Pinned by a content-equality unit test
+  (`test_script_name_in_leading_comment_is_not_mistargeted`).
+- **CDATA-preserving.** First codemod to rewrite `<command>` text; `Cursor.set_text` gains
+  a `cdata=True` flag (`etree.CDATA`) so shell operators (`&&`, `<`) stay literal. An
+  originally-non-CDATA command gaining CDATA is an accepted, IUC002-aligned side effect.
+- **No file-exists gate in the codemod** (only in the measure's bucket-A refinement). The
+  rewrite is faithful whether or not the script is co-located — Galaxy built the same
+  `<tool_dir>/<token>` path regardless, failing identically if absent. Gating on the
+  script's presence would make the result depend on whether the tool was loaded from a
+  path or bytes, which the corpus sweep correctly flags as non-idempotent. So the codemod
+  fixes bucket-A-by-shape (the measure's **A** 1,383 + **A-missing** 27).
+- **The `'$__tool_directory__/S'` literal vs Galaxy's `shlex.quote`** — accepted boundary,
+  documented in `docs/upgrade_research/16_04_fix_interpreter.md`: faithful for every path
+  except a literal single quote in the resolved tool-dir abspath (an admin-controlled,
+  out-of-scope install path; the token itself is quote/space-free via `_SCRIPT_TOKEN`).
+- **Corpus impact.** The `corpus_check codemod` sweep rewrote **1,127** of its eligible
+  tools (idempotent, 0 post-validate-failed, 0 crashed). That is fewer than the measure's
+  1,410 bucket-A-by-shape population because the sweep's eligibility skips tools that
+  already validate at the latest profile (an `interpreter=` is XSD-valid at every
+  profile); those are still rewritten by the live `upgrade` when they cross 16.04. The
+  `upgrade-behavior-blocks` `16_04_fix_interpreter` stuck count drops **1,726 → 316** (the
+  residual is bucket B/C).
