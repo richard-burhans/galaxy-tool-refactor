@@ -903,7 +903,9 @@ output-format-input`.
 pytest galaxy-tool-xml-codemod/tests/test_profile_semantics.py`; facade rewording
 `uv run --package galaxy-tool-refactor-registry pytest
 galaxy-tool-refactor-registry/tests/test_facade.py -k semantic`; corpus
-noise-reduction via `uv run python -m scripts.measure upgrade-codes-applicability`.
+noise-reduction via `uv run python -m scripts.measure upgrade-codes-applicability`;
+raw-vs-expanded detector divergence via `uv run python -m scripts.measure
+macro-expansion-detection-gap`.
 
 - **The gap (§23).** The semantic note was *range-based*: it listed every
   `PROFILE_UPGRADE_CODES` entry whose profile lay in the bumped range. The corpus
@@ -930,6 +932,22 @@ noise-reduction via `uv run python -m scripts.measure upgrade-codes-applicabilit
 - **Detection runs on the as-loaded (possibly un-expanded) tree**, matching the live
   facade — a feature supplied only by an imported macro is not seen. Acceptable: the
   note reflects exactly what the tool-as-given would report.
+- **Sized the raw-vs-expanded divergence (2026-06-02, `macro-expansion-detection-gap`,
+  5,113 macro-bearing tools compared).** Running the detectors on the raw tree vs the
+  macro-expanded tree disagrees in two directions. *Over-flag* (raw fires, but a macro
+  supplies the construct so Galaxy's post-expansion advisor would not): **984 tools
+  (19.2%), entirely `16_04_exit_code`** — a `<stdio>`/error-handling block reached only
+  through `<expand macro="stdio"/>`. Across these macro-bearing tools the raw tree
+  fires that code 1,590 times (984 over-flag + 606 genuine post-expansion) — a **62%
+  false-positive rate within the macro set**. *Under-report* (the macro
+  supplies the trigger, unseen on the raw tree — the gap this bullet describes): **317
+  tools (6.2%)**, led by `23_0_consider_optional_text` (262), then `18_01` /
+  `20_09_consider_set_e` (30 each) and `24_2_fix_test_case_validation` (22). This is a
+  *report-only* note today, so the divergence is cosmetic precision, not a correctness
+  bug — but it bounds the payoff of an expanded-view detector port and sets one hard
+  rule: a future auto-fix for `16_04_exit_code` must **never** inject `<stdio>` off the
+  raw tree (984 tools already have it via a macro → double-inject). See
+  `docs/upgrade_research/16_04_exit_code.md`.
 - **Corpus noise reduction (2026-06-01, 8,608 considered).** Per-code crossing
   *events* drop from **103,330 → 28,667 (27.7%)** once detection is applied — ~72%
   of the old warning's lines were codes that didn't apply. Tool-level "warns at all"

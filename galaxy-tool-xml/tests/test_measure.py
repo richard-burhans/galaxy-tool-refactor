@@ -19,6 +19,7 @@ from scripts.measure import (
     _collection_type_patterns,
     _count_unquoted_vars,
     _cross_source_key_matches,
+    _ExpansionGapResult,
     _facts_from_macro_container,
     _measure_cheetah_command_complexity,
     _measure_collection_type_normalization,
@@ -27,6 +28,7 @@ from scripts.measure import (
     _measure_element_cardinality,
     _measure_help_formats,
     _measure_interpreter_buckets,
+    _measure_macro_expansion_detection_gap,
     _measure_macro_fmt_idempotence,
     _measure_macro_profile_ownership,
     _measure_macro_profile_tokens,
@@ -44,6 +46,7 @@ from scripts.measure import (
     _render_profile_shift_page,
     _tally_applicability,
     _tally_behavior_blocks,
+    _tally_expansion_gap,
     _tally_profile_shift,
     _version_tuple,
 )
@@ -952,6 +955,78 @@ def test_render_macro_stats_page_smoke(macro_corpus: Path) -> None:
     assert page.startswith("# Macro corpus statistics")
     assert "## Shared macro files (blast-radius input)" in page
     assert "## Stale macro-token profiles (token-aware upgrade target)" in page
+
+
+# --- macro-expansion-detection-gap ----------------------------------------------
+
+
+def test_tally_expansion_gap_classifies_directions() -> None:
+    samples = [
+        ("unparseable", frozenset(), frozenset()),
+        ("no_macros", frozenset(), frozenset()),
+        ("expansion_failed", frozenset({"X"}), frozenset()),
+        # raw {A, B} vs expanded {B, C}: A over-flags, C under-reports, B agrees.
+        ("compared", frozenset({"A", "B"}), frozenset({"B", "C"})),
+        ("compared", frozenset({"A"}), frozenset({"A"})),  # A agrees, no divergence
+    ]
+    result = _tally_expansion_gap(samples=samples)
+    assert isinstance(result, _ExpansionGapResult)
+    assert result.n_unique_tools == 4  # excludes the unparseable sample
+    assert result.n_unparseable == 1
+    assert result.n_no_macros == 1
+    assert result.n_expansion_failed == 1
+    assert result.n_compared == 2
+    assert result.over_flag == {"A": 1}
+    assert result.under_report == {"C": 1}
+    assert result.agree_positive == {"B": 1, "A": 1}
+    assert result.n_tools_over_flag == 1
+    assert result.n_tools_under_report == 1
+    assert result.n_tools_divergent == 1
+
+
+@pytest.fixture()
+def expansion_gap_corpus(tmp_path: Path) -> Path:
+    """Corpus where an imported macro supplies the ``<stdio>`` the raw tree lacks.
+
+    ``tool_macro`` ships no literal error handling, so ``16_04_exit_code`` ("no
+    error handling") fires on its raw tree; the imported ``<expand macro="stdio"/>``
+    injects a ``<stdio>`` post-expansion, so it must NOT fire there — an over-flag.
+    ``plain`` is macro-free; ``macros.xml`` + ``not_a_tool`` are non-``<tool>`` XML.
+    """
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    (repo / "macros.xml").write_text(
+        '<macros><xml name="stdio">'
+        '<stdio><exit_code range="1:" level="fatal"/></stdio>'
+        "</xml></macros>",
+        encoding="utf-8",
+    )
+    (repo / "tool_macro.xml").write_text(
+        "<tool><macros><import>macros.xml</import></macros>"
+        '<command>run</command><expand macro="stdio"/></tool>',
+        encoding="utf-8",
+    )
+    (repo / "plain.xml").write_text(
+        "<tool><command>run</command></tool>", encoding="utf-8"
+    )
+    (repo / "not_a_tool.xml").write_text("<data/>", encoding="utf-8")
+    return tmp_path
+
+
+def test_macro_expansion_detection_gap_over_flags_stdio(
+    expansion_gap_corpus: Path,
+) -> None:
+    result = _measure_macro_expansion_detection_gap(corpus_root=expansion_gap_corpus)
+    assert result.n_unique_tools == 2  # tool_macro, plain
+    assert result.n_unparseable == 2  # macros.xml (non-tool root) + not_a_tool
+    assert result.n_no_macros == 1  # plain
+    assert result.n_expansion_failed == 0
+    assert result.n_compared == 1  # tool_macro
+    # 16_04_exit_code fires on the raw tree (no literal <stdio>) but not after the
+    # macro injects one -> a raw-only over-flag, never an under-report.
+    assert result.over_flag.get("16_04_exit_code") == 1
+    assert result.under_report.get("16_04_exit_code", 0) == 0
+    assert result.n_tools_over_flag == 1
 
 
 # --- macro-profile-ownership ----------------------------------------------------
