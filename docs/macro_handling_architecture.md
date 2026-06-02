@@ -136,8 +136,8 @@ written file is canonical in `test_upgrade_bumps_shared_imported_profile_token`)
 for validation. So write-back exists in exactly one place and only because `@PROFILE@` is a
 *named* construct addressable by token-name; **no** mechanism maps any other expanded node
 (e.g. a `<format>` in an imported `<macro>`, or a typo'd `<xml name>`) back to its defining
-file. Documented + deferred (`PLAN.md`, `macro-aware-normalization.md` Option A, ARCHITECTURE
-§9.8) — listed as a *gap* (not just a choice) because it is the load-bearing limitation the
+file. Documented + deferred (`galaxy-tool-xml-codemod/PLAN.md`, `macro-aware-normalization.md`
+Option A) — listed as a *gap* (not just a choice) because it is the load-bearing limitation the
 "consistent expand-and-modify across inline + imported" goal must close (§6). Corpus payoff
 today ~18 tools → deferral is reasonable. **Sub-item:** that write-back is token-name-specific
 (not general) should be recorded as an explicit asymmetry in `ARCHITECTURE.md §10`.
@@ -158,7 +158,7 @@ recurring theme is the **single-file (raw-tree) model**, rediscovered from many 
 
 1. **Detection runs on the raw tree** (6+ scouts) — `tripped_upgrade_codes` walks
    `document.root`; Galaxy's advisor runs post-expansion → a macro-supplied feature is unseen
-   (the §25 gap). Intentional: the note reports the tool *as written* (codemod §25, ARCH §9.8).
+   (the §25 gap). Intentional: the note reports the tool *as written* (codemod §25).
 2. **Split token paths** — inline `@PROFILE@` (tier-2 `update_profile`) vs imported (tier-3.6
    `macro_profile`, on importer consensus). Load-bearing & correct; both target the same
    `newest_valid_profile`, so divergence is structurally impossible.
