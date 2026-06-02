@@ -146,6 +146,14 @@ uv run python -m scripts.measure upgrade-codes-applicability
 # docs/upgrade_profile_shift_stats.md (needs the corpus, so not run in CI):
 uv run python -m scripts.measure upgrade-profile-shift
 
+# Where a *behavior-preserving* auto-upgrade would stall: walk each tool's
+# profile toward latest, stopping at the first applicable Galaxy behaviour code
+# (PROFILE_UPGRADE_CODES) the toolchain cannot auto-fix. Distribution of stuck
+# tools by blocking profile/code, under must_fix-only and must_fix+consider
+# policies. Writes docs/upgrade_behavior_block_stats.md (needs the corpus, so
+# not run in CI):
+uv run python -m scripts.measure upgrade-behavior-blocks
+
 # Sizing for the format="input" runtime-gated fix (GTX015, codemod decisions §24):
 # output <data format="input"> tools split by data-input cardinality (the single
 # top-level data input subset is auto-fixable):

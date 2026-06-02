@@ -25,6 +25,7 @@ Companion to the project memory entries on
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import logging
 import re
@@ -36,6 +37,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from lxml import etree
 from packaging.version import InvalidVersion, Version
@@ -45,6 +47,10 @@ from scripts._shared import iter_tool_xmls as _iter_tool_xmls
 from scripts._shared import row_source as _row_source
 from scripts._shared import sha256_of as _sha256_of
 from scripts._shared import unique_by_sha as _unique_by_sha
+
+if TYPE_CHECKING:
+    from galaxy_tool_xml_codemod.codemod import CodemodCommand
+    from galaxy_tool_xml_codemod.profile_semantics import ProfileUpgradeCode
 
 logger = logging.getLogger("measure")
 
@@ -3153,6 +3159,279 @@ def _run_upgrade_profile_shift(args: argparse.Namespace) -> None:
         print(f"\nwrote {_display_path(out_path)}")
 
 
+# --- measurement: upgrade-behavior-blocks ---------------------------------------
+#
+# A hypothetical *behavior-preserving* auto-upgrade: walk a tool's profile from
+# its declared (or Galaxy-defaulted 16.01) baseline toward the latest, but STOP
+# the moment it would cross a Galaxy profile-behaviour change (`PROFILE_UPGRADE_CODES`)
+# that (a) actually applies to the tool (its per-tool detector fires) and (b) the
+# toolchain cannot automatically fix. Reports the distribution of where tools get
+# stuck, keyed by the blocking profile version + behavior code, under two severity
+# policies (must_fix only; must_fix + consider). Unlike `upgrade` (which never
+# stops on behaviour, only warns), this layers the stop rule on the existing
+# range + detector primitives, so it does NOT call the facade. Auto-fixability is
+# judged exactly, by applying the mapped codemod to a copy and re-detecting — so
+# GTX015's sole-data-input partiality is modeled precisely. Writes
+# docs/upgrade_behavior_block_stats.md. Needs the corpus, so not run in CI.
+
+_MUST_FIX_ONLY = frozenset({"must_fix"})
+_MUST_FIX_AND_CONSIDER = frozenset({"must_fix", "consider"})
+
+
+@dataclass
+class _BlockPolicyResult:
+    """Behaviour-block outcomes under one severity policy (which levels halt)."""
+
+    reached_latest: int  # no applicable, unfixable blocker of this severity
+    stuck_total: int  # halted at the first such blocker
+    per_code: dict[str, int]  # first-blocker code -> tools stuck there
+
+
+@dataclass
+class _BehaviorBlockResult:
+    """Where a behavior-preserving auto-upgrade stalls across the corpus."""
+
+    n_considered: int  # unique tools with a placeable baseline
+    n_excluded: int  # macro-token / unparseable declared profile (can't range)
+    latest: str
+    must_fix: _BlockPolicyResult
+    must_fix_and_consider: _BlockPolicyResult
+
+
+def _tally_one_policy(
+    *, samples: list[tuple[ProfileUpgradeCode, ...]], levels: frozenset[str]
+) -> _BlockPolicyResult:
+    """Tally first-blocker outcomes for one severity policy (pure, no IO).
+
+    Each sample is a tool's applicable, non-auto-fixable crossed codes. The first
+    blocker is the lowest-profile code whose level halts under *levels*; a sample
+    with no such code reaches the latest profile behavior-preservingly.
+    """
+    reached = 0
+    per_code: Counter[str] = Counter()
+    for sample in samples:
+        blockers = [change for change in sample if change.level in levels]
+        if not blockers:
+            reached += 1
+            continue
+        first = min(blockers, key=lambda change: Version(change.profile))
+        per_code[first.code] += 1
+    return _BlockPolicyResult(
+        reached_latest=reached,
+        stuck_total=sum(per_code.values()),
+        per_code=dict(per_code),
+    )
+
+
+def _tally_behavior_blocks(
+    *,
+    samples: list[tuple[ProfileUpgradeCode, ...]],
+    n_excluded: int,
+    latest: str,
+) -> _BehaviorBlockResult:
+    """Tally behaviour blocks over per-tool applicable-unfixable code samples.
+
+    Pure (no IO), so it is unit-tested with synthetic ``ProfileUpgradeCode``
+    samples. Reports both severity policies side by side.
+    """
+    return _BehaviorBlockResult(
+        n_considered=len(samples),
+        n_excluded=n_excluded,
+        latest=latest,
+        must_fix=_tally_one_policy(samples=samples, levels=_MUST_FIX_ONLY),
+        must_fix_and_consider=_tally_one_policy(
+            samples=samples, levels=_MUST_FIX_AND_CONSIDER
+        ),
+    )
+
+
+def _behavior_code_autofixed(
+    root: etree._Element, *, codemod_cls: type[CodemodCommand], code: str
+) -> bool:
+    """Whether *codemod_cls* clears *code*'s detector when applied to a copy of *root*.
+
+    Applies the mapped codemod to a deep copy (so the caller's tree is untouched)
+    and re-runs ``tripped_upgrade_codes``; the code is auto-fixable for this tool
+    iff its detector no longer fires. This captures partial coverage exactly
+    (e.g. GTX015 only fixes a sole-top-level-data-input tool).
+    """
+    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_xml_codemod.module import Module
+    from galaxy_tool_xml_codemod.profile_semantics import tripped_upgrade_codes
+
+    copied = copy.deepcopy(root)
+    document = ToolDocument(etree.ElementTree(copied))
+    codemod_cls().apply(Module(document))
+    return code not in tripped_upgrade_codes(document)
+
+
+def _measure_upgrade_behavior_blocks(*, corpus_root: Path) -> _BehaviorBlockResult:
+    """Walk the corpus and tally where a behavior-preserving upgrade would stall."""
+    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_xml.profiles import GALAXY_DEFAULT_PROFILE, latest_profile
+    from galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace import (
+        FixFromWorkDirWhitespace,
+    )
+    from galaxy_tool_xml_codemod.codemods.fix_output_format_input import (
+        FixOutputFormatInput,
+    )
+    from galaxy_tool_xml_codemod.profile_semantics import upgrade_codes_applicable
+
+    autofix: dict[str, type[CodemodCommand]] = {
+        "16_04_fix_output_format": FixOutputFormatInput,
+        "21_09_fix_from_work_dir_whitespace": FixFromWorkDirWhitespace,
+    }
+    latest = latest_profile()
+    samples: list[tuple[ProfileUpgradeCode, ...]] = []
+    n_excluded = 0
+    seen_sha: set[str] = set()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        sha = _sha256_of(path)
+        if sha in seen_sha:
+            continue
+        seen_sha.add(sha)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        declared = root.get("profile")
+        baseline = declared if declared is not None else GALAXY_DEFAULT_PROFILE
+        if _version_tuple(baseline) is None:
+            n_excluded += 1  # macro token / unparseable — can't range the bump
+            continue
+        document = ToolDocument(root.getroottree(), source_path=path)
+        applicable = upgrade_codes_applicable(
+            document=document, from_profile=baseline, to_profile=latest
+        )
+        blocking = tuple(
+            change
+            for change in applicable
+            if not (
+                change.code in autofix
+                and _behavior_code_autofixed(
+                    root, codemod_cls=autofix[change.code], code=change.code
+                )
+            )
+        )
+        samples.append(blocking)
+    return _tally_behavior_blocks(samples=samples, n_excluded=n_excluded, latest=latest)
+
+
+def _behavior_block_rows(policy: _BlockPolicyResult) -> list[tuple[str, str, str, int]]:
+    """``(profile, level, code, tools-stuck)`` rows in catalogue (profile) order."""
+    from galaxy_tool_xml_codemod.profile_semantics import PROFILE_UPGRADE_CODES
+
+    rows: list[tuple[str, str, str, int]] = []
+    for change in PROFILE_UPGRADE_CODES:
+        stuck = policy.per_code.get(change.code, 0)
+        if stuck:
+            rows.append((change.profile, change.level, change.code, stuck))
+    return rows
+
+
+def _render_behavior_block_section(
+    title: str, *, policy: _BlockPolicyResult
+) -> list[str]:
+    """Markdown lines for one severity policy's stuck distribution."""
+    rows = _behavior_block_rows(policy)
+    lines = [
+        f"## {title}",
+        "",
+        f"Reaches latest behavior-preservingly: **{policy.reached_latest:,}**; "
+        f"stuck: **{policy.stuck_total:,}**.",
+        "",
+        "| Profile | Level | Behavior code (first blocker) | Tools stuck |",
+        "|---|---|---|--:|",
+    ]
+    lines.extend(
+        f"| {profile} | {level} | `{code}` | {stuck:,} |"
+        for profile, level, code, stuck in rows
+    )
+    if not rows:
+        lines.append("| — | — | (none) | 0 |")
+    return lines
+
+
+def _render_behavior_block_page(result: _BehaviorBlockResult) -> str:
+    """Render the upgrade-behavior-blocks stats markdown page (deterministic)."""
+    lines: list[str] = [
+        "# Upgrade behavior-block statistics",
+        "",
+        "A hypothetical **behavior-preserving** auto-upgrade: walk each tool's",
+        "profile from its declared (no-profile defaulted to Galaxy's `16.01`)",
+        "baseline toward the latest, but **stop at the first Galaxy profile-behaviour",
+        "change that both applies to the tool and the toolchain cannot auto-fix**.",
+        "This is stricter than `galaxy-tool-refactor upgrade`, which bumps `profile=`",
+        "to the newest structurally-valid version and only *warns* about crossed",
+        "behaviour changes (codemod `docs/decisions.md` §22). A code *applies* when",
+        "its per-tool detector fires (`upgrade_codes_applicable`); auto-fixability is",
+        "judged exactly by applying the mapped codemod and re-detecting.",
+        "",
+        "Only two behaviour codes are auto-fixable: `21_09_fix_from_work_dir_whitespace`",
+        "(GTX014, full) and `16_04_fix_output_format` (GTX015, only a sole-top-level",
+        "data-input tool). The structural `upgrade_vN` codemods fix *validity*, not",
+        "behaviour, so they never clear a blocker here.",
+        "",
+        "Two policies are reported: blocking on `must_fix` codes only (the sharper,",
+        "more actionable view) and on `must_fix` + `consider` (every behaviour change).",
+        "The latter is dominated by `16_04_consider_implicit_extra_file_collection`,",
+        "which Galaxy emits **unconditionally** — so essentially every sub-16.04 tool",
+        "stalls at 16.04 immediately.",
+        "",
+        "Regenerate with (needs the corpus, so not run in CI):",
+        "",
+        "```sh",
+        "uv run python -m scripts.measure upgrade-behavior-blocks",
+        "```",
+        "",
+        f"Unique `<tool>` files (sha256-deduped) with a placeable baseline: "
+        f"**{result.n_considered:,}**. Excluded (macro-token / unparseable "
+        f"`profile=`): **{result.n_excluded:,}**. Latest vendored profile: "
+        f"`{result.latest}`. `Reaches latest` includes tools already at/above every "
+        "applicable code.",
+        "",
+        *_render_behavior_block_section(
+            "Blocking on `must_fix` only", policy=result.must_fix
+        ),
+        "",
+        *_render_behavior_block_section(
+            "Blocking on `must_fix` + `consider`", policy=result.must_fix_and_consider
+        ),
+    ]
+    return "\n".join(lines)
+
+
+def _report_behavior_block_policy(label: str, *, policy: _BlockPolicyResult) -> None:
+    print(
+        f"\n  [{label}]  reaches latest: {policy.reached_latest}; "
+        f"stuck: {policy.stuck_total}"
+    )
+    for profile, level, code, stuck in _behavior_block_rows(policy):
+        print(f"    {profile:6} {level:8} {stuck:6d}  {code}")
+
+
+def _report_upgrade_behavior_blocks(result: _BehaviorBlockResult) -> None:
+    print("\n=== upgrade-behavior-blocks ===")
+    print(
+        f"Considered (placeable baseline): {result.n_considered}; "
+        f"excluded (macro/unparseable): {result.n_excluded}; latest = {result.latest}"
+    )
+    _report_behavior_block_policy("must_fix only", policy=result.must_fix)
+    _report_behavior_block_policy(
+        "must_fix + consider", policy=result.must_fix_and_consider
+    )
+
+
+def _run_upgrade_behavior_blocks(args: argparse.Namespace) -> None:
+    result = _measure_upgrade_behavior_blocks(corpus_root=args.corpus_root)
+    _report_upgrade_behavior_blocks(result)
+    if not args.all:
+        out_path = _repo_root() / "docs" / "upgrade_behavior_block_stats.md"
+        out_path.write_text(_render_behavior_block_page(result) + "\n", encoding="utf-8")
+        print(f"\nwrote {_display_path(out_path)}")
+
+
 # --- measurement: element-cardinality -------------------------------------------
 #
 # How many <test>/<requirement>/<conditional>/<collection>/<output_collection>
@@ -3527,6 +3806,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "semantic-upgrade-boundaries": _run_semantic_upgrade_boundaries,
     "upgrade-codes-applicability": _run_upgrade_codes_applicability,
     "upgrade-profile-shift": _run_upgrade_profile_shift,
+    "upgrade-behavior-blocks": _run_upgrade_behavior_blocks,
     "element-cardinality": _run_element_cardinality,
     "command-language": _run_command_language,
     "output-format-input": _run_output_format_input,
