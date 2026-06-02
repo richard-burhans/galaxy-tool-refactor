@@ -211,8 +211,67 @@ cheap locator (locate with A/D, *verify* with E), and as a *detection* aid with 
 branch/transform caveats above. It does not, by itself, solve the locate-and-rewrite
 problem, and it carries the same CT3 dependency as Approach B.
 
+## CDATA preservation across Cheetah-text tags (cross-tier contract; 2026-06-02)
+
+Any codemod that rewrites the *content* text of a Cheetah-processed element must not
+silently destroy a `<![CDATA[ … ]]>` wrapper. What we verified (Galaxy source @
+`c6e0ee3`; lxml probed directly):
+
+**The tags whose element *text* this applies to** (attributes like output `label`
+don't carry CDATA):
+
+| Tag | Cheetah-templated? | CDATA-conventional? |
+|---|---|---|
+| `<command>` | yes (`evaluation.py:767`) | yes (IUC002) |
+| inline `<configfile>` | yes (`evaluation.py:952`) | yes |
+| `<environment_variable>` | yes unless `inject=…` (`evaluation.py:851`) | sometimes |
+| `<help>` | **no** (RST/markdown, not templated) | yes (IUC010) |
+| `<token>` | **no** (expanded textually *before* Cheetah) | sometimes |
+| `<yield>` | n/a | no (always empty) |
+
+**It's a quality/idempotence concern, not a correctness bug.** Galaxy reads the
+lxml-*decoded* command text (`lib/galaxy/tool_util/parser/xml.py:261-263`:
+`return … command_el.text`), so `<![CDATA[a && b]]>` and the entity-escaped
+`a &amp;&amp; b` yield the **identical** string `a && b` to Cheetah/Galaxy. So losing
+CDATA does **not** change what the tool runs — it just produces an ugly,
+IUC002-violating, non-idempotent diff (and re-escapes shell `&&`/`<`).
+
+**lxml facts (probed):** parsing with `strip_cdata=False` (tier-1
+`binding.py:128`) preserves CDATA; assigning a plain `str` to `.text` **destroys the
+wrapper and entity-escapes** `&&`→`&amp;&amp;`, `<`→`&lt;`; assigning `etree.CDATA(s)`
+preserves it; and **lxml exposes no live flag for "was this CDATA"** — `.text` is a
+plain `str` either way. The only way to tell is to re-serialise
+(`b"<![CDATA[" in etree.tostring(el)` — reliable for these text-only elements, which
+have no element children).
+
+**fmt already handles its half correctly.** Tier-3 is the only serialiser, and every
+text edit routes through `serializer.safe_set_text`, which **writes only when the
+existing text is absent or pure whitespace** (`galaxy-tool-xml-fmt/.../serializer.py:23-25`;
+`edits.py` dispatch). So no formatting rule (indent / blank-line / empty-element) ever
+touches CDATA *content*, and `test_regressions.py`'s byte-idempotence sweep guards it.
+
+**The codemod tier is where the gap is.** `Cursor.set_text` (`cursor.py:100-107`) does a
+plain `self._element.text = value`. Its **only** current caller is the `@PROFILE@`
+`<token>` rewrite (`update_profile.py:99`) — safe in practice (profile tokens are bare
+version strings, no `&`/`<`, rarely CDATA), but it is the same latent issue. **Rewriting
+a `<command>`/`<configfile>` body is genuinely new surface.**
+
+**Contract for content-rewriting codemods (recommended):** *preserve the original
+framing*. In the detect phase, record `was_cdata = b"<![CDATA[" in etree.tostring(el)`;
+in the mutate thunk, write `etree.CDATA(new)` when `was_cdata`, else a plain `str`
+(which lxml re-escapes to match the element's original escaped framing). This is
+faithful **both** ways — CDATA stays CDATA, escaped stays escaped, both decode to the
+same string — so it never regresses the diff and fixes the latent `set_text` gap. A
+small `Cursor.set_text(value, *, cdata: bool = False)` (→ `etree.CDATA` when `cdata`)
+is the primitive; the framing decision lives in the codemod. The future
+`16_04_fix_interpreter` codemod (rewrites `<command>` text) is the first consumer.
+
 ## Open questions (live worklist)
 
+- [x] **CDATA across Cheetah-text tags** — mapped + verified 2026-06-02 (section above):
+  command/configfile/env-var (templated) + help/token (CDATA-conventional); losing CDATA
+  is cosmetic not a behaviour bug (Galaxy reads decoded text); fmt is safe via
+  `safe_set_text`; content-rewriting codemods must preserve framing via `etree.CDATA`.
 - [ ] **Size the truly-safe subset.** Extend the measure (or add a sibling) to count
   tools whose command is directive-free **and** has no dotted/indexed/call shapes, no
   `##`/`\$`, no inline configfile, and no `<expand>` — the population a hazard-bailing
