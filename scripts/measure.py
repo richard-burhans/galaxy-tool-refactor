@@ -3580,6 +3580,232 @@ def _run_command_language(args: argparse.Namespace) -> None:
     _report_command_language(_measure_command_language(corpus_root=args.corpus_root))
 
 
+# --- measurement: cheetah-command-complexity ------------------------------------
+#
+# Sizes how complex the Cheetah-templated sections of corpus tools are, to ground
+# the feasibility of statically locating/rewriting Cheetah variables
+# (docs/upgrade_research/cheetah_variable_rewriting.md). Galaxy Cheetah-processes
+# `<command>`, inline `<configfile>` (XML default engine = cheetah), env-var and
+# output-label templates (.local/galaxy-src lib/galaxy/tools/evaluation.py:767,952
+# and tools/actions/__init__.py:1091). We survey the two big ones — `<command>` and
+# inline `<configfile>` — counting Cheetah directives, variable-reference shapes,
+# and the hazards that defeat naive rewriting (scope-introducing #set/#for/#def,
+# `##` comments, escaped `\$`, macro `@TOKEN@`/`<expand>` interplay). This is a
+# regex HEURISTIC, not a Cheetah parse (the whole point of the research doc is that
+# a real parse is hard); counts are an honest lower/upper bound, labelled as such.
+# Writes docs/cheetah_command_stats.md. Needs the corpus, so not run in CI.
+
+# Cheetah directive keywords we scan for (lowercase; matched as `#name` + boundary).
+_CHEETAH_DIRECTIVE_NAMES: tuple[str, ...] = (
+    "if", "for", "set", "def", "import", "echo", "while", "try", "raw", "slurp",
+)
+_CHEETAH_DIRECTIVE_RES: dict[str, re.Pattern[str]] = {
+    name: re.compile(r"#" + name + r"\b") for name in _CHEETAH_DIRECTIVE_NAMES
+}
+# (flag, pattern) for variable-reference shapes + rewrite hazards.
+_CHEETAH_SHAPE_RES: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("shape:braced", re.compile(r"\$\{")),
+    ("shape:dotted", re.compile(r"\$\{?[A-Za-z_]\w*\.[A-Za-z_]")),
+    ("shape:indexed", re.compile(r"\$\{?[A-Za-z_][\w.]*\[")),
+    ("shape:call", re.compile(r"\$\{?[A-Za-z_][\w.]*\(")),
+    ("shape:special", re.compile(r"\$\{?__\w+__")),
+    ("shape:env", re.compile(r"\$\{?[A-Z][A-Z0-9_]{2,}\b")),
+    ("hazard:comment", re.compile(r"##")),
+    ("hazard:escaped", re.compile(r"\\\$")),
+    ("macro:token", re.compile(r"@[A-Z0-9_]{2,}@")),
+)
+# Display order + labels for the rendered tables (flag -> (group, label)).
+_CHEETAH_FEATURE_DISPLAY: tuple[tuple[str, str, str], ...] = (
+    *((f"directive:{name}", "Directives", f"#{name}") for name in _CHEETAH_DIRECTIVE_NAMES),
+    ("shape:braced", "Variable shapes", "${...} braced"),
+    ("shape:dotted", "Variable shapes", "$x.y dotted attribute"),
+    ("shape:indexed", "Variable shapes", "$x[...] indexing"),
+    ("shape:call", "Variable shapes", "$x(...) call"),
+    ("shape:special", "Variable shapes", "$__x__ Galaxy special"),
+    ("shape:env", "Variable shapes", "$UPPER env-style"),
+    ("hazard:comment", "Rewrite hazards", "## Cheetah comment"),
+    ("hazard:escaped", "Rewrite hazards", "\\$ escaped dollar"),
+    ("macro:token", "Macro interplay", "@TOKEN@ macro token"),
+)
+
+
+def _cheetah_feature_flags(text: str, /) -> frozenset[str]:
+    """Heuristically detect Cheetah directives/shapes/hazards present in *text*.
+
+    Pure and regex-based (no Cheetah parse), so it is unit-tested with synthetic
+    snippets. Returns the set of feature flags (keys of ``_CHEETAH_FEATURE_DISPLAY``)
+    whose pattern matches anywhere in *text*.
+    """
+    flags: set[str] = set()
+    for name, pattern in _CHEETAH_DIRECTIVE_RES.items():
+        if pattern.search(text):
+            flags.add(f"directive:{name}")
+    for flag, pattern in _CHEETAH_SHAPE_RES:
+        if pattern.search(text):
+            flags.add(flag)
+    return frozenset(flags)
+
+
+@dataclass
+class _CheetahComplexityResult:
+    """Heuristic Cheetah-complexity survey over command + inline configfile text."""
+
+    n_tools: int  # unique parsed tools
+    n_with_command: int
+    n_command_trivial: int  # has <command>, no Cheetah directive in it
+    n_command_with_directive: int
+    n_with_configfile: int  # has >=1 inline <configfile> with text
+    n_with_expand: int  # has >=1 <expand> (macro inclusion)
+    n_with_cheetah_text: int  # has command and/or inline configfile text
+    feature_counts: dict[str, int]  # flag -> tools whose Cheetah text exhibits it
+
+
+def _measure_cheetah_command_complexity(
+    *, corpus_root: Path
+) -> _CheetahComplexityResult:
+    """Survey Cheetah complexity of command + inline configfile across the corpus."""
+    seen: set[str] = set()
+    n_tools = n_with_command = n_trivial = n_directive = 0
+    n_configfile = n_expand = n_cheetah = 0
+    feature_counts: Counter[str] = Counter()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        n_tools += 1
+        command = root.find("command")
+        command_text = "".join(command.itertext()) if command is not None else None
+        cf_texts = [
+            text
+            for cf in root.iter("configfile")
+            if (text := "".join(cf.itertext()).strip())
+        ]
+        if command_text is not None:
+            n_with_command += 1
+            if any(p.search(command_text) for p in _CHEETAH_DIRECTIVE_RES.values()):
+                n_directive += 1
+            else:
+                n_trivial += 1
+        if cf_texts:
+            n_configfile += 1
+        if root.find(".//expand") is not None:
+            n_expand += 1
+        cheetah_text = "\n".join(t for t in (command_text, *cf_texts) if t)
+        if cheetah_text.strip():
+            n_cheetah += 1
+            for flag in _cheetah_feature_flags(cheetah_text):
+                feature_counts[flag] += 1
+    return _CheetahComplexityResult(
+        n_tools=n_tools,
+        n_with_command=n_with_command,
+        n_command_trivial=n_trivial,
+        n_command_with_directive=n_directive,
+        n_with_configfile=n_configfile,
+        n_with_expand=n_expand,
+        n_with_cheetah_text=n_cheetah,
+        feature_counts=dict(feature_counts),
+    )
+
+
+def _render_cheetah_complexity_page(result: _CheetahComplexityResult) -> str:
+    """Render the cheetah-command-complexity stats markdown page (deterministic)."""
+    base = result.n_with_cheetah_text
+
+    def pct(n: int, of: int) -> str:
+        return f"{100 * n / of:.1f}%" if of else "0.0%"
+
+    lines: list[str] = [
+        "# Cheetah command/configfile complexity statistics",
+        "",
+        "A **heuristic** (regex, not a Cheetah parse) survey of how complex the",
+        "Cheetah-templated sections of corpus tools are — backing",
+        "`upgrade_research/cheetah_variable_rewriting.md`, which assesses whether",
+        "variables in those sections can be located/rewritten mechanically.",
+        "",
+        "Galaxy Cheetah-processes `<command>`, inline `<configfile>` (XML tools'",
+        "default engine), env-var templates, and output `label`s "
+        "(`lib/galaxy/tools/evaluation.py:767,952`, `tools/actions/__init__.py:1091`).",
+        "This survey covers the two large ones: `<command>` and inline `<configfile>`.",
+        "Because it is a regex heuristic, directive counts are roughly a **lower**",
+        "bound (a construct can hide) and shape counts roughly an **upper** bound (a",
+        "`$x` inside a `##` comment or `#raw` block still matches).",
+        "",
+        "Regenerate with (needs the corpus, so not run in CI):",
+        "",
+        "```sh",
+        "uv run python -m scripts.measure cheetah-command-complexity",
+        "```",
+        "",
+        "## Overview",
+        "",
+        "| Measure | Tools | Share |",
+        "|---|--:|--:|",
+        f"| Unique `<tool>` files (sha256-deduped) | {result.n_tools:,} | — |",
+        f"| Have a `<command>` | {result.n_with_command:,} "
+        f"| {pct(result.n_with_command, result.n_tools)} |",
+        f"| `<command>` is **trivial** (no Cheetah directive) | {result.n_command_trivial:,} "
+        f"| {pct(result.n_command_trivial, result.n_with_command)} of commands |",
+        f"| `<command>` has a Cheetah directive | {result.n_command_with_directive:,} "
+        f"| {pct(result.n_command_with_directive, result.n_with_command)} of commands |",
+        f"| Have an inline `<configfile>` (also Cheetah) | {result.n_with_configfile:,} "
+        f"| {pct(result.n_with_configfile, result.n_tools)} |",
+        f"| Have an `<expand>` (macro inclusion) | {result.n_with_expand:,} "
+        f"| {pct(result.n_with_expand, result.n_tools)} |",
+        f"| Have any Cheetah text (command + inline configfile) | {result.n_with_cheetah_text:,} "
+        f"| {pct(result.n_with_cheetah_text, result.n_tools)} |",
+        "",
+        f"Feature counts below are over the **{base:,}** tools with Cheetah text "
+        "(command and/or inline configfile).",
+    ]
+    last_group = ""
+    for flag, group, label in _CHEETAH_FEATURE_DISPLAY:
+        if group != last_group:
+            lines += ["", f"## {group}", "", "| Construct | Tools | Share |", "|---|--:|--:|"]
+            last_group = group
+        count = result.feature_counts.get(flag, 0)
+        lines.append(f"| {label} | {count:,} | {pct(count, base)} |")
+    lines += [
+        "",
+        "The `#set` / `#for` / `#def` rows are the scope-introducing hazards: each",
+        "binds Cheetah-local names that can shadow tool parameters, so a parameter",
+        "rename cannot be a blind textual substitution. See the research doc for what",
+        "this implies for feasibility.",
+    ]
+    return "\n".join(lines)
+
+
+def _report_cheetah_command_complexity(result: _CheetahComplexityResult) -> None:
+    print("\n=== cheetah-command-complexity (heuristic) ===")
+    print(
+        f"Unique tools: {result.n_tools}; with <command>: {result.n_with_command} "
+        f"(trivial {result.n_command_trivial}, with-directive "
+        f"{result.n_command_with_directive}); inline <configfile>: "
+        f"{result.n_with_configfile}; <expand>: {result.n_with_expand}"
+    )
+    print(f"Tools with Cheetah text: {result.n_with_cheetah_text}")
+    for flag, _group, label in _CHEETAH_FEATURE_DISPLAY:
+        count = result.feature_counts.get(flag, 0)
+        if count:
+            print(f"  {count:6d}  {label}")
+
+
+def _run_cheetah_command_complexity(args: argparse.Namespace) -> None:
+    result = _measure_cheetah_command_complexity(corpus_root=args.corpus_root)
+    _report_cheetah_command_complexity(result)
+    if not args.all:
+        out_path = _repo_root() / "docs" / "cheetah_command_stats.md"
+        out_path.write_text(
+            _render_cheetah_complexity_page(result) + "\n", encoding="utf-8"
+        )
+        print(f"\nwrote {_display_path(out_path)}")
+
+
 # --- measurement: output-format-input -------------------------------------------
 #
 # Sizes a candidate `format="input"` -> `format_source="X"` runtime-gated fix
@@ -3809,6 +4035,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "upgrade-behavior-blocks": _run_upgrade_behavior_blocks,
     "element-cardinality": _run_element_cardinality,
     "command-language": _run_command_language,
+    "cheetah-command-complexity": _run_cheetah_command_complexity,
     "output-format-input": _run_output_format_input,
     "help-formats": _run_help_formats,
 }

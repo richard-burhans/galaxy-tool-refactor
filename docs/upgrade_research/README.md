@@ -48,6 +48,16 @@ mechanical-fix feasibility · status.
 | `24_0_consider_python_environment` | 24.0 | none (deps invisible in XML) | [note](24_0_consider_python_environment.md) |
 | `24_0_request_cleaning` | 24.0 | none (request contract invisible in XML) | [note](24_0_request_cleaning.md) |
 
+## Cross-cutting investigations
+
+Not per-code — capability research that several codes depend on:
+
+- [`cheetah_variable_rewriting.md`](cheetah_variable_rewriting.md) — feasibility of
+  locating/rewriting variables in the Cheetah-templated sections (`<command>`,
+  inline `<configfile>`, …). An honest, evolving assessment (most fixes that touch a
+  command body need this). Backed by the standing `cheetah-command-complexity`
+  measure → [`../cheetah_command_stats.md`](../cheetah_command_stats.md).
+
 ## Reading the corpus counts
 
 The "stuck" counts in [`../upgrade_behavior_block_stats.md`](../upgrade_behavior_block_stats.md)

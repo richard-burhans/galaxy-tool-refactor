@@ -14,11 +14,13 @@ from scripts.measure import (
     _MATCH_KEYS,
     _PROFILE_NONE,
     _baseline_bucket,
+    _cheetah_feature_flags,
     _classify_command_language,
     _collection_type_patterns,
     _count_unquoted_vars,
     _cross_source_key_matches,
     _facts_from_macro_container,
+    _measure_cheetah_command_complexity,
     _measure_collection_type_normalization,
     _measure_command_iuc_heuristics,
     _measure_command_language,
@@ -610,6 +612,75 @@ def test_measure_behavior_blocks_applies_autofix_and_stop(
     assert both.reached_latest == 1
     assert both.per_code["16_04_fix_interpreter"] == 1
     assert both.per_code["16_04_consider_implicit_extra_file_collection"] == 2
+
+
+# --- cheetah-command-complexity -------------------------------------------------
+
+
+def test_cheetah_feature_flags_detects_constructs() -> None:
+    flags = _cheetah_feature_flags(
+        "#if $cond\n"
+        "#for $i in $items\n"
+        "python '$__tool_directory__/x.py' ${input.ext} $x[0] $foo(1) "
+        "$GALAXY_SLOTS ## a comment\n"
+        "echo \\$LITERAL @TOOL_VERSION@\n"
+        "#end for\n#end if"
+    )
+    # directives
+    assert "directive:if" in flags
+    assert "directive:for" in flags
+    # shapes
+    assert "shape:braced" in flags  # ${input.ext}
+    assert "shape:dotted" in flags  # input.ext
+    assert "shape:indexed" in flags  # $x[0]
+    assert "shape:call" in flags  # $foo(1)
+    assert "shape:special" in flags  # $__tool_directory__
+    assert "shape:env" in flags  # $GALAXY_SLOTS
+    # hazards + macro
+    assert "hazard:comment" in flags  # ##
+    assert "hazard:escaped" in flags  # \$LITERAL
+    assert "macro:token" in flags  # @TOOL_VERSION@
+
+
+def test_cheetah_feature_flags_trivial_command_has_no_directives() -> None:
+    flags = _cheetah_feature_flags("mytool --in '$input' --out '$output'")
+    assert not any(f.startswith("directive:") for f in flags)
+    assert "shape:braced" not in flags  # bare $var only
+
+
+def test_measure_cheetah_complexity_counts_tools(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # Trivial command: no directive.
+    (repo / "trivial.xml").write_text(
+        "<tool><command>mytool '$input' '$output'</command></tool>",
+        encoding="utf-8",
+    )
+    # Directive in command + an inline configfile (also Cheetah) + an <expand>.
+    (repo / "complex.xml").write_text(
+        "<tool>"
+        "<command><![CDATA[\n#for $i in $reps\n"
+        "Rscript '$__tool_directory__/r.R' $i\n#end for\n]]></command>"
+        "<expand macro='requirements'/>"
+        "<configfiles><configfile name='script'>"
+        "#if $flag\nx <- 1\n#end if</configfile></configfiles>"
+        "</tool>",
+        encoding="utf-8",
+    )
+    # No <command> at all.
+    (repo / "nocmd.xml").write_text("<tool><inputs/></tool>", encoding="utf-8")
+
+    result = _measure_cheetah_command_complexity(corpus_root=tmp_path)
+    assert result.n_tools == 3
+    assert result.n_with_command == 2
+    assert result.n_command_trivial == 1  # trivial.xml
+    assert result.n_command_with_directive == 1  # complex.xml (#for)
+    assert result.n_with_configfile == 1  # complex.xml
+    assert result.n_with_expand == 1  # complex.xml
+    assert result.n_with_cheetah_text == 2
+    assert result.feature_counts.get("directive:for", 0) == 1
+    assert result.feature_counts.get("directive:if", 0) == 1  # from the configfile
+    assert result.feature_counts.get("shape:special", 0) == 1
 
 
 # --- element-cardinality --------------------------------------------------------
