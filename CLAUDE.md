@@ -163,6 +163,12 @@ uv run python -m scripts.measure output-format-input
 # format="markdown"/other (backs docs/galaxy_processing_model.md — RST renders
 # server-side, markdown renders client-side; both supported):
 uv run python -m scripts.measure help-formats
+
+# Cheetah complexity of <command> + inline <configfile> (directive/variable-shape/
+# hazard distribution; heuristic regex, not a Cheetah parse). Backs
+# docs/upgrade_research/cheetah_variable_rewriting.md. Writes
+# docs/cheetah_command_stats.md (needs the corpus, so not run in CI):
+uv run python -m scripts.measure cheetah-command-complexity
 ```
 
 **Note:** invoke as `python -m scripts.X`, not `python scripts/X.py` — the
