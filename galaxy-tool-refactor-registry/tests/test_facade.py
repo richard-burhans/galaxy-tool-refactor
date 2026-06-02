@@ -191,7 +191,26 @@ def test_upgrade_no_profile_warns_from_1601_baseline() -> None:
 
 
 def test_upgrade_applies_runtime_gated_from_work_dir_fix() -> None:
-    """Reaching >=21.09 strips a whitespace from_work_dir (a runtime-gated fix)."""
+    """Crossing UP through 21.09 strips a whitespace from_work_dir (runtime-gated)."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    # Declares 20.09 (< 21.09), so the bump to latest CROSSES the 21.09 boundary.
+    tool = (
+        b'<tool id="m" name="M" version="1.0.0" profile="20.09">'
+        b"<command><![CDATA[echo x]]></command><inputs/>"
+        b'<outputs><data name="o" from_work_dir=" out.txt "/></outputs></tool>'
+    )
+    result = facade.upgrade(tool, codes=resolve_upgrade_codes())
+    assert b'from_work_dir="out.txt"' in result.formatted
+    assert b'from_work_dir=" out.txt "' not in result.formatted
+
+
+def test_crossing_gate_leaves_already_past_tool_untouched() -> None:
+    """A tool already declaring >=21.09 keeps its whitespace from_work_dir.
+
+    Galaxy already quotes from_work_dir at that profile, so the literal whitespace is
+    the tool's current behaviour — a behaviour-preserving upgrade must not rewrite it.
+    """
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
     tool = (
@@ -200,8 +219,7 @@ def test_upgrade_applies_runtime_gated_from_work_dir_fix() -> None:
         b'<outputs><data name="o" from_work_dir=" out.txt "/></outputs></tool>'
     )
     result = facade.upgrade(tool, codes=resolve_upgrade_codes())
-    assert b'from_work_dir="out.txt"' in result.formatted
-    assert b'from_work_dir=" out.txt "' not in result.formatted
+    assert b'from_work_dir=" out.txt "' in result.formatted
 
 
 def test_upgrade_already_latest_has_no_semantic_warning() -> None:

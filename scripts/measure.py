@@ -3992,11 +3992,25 @@ class _OutputFormatInputResult:
     n_format_input_elements: int
     by_data_input_bucket: dict[str, int]
     n_auto_fixable: int
+    # GTX015's format_source guard (codemod decisions §24): a `format="input"`
+    # output that ALSO carries `format_source` is inert (Galaxy's source branch
+    # wins) and must not be overwritten. `n_format_input_with_format_source` is the
+    # raw co-present element count; `n_auto_fixable_with_format_source` is the
+    # guard-relevant subset — auto-fixable tools the guard now spares.
+    n_format_input_with_format_source: int
+    n_auto_fixable_with_format_source: int
+    # GTX015's crossing-gate (codemod decisions §24): a tool already declaring
+    # profile >= 16.04 is left untouched by `upgrade` (Galaxy already disabled
+    # `format="input"` there, so a rewrite would change, not preserve, behaviour).
+    # The count of auto-fixable tools the crossing-gate would now skip.
+    n_auto_fixable_already_at_16_04: int
 
 
 def _measure_output_format_input(*, corpus_root: Path) -> _OutputFormatInputResult:
     """Count output ``<data format="input">`` and the single-top-level-input subset."""
     n_tools = n_with = n_elements = n_auto = 0
+    n_copresent = n_auto_copresent = n_auto_past_1604 = 0
+    introduced = Version("16.04")
     buckets: Counter[str] = Counter()
     for path in _iter_corpus_tool_xmls(corpus_root):
         root = _parse_tool_root(path)
@@ -4011,6 +4025,9 @@ def _measure_output_format_input(*, corpus_root: Path) -> _OutputFormatInputResu
             continue
         n_with += 1
         n_elements += len(format_input)
+        n_copresent += sum(
+            1 for d in format_input if d.get("format_source") is not None
+        )
         inputs = root.find("inputs")
         data_params = (
             [p for p in inputs.iter("param") if p.get("type") == "data"]
@@ -4024,6 +4041,13 @@ def _measure_output_format_input(*, corpus_root: Path) -> _OutputFormatInputResu
             if parent is not None and parent.tag == "inputs":
                 buckets["1 top-level (auto-fixable)"] += 1
                 n_auto += 1
+                if any(d.get("format_source") is not None for d in format_input):
+                    n_auto_copresent += 1
+                # A missing profile= runs as Galaxy's 16.01 default; an unparseable
+                # (macro-token) profile can't be placed, so it is not counted here.
+                declared = _as_version(root.get("profile") or "16.01")
+                if declared is not None and declared >= introduced:
+                    n_auto_past_1604 += 1
             else:
                 buckets["1 nested (needs qualified ref)"] += 1
         else:
@@ -4034,6 +4058,9 @@ def _measure_output_format_input(*, corpus_root: Path) -> _OutputFormatInputResu
         n_format_input_elements=n_elements,
         by_data_input_bucket=dict(buckets),
         n_auto_fixable=n_auto,
+        n_format_input_with_format_source=n_copresent,
+        n_auto_fixable_with_format_source=n_auto_copresent,
+        n_auto_fixable_already_at_16_04=n_auto_past_1604,
     )
 
 
@@ -4051,6 +4078,16 @@ def _report_output_format_input(measurement: _OutputFormatInputResult) -> None:
     print(
         f"\nAuto-fixable (single top-level data input -> unqualified format_source): "
         f"{measurement.n_auto_fixable}"
+    )
+    print(
+        "Co-present format_source (GTX015 guard skips these — §24):"
+        f" {measurement.n_format_input_with_format_source} format=\"input\" element(s)"
+        f" overall, {measurement.n_auto_fixable_with_format_source} within the"
+        " auto-fixable subset"
+    )
+    print(
+        "Auto-fixable already declaring profile >= 16.04 (GTX015 crossing-gate skips"
+        f" these — §24): {measurement.n_auto_fixable_already_at_16_04}"
     )
 
 

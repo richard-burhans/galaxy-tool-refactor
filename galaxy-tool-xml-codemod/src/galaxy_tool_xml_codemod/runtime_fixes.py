@@ -8,18 +8,22 @@ quoted, so surrounding whitespace becomes literal. Applying the fix (strip it) d
 **not** change validity, so it cannot ride the ``UpgradeToLatest`` loop.
 
 A ``RuntimeGatedFix`` is a normal detect-primitive ``CodemodCommand`` plus an
-``introduced_profile`` marker. The ``upgrade`` path applies each fix whose
-``introduced_profile`` is at or below the profile the tool actually reached — so a
-tool that stalls below it is untouched (Galaxy ran it under the old behaviour). Each
-fix mirrors a Galaxy ``must_fix`` upgrade code (see
-``profile_semantics.PROFILE_UPGRADE_CODES`` and ``docs/decisions.md`` §24). These are
-**upgrade-only**: in ``coded_codemods()`` but not ``CANONICAL_CODEMODS``, so they
-never run under ``format`` / the ``iuc`` preset and never change ``profile=``.
+``introduced_profile`` marker. The ``upgrade`` path applies each fix whose Galaxy
+behaviour the tool actually **crosses** — its ``introduced_profile`` lies above the
+tool's pre-upgrade baseline and at or below the profile it reached
+(``baseline < introduced_profile <= reached``). A tool that stalls below a fix is
+untouched (Galaxy ran it under the old behaviour); a tool **already** declaring a
+profile at or above the fix's introduction is *also* untouched — Galaxy already
+applied the new behaviour, so rewriting it would change current behaviour rather than
+preserve it (codemod ``docs/decisions.md`` §24, the crossing-gate). Each fix mirrors
+a Galaxy ``must_fix`` upgrade code (see ``profile_semantics.PROFILE_UPGRADE_CODES``).
+These are **upgrade-only**: in ``coded_codemods()`` but not ``CANONICAL_CODEMODS``, so
+they never run under ``format`` / the ``iuc`` preset and never change ``profile=``.
 """
 
 from __future__ import annotations
 
-from packaging.version import Version
+from packaging.version import InvalidVersion, Version
 
 from galaxy_tool_xml_codemod.codemods._runtime_gated import RuntimeGatedFix
 from galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace import (
@@ -38,14 +42,46 @@ RUNTIME_GATED_FIXES: tuple[type[RuntimeGatedFix], ...] = (
 )
 
 
-def runtime_fixes_for(profile: str, /) -> tuple[type[RuntimeGatedFix], ...]:
-    """Return the runtime-gated fixes that apply at a reached *profile*.
+def _version_or_none(value: str, /) -> Version | None:
+    """Parse *value* as a version, or ``None`` if it is not one.
 
-    A fix applies when its ``introduced_profile`` is at or below *profile* — i.e.
-    the tool will run under the new behaviour. *profile* is a vendored version
-    string (the upgrade target); callers pass a resolved profile, never ``None``.
+    ``packaging`` exposes no validity predicate, so the ``try``/``except`` is the
+    sanctioned boundary (mirrors ``profile_semantics._version_or_none`` and
+    ``codemods/update_profile.py``).
     """
-    reached = Version(profile)
+    try:
+        return Version(value)
+    except InvalidVersion:
+        return None
+
+
+def runtime_fixes_for(
+    reached_profile: str, /, *, baseline_profile: str | None
+) -> tuple[type[RuntimeGatedFix], ...]:
+    """Return the runtime-gated fixes the tool *crosses* on its way to *reached*.
+
+    A fix applies only when the tool actually crosses its Galaxy behaviour boundary:
+    ``baseline_profile < introduced_profile <= reached_profile``. *baseline_profile*
+    is the tool's pre-upgrade runtime baseline (a missing ``profile=`` resolves to
+    ``16.01``; see the facade's ``_semantic_baseline``); *reached_profile* is the
+    profile the tool actually reached after upgrade.
+
+    The lower bound is the crossing-gate: a tool that **already** declares a profile
+    at or above a fix's ``introduced_profile`` is left untouched, because Galaxy
+    already applies the new behaviour there — rewriting it would change current
+    behaviour rather than preserve it. When *baseline_profile* is ``None`` or
+    unparseable (e.g. a ``@PROFILE@`` macro token) we cannot place the crossing, so
+    we conservatively apply **no** runtime fixes and let the §23 semantic warning
+    report instead.
+    """
+    if baseline_profile is None:
+        return ()
+    baseline = _version_or_none(baseline_profile)
+    reached = _version_or_none(reached_profile)
+    if baseline is None or reached is None:
+        return ()
     return tuple(
-        fix for fix in RUNTIME_GATED_FIXES if Version(fix.introduced_profile) <= reached
+        fix
+        for fix in RUNTIME_GATED_FIXES
+        if baseline < Version(fix.introduced_profile) <= reached
     )
