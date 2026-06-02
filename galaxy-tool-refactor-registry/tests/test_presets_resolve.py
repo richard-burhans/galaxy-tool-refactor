@@ -23,6 +23,7 @@ def test_preset_contents() -> None:
     assert p["cosmetic"] == {"GTX001", "GTX003", "GTX004"}
     assert p["iuc"] == {
         "GTX001", "GTX002", "GTX003", "GTX004", "GTX005", "GTX006", "GTX013",
+        "GTX017",
     }
     # strict = iuc + every advisory check.
     assert p["iuc"] < p["strict"]

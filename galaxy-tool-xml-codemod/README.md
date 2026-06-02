@@ -20,16 +20,21 @@ M1–M3.5 shipped: framework primitives (`Module`, `Cursor`,
 as regression fixtures), and two ordered pipeline contracts run by the
 tier-4 app (`galaxy-tool-refactor-cli`):
 
-- **`CANONICAL_CODEMODS`** = `FixTypos → ReorderParamAttributes →
-  ReorderToolAttributes → ReorderToolChildren` — the safe canonical/format
-  pipeline (the app's `format` command). Never changes `profile=`.
-- **`AUTO_UPGRADE_CODEMODS`** = `FixTypos → UpgradeToLatest` — the opt-in
-  profile-upgrade pipeline (the app's `upgrade` command).
+- **`CANONICAL_CODEMODS`** = `FixTypos → NormalizeBooleanValues →
+  ReorderParamAttributes → ReorderToolAttributes → ReorderToolChildren` — the
+  safe canonical/format pipeline (the app's `format` command). Never changes
+  `profile=`.
+- **`AUTO_UPGRADE_CODEMODS`** = `FixTypos → NormalizeBooleanValues →
+  UpgradeToLatest` — the opt-in profile-upgrade pipeline (the app's `upgrade`
+  command).
 
 The codemods:
 
 - `FixTypos` — repair near-miss spelling typos so a
   well-formed-but-globally-invalid tool validates (in both pipelines);
+- `NormalizeBooleanValues` — rewrite Python-style boolean attribute values
+  (`True`/`Yes`/…) to canonical `xs:boolean` so a globally-invalid tool
+  validates; schema-type-aware and behaviour-preserving (in both pipelines);
 - `UpgradeToLatest` — loop `UpdateProfile` (declare the newest profile the
   tool validates at, bump-up-only) + single-step `upgrade_vN` codemods from
   `upgrades.py` to bring a tool to the latest profile (`UpdateProfile` is a
@@ -71,6 +76,7 @@ for codemod_cls in CANONICAL_CODEMODS:
 | `cursor.Cursor` | lxml-backed view with read + typed mutation primitives. |
 | `codemod.CodemodCommand` | Base for user-authored codemods (tag-PascalCase dispatch). |
 | `codemods.fix_typos.FixTypos` | Repair near-miss typos until a globally-invalid tool validates (canonical, runs first). |
+| `codemods.normalize_boolean_values.NormalizeBooleanValues` | Normalize Python-style boolean values (`True`/`Yes`/…) to `xs:boolean` until a globally-invalid tool validates (canonical, GTX017). |
 | `upgrades.UpgradeToLatest` | In `AUTO_UPGRADE_CODEMODS`. Loop UpdateProfile + single-step upgrades to reach the latest profile. |
 | `codemods.update_profile.UpdateProfile` | Declare the newest profile the tool validates at, bump-up-only. Building block run *inside* `UpgradeToLatest` — not itself a pipeline member. |
 | `upgrades.UPGRADE_CODEMODS` | Registry: sticking version → its single-step upgrade codemod. |
