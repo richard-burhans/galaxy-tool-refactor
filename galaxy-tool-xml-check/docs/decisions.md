@@ -123,3 +123,47 @@ uv run python -m scripts.corpus_check check --limit 200 --no-stats
 uv run --package galaxy-tool-xml-fmt pytest \
   galaxy-tool-xml-fmt/tests/test_corpus_check.py       # helper unit tests
 ```
+
+## D3 (2026-06-02) — IUC012 (`&&`-vs-lone-`&`) stays deferred: the anti-pattern is ~absent
+
+### Decision
+
+`IUC012` (`CommandAndJoining` — "join shell commands with `&&`, not a lone `&`")
+**remains a reserved no-op placeholder**, now on a data-backed basis rather than a
+hunch. A literal-text IUC012 is not worth implementing: the genuine anti-pattern
+it targets is essentially absent from the corpus, and the crude lone-`&` signal is
+dominated by constructs that are *not* command joining.
+
+### Evidence
+
+Reproduced-by: `uv run python -m scripts.measure command-lone-amp` (combined
+corpus, 2026-06-02; classifier pinned by
+`galaxy-tool-xml/tests/test_measure.py::test_classify_lone_amps_buckets`). Of the
+**431** tools the crude `_LONE_AMP` heuristic flags (what `command-iuc-heuristics`
+counts), classifying every lone-`&` occurrence gives:
+
+| Class | Occurrences | Command joining? |
+|---|---|---|
+| `redirect` (`2>&1`, `&>file`, `<&3`) | 562 | no — a redirection |
+| `quoted` (a literal `&` inside `'…'`/`"…"`, e.g. sed/awk's "matched text") | 74 | no — an argument |
+| `pipe` (`\|&`) | 2 | no — a pipe operator |
+| `background` (lone `&` at end of a command) | 1 | no — intentional |
+| `joining` (`cmd1 & cmd2` — the IUC012 anti-pattern) | **1** | **yes** |
+
+So **2 tools** carry a *genuine* lone `&` (1 background + 1 joining), and the true
+"meant `&&`, wrote `&`" mistake appears in **1 tool** across the whole corpus.
+
+### Rationale
+
+- **No payoff.** A crude check flags 431 tools, ~99.5% false positives; a *precise*
+  check flags ~1. Neither is worth a rule.
+- **Precision needs the deferred lexer.** Excluding the `quoted` class reliably
+  (the 74 sed/awk literals) requires shell-string tokenisation — the M5 Cheetah/
+  shell lexer (`../../galaxy-tool-xml-codemod/PLAN.md`), not a regex. The
+  `command-lone-amp` quote scan is a heuristic good enough to *size* the question,
+  not to ship as detection.
+- **The reserved code stays.** `IUC012` keeps its slot and no-op `detect` (the
+  registry/`corpus_check` already report it at 0%); revisit only if the M5 lexer
+  lands or the corpus shifts. `IUC011` (single-quoted Cheetah, 87% crude noise per
+  `command-iuc-heuristics`) was already deferred on the same "needs a real parser"
+  grounds (D1).

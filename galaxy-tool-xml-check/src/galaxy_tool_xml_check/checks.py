@@ -336,9 +336,12 @@ class SingleQuotedCheetah(CheckRule):
 class CommandAndJoining(CheckRule):
     """IUC012 — join shell commands with ``&&`` not a lone ``&`` (placeholder).
 
-    Reserved IUC code; ``detect`` is a no-op. Distinguishing a command-joining
-    ``&`` from a legitimate background ``&`` or ``&&`` inside CDATA is heuristic
-    and noisy; deferred. See ``../../docs/iuc_best_practices.md``.
+    Reserved IUC code; ``detect`` is a no-op — now on a **data-backed** basis
+    (``docs/decisions.md`` D3, ``scripts.measure command-lone-amp``): of the 431
+    corpus tools the crude lone-``&`` heuristic flags, the genuine ``cmd1 & cmd2``
+    anti-pattern appears in **one** — the rest are redirections (``2>&1``), quoted
+    ``&`` literals (sed/awk), and ``|&`` pipes. A precise check needs the M5 shell
+    lexer, not a regex. Deferred. See ``../../docs/iuc_best_practices.md``.
     """
 
     meta: ClassVar[RuleMeta] = RuleMeta(

@@ -16,6 +16,7 @@ from scripts.measure import (
     _baseline_bucket,
     _cheetah_feature_flags,
     _classify_command_language,
+    _classify_lone_amps,
     _collection_type_patterns,
     _count_unquoted_vars,
     _cross_source_key_matches,
@@ -1220,3 +1221,22 @@ def test_version_tokenization_buckets(tmp_path: Path) -> None:
     assert result.n_candidates_have_macros == 1  # candidate_macros.xml
     assert result.n_version_equals_req_no_suffix == 1
     assert result.n_other_literal == 1
+
+
+def test_classify_lone_amps_buckets() -> None:
+    """The IUC012 lone-& classifier separates the anti-pattern from look-alikes."""
+    classify = _classify_lone_amps
+    # Redirections are not command joining.
+    assert classify("samtools view a 2>&1")["redirect"] == 1
+    assert classify("prog &> log")["redirect"] == 1
+    assert classify("exec 3<&0")["redirect"] == 1
+    # |& is a pipe operator, not joining.
+    assert classify("a |& b")["pipe"] == 1
+    # A literal & inside a quoted argument (sed/awk "matched text").
+    assert classify("sed 's/^x/&!/' f")["quoted"] == 1
+    assert classify('echo "a & b"')["quoted"] == 1
+    # The genuine cases.
+    assert classify("cmd1 & cmd2")["joining"] == 1  # the IUC012 anti-pattern
+    assert classify("server &\nwait")["background"] == 1  # trailing background
+    # && is logical-and, never a lone &.
+    assert classify("a && b") == {}
