@@ -37,13 +37,13 @@ Unique `<tool>` files (sha256-deduped) with a placeable baseline: **7,872**. Exc
 
 ## Blocking on `must_fix` only
 
-Reaches latest behavior-preservingly: **1,630**; stuck: **6,242**.
+Reaches latest behavior-preservingly: **2,567**; stuck: **5,305**.
 
 | Profile | Level | Behavior code (first blocker) | Tools stuck |
 |---|---|---|--:|
-| 16.04 | must_fix | `16_04_fix_interpreter` | 1,726 |
-| 16.04 | must_fix | `16_04_fix_output_format` | 18 |
-| 24.2 | must_fix | `24_2_fix_test_case_validation` | 4,498 |
+| 16.04 | must_fix | `16_04_fix_interpreter` | 316 |
+| 16.04 | must_fix | `16_04_fix_output_format` | 33 |
+| 24.2 | must_fix | `24_2_fix_test_case_validation` | 4,956 |
 
 ## Blocking on `must_fix` + `consider`
 
@@ -51,8 +51,8 @@ Reaches latest behavior-preservingly: **239**; stuck: **7,633**.
 
 | Profile | Level | Behavior code (first blocker) | Tools stuck |
 |---|---|---|--:|
-| 16.04 | must_fix | `16_04_fix_interpreter` | 1,726 |
-| 16.04 | consider | `16_04_consider_implicit_extra_file_collection` | 3,971 |
+| 16.04 | must_fix | `16_04_fix_interpreter` | 316 |
+| 16.04 | consider | `16_04_consider_implicit_extra_file_collection` | 5,381 |
 | 18.01 | consider | `18_01_consider_structured_like` | 1 |
 | 18.01 | consider | `18_01_consider_home_directory` | 296 |
 | 20.09 | consider | `20_09_consider_output_collection_order` | 64 |

@@ -97,14 +97,18 @@ class Cursor:
         if name in self._element.attrib:
             del self._element.attrib[name]
 
-    def set_text(self, value: str, /) -> None:
+    def set_text(self, value: str, /, *, cdata: bool = False) -> None:
         """Set the element's direct text content (e.g. a ``<token>``'s value).
 
         Replaces ``text`` only; child elements, ``tail``, and attributes are
         untouched. Used by the token-aware profile upgrade to rewrite a
         ``<token name="@PROFILE@">`` value in place.
+
+        With ``cdata=True`` the value is wrapped in a ``<![CDATA[…]]>`` section so
+        shell operators (``&&``, ``<``, ``|``) stay literal — required when
+        rewriting a ``<command>`` body (which is CDATA by convention, IUC002).
         """
-        self._element.text = value
+        self._element.text = etree.CDATA(value) if cdata else value
 
     def rename_tag(self, new_tag: str, /) -> None:
         """Rename this element's tag in place.

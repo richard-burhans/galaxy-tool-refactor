@@ -186,11 +186,12 @@ will change.
   introduction profile (`baseline < introduced_profile <= reached` — the
   crossing-gate, codemod §24: a tool already past the boundary is left alone, since
   Galaxy already applies the new behaviour there). Members
-  (`FixFromWorkDirWhitespace` GTX014 @21.09, `FixOutputFormatInput` GTX015 @16.04)
-  are upgrade-only — in `coded_codemods()`, not `CANONICAL_CODEMODS`.
+  (`FixInterpreter` GTX016 @16.04, `FixOutputFormatInput` GTX015 @16.04,
+  `FixFromWorkDirWhitespace` GTX014 @21.09) are upgrade-only — in `coded_codemods()`,
+  not `CANONICAL_CODEMODS`.
 - **`catalog.coded_codemods()`** — `catalog.py` — *every* GTX-coded codemod
   (including the single-step `Upgrade19_01`…`Upgrade25_1` and `UpdateProfile` that
-  `UpgradeToLatest` drives internally, and the runtime-gated GTX014/GTX015), for
+  `UpgradeToLatest` drives internally, and the runtime-gated GTX014/GTX015/GTX016), for
   the cross-tier registry.
 
 **Contract:** detect is the primitive; apply is derived; mutations are idempotent
@@ -287,7 +288,7 @@ given. This is what lets both the CLI and a future MCP server be thin adapters.
   **selectable** set (canonical codemods + cosmetic fmt + advisory checks);
   `all_handles()` additionally includes the **upgrade-only** codemods
   (GTX007–GTX012 — internal to `UpgradeToLatest` — plus the runtime-gated
-  GTX014–GTX015, applied by the facade's `upgrade`), which are not independently
+  GTX014–GTX016, applied by the facade's `upgrade`), which are not independently
   selectable.
   `_index()` asserts the GTX/IUC namespace is **collision-free** — a reused code
   fails loudly here.
@@ -506,6 +507,7 @@ Each abstraction → its file → the decision record that justifies it.
 | GTX013 | `ReorderToolChildren` | `galaxy-tool-xml-codemod/.../reorder_tool_children.py` | codemod (canonical) |
 | GTX014 | `FixFromWorkDirWhitespace` | `galaxy-tool-xml-codemod/.../fix_from_work_dir_whitespace.py` | codemod (upgrade-only, runtime-gated) |
 | GTX015 | `FixOutputFormatInput` | `galaxy-tool-xml-codemod/.../fix_output_format_input.py` | codemod (upgrade-only, runtime-gated) |
+| GTX016 | `FixInterpreter` | `galaxy-tool-xml-codemod/.../fix_interpreter.py` | codemod (upgrade-only, runtime-gated) |
 | GTX017 | `NormalizeBooleanValues` | `galaxy-tool-xml-codemod/.../normalize_boolean_values.py` | codemod (canonical, validation-driven) |
 | IUC001–010 | `TestsPresent` … `HelpCdata` | `galaxy-tool-xml-check/.../checks.py` | check (advisory) |
 | IUC011–012 | `SingleQuotedCheetah`, `CommandAndJoining` | `galaxy-tool-xml-check/.../checks.py` | check (advisory, reserved stubs) |

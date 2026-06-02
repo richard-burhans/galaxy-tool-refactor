@@ -8,12 +8,48 @@ from lxml import etree
 
 from galaxy_tool_xml_codemod.codemods._interpreter import (
     first_command_token,
+    first_command_token_span,
+    interpreter_rewrite,
     interpreter_rewrite_target,
 )
 
 
 def _root(xml: str) -> etree._Element:
     return etree.fromstring(xml.encode("utf-8"))
+
+
+def test_first_command_token_span_anchors_past_leading_comment() -> None:
+    # The script name appears inside a leading ## comment AND as the real first
+    # token. The span offset must point at the REAL invocation line so a rewrite
+    # restricted to body[offset:] never touches the comment (the redup.xml bug).
+    body = "## should fix redup.pl\n  redup.pl --in $x\n"
+    span = first_command_token_span(body)
+    assert span is not None
+    token, offset = span
+    assert token == "redup.pl"
+    assert body[:offset] == "## should fix redup.pl\n"  # comment is before the anchor
+    assert body[offset:].startswith("  redup.pl")
+
+
+def test_first_command_token_span_none_on_leading_directive() -> None:
+    assert first_command_token_span("#if $c\nx.py\n#end if") is None
+
+
+def test_interpreter_rewrite_returns_full_plan() -> None:
+    root = _root(
+        '<tool><command interpreter="python">myscript.py $input</command></tool>'
+    )
+    plan = interpreter_rewrite(root)
+    assert plan == ("python", "myscript.py", 0)
+
+
+def test_interpreter_rewrite_none_for_bucket_b_and_c() -> None:
+    bucket_b = _root(
+        '<tool><command interpreter="python">#if $c\nx.py\n#end if</command></tool>'
+    )
+    bucket_c = _root('<tool><command interpreter="java -jar">app.jar</command></tool>')
+    assert interpreter_rewrite(bucket_b) is None
+    assert interpreter_rewrite(bucket_c) is None
 
 
 def test_first_command_token_skips_blanks_and_comments() -> None:

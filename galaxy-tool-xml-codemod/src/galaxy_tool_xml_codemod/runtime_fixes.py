@@ -29,6 +29,7 @@ from galaxy_tool_xml_codemod.codemods._runtime_gated import RuntimeGatedFix
 from galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace import (
     FixFromWorkDirWhitespace,
 )
+from galaxy_tool_xml_codemod.codemods.fix_interpreter import FixInterpreter
 from galaxy_tool_xml_codemod.codemods.fix_output_format_input import (
     FixOutputFormatInput,
 )
@@ -37,6 +38,7 @@ from galaxy_tool_xml_codemod.codemods.fix_output_format_input import (
 # before 21.09). Order is cosmetic — the fixes touch disjoint constructs and the
 # facade applies all whose introduction profile the tool reached (see §24).
 RUNTIME_GATED_FIXES: tuple[type[RuntimeGatedFix], ...] = (
+    FixInterpreter,
     FixOutputFormatInput,
     FixFromWorkDirWhitespace,
 )

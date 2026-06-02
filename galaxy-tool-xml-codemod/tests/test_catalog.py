@@ -18,6 +18,7 @@ _EXPECTED_CODES = {
     "GTX013",  # ReorderToolChildren
     "GTX014",  # FixFromWorkDirWhitespace (runtime-gated)
     "GTX015",  # FixOutputFormatInput (runtime-gated)
+    "GTX016",  # FixInterpreter (runtime-gated)
     "GTX017",  # NormalizeBooleanValues
 }
 

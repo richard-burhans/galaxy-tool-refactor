@@ -5,7 +5,7 @@
 | **Code** | `16_04_fix_interpreter` |
 | **Profile** | 16.04 |
 | **Level** | `must_fix` |
-| **Auto-fix today** | **none** |
+| **Auto-fix today** | **GTX016** `FixInterpreter` (bucket A; runtime-gated) |
 | **Stuck tools** (must_fix-only) | **1,726** (see `../upgrade_behavior_block_stats.md`) |
 | **Galaxy PR** | https://github.com/galaxyproject/galaxy/pull/1688 |
 
@@ -70,6 +70,16 @@ For interpreter `I` and leading script token `S`:
   (double underscores; `evaluation.py:639,794`). A fix must emit `$__tool_directory__`.
 - A faithful rewrite changes **only** the runtime prefix and the first token's path.
   It must NOT re-quote arguments or add `detect_errors` — those alter behaviour.
+- **The literal `'$__tool_directory__/S'` vs Galaxy's `shlex.quote` — accepted bound.**
+  Galaxy emitted `shlex.quote(os.path.join(os.path.abspath(tool_dir), token))`
+  (`evaluation.py:785-787`), whose escaping adapts to the *actual* install path. A
+  codemod cannot know that abspath, so it emits the static literal
+  `'$__tool_directory__/S'`. This is byte/behaviour-faithful for every path: spaces and
+  globs are safe (both forms single-quote), `$__tool_directory__` resolves to the same
+  `os.path.abspath(tool.tool_dir)` at runtime (`evaluation.py:639` → `jobs/__init__.py:1075-1079`),
+  and the token is already quote/space-free (`_SCRIPT_TOKEN`). The **sole** divergence is
+  an embedded single quote in the resolved tool-directory abspath — declared out of scope
+  as a pathological, admin-controlled install path.
 
 ## Corpus reality
 
@@ -97,17 +107,26 @@ conservative, GTX015-style scope is to auto-fix only bucket A — a single leadi
 literal script token + a single-token standard interpreter (optionally requiring the
 script file to exist beside the XML) — and leave B/C/D to detect/warn.
 
-## Where a fix would plug in
+## Where the fix plugs in
 
-A new `RuntimeGatedFix` (the GTX014/GTX015 family;
-`codemods/_runtime_gated.py` + `runtime_fixes.py`), `introduced_profile="16.04"`,
-next code **GTX016**, upgrade-only. Detection already exists (`_detects_interpreter`).
-Mutation via `Cursor`: `delete_attribute("interpreter")`, read body via `cursor.text`,
-rewrite via `cursor.set_text(...)` (CDATA preserved by tier-1 `strip_cdata=False`).
-No code in the repo currently emits `$__tool_directory__` — this would be the first.
+`FixInterpreter` (`codemods/fix_interpreter.py`) is a `RuntimeGatedFix` (the
+GTX014/GTX015 family; `codemods/_runtime_gated.py` + `runtime_fixes.py`),
+`introduced_profile="16.04"`, code **GTX016**, upgrade-only. The eligibility predicate
+is the shared `codemods/_interpreter.py` core (so the codemod and the
+`interpreter-bucket-split` measure agree by construction). Mutation via `Cursor`:
+`cursor.set_text(new_body, cdata=True)` (CDATA wrap, the first repo code to do so) then
+`cursor.delete_attribute("interpreter")`. It is the first repo code to emit
+`$__tool_directory__`.
 
 ## Status / recommendation
 
-No auto-fix exists. A conservative bucket-A `FixInterpreter` codemod is feasible and
-would be the single highest-impact behaviour-preserving fix. Size bucket A precisely
-with a standing measure before committing.
+**Shipped: `FixInterpreter` (GTX016).** The conservative bucket-A codemod described
+above — the single highest-impact behaviour-preserving fix. It rewrites
+bucket-A-by-shape tools (the `interpreter-bucket-split` measure's **A** 1,383 +
+**A-missing** 27; the file-exists check is a measurement refinement, not a codemod
+gate — the rewrite is faithful regardless, see codemod `docs/decisions.md` §27). The
+rewrite uses a **positional splice** anchored at the first content line so a script
+name in a leading `##` comment is never mistargeted, and emits CDATA so shell
+operators stay literal. Corpus impact: 1,127 tools rewritten (idempotent, 0
+post-validate-failed); the `16_04_fix_interpreter` behaviour-block drops **1,726 →
+316** (`upgrade_behavior_block_stats.md`), the residual being bucket B/C.
