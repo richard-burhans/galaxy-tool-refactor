@@ -69,6 +69,23 @@ def test_nested_single_data_input_left_untouched() -> None:
     assert etree.tostring(module.document.root) == before
 
 
+def test_existing_format_source_left_untouched() -> None:
+    # With a co-present format_source, format="input" is already inert at runtime
+    # (Galaxy's format_source branch wins), so the author's source must be preserved
+    # even when it points at a non-data-param input (here a data_collection element).
+    module = parse_module(
+        _tool(
+            b'<param type="data" name="i"/>'
+            b'<param type="data_collection" name="coll"/>',
+            b'<data name="o" format="input" format_source="coll"/>',
+        )
+    )
+    assert not list(FixOutputFormatInput().detect(module))
+    before = etree.tostring(module.document.root)
+    FixOutputFormatInput().apply(module)
+    assert etree.tostring(module.document.root) == before
+
+
 def test_noop_when_not_format_input() -> None:
     module = parse_module(
         _tool(b'<param type="data" name="i"/>', b'<data name="o" format="txt"/>')

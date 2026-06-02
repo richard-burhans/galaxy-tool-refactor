@@ -156,7 +156,8 @@ uv run python -m scripts.measure upgrade-behavior-blocks
 
 # Sizing for the format="input" runtime-gated fix (GTX015, codemod decisions §24):
 # output <data format="input"> tools split by data-input cardinality (the single
-# top-level data input subset is auto-fixable):
+# top-level data input subset is auto-fixable), plus the format_source-guard and
+# crossing-gate skip counts (§24):
 uv run python -m scripts.measure output-format-input
 
 # <help> markup-format distribution: per-tool implicit-RST vs explicit

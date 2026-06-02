@@ -10,7 +10,9 @@ tool has **exactly one data input addressable by an unqualified name** — a sin
 top-level ``<param type="data">``. This codemod auto-fixes only that case (109 of
 the ~150 corpus tools with a ``format="input"`` output; see ``scripts/measure.py
 output-format-input``); tools with zero, two-or-more, or a nested single data input
-are left for the §23 upgrade warning to report.
+are left for the §23 upgrade warning to report. An output that already carries a
+``format_source`` is also left alone — ``format="input"`` is inert there (Galaxy's
+format_source branch wins at runtime), so the author's source must not be overwritten.
 
 A runtime-gated fix (``runtime_fixes.py``): ``format="input"`` is XSD-valid, so this
 does not change ``newest_valid_profile`` and cannot ride the ``UpgradeToLatest``
@@ -92,6 +94,12 @@ class FixOutputFormatInput(RuntimeGatedFix):
             return
         for data in outputs.iter("data"):
             if data.get("format") != "input":
+                continue
+            if data.get("format_source") is not None:
+                # ``format="input"`` is already inert when a ``format_source`` is
+                # present — Galaxy's format_source branch overrides it
+                # (actions/__init__.py). Leave the author's existing source (which may
+                # point at a collection or a different input) for the §23 warning.
                 continue
             cursor = Cursor(data)
             yield Change(

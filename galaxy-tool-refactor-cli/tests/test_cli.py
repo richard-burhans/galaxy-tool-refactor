@@ -81,9 +81,10 @@ def test_upgrade_keeps_latest_profile(tmp_path: Path) -> None:
 
 
 def test_upgrade_applies_runtime_gated_fix_at_reached_profile(tmp_path: Path) -> None:
-    """End-to-end: reaching >=21.09 strips a whitespace from_work_dir (GTX014)."""
+    """End-to-end: crossing 21.09 strips a whitespace from_work_dir (GTX014)."""
+    # Declares 20.09 (< 21.09), so the bump to latest CROSSES the 21.09 boundary.
     tool = (
-        b'<tool id="m" name="M" version="1.0.0" profile="24.0">'
+        b'<tool id="m" name="M" version="1.0.0" profile="20.09">'
         b"<command><![CDATA[echo x]]></command><inputs/>"
         b'<outputs><data name="o" from_work_dir=" out.txt "/></outputs></tool>'
     )

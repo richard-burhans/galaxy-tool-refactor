@@ -174,15 +174,17 @@ will change.
   - `AUTO_UPGRADE_CODEMODS` = `FixTypos` → `UpgradeToLatest` — the **opt-in,
     semantic** profile-upgrade pipeline.
 - **`RuntimeGatedFix`** — `codemods/_runtime_gated.py`, registry in
-  `runtime_fixes.py` (`RUNTIME_GATED_FIXES` + `runtime_fixes_for(profile)`) — a
-  detect-primitive codemod plus an `introduced_profile` marker, for Galaxy
-  *runtime* behaviour changes the XSD does **not** enforce. The distinction:
+  `runtime_fixes.py` (`RUNTIME_GATED_FIXES` + `runtime_fixes_for(reached, *,
+  baseline)`) — a detect-primitive codemod plus an `introduced_profile` marker, for
+  Galaxy *runtime* behaviour changes the XSD does **not** enforce. The distinction:
   validity-gated upgrades (`upgrade_vN`, in `UpgradeToLatest`) advance only when
   `newest_valid_profile` improves; a runtime-gated fix is XSD-valid at every
-  profile, so the facade's `upgrade` applies it once a tool *reaches* its
-  introduction profile. Members (`FixFromWorkDirWhitespace` GTX014 @21.09,
-  `FixOutputFormatInput` GTX015 @16.04) are upgrade-only — in `coded_codemods()`,
-  not `CANONICAL_CODEMODS`.
+  profile, so the facade's `upgrade` applies it once a tool *crosses* its
+  introduction profile (`baseline < introduced_profile <= reached` — the
+  crossing-gate, codemod §24: a tool already past the boundary is left alone, since
+  Galaxy already applies the new behaviour there). Members
+  (`FixFromWorkDirWhitespace` GTX014 @21.09, `FixOutputFormatInput` GTX015 @16.04)
+  are upgrade-only — in `coded_codemods()`, not `CANONICAL_CODEMODS`.
 - **`catalog.coded_codemods()`** — `catalog.py` — *every* GTX-coded codemod
   (including the single-step `Upgrade19_01`…`Upgrade25_1` and `UpdateProfile` that
   `UpgradeToLatest` drives internally, and the runtime-gated GTX014/GTX015), for
