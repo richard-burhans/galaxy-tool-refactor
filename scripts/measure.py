@@ -3806,6 +3806,172 @@ def _run_cheetah_command_complexity(args: argparse.Namespace) -> None:
         print(f"\nwrote {_display_path(out_path)}")
 
 
+# --- measurement: interpreter-bucket-split --------------------------------------
+#
+# Sizes the auto-fixable population for a `16_04_fix_interpreter` codemod (GTX016;
+# docs/upgrade_research/16_04_fix_interpreter.md). Tools with a deprecated
+# `<command interpreter=…>` split into: A (bucket-A: single-token standard interpreter
+# + literal leading script token that exists beside the XML — exactly what the codemod
+# rewrites), A-missing (would-be-A but the named script isn't co-located), B
+# (leading-Cheetah / non-literal first token), C (non-standard / multi-token
+# interpreter — java -jar, docker, Rscript --no-save, …). Classification reuses the
+# codemod's own eligibility predicate (`codemods/_interpreter.py`) so the measure and
+# the codemod agree by construction. Writes docs/interpreter_bucket_stats.md. Needs
+# the corpus, so not run in CI.
+
+
+@dataclass
+class _InterpreterBucketResult:
+    """`<command interpreter=…>` tools split by codemod auto-fixability."""
+
+    n_tools: int  # unique parsed tools
+    n_with_interpreter: int
+    bucket_a: int  # auto-fixable now (literal script, exists beside the XML)
+    bucket_a_missing: int  # structurally A, but the named script is not co-located
+    bucket_b: int  # leading Cheetah / non-literal first token
+    bucket_c: int  # non-standard / multi-token interpreter
+    interpreter_values: dict[str, int]  # interpreter attribute value -> tools
+
+
+def _measure_interpreter_buckets(*, corpus_root: Path) -> _InterpreterBucketResult:
+    """Classify every `<command interpreter=…>` tool by codemod auto-fixability."""
+    from galaxy_tool_xml_codemod.codemods._interpreter import (
+        _STANDARD_INTERPRETERS,
+        interpreter_rewrite_target,
+    )
+
+    seen: set[str] = set()
+    n_tools = n_with = a = a_missing = b = c = 0
+    values: Counter[str] = Counter()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        n_tools += 1
+        command = root.find("command")
+        if command is None:
+            continue
+        interpreter = command.get("interpreter")
+        if interpreter is None:
+            continue
+        n_with += 1
+        values[interpreter] += 1
+        if interpreter not in _STANDARD_INTERPRETERS:
+            c += 1
+            continue
+        # Standard interpreter: A vs A-missing vs B turns on the body + co-location.
+        structural = interpreter_rewrite_target(root)
+        if structural is None:
+            b += 1
+        elif interpreter_rewrite_target(root, tool_dir=path.parent) is not None:
+            a += 1
+        else:
+            a_missing += 1
+    return _InterpreterBucketResult(
+        n_tools=n_tools,
+        n_with_interpreter=n_with,
+        bucket_a=a,
+        bucket_a_missing=a_missing,
+        bucket_b=b,
+        bucket_c=c,
+        interpreter_values=dict(values),
+    )
+
+
+def _render_interpreter_bucket_page(result: _InterpreterBucketResult) -> str:
+    """Render the interpreter-bucket-split stats markdown page (deterministic)."""
+    base = result.n_with_interpreter
+
+    def pct(n: int) -> str:
+        return f"{100 * n / base:.1f}%" if base else "0.0%"
+
+    bar_max = max(result.interpreter_values.values(), default=0)
+    value_rows = [
+        f"| `{value}` | {count:,} | {'█' * round(30 * count / bar_max) if bar_max else ''} |"
+        for value, count in sorted(
+            result.interpreter_values.items(), key=lambda kv: (-kv[1], kv[0])
+        )
+    ]
+    return "\n".join(
+        [
+            "# Interpreter-rewrite bucket statistics",
+            "",
+            "Sizes the auto-fixable population for a `16_04_fix_interpreter` codemod",
+            "(GTX016; see `upgrade_research/16_04_fix_interpreter.md`). Tools carrying a",
+            "deprecated `<command interpreter=…>` are split by whether the codemod can",
+            "mechanically rewrite them to `interpreter '$__tool_directory__/script'`.",
+            "Buckets are computed by the codemod's own eligibility predicate",
+            "(`galaxy_tool_xml_codemod.codemods._interpreter`), so this count is exactly",
+            "what the codemod would fix.",
+            "",
+            "Regenerate with (needs the corpus, so not run in CI):",
+            "",
+            "```sh",
+            "uv run python -m scripts.measure interpreter-bucket-split",
+            "```",
+            "",
+            f"Unique `<tool>` files (sha256-deduped): **{result.n_tools:,}**. With a",
+            f"`<command interpreter=…>`: **{result.n_with_interpreter:,}** "
+            "(the table shares below are of this population).",
+            "",
+            "## Buckets",
+            "",
+            "| Bucket | Tools | Share | Meaning |",
+            "|---|--:|--:|---|",
+            f"| **A — auto-fixable** | {result.bucket_a:,} | {pct(result.bucket_a)} "
+            "| single-token standard interpreter + literal leading script that exists "
+            "beside the XML |",
+            f"| A-missing | {result.bucket_a_missing:,} | {pct(result.bucket_a_missing)} "
+            "| structurally A, but the named script is not co-located (codemod skips) |",
+            f"| B — leading Cheetah / non-literal | {result.bucket_b:,} "
+            f"| {pct(result.bucket_b)} | command starts with a `#`-directive or `$var`, "
+            "so the script isn't statically first |",
+            f"| C — non-standard interpreter | {result.bucket_c:,} | {pct(result.bucket_c)} "
+            "| multi-token / non-script (`java -jar`, `docker`, `Rscript --no-save`, …) |",
+            "",
+            "Bucket **A** is the codemod's target. A-missing/B/C remain detect/warn-only",
+            "(the §23 upgrade warning) — they need author intent or a richer parse.",
+            "",
+            "## Interpreter values",
+            "",
+            "| `interpreter=` | Tools | Histogram |",
+            "|---|--:|---|",
+            *value_rows,
+        ]
+    )
+
+
+def _report_interpreter_buckets(result: _InterpreterBucketResult) -> None:
+    print("\n=== interpreter-bucket-split ===")
+    print(
+        f"Unique tools: {result.n_tools}; with <command interpreter=>: "
+        f"{result.n_with_interpreter}"
+    )
+    print(
+        f"  A (auto-fixable):     {result.bucket_a}\n"
+        f"  A-missing (no script): {result.bucket_a_missing}\n"
+        f"  B (leading cheetah):  {result.bucket_b}\n"
+        f"  C (non-standard):     {result.bucket_c}"
+    )
+
+
+def _run_interpreter_buckets(args: argparse.Namespace) -> None:
+    result = _measure_interpreter_buckets(corpus_root=args.corpus_root)
+    _report_interpreter_buckets(result)
+    if not args.all:
+        out_path = _repo_root() / "docs" / "interpreter_bucket_stats.md"
+        out_path.write_text(
+            _render_interpreter_bucket_page(result) + "\n", encoding="utf-8"
+        )
+        print(f"\nwrote {_display_path(out_path)}")
+
+
 # --- measurement: output-format-input -------------------------------------------
 #
 # Sizes a candidate `format="input"` -> `format_source="X"` runtime-gated fix
@@ -4036,6 +4202,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "element-cardinality": _run_element_cardinality,
     "command-language": _run_command_language,
     "cheetah-command-complexity": _run_cheetah_command_complexity,
+    "interpreter-bucket-split": _run_interpreter_buckets,
     "output-format-input": _run_output_format_input,
     "help-formats": _run_help_formats,
 }

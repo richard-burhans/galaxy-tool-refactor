@@ -26,6 +26,7 @@ from scripts.measure import (
     _measure_command_language,
     _measure_element_cardinality,
     _measure_help_formats,
+    _measure_interpreter_buckets,
     _measure_macro_fmt_idempotence,
     _measure_macro_profile_ownership,
     _measure_macro_profile_tokens,
@@ -681,6 +682,49 @@ def test_measure_cheetah_complexity_counts_tools(tmp_path: Path) -> None:
     assert result.feature_counts.get("directive:for", 0) == 1
     assert result.feature_counts.get("directive:if", 0) == 1  # from the configfile
     assert result.feature_counts.get("shape:special", 0) == 1
+
+
+# --- interpreter-bucket-split ---------------------------------------------------
+
+
+def test_measure_interpreter_buckets_classifies(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # Bucket A: standard interpreter + literal leading script that exists.
+    (repo / "a.xml").write_text(
+        '<tool><command interpreter="python">run.py $in</command></tool>',
+        encoding="utf-8",
+    )
+    (repo / "run.py").write_text("print(1)\n", encoding="utf-8")
+    # A-missing: same shape but the script is not co-located.
+    (repo / "a_missing.xml").write_text(
+        '<tool><command interpreter="perl">absent.pl $in</command></tool>',
+        encoding="utf-8",
+    )
+    # B: leading Cheetah directive -> script not statically first.
+    (repo / "b.xml").write_text(
+        '<tool><command interpreter="python">#if $c\nx.py\n#end if</command></tool>',
+        encoding="utf-8",
+    )
+    # C: non-standard / multi-token interpreter.
+    (repo / "c.xml").write_text(
+        '<tool><command interpreter="java -jar">app.jar</command></tool>',
+        encoding="utf-8",
+    )
+    # No interpreter attribute -> not counted in the population.
+    (repo / "plain.xml").write_text(
+        "<tool><command>tool $in</command></tool>", encoding="utf-8"
+    )
+
+    result = _measure_interpreter_buckets(corpus_root=tmp_path)
+    assert result.n_tools == 5
+    assert result.n_with_interpreter == 4
+    assert result.bucket_a == 1
+    assert result.bucket_a_missing == 1
+    assert result.bucket_b == 1
+    assert result.bucket_c == 1
+    assert result.interpreter_values["python"] == 2
+    assert result.interpreter_values["java -jar"] == 1
 
 
 # --- element-cardinality --------------------------------------------------------

@@ -169,6 +169,13 @@ uv run python -m scripts.measure help-formats
 # docs/upgrade_research/cheetah_variable_rewriting.md. Writes
 # docs/cheetah_command_stats.md (needs the corpus, so not run in CI):
 uv run python -m scripts.measure cheetah-command-complexity
+
+# Auto-fixable population for a 16_04_fix_interpreter codemod (GTX016): tools with a
+# deprecated <command interpreter=…> split into bucket A (rewritable) / A-missing / B
+# (leading-Cheetah) / C (non-standard interpreter), reusing the codemod's own
+# eligibility predicate. Backs docs/upgrade_research/16_04_fix_interpreter.md. Writes
+# docs/interpreter_bucket_stats.md (needs the corpus, so not run in CI):
+uv run python -m scripts.measure interpreter-bucket-split
 ```
 
 **Note:** invoke as `python -m scripts.X`, not `python scripts/X.py` — the
