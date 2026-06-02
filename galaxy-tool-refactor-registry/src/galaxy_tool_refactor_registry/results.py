@@ -43,6 +43,12 @@ class UpgradeResult:
         steps_applied: The from-profiles each upgrade step advanced past.
         missing_upgrade: A profile the tool stalled at with no registered
             upgrade, or ``None`` if it reached the latest (or had nothing to do).
+        behavior_preserving: Whether the profile bump crossed no Galaxy
+            behaviour-change code that *applies* to this tool (so it changes no
+            runtime behaviour the tool exercises). ``True`` = clean pass,
+            ``False`` = ≥1 applicable code, ``None`` = undetermined (a profile is
+            unparseable, e.g. a macro token). Structurally independent of
+            ``missing_upgrade``, which reports a structural stall.
         advisory: Advisory findings the selection included.
         notes: The upgrade summary plus advisory note lines, for the CLI.
     """
@@ -50,6 +56,7 @@ class UpgradeResult:
     formatted: bytes
     steps_applied: tuple[str, ...] = ()
     missing_upgrade: str | None = None
+    behavior_preserving: bool | None = None
     advisory: list[Violation] = field(default_factory=list)
     notes: tuple[str, ...] = ()
 

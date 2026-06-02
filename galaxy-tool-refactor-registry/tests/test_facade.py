@@ -237,6 +237,71 @@ def test_upgrade_already_latest_has_no_semantic_warning() -> None:
     assert not [n for n in result.notes if "runtime-behaviour" in n]
 
 
+def _pass_notes(result: object) -> list[str]:
+    return [n for n in result.notes if "behavior-preserving" in n]  # type: ignore[attr-defined]
+
+
+def test_upgrade_behavior_preserving_verdict_true_with_clean_pass_note() -> None:
+    """_UPGRADABLE bumps 24.1->latest crossing 24.2, but ships no <test>, so no
+    crossed code applies: the upgrade is behavior-preserving and says so."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    result = facade.upgrade(_UPGRADABLE, codes=resolve_upgrade_codes())
+    assert result.behavior_preserving is True
+    pass_notes = _pass_notes(result)
+    assert len(pass_notes) == 1
+    assert "24.1→" in pass_notes[0]
+    # The positive note is distinct from the negative semantic warning.
+    assert not [n for n in result.notes if "profile-behaviour" in n]
+
+
+def test_upgrade_behavior_preserving_false_when_a_crossed_code_applies() -> None:
+    """A 24.1 tool that ships tests trips 24.2 on bump -> not behavior-preserving."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    with_tests = (
+        b'<tool id="m" name="M" version="1.0.0" profile="24.1">'
+        b"<command><![CDATA[echo x]]></command>"
+        b'<inputs><param name="i" type="data" format="BAM"/></inputs>'
+        b'<outputs><data name="o"/></outputs>'
+        b'<tests><test><param name="i" value="x.bam"/><output name="o"/></test>'
+        b"</tests></tool>"
+    )
+    result = facade.upgrade(with_tests, codes=resolve_upgrade_codes())
+    assert result.behavior_preserving is False
+    assert _pass_notes(result) == []
+
+
+def test_upgrade_behavior_preserving_none_for_macro_token_profile() -> None:
+    """A macro-token profile= is unplaceable, so the verdict is undetermined."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    macro_profile = (
+        b'<tool id="m" name="M" version="1.0.0" profile="@PROFILE@">'
+        b"<command><![CDATA[echo x]]></command><inputs/>"
+        b'<outputs><data name="o"/></outputs></tool>'
+    )
+    result = facade.upgrade(macro_profile, codes=resolve_upgrade_codes())
+    assert result.behavior_preserving is None
+    assert _pass_notes(result) == []
+
+
+def test_upgrade_already_latest_is_preserving_but_emits_no_pass_note() -> None:
+    """A no-op upgrade (already latest) is vacuously preserving; no note is added."""
+    from galaxy_tool_xml.profiles import latest_profile
+
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    at_latest = (
+        f'<tool id="m" name="M" version="1.0.0" profile="{latest_profile()}">'
+        "<command><![CDATA[echo x]]></command><inputs/>"
+        '<outputs><data name="o"/></outputs></tool>'
+    ).encode()
+    result = facade.upgrade(at_latest, codes=resolve_upgrade_codes())
+    assert result.behavior_preserving is True
+    assert _pass_notes(result) == []  # nothing advanced -> no story to tell
+
+
 def test_introspection_lists_presets_and_rules() -> None:
     presets_info = facade.list_presets()
     names = {p.name for p in presets_info}

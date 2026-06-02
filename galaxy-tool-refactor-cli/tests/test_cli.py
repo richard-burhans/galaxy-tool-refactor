@@ -64,6 +64,14 @@ def test_upgrade_bumps_profile_and_runs_migration(tmp_path: Path) -> None:
     assert "upgraded past 24.1" in result.output
 
 
+def test_upgrade_reports_behavior_preserving_pass(tmp_path: Path) -> None:
+    """A tool that crosses no applicable behaviour code gets a clean-pass note."""
+    file = _write(tmp_path / "tool.xml", _valid_tool(profile="24.1", param_fmt="BAM"))
+    result = CliRunner().invoke(main, ["upgrade", str(file)])
+    assert result.exit_code == 0, result.output
+    assert "behavior-preserving" in result.output
+
+
 def test_upgrade_check_reports_and_does_not_write(tmp_path: Path) -> None:
     original = _valid_tool(profile="24.1", param_fmt="BAM")
     file = _write(tmp_path / "tool.xml", original)

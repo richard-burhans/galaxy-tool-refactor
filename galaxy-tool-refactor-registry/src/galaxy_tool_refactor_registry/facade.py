@@ -24,8 +24,9 @@ from galaxy_tool_xml_check.detect import sort_violations
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.module import Module
 from galaxy_tool_xml_codemod.profile_semantics import (
+    crossed_and_applicable_codes,
     tripped_upgrade_codes,
-    upgrade_codes_crossed,
+    upgrade_is_behavior_preserving,
 )
 from galaxy_tool_xml_codemod.runtime_fixes import runtime_fixes_for
 from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
@@ -164,12 +165,12 @@ def _semantic_warning(
     advisor detects per-tool, so we do too. ``None`` (no warning) when either
     profile is unknown/unparseable, nothing is crossed, or nothing applies.
     """
-    if baseline is None or target is None:
+    pair = crossed_and_applicable_codes(
+        baseline=baseline, target=target, tripped=tripped
+    )
+    if pair is None:
         return None
-    crossed = upgrade_codes_crossed(from_profile=baseline, to_profile=target)
-    if not crossed:
-        return None
-    applicable = [change for change in crossed if change.code in tripped]
+    crossed, applicable = pair
     if not applicable:
         return None
     # The catalogue is profile-ascending, so first-seen dedup keeps release order.
@@ -181,6 +182,24 @@ def _semantic_warning(
         f" crossed Galaxy profile-behaviour change(s) apply to this tool"
         f"{must_fix_note} (releases {releases}); review against"
         " docs/profile_upgrades.md before relying on this upgrade."
+    )
+
+
+def _behavior_preserving_note(
+    baseline: str | None, target: str | None, *, preserving: bool | None, advanced: bool
+) -> str | None:
+    """The positive clean-pass note, or ``None`` when there is no story to tell.
+
+    Emitted only when the bump actually *advanced* the profile (*advanced*) and is
+    behaviour-preserving — the affirmative complement of ``_semantic_warning``. A
+    no-op upgrade (already latest) is vacuously preserving but says nothing, and a
+    bump that crosses an applicable code is reported by the warning instead.
+    """
+    if not (advanced and preserving):
+        return None
+    return (
+        f"  profile {baseline}→{target}: upgrade crosses no behaviour change that"
+        " applies to this tool — behavior-preserving."
     )
 
 
@@ -235,13 +254,23 @@ def upgrade(
     missing = upgrader.missing_upgrade()
     summary = _upgrade_summary(steps, missing)
     # The profile actually reached (a literal version, even when ``profile=`` is a
-    # macro token), so the warning is measured against where the tool landed.
-    semantic = _semantic_warning(baseline, newest_valid_profile(document), tripped)
+    # macro token), so the warning and verdict are measured against where the tool
+    # landed. The verdict is the positive complement of the warning over the same
+    # applicable set (``crossed_and_applicable_codes``), so they can't disagree.
+    reached_profile = newest_valid_profile(document)
+    semantic = _semantic_warning(baseline, reached_profile, tripped)
+    preserving = upgrade_is_behavior_preserving(
+        baseline=baseline, target=reached_profile, tripped=tripped
+    )
+    pass_note = _behavior_preserving_note(
+        baseline, reached_profile, preserving=preserving, advanced=bool(steps)
+    )
     notes = tuple(
         note
         for note in (
             summary,
             semantic,
+            pass_note,
             *(render_advisory_note(violation) for violation in advisory),
         )
         if note is not None
@@ -252,6 +281,7 @@ def upgrade(
         formatted=formatted,
         steps_applied=steps,
         missing_upgrade=missing,
+        behavior_preserving=preserving,
         advisory=advisory,
         notes=notes,
     )
