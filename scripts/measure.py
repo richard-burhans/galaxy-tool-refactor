@@ -1812,6 +1812,134 @@ def _run_command_iuc_heuristics(args: argparse.Namespace) -> None:
     )
 
 
+# --- measurement: command-lone-amp ----------------------------------------------
+#
+# Classifies every lone `&` (the crude IUC012 candidate) in each tool's first
+# <command> by what it actually IS, to settle whether the IUC012 check
+# ("join with && not a lone &") is worth implementing. The crude `_LONE_AMP`
+# heuristic that command-iuc-heuristics counts is dominated by constructs that are
+# NOT the anti-pattern: shell redirections (`2>&1`, `&>file`, `<&3`), the `|&`
+# pipe operator, and a literal `&` inside a quoted argument (sed/awk's
+# "matched text"). The genuine anti-pattern — `cmd1 & cmd2` written where `&&`
+# was meant — is what's left. A quote-state scan (single/double) tags the quoted
+# class; the rest is classified by adjacency. Heuristic, not a shell parse (that
+# is the deferred M5 lexer); backs the IUC012 deferral in
+# `galaxy-tool-xml-check/docs/decisions.md`. Needs the corpus, not in CI.
+
+_LONE_AMP_CLASSES = (
+    "redirect",  # adjacent < or > : 2>&1, &>file, <&3 — a redirection, not joining
+    "pipe",  # |& : bash pipe-with-stderr, not joining
+    "quoted",  # inside '...' or "..." : a literal & in an argument (sed/awk)
+    "background",  # lone & at end of a command (eol / ; / )) — intentional, not a bug
+    "joining",  # lone & with a following command — the genuine IUC012 anti-pattern
+)
+
+
+def _classify_lone_amps(text: str, /) -> Counter[str]:
+    """Tally each lone ``&`` in *text* into a ``_LONE_AMP_CLASSES`` bucket.
+
+    Pure (string in, counts out), so it is unit-tested with synthetic bodies.
+    Quote state is a simple single/double scan (no escape handling — good enough
+    to tag the sed/awk literal-``&`` class). A ``&`` that is part of ``&&`` is not
+    a lone ``&`` and is never counted.
+    """
+    counts: Counter[str] = Counter()
+    in_single = in_double = False
+    for i, ch in enumerate(text):
+        if ch == "'" and not in_double:
+            in_single = not in_single
+            continue
+        if ch == '"' and not in_single:
+            in_double = not in_double
+            continue
+        if ch != "&":
+            continue
+        prev = text[i - 1] if i > 0 else ""
+        nxt = text[i + 1] if i + 1 < len(text) else ""
+        if prev == "&" or nxt == "&":
+            continue  # part of && — not a lone &
+        if in_single or in_double:
+            counts["quoted"] += 1
+        elif prev in "<>" or nxt == ">":
+            counts["redirect"] += 1
+        elif prev == "|":
+            counts["pipe"] += 1
+        else:
+            j = i + 1
+            while j < len(text) and text[j] in " \t":
+                j += 1
+            after = text[j] if j < len(text) else ""
+            counts["background" if after in "\n;)" or after == "" else "joining"] += 1
+    return counts
+
+
+@dataclass
+class _LoneAmpResult:
+    n_unique_tools: int
+    n_with_command: int
+    n_tools_any_lone_amp: int  # >=1 lone & of any class (the crude IUC012 count)
+    n_tools_genuine: int  # >=1 background/joining lone & (what IUC012 could flag)
+    per_class_occurrences: dict[str, int]
+
+
+def _measure_command_lone_amp(*, corpus_root: Path) -> _LoneAmpResult:
+    """Classify every tool's first-command lone ``&`` to size the IUC012 anti-pattern."""
+    seen: set[str] = set()
+    n_tools = n_with = n_any = n_genuine = 0
+    per_class: Counter[str] = Counter()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        n_tools += 1
+        command = root.find("command")
+        if command is None:
+            continue
+        n_with += 1
+        counts = _classify_lone_amps("".join(command.itertext()))
+        if not counts:
+            continue
+        n_any += 1
+        per_class.update(counts)
+        if counts["background"] or counts["joining"]:
+            n_genuine += 1
+    return _LoneAmpResult(
+        n_unique_tools=n_tools,
+        n_with_command=n_with,
+        n_tools_any_lone_amp=n_any,
+        n_tools_genuine=n_genuine,
+        per_class_occurrences=dict(per_class),
+    )
+
+
+def _report_command_lone_amp(result: _LoneAmpResult) -> None:
+    print("\n=== command-lone-amp (IUC012 lone-& classification; heuristic) ===")
+    print(
+        f"Unique tools: {result.n_unique_tools}; "
+        f"with <command>: {result.n_with_command}"
+    )
+    print(
+        f"Tools with >=1 lone & (crude IUC012 count): {result.n_tools_any_lone_amp}"
+    )
+    print(
+        f"Tools with a GENUINE lone & (background/joining, not redirect/pipe/quoted):"
+        f" {result.n_tools_genuine}"
+    )
+    print("Occurrences by class:")
+    for name in _LONE_AMP_CLASSES:
+        print(f"  {name:11} {result.per_class_occurrences.get(name, 0)}")
+
+
+def _run_command_lone_amp(args: argparse.Namespace) -> None:
+    _report_command_lone_amp(_measure_command_lone_amp(corpus_root=args.corpus_root))
+
+
 # --- measurement: version-tokenization ------------------------------------------
 #
 # Sizes the Phase-3c "create tokens" opportunity: the canonical IUC convention
@@ -4519,6 +4647,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "macro-topology": _run_macro_topology,
     "macro-profile-ownership": _run_macro_profile_ownership,
     "command-iuc-heuristics": _run_command_iuc_heuristics,
+    "command-lone-amp": _run_command_lone_amp,
     "macro-fmt-idempotence": _run_macro_fmt_idempotence,
     "version-tokenization": _run_version_tokenization,
     "expansion-failed-ids": _run_expansion_failed_ids,

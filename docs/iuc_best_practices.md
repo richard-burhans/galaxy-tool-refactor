@@ -111,14 +111,19 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 | non-empty `<description>` | IUC009 | done |
 | `<help>` wrapped in CDATA | IUC010 | done |
 | single-quoted Cheetah variables (#36) | IUC011 | **placeholder** (deferred) |
-| `&&` vs a lone `&` (#39) | IUC012 | **placeholder** (deferred) |
+| `&&` vs a lone `&` (#39) | IUC012 | **placeholder** (deferred — data-backed) |
 
 The two `<command>`-CDATA-text heuristics (IUC011/IUC012) are **reserved
 placeholders** — registered codes, no-op `detect` — pending tuning to avoid
 noise (distinguishing an unquoted Cheetah `$var` or a command-joining `&` from
-legitimate shell text inside CDATA is heuristic). For *why* the command text is
-shell at all (Cheetah → whitespace-flatten → `#!/bin/sh` + `set -e`), which
-grounds both heuristics, see
+legitimate shell text inside CDATA is heuristic). For IUC012 this is now settled
+with data (`galaxy-tool-xml-check/docs/decisions.md` D3, `scripts.measure
+command-lone-amp`): of the 431 tools the crude lone-`&` heuristic flags, the
+genuine `cmd1 & cmd2` anti-pattern appears in **1** — the rest are redirections
+(`2>&1`), quoted `&` literals (sed/awk), and `|&` pipes. A precise check needs
+the M5 shell lexer, not a regex, and would flag ~1 tool, so IUC012 stays
+deferred. For *why* the command text is shell at all (Cheetah →
+whitespace-flatten → `#!/bin/sh` + `set -e`), which grounds both heuristics, see
 [`galaxy_processing_model.md`](galaxy_processing_model.md). "Profile recency" is
 omitted: it overlaps GTX007 / the `upgrade` command.
 
