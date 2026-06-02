@@ -1,7 +1,8 @@
 # Macro handling across the tiers — research & planning
 
 **Status:** research / planning (exploratory — *document & recommend*, commits to nothing
-yet). **Date:** 2026-06-02.
+yet). **Date:** 2026-06-02. **Baseline:** multi-agent adversarial macro-handling audit (run
+`wf_7caf3d25-e02`, 58 agents) — 0 high / 3 medium defects, 11 accepted-intentional, 12 refuted.
 
 > **Why this doc.** The upgrade-soundness adversarial review found that our `consider`-code
 > detectors read the **raw** tool tree while Galaxy's advisor runs **post-macro-expansion**,
@@ -113,19 +114,100 @@ blocks any future codemod that must reason about macro-expanded content (interpr
 
 ## 4. Confirmed inconsistencies & gaps
 
-*(Filled from the macro-handling architecture audit — adversarially verified, cited.
-Pending audit completion.)*
+From a multi-agent adversarial audit (8 scouts → 49 candidates → 37 survived verification →
+deduped to ~10 distinct issues; **0 high, 3 medium defects**, the rest accepted-intentional
+or polish). Severities are the *corrected* post-verification values.
 
-## 5. Accepted / intentional design choices (recorded, not relitigated)
+### 4.1 [MEDIUM · doc-code] `upgrade`'s docstring contradicts what it does to a macro file
+3 scouts converged. `cli.py:231-234` says *"that token bump is the only edit an imported
+macro file receives … `upgrade` does not cosmetically reformat macro files."* But
+`macro_profile.apply_profile_token_plans` (`macro_profile.py:175-177`) does
+`token.text = …` then `macro_file.write_bytes(format_macro_document(document))` — which runs
+the cosmetic rules (GTX001/GTX004) over the **whole** file. So the file *is* reformatted;
+the bump is *not* the only edit. The behaviour is intentional and safe (fmt is the only
+serializer; macro cosmetic formatting is idempotent) and the **registry** tier documents it
+correctly (registry D5); only the **CLI** docstring + `cli/docs/decisions.md` D5/D6 assert
+the opposite. **Fix: doc-only** (correct the CLI docstring + D5/D6; optionally assert the
+written file is canonical in `test_upgrade_bumps_shared_imported_profile_token`).
 
-*(Filled from the audit — the deliberate v1 limitations to preserve.)*
+### 4.2 [MEDIUM · write-back/provenance] Lossy expansion → no general macro write-back
+4 scouts; the architectural root cause (§1.1, §3). `macros.expand_from_path/_tree`
+(`macros.py:222-256`) return a throwaway tree with **no element→source mapping**, used only
+for validation. So write-back exists in exactly one place and only because `@PROFILE@` is a
+*named* construct addressable by token-name; **no** mechanism maps any other expanded node
+(e.g. a `<format>` in an imported `<macro>`, or a typo'd `<xml name>`) back to its defining
+file. Documented + deferred (`PLAN.md`, `macro-aware-normalization.md` Option A, ARCHITECTURE
+§9.8) — listed as a *gap* (not just a choice) because it is the load-bearing limitation the
+"consistent expand-and-modify across inline + imported" goal must close (§6). Corpus payoff
+today ~18 tools → deferral is reasonable. **Sub-item:** that write-back is token-name-specific
+(not general) should be recorded as an explicit asymmetry in `ARCHITECTURE.md §10`.
+
+### 4.3 [MEDIUM · provisional] Per-file transform loads from bytes, dropping `source_path`
+1 scout, concrete contrast. `cli_support._transform_file` (`cli_support.py` ~:182) calls
+`load_tool(bytes)` → `source_path = None`, even with the filesystem `path` in scope — whereas
+the upgrade macro phase deliberately loads *from path* "so imports resolve." For any per-file
+`format`/`upgrade` transform that needs imports resolved (macro expansion, future macro-aware
+codemods) this silently loses import resolution. **Provisional** (borders code-review):
+**verify** whether any per-file transform actually needs imports resolved; if so, pass `path`
+to `load_tool`. The only survivor in the write-back cluster flagged *not* intentional.
+
+## 5. Accepted / intentional design choices (recorded — do NOT relitigate)
+
+All verified real and documented as deliberate v1 scope (corrected severity: low). The single
+recurring theme is the **single-file (raw-tree) model**, rediscovered from many angles:
+
+1. **Detection runs on the raw tree** (6+ scouts) — `tripped_upgrade_codes` walks
+   `document.root`; Galaxy's advisor runs post-expansion → a macro-supplied feature is unseen
+   (the §25 gap). Intentional: the note reports the tool *as written* (codemod §25, ARCH §9.8).
+2. **Split token paths** — inline `@PROFILE@` (tier-2 `update_profile`) vs imported (tier-3.6
+   `macro_profile`, on importer consensus). Load-bearing & correct; both target the same
+   `newest_valid_profile`, so divergence is structurally impossible.
+3. `MacroModule`/`parse_macro_module` shipped without a consumer (defer-until-consumer, §20).
+4. Codemods carry no `applies_to` (tool-only via type signature, not a ClassVar).
+5. `RuleHandle` adapters tool-only; macros handled outside the registry (cosmetic-only v1).
+6. Rule selection (`--select`/`--ignore`/`--preset`) doesn't apply to macro files.
+7. `format`'s macro formatting is bundle-unaware (import-graph deferred to its consumer).
+8. Detector fidelity: 3 Galaxy transcription bugs deliberately not mirrored; 2 codes
+   approximated — all documented (`profile_semantics` docstring, §25).
+9. Single-snapshot importer agreement (no re-validation after bump) — 0/46 divergent, idempotent.
+10. Macro-phase-before-per-file ordering correct but only test/doc-enforced.
+11. `codemod.py` comment vs §20 cover different aspects (aligned, not contradictory).
+
+**Minor polish** (cheap, optional): note that `Cursor.set_text` is CDATA-unsafe (no guard,
+vs fmt's `safe_set_text`) so a future caller doesn't misuse it on CDATA content (ties to the
+CDATA contract, PR #52); reword its "token-aware" docstring; reciprocal cross-refs between
+`update_profile.py` ↔ `macro_profile.py`; a belt-and-suspenders fixture proving inline &
+imported `@PROFILE@` reach the same target.
 
 ## 6. Design options & recommendation
 
-*(Filled after the audit. Spectrum: (i) provenance-tracking expanded view enabling
-detect+codemod+write-back across inline & imported files; (ii) read-only expanded detection
-only — the measure→port path; (iii) status quo + a written contract. Trade-offs + a
-recommended phased roadmap, and how the adversarial-review remediation re-sequences under it.)*
+The maintainer's goal reduces to one question: **leave the single-file model, or replace it?**
+
+- **(i) Provenance layer (the consistent expand-and-modify model).** `expand_*` returns a
+  side-table mapping each expanded node → `(source_file, line, defining <macro>/<import>)`.
+  Only this lets a codemod that detects an issue in *expanded* content decide "edit the macro
+  source, not the tool," lets detection run post-expansion while attributing findings to the
+  right file, and generalises write-back beyond `@PROFILE@`. Satisfies the **§1.4 bundle
+  constraint** (the side-table spans all transitively-imported files). *Medium-lift,
+  invasive* — cross-file blast radius on shared libraries (the exact hazard the
+  consensus/shared-skip machinery already manages); corpus payoff ~18 tools today.
+- **(ii) Read-only detection (already largely chosen).** Keep the raw-tree model, never write
+  imported-macro content, *report* unreachable-in-macro issues (Option A) for manual fixing.
+  Sound, low-risk; most of §5 already implements it. This is where PR2's measure / PR4's
+  detector port live.
+- **(iii) Status quo + a written contract.** Just document the single-file boundary crisply.
+
+**Recommended posture (from the audit):**
+- **(a)** Fix the two cheap real defects now — §4.1 (CLI docstring) and §4.3 (path-load, after
+  verifying); record §4.2's token-name-specific write-back asymmetry in `ARCHITECTURE.md §10`.
+- **(b)** Until a concrete consumer exists, **stay with read-only detection** (option ii):
+  PR2's standing measure + PR4's expanded-aware detection (with raw fallback) is the right
+  next step and needs *no* provenance layer.
+- **(c)** Treat the **provenance layer (option i)** as a single, well-scoped **Phase-2 epic**,
+  gated on a concrete consumer (the first imported-macro *structural* codemod, or
+  post-expansion detection parity), built alongside the shared-file consensus/skip machinery
+  and the §1.4 bundle model.
+- **(d)** Keep the §5 polish items as low-priority maintainability tickets.
 
 ## 7. Open questions / deferred
 
