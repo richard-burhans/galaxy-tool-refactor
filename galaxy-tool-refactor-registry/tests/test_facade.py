@@ -179,7 +179,9 @@ def test_upgrade_no_profile_warns_from_1601_baseline() -> None:
 
     no_profile = (
         b'<tool id="m" name="M" version="1.0.0">'
-        b"<command><![CDATA[echo x]]></command><inputs/>"
+        # A chained command (not a lone statement) so the 20.09 set_e note applies
+        # after the §28 detector tightening.
+        b"<command><![CDATA[echo a && echo b]]></command><inputs/>"
         b'<outputs><data name="o"/></outputs></tool>'
     )
     result = facade.upgrade(no_profile, codes=resolve_upgrade_codes())

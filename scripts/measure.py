@@ -2933,6 +2933,92 @@ def _run_upgrade_codes_applicability(args: argparse.Namespace) -> None:
     )
 
 
+# --- measurement: set-e-tightening ----------------------------------------------
+#
+# Sizes the SOUND tightening of the `20_09_consider_set_e` detector (codemod
+# decisions §28). The current detector (`_detects_no_strict`) fires for any
+# `<command>` without `strict="false"` — ~every command-bearing tool. But `set -e`
+# (20.09+) only changes behaviour when an earlier command in a SEQUENCE can fail
+# non-fatally and a later one still runs; a body that is a single simple command
+# runs identically with or without it, so the note does not apply. This counts,
+# per unique tool, how many the current detector fires on vs how many are a
+# provably-single-simple command (the sound suppression). Heuristic over the
+# `<command>` CDATA text, NOT a Cheetah/shell parse; conservative — any control
+# directive or sequencing/pipeline/background metacharacter counts as NOT simple,
+# so it never suppresses a tool `set -e` could affect. The sizing reuses the SAME
+# predicate the shipped detector uses (`profile_semantics.
+# _command_text_is_single_simple_statement`, imported in the measure below) so the
+# two can't drift. Needs the corpus, not in CI.
+
+
+@dataclass
+class _SetETighteningResult:
+    n_unique_tools: int
+    n_with_command: int
+    n_current_fires: int  # <command> present, no strict= (today's detector)
+    n_single_simple: int  # of those, provably single simple command (suppressible)
+
+
+def _measure_set_e_tightening(*, corpus_root: Path) -> _SetETighteningResult:
+    """Count current ``set_e`` detector hits vs the sound single-command suppression."""
+    from galaxy_tool_xml_codemod.profile_semantics import (
+        _command_text_is_single_simple_statement,
+    )
+
+    seen: set[str] = set()
+    n_tools = n_with = fires = simple = 0
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        n_tools += 1
+        command = root.find("command")
+        if command is None:
+            continue
+        n_with += 1
+        if command.get("strict") is not None:
+            continue  # current detector fires only when strict= is absent
+        fires += 1
+        if _command_text_is_single_simple_statement("".join(command.itertext())):
+            simple += 1
+    return _SetETighteningResult(
+        n_unique_tools=n_tools,
+        n_with_command=n_with,
+        n_current_fires=fires,
+        n_single_simple=simple,
+    )
+
+
+def _report_set_e_tightening(result: _SetETighteningResult) -> None:
+    fires = result.n_current_fires
+    print("\n=== set-e-tightening (20_09_consider_set_e detector precision) ===")
+    print(
+        f"Unique tools: {result.n_unique_tools}; "
+        f"with <command>: {result.n_with_command}"
+    )
+    print(f"Current detector fires (no strict=):              {fires}")
+    if fires:
+        pct = 100 * result.n_single_simple / fires
+        print(
+            f"Provably single simple command (sound suppress): "
+            f"{result.n_single_simple} ({pct:.1f}% of fires)"
+        )
+        print(
+            f"After tightening, set_e still applies to:         "
+            f"{fires - result.n_single_simple}"
+        )
+
+
+def _run_set_e_tightening(args: argparse.Namespace) -> None:
+    _report_set_e_tightening(_measure_set_e_tightening(corpus_root=args.corpus_root))
+
+
 # --- measurement: macro-expansion-detection-gap ---------------------------------
 #
 # Sizes the cost of running the upgrade-code detectors (`_DETECTORS` /
@@ -4444,6 +4530,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "upgrade-headroom": _run_upgrade_headroom,
     "semantic-upgrade-boundaries": _run_semantic_upgrade_boundaries,
     "upgrade-codes-applicability": _run_upgrade_codes_applicability,
+    "set-e-tightening": _run_set_e_tightening,
     "macro-expansion-detection-gap": _run_macro_expansion_detection_gap,
     "upgrade-profile-shift": _run_upgrade_profile_shift,
     "upgrade-behavior-blocks": _run_upgrade_behavior_blocks,

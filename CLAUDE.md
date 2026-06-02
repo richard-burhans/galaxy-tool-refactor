@@ -141,6 +141,12 @@ uv run python -m scripts.measure semantic-upgrade-boundaries
 # needs the corpus, so not run in CI):
 uv run python -m scripts.measure upgrade-codes-applicability
 
+# Detector-precision sizing: how many tools the always-firing 20_09_consider_set_e
+# detector (any <command> w/o strict=) would SOUNDLY stop flagging if tightened to
+# "provably single simple command" — set -e cannot change a lone command (backs
+# codemod decisions §28; needs the corpus, so not run in CI):
+uv run python -m scripts.measure set-e-tightening
+
 # Raw-tree vs post-macro-expansion detector divergence: per consider/must_fix code,
 # over-flag (raw fires, a macro supplies the construct -> Galaxy would not) vs
 # under-report (macro supplies the trigger -> the §25 gap) vs agree. Sizes the

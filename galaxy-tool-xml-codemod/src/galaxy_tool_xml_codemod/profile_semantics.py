@@ -53,10 +53,19 @@ needs Galaxy's parameter-model test-case validator (we have no port), so we
 **approximate** with the necessary condition "the tool ships a ``<test>``" (no
 tests ⇒ the code cannot trip); and ``16_04_consider_implicit_extra_file_collection``
 Galaxy emits **unconditionally**, so its detector is always-true.
+
+One code is **deliberately *tighter* than Galaxy's coarse check** (codemod
+``docs/decisions.md`` §28): Galaxy adds ``20_09_consider_set_e`` whenever
+``<command>`` has no ``strict`` attribute, but ``set -e`` can only change behaviour
+across a *sequence*; ``_detects_set_e`` additionally suppresses a *provably single
+simple command*, which is unaffected. This narrows false positives only (never
+under-reports), consistent with porting Galaxy's intent rather than its literal
+predicate.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -418,9 +427,50 @@ def _detects_output_collection_order(root: etree._Element, /) -> bool:
     )
 
 
-def _detects_no_strict(root: etree._Element, /) -> bool:
+# A shell metacharacter that can sequence / pipeline / background two commands.
+_SET_E_SEQUENCING = re.compile(r"(;|&&|\|\||\||&|\$\(|`)")
+# A Cheetah control-flow directive line, whose body can expand to >1 command.
+_CHEETAH_CONTROL = re.compile(
+    r"(?m)^\s*#(if|for|while|try|else|elif|end|set|def|import|from)\b"
+)
+
+
+def _command_text_is_single_simple_statement(text: str, /) -> bool:
+    """Whether *text* (a ``<command>`` body) is provably one simple shell command.
+
+    ``set -e`` (20.09+) only changes behaviour across a *sequence* — an earlier
+    command failing non-fatally while a later one still runs — so a single simple
+    command runs identically with or without it. Conservative: Cheetah control flow
+    (which can expand to several commands), any sequencing/pipeline/background
+    metacharacter, or more than one non-comment statement line returns ``False`` —
+    so this only ever *removes* a false positive, never under-reports. See codemod
+    ``docs/decisions.md`` §28; sized by ``scripts.measure set-e-tightening``.
+    """
+    joined = text.replace("\\\n", "")  # fold shell line-continuations to one line
+    if _CHEETAH_CONTROL.search(joined):
+        return False
+    statements = [
+        line
+        for line in joined.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+    if len(statements) != 1:
+        return False
+    return _SET_E_SEQUENCING.search(statements[0]) is None
+
+
+def _detects_set_e(root: etree._Element, /) -> bool:
+    """20_09 applies when ``<command>`` lacks ``strict`` AND is not a lone command.
+
+    Tightens the old ``command.get("strict") is None`` mirror: a single simple
+    command is provably unaffected by ``set -e``, so flagging it was a false
+    positive (codemod ``docs/decisions.md`` §28). Conservative — any non-trivial
+    body keeps the note.
+    """
     command = _command(root)
-    return command is not None and command.get("strict") is None
+    if command is None or command.get("strict") is not None:
+        return False
+    return not _command_text_is_single_simple_statement("".join(command.itertext()))
 
 
 def _detects_from_work_dir_whitespace(root: etree._Element, /) -> bool:
@@ -467,7 +517,7 @@ _DETECTORS: dict[str, Callable[[etree._Element], bool]] = {
     "18_09_consider_python_environment": _tool_type_is("manage_data"),
     "20_05_consider_inputs_as_json_changes": _detects_inputs_config,
     "20_09_consider_output_collection_order": _detects_output_collection_order,
-    "20_09_consider_set_e": _detects_no_strict,
+    "20_09_consider_set_e": _detects_set_e,
     "21_09_fix_from_work_dir_whitespace": _detects_from_work_dir_whitespace,
     "21_09_consider_python_environment": _tool_type_is("data_source"),
     "23_0_consider_optional_text": _detects_non_optional_text,
