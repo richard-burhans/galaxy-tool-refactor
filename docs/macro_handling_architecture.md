@@ -45,7 +45,7 @@ use the expanded tree, so they run on the **raw** tree and reach only literally-
 | 1 | `binding.validate_tool` / `newest_valid_profile` | **expanded** | ✓ | ✓ | read |
 | 1 | `MacroDocument` (`load_macros`) | raw | — | ✓ (a macro file) | read/write (mutable, no profile/model) |
 | 2 | `CodemodCommand.detect/apply` | raw | ✓ | ✓ | read/write (literally-present nodes only) |
-| 2 | `profile_semantics.tripped_upgrade_codes` (`_DETECTORS`) | **raw** | ✓ | ✓ | read |
+| 2 | `profile_semantics.tripped_upgrade_codes` (`_DETECTORS`) | **expanded** (PR4; raw fallback) | ✓ | ✓ | read |
 | 2 | `update_profile._upgrade_inline_profile_token` | raw | **inline only** | skipped | write (tool's own `<macros>`) |
 | 3 | fmt `format_macro_document` | raw | ✓ | ✓ (standalone) | read/write (cosmetic only) |
 | 3.6 | `macro_profile.apply_profile_token_plans` | raw | — | **imported only** | **write to disk** (the one write-back path) |
@@ -103,12 +103,13 @@ design *could* handle does not yet occur in practice.
 
 ## 3. The core limitation, restated
 
-Because expansion is lossy + provenance-free, the project has a **single-file model**:
-detect and edit the raw tool tree; reach macro-defined content only through narrow,
-purpose-built side channels (`token_definitions` for the profile token). This is *coherent*
-and was a deliberate v1 choice — but it is exactly what produces the §25 detection gap and
-blocks any future codemod that must reason about macro-expanded content (interpreter in a
-`<token>`, `format`/`ftype` in an imported `<macro>`, etc.).
+Because expansion is lossy + provenance-free, the project has a **single-file model** for
+*editing*: codemods mutate the raw tool tree and reach macro-defined content only through
+narrow, purpose-built side channels (`token_definitions` for the profile token). Read-only
+**detection** escapes this — it runs on a throwaway expanded view (PR4, no provenance
+needed; §1.2). This is *coherent* and was a deliberate v1 choice — but the editing model
+still blocks any future codemod that must *rewrite* macro-expanded content (interpreter in
+a `<token>`, `format`/`ftype` in an imported `<macro>`, etc.).
 
 ---
 
@@ -156,9 +157,11 @@ to `load_tool`. The only survivor in the write-back cluster flagged *not* intent
 All verified real and documented as deliberate v1 scope (corrected severity: low). The single
 recurring theme is the **single-file (raw-tree) model**, rediscovered from many angles:
 
-1. **Detection runs on the raw tree** (6+ scouts) — `tripped_upgrade_codes` walks
-   `document.root`; Galaxy's advisor runs post-expansion → a macro-supplied feature is unseen
-   (the §25 gap). Intentional: the note reports the tool *as written* (codemod §25).
+1. **Detection runs on the raw tree** (6+ scouts) — *resolved 2026-06-02 (PR4)*:
+   `tripped_upgrade_codes` now detects on the macro-**expanded** tree
+   (`expanded_detection_root`, raw fallback), mirroring Galaxy's post-expansion advisor,
+   so the §25 over-flag/under-report gap is closed for the live warning. Codemods remain
+   raw-tree (they write back and need the deferred provenance layer). Codemod §25.
 2. **Split token paths** — inline `@PROFILE@` (tier-2 `update_profile`) vs imported (tier-3.6
    `macro_profile`, on importer consensus). Load-bearing & correct; both target the same
    `newest_valid_profile`, so divergence is structurally impossible.
@@ -191,18 +194,18 @@ The maintainer's goal reduces to one question: **leave the single-file model, or
   constraint** (the side-table spans all transitively-imported files). *Medium-lift,
   invasive* — cross-file blast radius on shared libraries (the exact hazard the
   consensus/shared-skip machinery already manages); corpus payoff ~18 tools today.
-- **(ii) Read-only detection (already largely chosen).** Keep the raw-tree model, never write
-  imported-macro content, *report* unreachable-in-macro issues (Option A) for manual fixing.
-  Sound, low-risk; most of §5 already implements it. This is where PR2's measure / PR4's
-  detector port live.
+- **(ii) Read-only detection (chosen; PR2 + PR4 shipped).** Keep the raw-tree model for
+  *write-back*, but run read-only **detection** on the macro-expanded view (no provenance
+  needed). PR2 sized the gap (`macro-expansion-detection-gap`); PR4 ported
+  `tripped_upgrade_codes` to `expanded_detection_root` (raw fallback). Sound, low-risk.
 - **(iii) Status quo + a written contract.** Just document the single-file boundary crisply.
 
 **Recommended posture (from the audit):**
 - **(a)** Fix the two cheap real defects now — §4.1 (CLI docstring) and §4.3 (path-load, after
   verifying); record §4.2's token-name-specific write-back asymmetry in `ARCHITECTURE.md §10`.
 - **(b)** Until a concrete consumer exists, **stay with read-only detection** (option ii):
-  PR2's standing measure + PR4's expanded-aware detection (with raw fallback) is the right
-  next step and needs *no* provenance layer.
+  PR2's standing measure + PR4's expanded-aware detection (with raw fallback) have shipped
+  and need *no* provenance layer.
 - **(c)** Treat the **provenance layer (option i)** as a single, well-scoped **Phase-2 epic**,
   gated on a concrete consumer (the first imported-macro *structural* codemod, or
   post-expansion detection parity), built alongside the shared-file consensus/skip machinery

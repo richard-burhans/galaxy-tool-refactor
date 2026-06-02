@@ -2774,10 +2774,13 @@ def _run_semantic_upgrade_boundaries(args: argparse.Namespace) -> None:
 # How much per-tool detection narrows the `upgrade` semantic warning. For each
 # considered corpus tool, compare the codes a baseline->newest_valid bump CROSSES
 # (range-based `upgrade_codes_crossed`) against those that actually APPLY (the
-# per-tool detector fired, `tripped_upgrade_codes`). Backs codemod decisions.md
-# §23. Detection runs on the as-loaded (un-expanded) tree, mirroring the live
-# facade; it also sanity-checks each detector (e.g. an inverted predicate would
-# show applicable ~= crossed or ~= 0). Needs the corpus, so not run in CI.
+# per-tool detector fired). Backs codemod decisions.md §23. Detection runs on the
+# **raw** (un-expanded) tree via `detect_codes_on_root` — this is a raw-tree
+# diagnostic. The live facade now detects post-macro-expansion
+# (`tripped_upgrade_codes`); the size of that shift is the
+# `macro-expansion-detection-gap` measure (codemod §25). It also sanity-checks
+# each detector (an inverted predicate would show applicable ~= crossed or ~= 0).
+# Needs the corpus, so not run in CI.
 
 
 @dataclass
@@ -2854,8 +2857,7 @@ def _measure_upgrade_codes_applicability(
     the on-disk file by sha256 (the corpus dedup key), so no fragile path
     reconstruction is needed; the file is loaded only for detection.
     """
-    from galaxy_tool_xml.document import ToolDocument
-    from galaxy_tool_xml_codemod.profile_semantics import tripped_upgrade_codes
+    from galaxy_tool_xml_codemod.profile_semantics import detect_codes_on_root
 
     row_by_sha = {
         str(row["sha256"]): row for row in rows if isinstance(row.get("sha256"), str)
@@ -2881,7 +2883,7 @@ def _measure_upgrade_codes_applicability(
         root = _parse_tool_root(path)
         if root is None:
             continue
-        tripped = tripped_upgrade_codes(ToolDocument(root.getroottree()))
+        tripped = detect_codes_on_root(root)
         samples.append((baseline, str(target), tripped))
     return _tally_applicability(samples=samples)
 
@@ -3028,13 +3030,14 @@ def _classify_expansion_gap(path: Path, /) -> _GapSample:
     """Classify one corpus tool into a ``_tally_expansion_gap`` sample.
 
     Parses the raw tree and — only when the tool uses macros — expands it from
-    disk (so ``<import>``s resolve against the tool's own directory), running
-    ``tripped_upgrade_codes`` over each tree. Macro-free tools are ``"no_macros"``
-    (raw == expanded); a failed expansion is ``"expansion_failed"`` (uncomparable).
+    disk (so ``<import>``s resolve against the tool's own directory), running the
+    detectors over each tree directly via ``detect_codes_on_root`` (the raw-tree
+    primitive — *not* ``tripped_upgrade_codes``, which would itself expand and
+    collapse the comparison). Macro-free tools are ``"no_macros"`` (raw ==
+    expanded); a failed expansion is ``"expansion_failed"`` (uncomparable).
     """
-    from galaxy_tool_xml.document import ToolDocument
     from galaxy_tool_xml.macros import expand_from_path, has_macros
-    from galaxy_tool_xml_codemod.profile_semantics import tripped_upgrade_codes
+    from galaxy_tool_xml_codemod.profile_semantics import detect_codes_on_root
 
     empty: frozenset[str] = frozenset()
     root = _parse_tool_root(path)
@@ -3042,11 +3045,11 @@ def _classify_expansion_gap(path: Path, /) -> _GapSample:
         return ("unparseable", empty, empty)
     if not has_macros(root):
         return ("no_macros", empty, empty)
-    raw_codes = tripped_upgrade_codes(ToolDocument(root.getroottree()))
+    raw_codes = detect_codes_on_root(root)
     expanded_tree, _errors = expand_from_path(path)
     if expanded_tree is None:
         return ("expansion_failed", raw_codes, empty)
-    expanded_codes = tripped_upgrade_codes(ToolDocument(expanded_tree))
+    expanded_codes = detect_codes_on_root(expanded_tree.getroot())
     return ("compared", raw_codes, expanded_codes)
 
 
@@ -3427,23 +3430,24 @@ def _behavior_code_autofixed(
     """Whether *codemod_cls* clears *code*'s detector when applied to a copy of *root*.
 
     Applies the mapped codemod to a deep copy (so the caller's tree is untouched)
-    and re-runs ``tripped_upgrade_codes``; the code is auto-fixable for this tool
-    iff its detector no longer fires. This captures partial coverage exactly
-    (e.g. GTX015 only fixes a sole-top-level-data-input tool).
+    and re-runs the detectors on the raw result (``detect_codes_on_root`` — this
+    is a raw-tree diagnostic, matching the codemods, which operate on the raw
+    tree); the code is auto-fixable for this tool iff its detector no longer fires.
+    This captures partial coverage exactly (e.g. GTX015 only fixes a
+    sole-top-level-data-input tool).
     """
     from galaxy_tool_xml.document import ToolDocument
     from galaxy_tool_xml_codemod.module import Module
-    from galaxy_tool_xml_codemod.profile_semantics import tripped_upgrade_codes
+    from galaxy_tool_xml_codemod.profile_semantics import detect_codes_on_root
 
     copied = copy.deepcopy(root)
     document = ToolDocument(etree.ElementTree(copied))
     codemod_cls().apply(Module(document))
-    return code not in tripped_upgrade_codes(document)
+    return code not in detect_codes_on_root(document.root)
 
 
 def _measure_upgrade_behavior_blocks(*, corpus_root: Path) -> _BehaviorBlockResult:
     """Walk the corpus and tally where a behavior-preserving upgrade would stall."""
-    from galaxy_tool_xml.document import ToolDocument
     from galaxy_tool_xml.profiles import GALAXY_DEFAULT_PROFILE, latest_profile
     from galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace import (
         FixFromWorkDirWhitespace,
@@ -3451,7 +3455,10 @@ def _measure_upgrade_behavior_blocks(*, corpus_root: Path) -> _BehaviorBlockResu
     from galaxy_tool_xml_codemod.codemods.fix_output_format_input import (
         FixOutputFormatInput,
     )
-    from galaxy_tool_xml_codemod.profile_semantics import upgrade_codes_applicable
+    from galaxy_tool_xml_codemod.profile_semantics import (
+        detect_codes_on_root,
+        upgrade_codes_crossed,
+    )
 
     autofix: dict[str, type[CodemodCommand]] = {
         "16_04_fix_output_format": FixOutputFormatInput,
@@ -3476,10 +3483,17 @@ def _measure_upgrade_behavior_blocks(*, corpus_root: Path) -> _BehaviorBlockResu
         if _version_tuple(baseline) is None:
             n_excluded += 1  # macro token / unparseable — can't range the bump
             continue
-        document = ToolDocument(root.getroottree(), source_path=path)
-        applicable = upgrade_codes_applicable(
-            document=document, from_profile=baseline, to_profile=latest
-        )
+        # Raw-tree applicability (this is a raw-tree diagnostic; the auto-fix check
+        # below also runs raw, matching the codemods). The live `upgrade` warning
+        # detects post-expansion — see `macro-expansion-detection-gap` for the gap.
+        tripped = detect_codes_on_root(root)
+        applicable = [
+            change
+            for change in upgrade_codes_crossed(
+                from_profile=baseline, to_profile=latest
+            )
+            if change.code in tripped
+        ]
         blocking = tuple(
             change
             for change in applicable

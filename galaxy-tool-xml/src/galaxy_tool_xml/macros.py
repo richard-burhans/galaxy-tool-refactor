@@ -255,6 +255,31 @@ def expand_from_tree(
     return expanded, errors
 
 
+def expanded_detection_root(document: ToolDocument) -> etree._Element:
+    """The root to run **read-only** detection/advisory queries on.
+
+    Galaxy's own tool advisors parse the tool *post-macro-expansion*, so a
+    construct supplied only by an ``<expand>`` (e.g. a ``<stdio>`` from a shared
+    macro) is part of what they see. This returns the macro-expanded root when the
+    tool's macros expand cleanly (mirroring Galaxy), and otherwise falls back to
+    the raw ``document.root`` — the conservative direction (it over-reports rather
+    than going silent when expansion fails). It never mutates the document: the
+    expanded tree is a throwaway copy.
+
+    Macro-free tools return ``document.root`` unchanged. Imports resolve against
+    the document's ``source_path`` directory; an in-memory document with no source
+    path cannot resolve external ``<import>``s and so falls back to raw.
+    """
+    root = document.root
+    if not has_macros(root):
+        return root
+    source_dir = document.source_path.parent if document.source_path else None
+    expanded, errors = expand_from_tree(root, source_dir=source_dir)
+    if expanded is not None and not errors:
+        return expanded.getroot()
+    return root
+
+
 def _import_targets(root: etree._Element) -> list[str]:
     """Return the macro-file paths a tool or macro-file element ``<import>``s.
 
