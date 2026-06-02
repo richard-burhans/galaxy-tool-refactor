@@ -2931,6 +2931,182 @@ def _run_upgrade_codes_applicability(args: argparse.Namespace) -> None:
     )
 
 
+# --- measurement: macro-expansion-detection-gap ---------------------------------
+#
+# Sizes the cost of running the upgrade-code detectors (`_DETECTORS` /
+# `tripped_upgrade_codes`) on the RAW tool tree while Galaxy's own advisor runs
+# POST-macro-expansion (`xml_macros.load_with_references`). For every macro-bearing
+# tool that expands cleanly, compares the codes each detector fires raw vs expanded:
+#   - over-flag  = fires raw but NOT expanded -> a false positive vs Galaxy: the raw
+#                  tree lacks a construct a macro supplies, e.g. `<expand
+#                  macro="stdio"/>` hides error handling, so `16_04_exit_code` ("no
+#                  error handling") fires on the raw tree but not after expansion.
+#   - under-report = fires expanded but NOT raw -> the §25 detection gap: the macro
+#                  supplies the triggering construct, unseen on the raw tree.
+#   - agree       = both fire.
+# Macro-free tools have raw == expanded by construction (not compared); expansion
+# failures are uncomparable. Backs codemod decisions §25 and the macro-expansion
+# detector port. Needs the corpus, so not run in CI.
+
+
+@dataclass
+class _ExpansionGapResult:
+    """Raw-tree vs post-macro-expansion detector divergence across the corpus."""
+
+    n_unique_tools: int  # deduped <tool> files parsed (compared + no_macros + failed)
+    n_unparseable: int  # deduped XML skipped (non-<tool> root or hard parse failure)
+    n_no_macros: int  # macro-free: raw == expanded by construction
+    n_expansion_failed: int  # macro-bearing but expansion returned no tree
+    n_compared: int  # macro-bearing AND expanded cleanly
+    n_tools_over_flag: int  # compared tools with >=1 over-flag code
+    n_tools_under_report: int  # compared tools with >=1 under-report code (§25 gap)
+    n_tools_divergent: int  # compared tools with >=1 code differing either direction
+    over_flag: dict[str, int]  # per code: fires raw, not expanded
+    under_report: dict[str, int]  # per code: fires expanded, not raw
+    agree_positive: dict[str, int]  # per code: fires on both
+
+
+# One walked tool classified for the pure tally: its status plus, when
+# ``status == "compared"``, the codes that fired on the raw and expanded trees.
+_GapSample = tuple[str, frozenset[str], frozenset[str]]
+
+
+def _tally_expansion_gap(*, samples: list[_GapSample]) -> _ExpansionGapResult:
+    """Tally raw-vs-expanded detector divergence over classified tool samples.
+
+    Pure (no IO / no parsing), so it is unit-tested with synthetic samples. Each
+    sample is ``(status, raw_codes, expanded_codes)`` where ``status`` is one of
+    ``"unparseable"`` / ``"no_macros"`` / ``"expansion_failed"`` / ``"compared"``;
+    the code sets carry meaning only for ``"compared"``.
+    """
+    over: Counter[str] = Counter()
+    under: Counter[str] = Counter()
+    agree: Counter[str] = Counter()
+    unparseable = no_macros = expansion_failed = compared = 0
+    n_over = n_under = n_divergent = 0
+    for status, raw_codes, expanded_codes in samples:
+        if status == "unparseable":
+            unparseable += 1
+            continue
+        if status == "no_macros":
+            no_macros += 1
+            continue
+        if status == "expansion_failed":
+            expansion_failed += 1
+            continue
+        compared += 1
+        raw_only = raw_codes - expanded_codes
+        expanded_only = expanded_codes - raw_codes
+        for code in raw_only:
+            over[code] += 1
+        for code in expanded_only:
+            under[code] += 1
+        for code in raw_codes & expanded_codes:
+            agree[code] += 1
+        if raw_only:
+            n_over += 1
+        if expanded_only:
+            n_under += 1
+        if raw_only or expanded_only:
+            n_divergent += 1
+    return _ExpansionGapResult(
+        n_unique_tools=no_macros + expansion_failed + compared,
+        n_unparseable=unparseable,
+        n_no_macros=no_macros,
+        n_expansion_failed=expansion_failed,
+        n_compared=compared,
+        n_tools_over_flag=n_over,
+        n_tools_under_report=n_under,
+        n_tools_divergent=n_divergent,
+        over_flag=dict(over),
+        under_report=dict(under),
+        agree_positive=dict(agree),
+    )
+
+
+def _classify_expansion_gap(path: Path, /) -> _GapSample:
+    """Classify one corpus tool into a ``_tally_expansion_gap`` sample.
+
+    Parses the raw tree and — only when the tool uses macros — expands it from
+    disk (so ``<import>``s resolve against the tool's own directory), running
+    ``tripped_upgrade_codes`` over each tree. Macro-free tools are ``"no_macros"``
+    (raw == expanded); a failed expansion is ``"expansion_failed"`` (uncomparable).
+    """
+    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_xml.macros import expand_from_path, has_macros
+    from galaxy_tool_xml_codemod.profile_semantics import tripped_upgrade_codes
+
+    empty: frozenset[str] = frozenset()
+    root = _parse_tool_root(path)
+    if root is None:
+        return ("unparseable", empty, empty)
+    if not has_macros(root):
+        return ("no_macros", empty, empty)
+    raw_codes = tripped_upgrade_codes(ToolDocument(root.getroottree()))
+    expanded_tree, _errors = expand_from_path(path)
+    if expanded_tree is None:
+        return ("expansion_failed", raw_codes, empty)
+    expanded_codes = tripped_upgrade_codes(ToolDocument(expanded_tree))
+    return ("compared", raw_codes, expanded_codes)
+
+
+def _measure_macro_expansion_detection_gap(
+    *, corpus_root: Path
+) -> _ExpansionGapResult:
+    """Walk the corpus (sha-deduped) and tally raw-vs-expanded detector divergence."""
+    seen_sha: set[str] = set()
+    samples: list[_GapSample] = []
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        sha = _sha256_of(path)
+        if sha in seen_sha:
+            continue
+        seen_sha.add(sha)
+        samples.append(_classify_expansion_gap(path))
+    return _tally_expansion_gap(samples=samples)
+
+
+def _report_macro_expansion_detection_gap(measurement: _ExpansionGapResult) -> None:
+    from galaxy_tool_xml_codemod.profile_semantics import PROFILE_UPGRADE_CODES
+
+    m = measurement
+    print("\n=== macro-expansion-detection-gap ===")
+    print(f"Unique <tool> files (sha-deduped):       {m.n_unique_tools}")
+    print(f"  macro-free (raw == expanded):          {m.n_no_macros}")
+    print(f"  macro-bearing, expansion failed:       {m.n_expansion_failed}")
+    print(f"  macro-bearing, compared:               {m.n_compared}")
+    print(f"  (non-<tool>/unparseable XML skipped:   {m.n_unparseable})")
+    if m.n_compared:
+        opct = m.n_tools_over_flag / m.n_compared * 100
+        upct = m.n_tools_under_report / m.n_compared * 100
+        print(
+            f"Compared tools over-flagged (raw fires, Galaxy would not):  "
+            f"{m.n_tools_over_flag} ({opct:.1f}%)"
+        )
+        print(
+            f"Compared tools under-reported (macro supplies it, §25 gap): "
+            f"{m.n_tools_under_report} ({upct:.1f}%)"
+        )
+    print("\nPer-code  over-flag / under-report / agree (catalogue order):")
+    for change in PROFILE_UPGRADE_CODES:
+        over = m.over_flag.get(change.code, 0)
+        under = m.under_report.get(change.code, 0)
+        agree = m.agree_positive.get(change.code, 0)
+        if not (over or under or agree):
+            continue
+        print(
+            f"  {change.profile:6} {change.level:8} "
+            f"over {over:6d}  under {under:6d}  agree {agree:6d}  {change.code}"
+        )
+
+
+def _run_macro_expansion_detection_gap(args: argparse.Namespace) -> None:
+    _report_macro_expansion_detection_gap(
+        _measure_macro_expansion_detection_gap(corpus_root=args.corpus_root)
+    )
+
+
 # --- measurement: upgrade-profile-shift -----------------------------------------
 #
 # Where does `upgrade` move a tool's profile? Compares the profile the tool
@@ -4234,6 +4410,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "upgrade-headroom": _run_upgrade_headroom,
     "semantic-upgrade-boundaries": _run_semantic_upgrade_boundaries,
     "upgrade-codes-applicability": _run_upgrade_codes_applicability,
+    "macro-expansion-detection-gap": _run_macro_expansion_detection_gap,
     "upgrade-profile-shift": _run_upgrade_profile_shift,
     "upgrade-behavior-blocks": _run_upgrade_behavior_blocks,
     "element-cardinality": _run_element_cardinality,
