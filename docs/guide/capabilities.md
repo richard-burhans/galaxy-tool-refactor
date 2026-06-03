@@ -46,6 +46,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Bump an inline `@PROFILE@` macro token | GTX007 | ✅ Shipped | upgrade rule set |
 | Bump an *imported* `@PROFILE@` token (only on importer consensus) | — | 🟡 Partial | `macro_profile` (registry) |
 | Runtime-gated repairs (`format_source` guard, `format="input"`, `interpreter=`) | GTX014, GTX015, GTX016 | 🟡 Partial | upgrade rule set |
+| Normalize literal `format`/`ftype` in *imported* macro files (opt-in `normalize-macros`) | — | ✅ Shipped | `macro_datatype` (registry); 15 tools unstuck (`docs/macro_format_residual_stats.md`) |
 
 > 🟡 **The soundness boundary (read `soundness.md`).** `upgrade` guarantees the result
 > is **structurally valid** at the new profile — it does **not** guarantee behaviour is
@@ -53,8 +54,11 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 > detection proves them safe; otherwise they are reported, not made (`upgrade` surfaces a
 > `behavior_preserving` flag — `true`/`false`/`null` — so callers can gate on it). GTX016 (interpreter)
 > auto-fixes only the clean "bucket A" shape; GTX015 only the single top-level data input.
-> Imported-macro write-back exists **only** for the `@PROFILE@` token by name — there is
-> no general macro write-back yet.
+> Imported-macro write-back now covers the `@PROFILE@` token (by name, on importer
+> consensus) **and** literal `format`/`ftype` normalization (the opt-in `normalize-macros`);
+> both work by *locating the construct in its source file*. General provenance-based
+> write-back of *arbitrary* macro-supplied content stays deferred (Phase 2b — sizing found
+> **0** additional tools, so it is unjustified for datatypes today).
 
 ### Check (report-only advisory)
 
@@ -79,8 +83,10 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 - **Streamlining / partial automation of IUC PR review** — the per-tool engine exists
   today (`check`/`format`/`upgrade`); the *review-workflow integration* does not.
 - **Agent-authored rules** — agents contributing new codemods/checks (MCP vision Goal 2).
-- **General macro write-back** — the provenance layer behind editing imported-macro
-  content beyond the profile token (a gated epic; see `docs/macro_handling_architecture.md`).
+- **General macro-expansion provenance** — a side-table mapping each expanded node to its
+  source file, to edit *arbitrary* macro-supplied content. The literal-`format`/`ftype`
+  slice (Phase 2a) shipped via locate-in-source (`normalize-macros`); the general layer is
+  gated/deferred — sizing found **0** additional tools (`docs/macro_handling_architecture.md`).
 - **Ecosystem integrations** (editor/LSP quick-fixes, planemo/CI backend, catalog-scale
   health) — see the Potential/Roadmap tiers in `leverage.md`.
 

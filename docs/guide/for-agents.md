@@ -17,12 +17,12 @@ is provably safe.
 
 ### MCP (tool calls)
 
-Five tools — `format`, `upgrade`, `check`, `list_presets`, `list_rules` — take the tool
-XML as a string and return JSON. Nothing is written to disk. See
+Five tools — `format_tool`, `upgrade_tool`, `check_tool`, `list_presets`, `list_rules` —
+take the tool XML as a string and return JSON. Nothing is written to disk. See
 [usage/mcp](usage/mcp.md). The key signal for autonomy:
 
 ```text
-// upgrade(xml=...) ->
+// upgrade_tool(xml=...) ->
 { "formatted": "<tool … profile=\"26.1\">…", "behavior_preserving": false, "steps_applied": [...] }
 ```
 
