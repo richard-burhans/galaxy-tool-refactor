@@ -82,9 +82,11 @@ predominantly genuine doc-drift, not inflated structural claims.)
   added it for manifest honesty (re-synced).
 
 **Proposals [proposal] (not applied — need a decision / a test):**
-- **Tier-0.5 "stay dependency-free" invariant has no test guard — Medium.** Add a
-  test asserting `galaxy_tool_refactor_rules` imports nothing beyond stdlib +
-  itself, so a future commit can't silently couple the shared-vocabulary tier.
+- **Tier-0.5 "stay dependency-free" invariant has no test guard — Medium.
+  [resolved 2026-06-03].** `galaxy-tool-refactor-rules/tests/test_dependency_free.py`
+  now AST-scans the package `src` and asserts every import resolves to the standard
+  library or the package itself (a planted-violation test proves the scan isn't
+  vacuous), so a future commit can't silently couple the shared-vocabulary tier.
 - **`Correction` / `BooleanNormalization` (tier-1 public result dataclasses) are not
   `frozen=True` — Low.** The prior pass (N3) froze the other tier-1 result types but
   scoped these out. Verified never mutated → freezing is safe; left as a proposal
