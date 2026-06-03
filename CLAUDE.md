@@ -127,11 +127,15 @@ uv run python -m scripts.measure macro-profile-ownership
 # data — the genuine `cmd1 & cmd2` anti-pattern is ~1 tool (check §D3);
 # command-unquoted-var sizes IUC011 honestly — excluding Cheetah directive lines +
 # tracking shell quotes, a genuinely-unquoted `$var` still fires on 73.2% of tools,
-# so IUC011 (unlike IUC012) has real signal (check §D4);
+# so IUC011 (unlike IUC012) has real signal (check §D4); iuc011-fixability then
+# resolves each unquoted `$var` against <inputs> to ask whether AUTO-quoting is
+# safe — 46.7% are provably-single-valued params, but 33.6% are #set-assembled/loop
+# vars a static fixer can't reach, so IUC011 stays advisory (check §D6);
 # macro-fmt-idempotence backs fmt §D16:
 uv run python -m scripts.measure command-iuc-heuristics
 uv run python -m scripts.measure command-lone-amp
 uv run python -m scripts.measure command-unquoted-var
+uv run python -m scripts.measure iuc011-fixability
 uv run python -m scripts.measure macro-fmt-idempotence
 
 # Phase-3c sizing: clean @TOOL_VERSION@/@VERSION_SUFFIX@ extraction candidates

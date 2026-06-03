@@ -2059,6 +2059,202 @@ def _run_command_unquoted_var(args: argparse.Namespace) -> None:
     )
 
 
+# --- measurement: iuc011-fixability ---------------------------------------------
+#
+# Sizes whether a SAFE auto-fix for IUC011 (single-quote the unquoted $var it
+# reports) is worth building. Quoting is NOT behaviour-preserving in general:
+# `$x` that renders to a single value is safe to wrap, but `$adv_opts` that
+# deliberately word-splits into several arguments breaks if quoted. The split
+# turns on what each $var REFERENCES. This reuses the shipped IUC011 lexer
+# (`unquoted_cheetah_vars`) so the population is exactly what the check reports,
+# then resolves each var's root identifier against the tool's <inputs> and buckets
+# it: a bare `$param` of a single-token type (data/int/float/bool/select-single/…)
+# is provably-safe to quote; a `text` param is a single value but may be free-form
+# options (judgment); multiple=/data_collection params and #set-assembled / loop /
+# unresolved roots are unsafe. `$param.attr`, `$cond.x` (structured), and `$__x__`
+# built-ins are bucketed apart (mostly single-valued, but not bare params). The
+# "safe" bucket is the conservative floor for a narrow GTX auto-fix. Heuristic
+# (root-name resolution, no full param-model walk); backs whether IUC011 stays
+# advisory-only. Needs the corpus, not in CI.
+
+# Param types whose value is intrinsically a single shell token — quoting one can
+# never break word-splitting (it was always one argument). `text` is excluded: a
+# single value, but commonly a free-form "extra options" field meant to splat.
+_SAFE_SINGLE_TYPES = frozenset(
+    {
+        "data",
+        "integer",
+        "float",
+        "boolean",
+        "color",
+        "hidden",
+        "baseurl",
+        "genomebuild",
+        "select",
+        "drill_down",
+        "data_column",
+    }
+)
+# Galaxy built-in command objects (single-valued paths/strings), keyed without the
+# leading/trailing ``__``; ``on_string`` is the only non-dunder one we special-case.
+_BUILTIN_ROOTS = frozenset({"on_string"})
+
+_IUC011_BUCKETS = (
+    "safe",  # bare $param, single-token type -> safe to single-quote
+    "text",  # bare $param of type text -> single value but maybe free-form options
+    "multi",  # param is multiple= / data_collection -> unsafe (deliberate splat)
+    "attr",  # $param.attr (e.g. $input.ext) -> usually single-valued, separate
+    "structured",  # root is a conditional/section/repeat -> needs a deeper walk
+    "builtin",  # $__tool_directory__ / $on_string etc. -> single-valued, separate
+    "non_input",  # root resolves to no input -> #set-assembled / loop var / unknown
+)
+
+
+def _input_param_info(root: etree._Element, /) -> tuple[dict[str, str], set[str]]:
+    """``(param-name -> kind, structural-names)`` for a tool root's ``<inputs>``.
+
+    ``kind`` is ``"multi"`` / ``"text"`` / ``"safe"`` (most-unsafe wins when a name
+    recurs across conditional branches: multi > text > safe). ``structural-names``
+    are ``<conditional>`` / ``<section>`` / ``<repeat>`` names, the roots of a
+    qualified ``$cond.sub`` access. Pure (element in, data out) for unit testing.
+    """
+    rank = {"safe": 0, "text": 1, "multi": 2}
+    kinds: dict[str, str] = {}
+    structural: set[str] = set()
+    inputs = root.find("inputs")
+    if inputs is None:
+        return kinds, structural
+    for param in inputs.iter("param"):
+        name = param.get("name")
+        if not name:
+            continue
+        ptype = param.get("type", "")
+        multiple = param.get("multiple") in ("true", "True", "1")
+        if ptype == "data_collection" or multiple:
+            kind = "multi"
+        elif ptype == "text":
+            kind = "text"
+        elif ptype in _SAFE_SINGLE_TYPES:
+            kind = "safe"
+        else:
+            kind = "text"  # unknown/other single type -> treat as judgment, not safe
+        existing = kinds.get(name)
+        if existing is None or rank[kind] > rank[existing]:
+            kinds[name] = kind  # most-unsafe kind wins across conditional branches
+    for tag in ("conditional", "section", "repeat"):
+        for element in inputs.iter(tag):
+            structural_name = element.get("name")
+            if structural_name:
+                structural.add(structural_name)
+    return kinds, structural
+
+
+def _classify_var_fixability(
+    var_name: str, kinds: dict[str, str], structural: set[str], /
+) -> str:
+    """Bucket one ``unquoted_cheetah_vars`` reference (e.g. ``"$input"``).
+
+    A bare ``$param`` resolves to its kind. A qualified ``$cond.subparam`` whose
+    root is a structure (conditional/section/repeat) resolves to the **leaf**
+    param's kind — the leaf is a real ``<param>`` so its single/multi-ness governs
+    quoting safety just as a bare param does. ``$param.attr`` (root is a param, the
+    trailing segment is a metadata attribute, not a param) is a separate ``attr``
+    bucket. Built-ins (``$__x__``) and unresolved roots (``#set`` / loop vars) get
+    their own buckets.
+    """
+    ref = var_name.translate({ord("$"): None, ord("{"): None, ord("}"): None})
+    segments = re.split(r"[.\[]", ref)
+    root = segments[0]
+    leaf = segments[-1].rstrip("]")
+    has_attr = len(segments) > 1
+    if root in structural:
+        return kinds[leaf] if leaf in kinds else "structured"
+    if root in kinds:
+        return "attr" if has_attr else kinds[root]
+    if root.startswith("__") or root in _BUILTIN_ROOTS:
+        return "builtin"
+    return "non_input"
+
+
+@dataclass
+class _Iuc011FixabilityResult:
+    n_tools_flagged: int  # tools with >=1 unquoted var (the IUC011 population)
+    n_occurrences: int
+    per_bucket: dict[str, int]
+    n_tools_all_safe: int  # flagged tools whose every unquoted var is "safe"
+
+
+def _measure_iuc011_fixability(*, corpus_root: Path) -> _Iuc011FixabilityResult:
+    """Classify every IUC011 occurrence by whether single-quoting it is safe."""
+    from galaxy_tool_xml_check.command_text import unquoted_cheetah_vars
+
+    seen: set[str] = set()
+    n_flagged = n_occ = n_all_safe = 0
+    per_bucket: Counter[str] = Counter()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        command = root.find("command")
+        if command is None:
+            continue
+        occurrences = unquoted_cheetah_vars("".join(command.itertext()))
+        if not occurrences:
+            continue
+        n_flagged += 1
+        kinds, structural = _input_param_info(root)
+        buckets = [
+            _classify_var_fixability(occurrence.name, kinds, structural)
+            for occurrence in occurrences
+        ]
+        per_bucket.update(buckets)
+        n_occ += len(buckets)
+        if all(bucket == "safe" for bucket in buckets):
+            n_all_safe += 1
+    return _Iuc011FixabilityResult(
+        n_tools_flagged=n_flagged,
+        n_occurrences=n_occ,
+        per_bucket=dict(per_bucket),
+        n_tools_all_safe=n_all_safe,
+    )
+
+
+def _report_iuc011_fixability(result: _Iuc011FixabilityResult) -> None:
+    total = result.n_occurrences
+    print("\n=== iuc011-fixability (is auto-single-quoting safe?; heuristic) ===")
+    print(
+        f"Flagged tools (>=1 unquoted var): {result.n_tools_flagged}; "
+        f"occurrences: {total}"
+    )
+
+    def pct(n: int) -> float:
+        return 100 * n / total if total else 0.0
+
+    print("Occurrences by reference class:")
+    for name in _IUC011_BUCKETS:
+        count = result.per_bucket.get(name, 0)
+        print(f"  {name:11} {count:7d}  ({pct(count):.1f}%)")
+    safe = result.per_bucket.get("safe", 0)
+    print(
+        f"\nConservative safe-to-auto-quote floor (bare single-token param): "
+        f"{safe} occurrences ({pct(safe):.1f}%)"
+    )
+    print(
+        f"Tools whose EVERY unquoted var is safe (whole-tool auto-fixable): "
+        f"{result.n_tools_all_safe} / {result.n_tools_flagged}"
+    )
+
+
+def _run_iuc011_fixability(args: argparse.Namespace) -> None:
+    _report_iuc011_fixability(_measure_iuc011_fixability(corpus_root=args.corpus_root))
+
+
 # --- measurement: version-tokenization ------------------------------------------
 #
 # Sizes the Phase-3c "create tokens" opportunity: the canonical IUC convention
@@ -4768,6 +4964,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "command-iuc-heuristics": _run_command_iuc_heuristics,
     "command-lone-amp": _run_command_lone_amp,
     "command-unquoted-var": _run_command_unquoted_var,
+    "iuc011-fixability": _run_iuc011_fixability,
     "macro-fmt-idempotence": _run_macro_fmt_idempotence,
     "version-tokenization": _run_version_tokenization,
     "expansion-failed-ids": _run_expansion_failed_ids,

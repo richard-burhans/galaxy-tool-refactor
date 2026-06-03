@@ -255,3 +255,52 @@ scripts.corpus_check check`. IUC011 fires on **6,646 tools (71.5% of 9,289 swept
 excludes vars the per-line sizing scan over-counted. `IUC012` remains 0. (The
 regen also added the previously-missing `GTX017` row — the artifact predated it.)
 Advisory, so it never fails `check` unless `--strict`.
+
+## D6 (2026-06-03) — IUC011 stays advisory: auto-quoting is partial and not behaviour-preserving
+
+### Question
+
+Should the IUC011 findings (D5) get an auto-fix — a codemod that single-quotes the
+unquoted `$var`? Single-quoting is **not** behaviour-preserving in general: `$x`
+that renders to one value is safe to wrap, but `$opts` that deliberately
+word-splits into several arguments breaks if quoted. Whether a given occurrence is
+safe turns on **what the `$var` references**.
+
+### Evidence
+
+Reproduced-by: `uv run python -m scripts.measure iuc011-fixability` (combined
+corpus, 2026-06-03; reuses the shipped `unquoted_cheetah_vars` lexer, so the
+population is exactly what IUC011 reports; classifiers pinned in
+`galaxy-tool-xml/tests/test_measure.py`). Each occurrence's root identifier is
+resolved against the tool's `<inputs>` (a `$cond.sub` resolves to the leaf
+param's kind). Of **49,119** occurrences across **6,699** flagged tools:
+
+| Reference class | Occurrences | Auto-quote? |
+|---|--:|---|
+| `safe` — bare/nested single-token param (data/int/float/bool/select-single/…) | 22,919 (46.7%) | **safe** |
+| `text` — a `text` param (single value, but often free-form options) | 2,320 (4.7%) | judgment |
+| `attr` — `$param.ext` etc. (single-valued metadata) | 694 (1.4%) | usually safe |
+| `builtin` — `$__tool_directory__` / `$on_string` | 1,119 (2.3%) | usually safe |
+| `structured` — `$cond.x` whose leaf isn't a param (rare) | 5,186 (10.6%) | unknown |
+| `multi` — `multiple=` / `data_collection` param | 368 (0.7%) | **unsafe** (deliberate splat) |
+| `non_input` — root resolves to no input (`#set`-assembled, loop vars) | 16,513 (33.6%) | **unsafe / unknown** |
+
+### Decision
+
+**IUC011 stays advisory-only for now.** Two findings drive it:
+
+- **The genuinely-dangerous case is tiny** (`multi` 0.7%) — so a fix isn't *unsafe*
+  in bulk; the floor of provably-safe occurrences is large (~47%, ~50% with
+  `attr`/`builtin`).
+- **But the fix would be partial and is the wrong shape.** A third of occurrences
+  (`non_input`, 33.6%) are `#set`-assembled or loop variables a static fixer can't
+  resolve, so only **1,007 / 6,699 (15%)** of flagged tools have *every* var safe —
+  for the other 85%, IUC011 still fires after a partial fix. And quoting command
+  text is a **Cheetah-rewriting mutation codemod** (CDATA-preserving splice, like
+  GTX016 `FixInterpreter`) — the *mutation* side of the M5 boundary, well beyond
+  the read-only lexer D5 added. The cost/coverage doesn't justify it: the
+  per-occurrence advisory already points the author at each exact `$var` to quote.
+
+If revisited, the safe scope is a **narrow, opt-in GTX** that quotes only the
+`safe` class (bare single-token params, incl. structured leaves) and never touches
+`non_input` / `multi` — never auto-run under `format`.
