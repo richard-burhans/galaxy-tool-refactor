@@ -29,11 +29,14 @@ tiers (codemod/fmt) or the app. The advisory tier is a sibling the app composes,
 not a consumer of the fixers. Findings are advisory: the app's `check` command
 reports them but does not fail on them by default.
 
-**Scope.** Covers the ~10 mechanically-detectable IUC practices (presence /
-attribute / structure queries). The two `<command>`-CDATA-text heuristics
-(single-quoted Cheetah, `&&`-vs-`&`) are reserved placeholders (`IUC011`/`IUC012`)
-— registered but `detect()` is a stub — deferred until tuned. See
-`../docs/iuc_best_practices.md` for the coverage map.
+**Scope.** Covers the mechanically-detectable IUC practices (presence /
+attribute / structure queries), plus `IUC011` (single-quote Cheetah `$var`),
+which reads `<command>` text through the **read-only `command_text` lexer**
+(directive-skipping, multi-line-quote-aware; the detection-only slice of the
+codemod tier's deferred M5). `IUC012` (`&&`-vs-lone-`&`) stays a no-op stub — its
+anti-pattern is ~1 tool corpus-wide (`docs/decisions.md` D3). See
+`../docs/iuc_best_practices.md` for the coverage map and D3/D4/D5 for the
+command-text-check decisions.
 
 ## Coding standards
 

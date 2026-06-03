@@ -19,6 +19,7 @@ from galaxy_tool_refactor_rules.violation import Violation
 from lxml import etree
 from packaging.version import InvalidVersion, Version
 
+from galaxy_tool_xml_check.command_text import unquoted_cheetah_vars
 from galaxy_tool_xml_check.rules import CheckRule
 
 if TYPE_CHECKING:
@@ -314,27 +315,40 @@ class HelpCdata(CheckRule):
 
 
 class SingleQuotedCheetah(CheckRule):
-    """IUC011 — single-quote Cheetah variables in ``<command>`` (placeholder).
+    """IUC011 — single-quote Cheetah variables in ``<command>``.
 
-    Reserved IUC code; ``detect`` is a no-op — but, **unlike IUC012, the signal is
-    real** (``docs/decisions.md`` D4, ``scripts.measure command-unquoted-var``):
-    once Cheetah directive lines are excluded and shell quote-state is tracked, a
-    genuinely-unquoted ``$var`` still fires on **73.2%** of tools — on par with the
-    shipped IUC005/IUC007 advisories. It stays deferred only pending a read-only
-    lexer that tracks multi-line quotes and a per-occurrence-vs-per-tool reporting
-    decision, not for lack of signal. See ``../../docs/iuc_best_practices.md``.
+    Reports one finding per fully-unquoted shell-line Cheetah ``$var`` (the
+    word-splitting/injection hazard the practice guards against). Cheetah directive
+    lines and already-quoted (``'…'`` / ``"…"``) references are excluded by the
+    read-only ``command_text`` lexer. Sized at 73.2% of tools / 50,380 occurrences
+    (``docs/decisions.md`` D4, ``scripts.measure command-unquoted-var``).
     """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
         code="IUC011",
-        summary="Single-quote Cheetah variables in <command> (not yet implemented).",
+        summary="Single-quote Cheetah variables in <command>.",
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
-        return ()  # placeholder — detection deferred
+        command = document.root.find("command")
+        if command is None:
+            return
+        base_line = command.sourceline or 0
+        xpath = str(document.tree.getpath(command))
+        text = "".join(command.itertext())
+        for occurrence in unquoted_cheetah_vars(text):
+            yield Violation(
+                code=self.meta.code,
+                sourceline=base_line + occurrence.line_offset if base_line else 0,
+                xpath=xpath,
+                message=(
+                    f"unquoted Cheetah variable {occurrence.name} in <command> — "
+                    f"single-quote it as '{occurrence.name}'"
+                ),
+            )
 
 
 class CommandAndJoining(CheckRule):
