@@ -31,9 +31,13 @@ tool still validates. Validity is a sound oracle for **structural** changes. It 
     leading literal script token); other shapes are left to detect/warn.
   - **GTX015 (`format="input"`)** fixes only the single-top-level-data-input case.
   - **GTX014** guards `format_source`.
-- **Imported-macro write-back** exists **only** for the `@PROFILE@` token, addressed by
-  name, and only when every importer agrees on the target profile. There is **no**
-  general mechanism to edit other macro-defined content yet.
+- **Imported-macro write-back** is *locate-in-source* (the construct is found in its
+  defining file), not provenance-driven. Two consumers exist: the `@PROFILE@` token
+  (addressed by name, only when every importer agrees on the target profile) and literal
+  `format`/`ftype` normalization (the opt-in `normalize-macros`, validity-safe so no
+  consensus gate). There is **no** general mechanism to edit *arbitrary* macro-defined
+  content yet — sizing that residual found **0** further tools, so the provenance layer
+  stays deferred (`docs/macro_handling_architecture.md`).
 
 ## You can see the verdict
 
@@ -61,5 +65,6 @@ safe case and escalate the rest, rather than trusting the bump blindly.
 - `galaxy-tool-xml-codemod/docs/decisions.md` — the `CANONICAL_CODEMODS` /
   `AUTO_UPGRADE_CODEMODS` split, per-tool warning detection, and the soundness limits
   of raw-tree vs macro-expanded detection.
-- `docs/macro_handling_architecture.md` — why macro write-back is token-name-specific
-  today, and the deferred provenance layer that would generalise it.
+- `docs/macro_handling_architecture.md` — why macro write-back is locate-in-source
+  today (the `@PROFILE@` token + literal `format`/`ftype`), and the deferred,
+  sized-to-zero provenance layer that would generalise it to arbitrary content.
