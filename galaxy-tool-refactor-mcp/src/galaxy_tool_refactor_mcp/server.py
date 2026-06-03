@@ -87,7 +87,7 @@ def _list_presets() -> list[dict[str, object]]:
 
 
 def _list_rules(include_upgrade: bool = False) -> list[dict[str, object]]:
-    """The baked-in rules (code / summary / family / fixable / presets / since)."""
+    """The baked-in rules as JSON — every RuleInfo field (incl. cite)."""
     return service.list_rules(include_upgrade=include_upgrade)
 
 
