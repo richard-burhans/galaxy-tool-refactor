@@ -30,7 +30,7 @@ which (line 318-319) **ignores its xpath argument and always returns
 `profile_semantics.py` module docstring). It also scans `.//input[@type='text']`,
 whereas tool params are `<param>`. Our `_detects_non_optional_text` fixes both: it
 scans `.//param[@type='text']` for a missing `optional` attribute. Frequent first
-blocker (~311 tools in `../upgrade_behavior_block_stats.md`).
+blocker (~318 tools in `../upgrade_behavior_block_stats.md`).
 
 ## Mechanical-fix feasibility
 

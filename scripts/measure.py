@@ -4717,8 +4717,8 @@ def _render_interpreter_bucket_page(result: _InterpreterBucketResult) -> str:
             "deprecated `<command interpreter=…>` are split by whether the codemod can",
             "mechanically rewrite them to `interpreter '$__tool_directory__/script'`.",
             "Buckets are computed by the codemod's own eligibility predicate",
-            "(`galaxy_tool_xml_codemod.codemods._interpreter`), so this count is exactly",
-            "what the codemod would fix.",
+            "(`galaxy_tool_xml_codemod.codemods._interpreter`), so the A + A-missing",
+            "total is exactly what the codemod rewrites.",
             "",
             "Regenerate with (needs the corpus, so not run in CI):",
             "",
@@ -4738,15 +4738,19 @@ def _render_interpreter_bucket_page(result: _InterpreterBucketResult) -> str:
             "| single-token standard interpreter + literal leading script that exists "
             "beside the XML |",
             f"| A-missing | {result.bucket_a_missing:,} | {pct(result.bucket_a_missing)} "
-            "| structurally A, but the named script is not co-located (codemod skips) |",
+            "| structurally A but the named script isn't co-located — still rewritten "
+            "(the codemod has no file-exists gate; the split is a measurement refinement) |",
             f"| B — leading Cheetah / non-literal | {result.bucket_b:,} "
             f"| {pct(result.bucket_b)} | command starts with a `#`-directive or `$var`, "
             "so the script isn't statically first |",
             f"| C — non-standard interpreter | {result.bucket_c:,} | {pct(result.bucket_c)} "
             "| multi-token / non-script (`java -jar`, `docker`, `Rscript --no-save`, …) |",
             "",
-            "Bucket **A** is the codemod's target. A-missing/B/C remain detect/warn-only",
-            "(the §23 upgrade warning) — they need author intent or a richer parse.",
+            f"Buckets **A + A-missing** ({result.bucket_a + result.bucket_a_missing:,} "
+            "tools) are the codemod's target — the file-exists split is a measurement-only "
+            "refinement, not a codemod gate (`fix_interpreter.py` calls the eligibility "
+            "predicate with no `tool_dir`). Only **B/C** remain detect/warn-only (the §23 "
+            "upgrade warning) — they need author intent or a richer parse.",
             "",
             "## Interpreter values",
             "",

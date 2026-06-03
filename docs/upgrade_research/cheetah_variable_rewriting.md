@@ -4,6 +4,11 @@
 > decision. This note is deliberately honest about what is hard and what is unknown;
 > the "Open questions" section is the live worklist.
 >
+> **Update (2026-06):** the easiest corner — use-case (1), known-literal injection —
+> has since shipped as **GTX016 `FixInterpreter`**, and the CDATA-preservation contract
+> in the section below is now implemented (`Cursor.set_text` / `Cursor.is_cdata_wrapped`).
+> The harder use-cases (2)–(4) remain open research.
+>
 > Galaxy-source citations are from the local clone `.local/galaxy-src/` @ `c6e0ee3`.
 > Corpus numbers come from the standing measure `cheetah-command-complexity`
 > ([`../cheetah_command_stats.md`](../cheetah_command_stats.md)); regenerate with
@@ -140,7 +145,9 @@ relevant checks are regex-based. Our own `_count_unquoted_vars` is explicitly la
   token). It works precisely when the target token is identifiable from structure
   (e.g. the literal first token of a directive-free command). The interpreter note's
   "bucket A vs B/C/D" split *is* the leading-`#if`/non-literal-first-token problem in
-  miniature. Approach D, guarded hard, fits.
+  miniature. Approach D, guarded hard, fits. **(Now shipped: GTX016 `FixInterpreter`
+  does exactly this — Approach-D-style structural locating, a positional splice, and a
+  CDATA-preserving `set_text`.)**
 - **(2) Detect references to a named param — MOSTLY FEASIBLE (read-only).** Regex
   detection with conservative handling of `##`/`#raw`/`\$` gives a good
   over-approximation; safe because a *report* that errs toward "maybe used" is
@@ -264,21 +271,25 @@ existing text is absent or pure whitespace** (`galaxy-tool-xml-fmt/.../serialize
 `edits.py` dispatch). So no formatting rule (indent / blank-line / empty-element) ever
 touches CDATA *content*, and `test_regressions.py`'s byte-idempotence sweep guards it.
 
-**The codemod tier is where the gap is.** `Cursor.set_text` (`cursor.py:100-107`) does a
-plain `self._element.text = value`. Its **only** current caller is the `@PROFILE@`
-`<token>` rewrite (`update_profile.py:99`) — safe in practice (profile tokens are bare
-version strings, no `&`/`<`, rarely CDATA), but it is the same latent issue. **Rewriting
-a `<command>`/`<configfile>` body is genuinely new surface.**
+**The codemod tier is where the gap *was* — now closed.** `Cursor.set_text`
+(`cursor.py:125`) takes a keyword-only `cdata: bool = False` (→ `etree.CDATA` when set),
+and `Cursor.is_cdata_wrapped()` (`cursor.py:98`) re-serialises to detect the original
+framing. Callers: the `@PROFILE@` `<token>` rewrite (`update_profile.py:99`, plain
+bare-version text), `FixInterpreter` (GTX016, `fix_interpreter.py:57`, `cdata=True`),
+and the shared CDATA-wrap helper behind `WrapCommandCdata`/`WrapHelpCdata`
+(GTX018/GTX019, `_cdata.py:35,44`). Rewriting a `<command>`/`<configfile>` body — once
+genuinely new surface — is now exercised by GTX016.
 
-**Contract for content-rewriting codemods (recommended):** *preserve the original
-framing*. In the detect phase, record `was_cdata = b"<![CDATA[" in etree.tostring(el)`;
-in the mutate thunk, write `etree.CDATA(new)` when `was_cdata`, else a plain `str`
-(which lxml re-escapes to match the element's original escaped framing). This is
-faithful **both** ways — CDATA stays CDATA, escaped stays escaped, both decode to the
-same string — so it never regresses the diff and fixes the latent `set_text` gap. A
-small `Cursor.set_text(value, *, cdata: bool = False)` (→ `etree.CDATA` when `cdata`)
-is the primitive; the framing decision lives in the codemod. The future
-`16_04_fix_interpreter` codemod (rewrites `<command>` text) is the first consumer.
+**Contract for content-rewriting codemods (shipped):** *preserve the original framing*.
+The detect phase records the framing via `Cursor.is_cdata_wrapped()` (re-serialises and
+tests for a leading `<![CDATA[`); the mutate thunk calls
+`Cursor.set_text(value, cdata=…)`, writing `etree.CDATA(value)` when the body was CDATA
+and a plain `str` otherwise (which lxml re-escapes to match the element's original
+escaped framing). This is faithful **both** ways — CDATA stays CDATA, escaped stays
+escaped, both decode to the same string — so it never regresses the diff.
+`16_04_fix_interpreter` (GTX016) was the first consumer (`fix_interpreter.py:57`,
+`cdata=True`); `WrapCommandCdata`/`WrapHelpCdata` (GTX018/GTX019, codemod
+`docs/decisions.md` §29) followed, with the shared logic in `codemods/_cdata.py`.
 
 ## Open questions (live worklist)
 
