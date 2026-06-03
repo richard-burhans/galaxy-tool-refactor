@@ -78,7 +78,7 @@ Every docstring, inline comment, `README.md`, `CLAUDE.md`, `docs/decisions.md`, 
 
 Sweep for things the change silently invalidated:
 
-- **Tier tables / package counts** — "seven packages", the tier matrix in each
+- **Tier tables / package counts** — "eight packages", the tier matrix in each
   `CLAUDE.md` + `ARCHITECTURE.md`.
 - **Command lists** — `corpus_check` subcommands, `measure.py` slugs, CLI commands.
 - **CI coverage** — `.github/workflows/ci.yml` has drifted before (silently dropped

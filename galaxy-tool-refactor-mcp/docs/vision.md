@@ -1,14 +1,14 @@
 # Vision: `galaxy-tool-refactor` for AI agents (MCP server + agent-authored rules)
 
-**Status:** forward-looking design note. Nothing here is implemented. It is
-recorded so the `galaxy-tool-refactor-registry` facade we build *now* does not
-foreclose these futures. The current locked decision — "adding rules is a
-developer task; no user-defined rules" — governs today; this is the relaxation
-path if/when desired.
+**Status:** **Goal 1 (the MCP server) is shipped** — see `docs/decisions.md` D1;
+this section now describes what was built. **Goal 2 (agent-authored rules)
+remains forward-looking** — recorded so the facade does not foreclose it. The
+current locked decision — "adding rules is a developer task; no user-defined
+rules" — still governs; Goal 2 is the relaxation path if/when desired.
 
-## Goal 1 — `galaxy-tool-refactor` as a tool for agents (the MCP server)
+## Goal 1 — `galaxy-tool-refactor` as a tool for agents (the MCP server) — SHIPPED
 
-A future MCP server (this package) wraps the `galaxy-tool-refactor-registry`
+The MCP server (this package) wraps the `galaxy-tool-refactor-registry`
 facade so coding agents can:
 
 - **Discover** what the tool can do: `list_presets()` → preset names +

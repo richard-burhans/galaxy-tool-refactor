@@ -1,6 +1,6 @@
 # galaxy-tool-refactor
 
-A uv workspace housing seven independently-installable Python packages for
+A uv workspace housing eight independently-installable Python packages for
 parsing, validating, formatting, linting, and refactoring Galaxy tool
 definition XML.
 
@@ -13,8 +13,9 @@ definition XML.
 | [`galaxy-tool-xml-codemod`](galaxy-tool-xml-codemod/README.md) | pre-alpha | Detect-primitive `CodemodCommand` framework + bundled structural codemods (`CANONICAL_CODEMODS`, `AUTO_UPGRADE_CODEMODS`); each rule has a detect (lint) and a fix phase. |
 | [`galaxy-tool-xml-fmt`](galaxy-tool-xml-fmt/README.md) | pre-release | Opinionated `black`-like cosmetic formatter (with a non-mutating `detect`). The only tier that serialises canonical output XML. |
 | [`galaxy-tool-xml-check`](galaxy-tool-xml-check/README.md) | pre-alpha | Advisory, detect-only IUC best-practice checks (`IUC` codes); read-only, reports but never mutates. Depends only on tiers 1 + 0.5. |
-| [`galaxy-tool-refactor-registry`](galaxy-tool-refactor-registry/README.md) | pre-alpha | Unified, code-addressable rule registry over all three families + named presets (`cosmetic`/`iuc`/`strict`) + a library-first `run`/`upgrade`/`detect` API. The orchestration core the CLI (and a future MCP server) sit on. |
+| [`galaxy-tool-refactor-registry`](galaxy-tool-refactor-registry/README.md) | pre-alpha | Unified, code-addressable rule registry over all three families + named presets (`cosmetic`/`iuc`/`strict`) + a library-first `run`/`upgrade`/`detect` API. The orchestration core the CLI and the MCP server sit on. |
 | [`galaxy-tool-refactor-cli`](galaxy-tool-refactor-cli/README.md) | pre-alpha | The `galaxy-tool-refactor` app CLI — `format`, `upgrade`, report-only `check`, plus `presets` / `rules`, with `--preset` / `--select` / `--ignore` rule selection. |
+| [`galaxy-tool-refactor-mcp`](galaxy-tool-refactor-mcp/README.md) | pre-alpha | An agent-facing **MCP server** over the registry facade (CLI sibling): a thin FastMCP binding over a protocol-agnostic adapter, exposing `format`/`upgrade`/`check`/`list_presets`/`list_rules`. |
 
 ## Quick start
 
@@ -42,8 +43,8 @@ composes them into the user-facing workflow:
               galaxy-tool-refactor-registry  ← unified rule registry + presets (tier 3.6)
               (library-first facade: run / upgrade / detect, introspectable)
                           ↑                       ↑
-   galaxy-tool-refactor-cli (tier 4)     galaxy-tool-refactor-mcp (tier 4, future)
-   the `galaxy-tool-refactor` app CLI    agent-facing MCP server (placeholder)
+   galaxy-tool-refactor-cli (tier 4)     galaxy-tool-refactor-mcp (tier 4)
+   the `galaxy-tool-refactor` app CLI    agent-facing MCP server (FastMCP)
 ```
 
 Every rule has a non-mutating **detect (lint)** phase alongside its **fix**
@@ -79,7 +80,8 @@ vision), `galaxy-tool-refactor-cli/docs/decisions.md` §D1–D4 (the app tier, t
 selection), `galaxy-tool-xml-fmt/docs/decisions.md` §D12 (fmt CLI back to
 cosmetic-only) + §D14/§D15 (cosmetic detect + per-rule subset seams),
 `galaxy-tool-xml-check/docs/decisions.md` D1 (the advisory check tier), and
-`galaxy-tool-refactor-mcp/docs/vision.md` (the future MCP / agent direction).
+`galaxy-tool-refactor-mcp/docs/decisions.md` D1 (the MCP server) +
+`docs/vision.md` (the agent-authored-rules direction, still future).
 
 ## Running tests
 

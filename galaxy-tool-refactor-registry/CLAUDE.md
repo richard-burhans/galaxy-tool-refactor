@@ -18,11 +18,11 @@ every baked-in rule, named presets, per-rule enable/disable, and a library-first
 | 3.5 | advisory checks | `galaxy-tool-xml-check` |
 | 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` *(this repo)* |
 | 4 | app / CLI | `galaxy-tool-refactor-cli` |
-| 4 | MCP server (future) | `galaxy-tool-refactor-mcp` |
+| 4 | MCP server | `galaxy-tool-refactor-mcp` |
 
 It depends on the rule tiers (0.5 / 1 / 2 / 3 / 3.5); **the lower tiers do not
 depend on it**, and it is the only orchestration layer below the app CLI. Both
-the CLI and a future MCP server (`galaxy-tool-refactor-mcp`) sit on top of it.
+the CLI and the MCP server (`galaxy-tool-refactor-mcp`) sit on top of it.
 
 ## Key invariants
 
@@ -89,5 +89,6 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
 
 - `galaxy-tool-refactor-cli/src/galaxy_tool_refactor_cli/cli.py` — the CLI that
   consumes this facade.
-- `galaxy-tool-refactor-mcp/docs/vision.md` — why library-first/introspectable.
+- `galaxy-tool-refactor-mcp/src/.../service.py` — the facade->JSON adapter the MCP
+  server wraps (mcp `docs/decisions.md` D1); `docs/vision.md` — the agent-rules future.
 - `galaxy-tool-xml-fmt/docs/decisions.md` §D15 — the per-rule subset seams.

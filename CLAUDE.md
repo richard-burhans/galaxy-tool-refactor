@@ -14,7 +14,7 @@ galaxy-tool-refactor/
 ├── galaxy-tool-xml-check/    Tier 3.5 (advisory detect-only IUC checks)
 ├── galaxy-tool-refactor-registry/ Tier 3.6 (unified rule registry + presets; library-first facade)
 ├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + presets/rules)
-├── galaxy-tool-refactor-mcp/ Tier 4 (future MCP server — placeholder, NOT a workspace member yet)
+├── galaxy-tool-refactor-mcp/ Tier 4 (MCP server over the registry facade; thin FastMCP adapter)
 ├── scripts/                  Shared maintainer scripts (not installed)
 │   ├── corpus_check.py         validate | fmt | codemod | rules | check subcommands
 │   ├── fetch_schemas.py        download release XSDs
@@ -32,7 +32,7 @@ galaxy-tool-refactor/
 ## Install
 
 ```bash
-uv sync          # installs all seven packages + dev deps into .venv
+uv sync          # installs all eight packages + dev deps into .venv
 ```
 
 ## Test
@@ -45,12 +45,13 @@ uv run --package galaxy-tool-xml-fmt        pytest galaxy-tool-xml-fmt/tests/
 uv run --package galaxy-tool-xml-check      pytest galaxy-tool-xml-check/tests/
 uv run --package galaxy-tool-refactor-registry pytest galaxy-tool-refactor-registry/tests/
 uv run --package galaxy-tool-refactor-cli   pytest galaxy-tool-refactor-cli/tests/
+uv run --package galaxy-tool-refactor-mcp   pytest galaxy-tool-refactor-mcp/tests/
 ```
 
 ## Lint / type-check
 
 ```bash
-uv run ruff check galaxy-tool-refactor-rules/src galaxy-tool-xml/src galaxy-tool-xml-codemod/src galaxy-tool-xml-fmt/src galaxy-tool-xml-check/src galaxy-tool-refactor-registry/src galaxy-tool-refactor-cli/src
+uv run ruff check galaxy-tool-refactor-rules/src galaxy-tool-xml/src galaxy-tool-xml-codemod/src galaxy-tool-xml-fmt/src galaxy-tool-xml-check/src galaxy-tool-refactor-registry/src galaxy-tool-refactor-cli/src galaxy-tool-refactor-mcp/src
 uv run mypy --config-file galaxy-tool-refactor-rules/pyproject.toml galaxy-tool-refactor-rules/src
 uv run mypy --config-file galaxy-tool-xml/pyproject.toml         galaxy-tool-xml/src
 uv run mypy --config-file galaxy-tool-xml-codemod/pyproject.toml galaxy-tool-xml-codemod/src
@@ -58,12 +59,13 @@ uv run mypy --config-file galaxy-tool-xml-fmt/pyproject.toml     galaxy-tool-xml
 uv run mypy --config-file galaxy-tool-xml-check/pyproject.toml   galaxy-tool-xml-check/src
 uv run mypy --config-file galaxy-tool-refactor-registry/pyproject.toml galaxy-tool-refactor-registry/src
 uv run mypy --config-file galaxy-tool-refactor-cli/pyproject.toml galaxy-tool-refactor-cli/src
+uv run mypy --config-file galaxy-tool-refactor-mcp/pyproject.toml galaxy-tool-refactor-mcp/src
 ```
 
 ## Pre-push QA gate
 
 `scripts/qa_gate.sh` runs the deterministic quality slice — ruff, mypy (strict,
-per package), and pytest for all seven packages — and exits non-zero (naming the
+per package), and pytest for all eight packages — and exits non-zero (naming the
 failing step) if anything fails. A `git push` **PreToolUse hook**
 (`.claude/settings.json`) calls it and **blocks the push** on failure, so code
 never leaves the machine with a red gate. Run it manually any time:
@@ -236,7 +238,7 @@ Tiers, each independently installable:
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice checks (`IUC` codes, `RuleMeta.detect_only`); read-only LBYL queries over tier 1 yielding `Violation`. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | Unified, code-addressable `RuleHandle` over all three families + named presets (`cosmetic`/`iuc`/`strict`) + `run`/`upgrade`/`detect`. **Library-first** (no click/exit; structured I/O; introspectable). Depends on 0.5/1/2/3/3.5; lower tiers don't depend on it. |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `presets`, `rules`. |
-| 4 | **MCP server** *(future)* | `galaxy-tool-refactor-mcp` | Placeholder for an agent-facing MCP server over the registry facade. **Not implemented / not a workspace member yet** — see its `docs/vision.md`. |
+| 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the registry facade (a sibling of the CLI). A thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format`/`upgrade`/`check`/`list_presets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) remain future. |
 
 **Orchestration lives in the registry facade (tier 3.6); the CLI is a thin
 front-end.** Each lower tier is consumable standalone; the facade composes them
@@ -283,5 +285,6 @@ presets, per-rule selection, and the move of orchestration below the CLI.
 For the per-profile upgrade map (what each profile bump requires, the
 structural-vs-semantic split, and the validity-as-oracle soundness boundary)
 see `docs/profile_upgrades.md` (+ codemod `docs/decisions.md` §22).
-`galaxy-tool-refactor-mcp/docs/vision.md` records the (unbuilt) MCP /
-agent-extensibility direction the facade is shaped for.
+`galaxy-tool-refactor-mcp` is the agent-facing MCP server over the facade (Goal 1
+of its `docs/vision.md`, shipped — see `galaxy-tool-refactor-mcp/docs/decisions.md`
+D1); the agent-authored-rules direction (Goal 2) is still future.

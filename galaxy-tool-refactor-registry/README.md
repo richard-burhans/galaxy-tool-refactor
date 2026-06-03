@@ -14,7 +14,7 @@ enable/disable**, behind a **library-first** API.
 
 It depends on the rule tiers (0.5 / 1 / 2 / 3 / 3.5); the lower tiers do **not**
 depend on it. It is the orchestration core the `galaxy-tool-refactor` CLI sits on
-top of, and the intended core for a future MCP server
+top of, and the core the agent-facing MCP server sits on
 (`galaxy-tool-refactor-mcp`). All XML serialisation goes through fmt, preserving
 "fmt is the only tier that writes/serialises XML".
 
