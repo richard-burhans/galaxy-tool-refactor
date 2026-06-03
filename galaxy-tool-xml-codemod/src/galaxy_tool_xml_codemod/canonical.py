@@ -26,6 +26,12 @@ command, run before fmt's cosmetic rules). Front-to-back:
 4. ``ReorderToolChildren`` — reorder the root ``<tool>``'s child elements to the
    IUC convention (element-level tidying after attribute-level). Validity-safe:
    the schema's ``<tool>`` content model is order-free (``xs:all``).
+5. ``WrapCommandCdata`` / ``WrapHelpCdata`` — wrap a pure-text ``<command>`` /
+   ``<help>`` body in ``<![CDATA[…]]>`` (IUC #34/#42). Behaviour-preserving — lxml
+   exposes the entity-unescaped text, so only the serialised bytes change, not the
+   value Galaxy runs/renders. Content-level tidying, so it runs after the
+   structural reorders; independent of them (it never touches child order). See
+   ``docs/decisions.md`` §29.
 
 It deliberately does **not** change ``profile=`` or apply version migrations —
 that is the upgrade pipeline's job.
@@ -60,6 +66,8 @@ from galaxy_tool_xml_codemod.codemods.reorder_tool_attributes import (
 from galaxy_tool_xml_codemod.codemods.reorder_tool_children import (
     ReorderToolChildren,
 )
+from galaxy_tool_xml_codemod.codemods.wrap_command_cdata import WrapCommandCdata
+from galaxy_tool_xml_codemod.codemods.wrap_help_cdata import WrapHelpCdata
 from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 
 CANONICAL_CODEMODS: tuple[type[CodemodCommand], ...] = (
@@ -68,6 +76,8 @@ CANONICAL_CODEMODS: tuple[type[CodemodCommand], ...] = (
     ReorderParamAttributes,
     ReorderToolAttributes,
     ReorderToolChildren,
+    WrapCommandCdata,
+    WrapHelpCdata,
 )
 
 AUTO_UPGRADE_CODEMODS: tuple[type[CodemodCommand], ...] = (

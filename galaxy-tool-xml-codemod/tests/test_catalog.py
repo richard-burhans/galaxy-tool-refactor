@@ -20,6 +20,8 @@ _EXPECTED_CODES = {
     "GTX015",  # FixOutputFormatInput (runtime-gated)
     "GTX016",  # FixInterpreter (runtime-gated)
     "GTX017",  # NormalizeBooleanValues
+    "GTX018",  # WrapCommandCdata
+    "GTX019",  # WrapHelpCdata
 }
 
 

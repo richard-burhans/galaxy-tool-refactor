@@ -37,9 +37,12 @@ contracts in ``canonical.py``:
 
 - ``CANONICAL_CODEMODS`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
   ``ReorderParamAttributes`` → ``ReorderToolAttributes`` →
-  ``ReorderToolChildren`` (the safe canonical/format pipeline;
-  ``ReorderToolChildren`` = GTX013, IUC #52 element order, validity-safe
-  because ``<tool>`` is ``xs:all``).
+  ``ReorderToolChildren`` → ``WrapCommandCdata`` → ``WrapHelpCdata`` (the safe
+  canonical/format pipeline; ``ReorderToolChildren`` = GTX013, IUC #52 element
+  order, validity-safe because ``<tool>`` is ``xs:all``; ``WrapCommandCdata`` /
+  ``WrapHelpCdata`` = GTX018/GTX019, IUC #34/#42, wrap a pure-text
+  ``<command>``/``<help>`` body in CDATA — behaviour-preserving, ``docs/decisions.md``
+  §29).
 - ``AUTO_UPGRADE_CODEMODS`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
   ``UpgradeToLatest`` (the opt-in profile-upgrade pipeline).
 

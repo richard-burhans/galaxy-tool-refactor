@@ -231,6 +231,7 @@ currently legitimate, which is exactly why they belong in an allowlist:
 | `xml/macros.py:247` | serialise to a **temp dir** for macro expansion (throwaway, not output) — see 6.1 |
 | `check/checks.py:67` | serialise one element to a `str` for content inspection (read-only) |
 | `codemod/_coarse_detect.py:53,55` | before/after `tostring` to detect change (internal compare) |
+| `codemod/cursor.py` | serialise one element to a `str` for read-only CDATA-wrap inspection (GTX018/019, added 2026-06-03) |
 | `registry/facade.py:89,175`, `registry/macro_profile.py:188` | write **fmt-produced** bytes to disk |
 
 **Proposal:** add an architecture test (in registry or a workspace-level
@@ -422,8 +423,8 @@ here as a record of what was decided and where it landed.
 1. ~~**Serializer-allowlist architecture test** (4.1, corroborated) — highest
    value.~~ **DONE** —
    `galaxy-tool-refactor-registry/tests/test_serializer_allowlist.py` greps every
-   `*/src/**` for `etree.tostring(` / `.write_bytes(` against the allowlist of the
-   10 sanctioned sites (and a companion test that flags stale allowlist entries).
+   `*/src/**` for `etree.tostring(` / `.write_bytes(` against the allowlist of
+   sanctioned sites (and a companion test that flags stale allowlist entries).
 2. ~~Collision-guard "duplicate fires" test (escalation-new).~~ **DONE** —
    extracted the pure `_build_index(entries)` helper out of the `@cache`d
    `registry._index()`; `test_registry.py::test_duplicate_code_raises` feeds it a

@@ -20,6 +20,8 @@ Structural canonical codemods and cosmetic fmt rules. A finding here means `form
 | GTX006 | codemod | 30 | 0.3% | 30 | Repair near-miss spelling typos so a globally-invalid tool validates. |
 | GTX013 | codemod | 5,009 | 53.9% | 5,009 | Reorder `<tool>` child elements to the IUC convention. |
 | GTX017 | codemod | 21 | 0.2% | 21 | Normalize Python-style boolean attribute values (True/Yes/…) to canonical xs:boolean so a globally-invalid tool validates. |
+| GTX018 | codemod | 3,254 | 35.0% | 3,254 | Wrap a pure-text `<command>` body in CDATA (IUC #34). |
+| GTX019 | codemod | 3,732 | 40.2% | 3,975 | Wrap a pure-text `<help>` body in CDATA (IUC #42). |
 
 ## Advisory checks (IUC — best practices)
 

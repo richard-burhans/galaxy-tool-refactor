@@ -38,6 +38,34 @@ def test_set_text_without_cdata_escapes_markup() -> None:
     assert b"a &amp;&amp; b" in etree.tostring(cursor._element)  # plain text escapes
 
 
+def _cdata_cursor(xml: bytes) -> Cursor:
+    """Build a cursor whose tree preserves CDATA (the tier-1 parser default)."""
+    return Cursor(etree.fromstring(xml, parser=etree.XMLParser(strip_cdata=False)))
+
+
+def test_child_node_count_counts_comments_and_elements() -> None:
+    assert _cdata_cursor(b"<command>echo hi</command>").child_node_count() == 0
+    # CDATA is stored as .text, not a child node.
+    cdata = b"<command><![CDATA[echo hi]]></command>"
+    assert _cdata_cursor(cdata).child_node_count() == 0
+    # A comment or a child element each count.
+    commented = _cdata_cursor(b"<command>echo <!-- c -->hi</command>")
+    assert commented.child_node_count() == 1
+    childed = _cdata_cursor(b"<command>echo <token>x</token></command>")
+    assert childed.child_node_count() == 1
+
+
+def test_is_cdata_wrapped_distinguishes_cdata_from_plain_text() -> None:
+    assert not _cdata_cursor(b"<command>echo hi</command>").is_cdata_wrapped()
+    assert _cdata_cursor(b"<command><![CDATA[echo hi]]></command>").is_cdata_wrapped()
+    # Leading whitespace before the section still counts as wrapped.
+    ws = b"<command>\n  <![CDATA[echo hi]]></command>"
+    assert _cdata_cursor(ws).is_cdata_wrapped()
+    # A CDATA-bearing *child* is not the body itself being wrapped.
+    child = b"<command>echo <token><![CDATA[x]]></token></command>"
+    assert not _cdata_cursor(child).is_cdata_wrapped()
+
+
 def test_cursor_tag_returns_element_tag(minimal_tool_path: Path) -> None:
     """``cursor.tag`` returns the lxml element's tag as a string."""
     cursor = _root_cursor(minimal_tool_path)
