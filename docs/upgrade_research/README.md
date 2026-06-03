@@ -19,7 +19,8 @@ mechanical-fix feasibility · status.
 
 > **`must_fix`** = bumping past this profile *breaks* the tool unless changed.
 > **`consider`** = a runtime-behaviour change to review (the tool still runs). Our
-> toolchain auto-fixes only two codes today (GTX014/GTX015); see the per-code notes.
+> toolchain auto-fixes three codes today via runtime-gated fixes the `upgrade` path
+> applies (GTX014/GTX015/GTX016); see the per-code notes.
 
 ## `must_fix` codes
 
