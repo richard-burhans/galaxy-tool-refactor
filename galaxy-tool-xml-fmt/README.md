@@ -94,7 +94,7 @@ app's `format`/`upgrade` commands use it.
 From the workspace root:
 
 ```sh
-uv sync                    # workspace dev install (all seven packages)
+uv sync                    # workspace dev install (all eight packages)
 uv run pytest
 ```
 

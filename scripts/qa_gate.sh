@@ -2,7 +2,7 @@
 # Pre-push QA gate for the galaxy-tool-refactor workspace.
 #
 # Runs the deterministic quality slice — ruff, mypy (strict, per package), and
-# pytest for all seven packages — and exits non-zero, naming the failing step,
+# pytest for all eight packages — and exits non-zero, naming the failing step,
 # if anything fails. A `git push` PreToolUse hook (.claude/settings.json) calls
 # this and blocks the push on failure, so code never leaves the machine with a
 # red gate. Run it manually any time:
@@ -24,6 +24,7 @@ PACKAGES=(
     galaxy-tool-xml-check
     galaxy-tool-refactor-registry
     galaxy-tool-refactor-cli
+    galaxy-tool-refactor-mcp
 )
 
 fail() {

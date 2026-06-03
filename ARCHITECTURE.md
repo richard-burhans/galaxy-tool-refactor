@@ -3,7 +3,7 @@
 A map of the **major abstractions** in this monorepo and the **contracts**
 between them. It is the orientation document a new contributor reads first: what
 each tier owns, the central types and entry points, and the cross-tier invariants
-that keep the seven packages independent.
+that keep the eight packages independent.
 
 This file does **not** re-argue the *why behind the why* — each decision lives in
 the owning package's `docs/decisions.md`, and the §-pointers in the
@@ -22,8 +22,9 @@ load-bearing rule:
 
 > **Each tier depends only on lower tiers; no tier depends on a higher one.**
 > Orchestration (running pipelines, composing rule families) lives in the
-> **registry facade** (tier 3.6). The **CLI** (tier 4) is a thin front-end, and a
-> future **MCP server** is a second thin front-end over the same facade.
+> **registry facade** (tier 3.6). The **CLI** (tier 4) is a thin front-end, and
+> the **MCP server** (`galaxy-tool-refactor-mcp`) is a second thin front-end over
+> the same facade.
 
 | Tier | Layer | Package | Owns |
 |---|---|---|---|
@@ -34,13 +35,13 @@ load-bearing rule:
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice checks (`CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | `RuleHandle` (uniform adapter over all three families), the unified registry, named presets, ruff-style selection, and the **library-first** `run` / `upgrade` / `detect` facade. Composes 0.5/1/2/3/3.5. |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `presets` / `rules`. CLI plumbing only. |
-| 4 | **MCP server** *(future)* | `galaxy-tool-refactor-mcp` | Placeholder; an agent-facing server over the facade. Not a workspace member yet — see its `docs/vision.md`. |
+| 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format`/`upgrade`/`check`/`list_presets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
 
 ### Dependency direction
 
 ```
                  ┌─────────────────────────────────────────────┐
-   tier 4        │  cli (galaxy-tool-refactor-cli)   mcp (future)│
+   tier 4        │  cli (galaxy-tool-refactor-cli)   mcp (server) │
                  └───────────────────┬─────────────────────────┬┘
                                      │ consumes facade         │
    tier 3.6           ┌─────────────▼──────────────┐           │
@@ -275,7 +276,7 @@ Findings are advisory — informational unless the user opts into `--strict`.
 The first tier that knows about all three rule families at once. **Library-first:**
 no `click`, no `sys.exit`, no printing; inputs are path / bytes / `ToolDocument`;
 outputs are structured dataclasses; files are written only when a `write_path` is
-given. This is what lets both the CLI and a future MCP server be thin adapters.
+given. This is what lets both the CLI and the MCP server be thin adapters.
 
 - **`RuleHandle`** — `handle.py` — the uniform, code-addressable adapter that
   papers over the three families' different native shapes (codemod yields
@@ -359,11 +360,12 @@ Selection (`--preset` / `--select` / `--ignore`) is shared across
 from the facade (`UnknownPreset` / `UnknownRuleCode`) are caught here at the CLI
 boundary and re-raised as `click.BadParameter`.
 
-**Future — `galaxy-tool-refactor-mcp`:** an agent-facing MCP server over the same
-facade (discover rules/presets, run `format` / `upgrade` / `check` on supplied
-content). Not implemented, not a workspace member yet; the facade's library-first
-shape is what makes it a thin adapter. *(cli `docs/decisions.md` D1–D6;
-mcp `docs/vision.md`.)*
+**`galaxy-tool-refactor-mcp`:** an agent-facing MCP server over the same facade
+(discover rules/presets, run `format` / `upgrade` / `check` on supplied content).
+The facade's library-first shape is what makes it a thin adapter: a FastMCP
+binding (`server.py`) over a protocol-agnostic `service.py` (facade → JSON). Goal 1
+of the vision is shipped; agent-authored rules (Goal 2) remain future. *(cli
+`docs/decisions.md` D1–D6; mcp `docs/decisions.md` D1, `docs/vision.md`.)*
 
 ---
 
@@ -474,7 +476,7 @@ The invariants above are enforced by standing tooling, not goodwill (`scripts/`)
   answers one empirical question and writes a `docs/*_stats.md` artifact. Reproduced
   analyses live here (with a test), not in throwaway scripts.
 - **`qa_gate.sh`** — the deterministic pre-push gate: ruff + mypy (strict, per
-  package) + pytest across all seven packages. A `git push` hook blocks on
+  package) + pytest across all eight packages. A `git push` hook blocks on
   failure. (A mechanical backstop — *not* a substitute for the full pre-PR audit.)
 - **`fetch_schemas.py` / `fetch_toolshed.py` / `regenerate.py`** — vendor the XSDs,
   clone the corpus, and regenerate the per-version typed models.
@@ -505,7 +507,7 @@ Each abstraction → its file → the decision record that justifies it.
 | `run` / `upgrade` / `detect` facade | `galaxy-tool-refactor-registry/src/.../facade.py`, `results.py` | registry `docs/decisions.md` D1 |
 | imported-`@PROFILE@` upgrade | `galaxy-tool-refactor-registry/src/.../macro_profile.py` | registry `docs/decisions.md` D5 |
 | the CLI | `galaxy-tool-refactor-cli/src/.../cli.py` | cli `docs/decisions.md` D1–D6 |
-| MCP direction (future) | `galaxy-tool-refactor-mcp/docs/vision.md` | — |
+| the MCP server | `galaxy-tool-refactor-mcp/src/.../server.py` (+ `service.py`) | mcp `docs/decisions.md` D1 |
 
 ### Rule codes at a glance
 

@@ -1,0 +1,48 @@
+[project]
+name = "galaxy-tool-refactor-mcp"
+version = "0.1.0"
+description = "MCP server exposing the Galaxy tool refactoring facade to AI agents."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Richard Burhans" }]
+# A tier-4 sibling of the CLI: both wrap the registry facade (tier 3.6). The
+# server is a thin protocol adapter — `service.py` (facade -> JSON, no `mcp`
+# import) carries the logic; `server.py` binds it to FastMCP.
+dependencies = [
+    "galaxy-tool-refactor-registry",
+    "galaxy-tool-xml",
+    "mcp>=1.2",
+]
+
+[project.scripts]
+galaxy-tool-refactor-mcp = "galaxy_tool_refactor_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[tool.ruff]
+src = ["src"]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "PTH"]
+
+[tool.mypy]
+files = ["src"]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv.sources]
+galaxy-tool-refactor-registry = { workspace = true }
+galaxy-tool-xml = { workspace = true }

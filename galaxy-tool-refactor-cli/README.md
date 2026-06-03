@@ -57,7 +57,7 @@ formatting is safe and idempotent. Keeping them in separate, explicit commands
 (rather than auto-upgrading inside "format my tool") lets users opt into
 modernization deliberately. Rule orchestration sits *below* the CLI in the
 registry facade — both because output is written via fmt's serializer (so the
-orchestrator must sit above fmt) and so a future MCP server can reuse the same
+orchestrator must sit above fmt) and so the MCP server reuses the same
 core. See `docs/decisions.md` §D1 (the app tier), §D2 (`check`), §D3 (advisory
 findings), §D4 (the registry facade + rule selection).
 

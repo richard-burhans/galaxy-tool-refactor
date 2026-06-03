@@ -55,7 +55,7 @@ Selection (`--preset` / `--select` / `--ignore`) is shared by
 `facade.upgrade` in the per-file transform; `check` runs its own report-only loop
 (`cli_support.iter_targets`/`is_tool_root` + `facade.detect`). The facade — not
 this package — composes the lower tiers, which is *why* the orchestration sits
-below the CLI (so a future MCP server can reuse it). See `docs/decisions.md` §D1
+below the CLI (so the MCP server reuses it). See `docs/decisions.md` §D1
 (app tier), §D2 (`check`), §D3 (advisory findings), §D4 (registry facade +
 selection); `galaxy-tool-refactor-registry/docs/decisions.md` D1–D4;
 `galaxy-tool-xml-fmt/docs/decisions.md` §D12.
