@@ -72,6 +72,31 @@ def test_upgrade_reports_behavior_preserving_pass(tmp_path: Path) -> None:
     assert "behavior-preserving" in result.output
 
 
+def test_upgrade_resolves_imported_macros(tmp_path: Path) -> None:
+    """An imported-macro tool upgrades correctly: the per-file load keeps the
+    file's source_path so ``<import>`` resolves. Regression — loading from bytes
+    dropped it, leaving the un-expanded ``<expand>`` tree XSD-invalid (no valid
+    profile -> nothing to upgrade) and spewing 'macro expansion failed'."""
+    _write(
+        tmp_path / "macros.xml",
+        b'<macros><xml name="reqs"><requirements>'
+        b'<requirement type="package" version="1.0">foo</requirement>'
+        b"</requirements></xml></macros>",
+    )
+    tool = _write(
+        tmp_path / "tool.xml",
+        b'<tool id="m" name="M" version="1.0.0" profile="20.01">'
+        b"<macros><import>macros.xml</import></macros>"
+        b'<expand macro="reqs"/>'
+        b"<command><![CDATA[echo x]]></command>"
+        b'<inputs/><outputs><data name="o"/></outputs></tool>',
+    )
+    result = CliRunner().invoke(main, ["upgrade", "--check", str(tool)])
+    assert result.exit_code == 1, result.output
+    assert "would upgrade" in result.output  # a valid profile was found via expansion
+    assert "macro expansion failed" not in result.output
+
+
 def test_upgrade_check_reports_and_does_not_write(tmp_path: Path) -> None:
     original = _valid_tool(profile="24.1", param_fmt="BAM")
     file = _write(tmp_path / "tool.xml", original)

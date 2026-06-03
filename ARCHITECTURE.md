@@ -441,7 +441,23 @@ natural places to look when reasoning about consistency.
 - **fmt serialises to a throwaway temp file outside the canonical path.** Tier 1's
   `macros.expand_from_tree` writes `etree.tostring(root)` into a `TemporaryDirectory`
   so Galaxy's path-based macro expander can run; the result is discarded. So
-  "fmt is the only serializer" is precisely "of *canonical output* bytes."
+  "fmt is the only serializer" is precisely "of *canonical output* bytes." A
+  consequence: expansion resolves `<import>` against the document's
+  `source_path.parent`, so an in-memory document loaded from bytes (no
+  `source_path`) resolves imports against that throwaway temp dir and silently
+  falls back to the raw tree. The CLI therefore loads each file *by path*
+  (`cli_support._transform_file`), not from the bytes it already read.
+- **Macro write-back is token-name-specific, not general provenance.** The only
+  edit the framework propagates into an *imported* macro file is the `@PROFILE@`
+  token bump (`macro_profile.py`), and it works solely because that token is a
+  *named* construct addressable by name across files. Expansion
+  (`macros.expand_*`) is otherwise **lossy** — it returns a throwaway tree with no
+  element→source-file mapping — so there is no mechanism to map any *other*
+  expanded node (a `<format>` in an imported `<macro>`, a typo in an imported
+  `<xml>`) back to the file that defines it. This is the load-bearing limitation
+  behind "consistent expand-and-modify across inline + imported", deferred until a
+  concrete consumer needs it (`galaxy-tool-xml-codemod/macro-aware-normalization.md`,
+  `docs/macro_handling_architecture.md` §4.2/§6; corpus payoff today ~18 tools).
 
 ---
 
