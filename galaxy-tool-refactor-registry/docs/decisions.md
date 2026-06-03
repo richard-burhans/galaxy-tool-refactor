@@ -157,3 +157,38 @@ galaxy-tool-refactor-registry/tests/test_macro_profile.py`.
   through `format_macro_document` and writes it back (bump-up-only, idempotent);
   a non-agreeing plan is recorded as a skip and never touched. The CLI `upgrade`
   command drives it as a whole-run phase (cli §D6).
+
+## D6 (2026-06-03) — Stat-artifact coverage guard (derived-doc freshness, Phase 1)
+
+**Reproduced by:** `uv run --package galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_stat_artifact_coverage.py`.
+
+- **The gap.** The repo regenerates several `docs/*_stats.md` pages from corpus
+  sweeps, each owned by a *different* `scripts/corpus_check.py` subcommand
+  (`corpus_check_stats.md`←`check`, `corpus_rule_stats.md`←`rules`,
+  `corpus_format_stats.md`←`fmt`). Nothing *forced* the regen, so pages drifted:
+  GTX014–GTX017 silently lagged out of the rule + format pages for **four PRs**
+  (both stuck at the GTX013 sweep) until the GTX018/GTX019 PR caught them up.
+- **What we chose (Phase 1).** A coverage guard mirroring
+  `test_serializer_allowlist.py`: a test-local `STAT_ARTIFACTS` manifest maps each
+  page → its regen command → the code-set it must list, with the code-set derived
+  **live from the same rule registries the generator iterates**
+  (`all_rules()`/`coded_codemods()`/`CANONICAL_CODEMODS`/`all_checks()`) so the
+  expectation can't drift from the generator. The test reads each committed page
+  and fails — naming the page and the exact regen command — if a covered code is
+  absent. It is **corpus-free + deterministic**, so it runs in CI / `qa_gate.sh`
+  and trips at the PR that adds the rule, not four PRs later.
+- **Coverage, not numbers.** It guards that no rule is *silently absent*; it does
+  **not** verify the corpus-measured counts (those need the corpus, unavailable in
+  CI). The per-page code-sets match the generators exactly: check =
+  fmt ∪ canonical-codemod ∪ advisory-IUC; rule/format = fmt ∪ *all* coded codemods
+  (incl. the upgrade-only GTX007–GTX012 the glossary lists).
+- **Home — registry/tests, not `scripts/`.** The guard needs every rule family's
+  registry; the registry tier already imports all of them. It cannot live in a
+  `scripts/`-importing test because the registry package has its own
+  `[tool.pytest.ini_options]`, so the root `pythonpath = ["."]` (which makes
+  `scripts` importable elsewhere) does not apply to its test run.
+- **Phase 2 (deferred, planned).** Generalize `covered_codes` → watched-input
+  *fingerprint* (rule set + measure source + corpus snapshot) embedded in each
+  page header, so *any* watched-input change (not just a missing rule) forces a
+  whole-page recompute.
