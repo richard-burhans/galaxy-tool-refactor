@@ -34,7 +34,7 @@ load-bearing rule:
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic `Rule`s (indent / blank line / shorthand), the `Edit` union + `apply_edits`, `format_tool_document` + the net-diff `detect_tool_document`, the shared `cli_support` engine, the serializer. **The only tier that serialises canonical output XML.** |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice checks (`CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | `RuleHandle` (uniform adapter over all three families), the unified registry, named presets, ruff-style selection, and the **library-first** `run` / `upgrade` / `detect` facade. Composes 0.5/1/2/3/3.5. |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `presets` / `rules`. CLI plumbing only. |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `presets` / `rules` / `normalize-macros`. CLI plumbing only. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format`/`upgrade`/`check`/`list_presets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
 
 ### Dependency direction
@@ -355,7 +355,7 @@ serializer. *(registry `docs/decisions.md` D1–D5.)*
 
 The user-facing `galaxy-tool-refactor` CLI (`cli.py`). **CLI plumbing only** — all
 rule orchestration is delegated to the facade; this package no longer imports the
-codemod / check tiers directly. Five subcommands:
+codemod / check tiers directly. Six subcommands:
 
 - **`format`** — apply a preset's (or selection's) fixable rules then cosmetic
   formatting; never changes `profile=`. Advisory rules in a selection are reported
@@ -370,6 +370,9 @@ codemod / check tiers directly. Five subcommands:
   informational unless `--strict`. Wraps `facade.detect`.
 - **`presets` / `rules`** — introspection over `facade.list_presets` /
   `list_rules`.
+- **`normalize-macros`** — opt-in, repo-scoped: lowercase literal `format` /
+  `ftype` in `<macros>`-root files (`macro_datatype.normalize_macro_files`). Not in
+  the per-tool pipeline — it writes files other than the one named (cli §D7).
 
 Selection (`--preset` / `--select` / `--ignore`) is shared across
 `format` / `upgrade` / `check` with the ruff-style precedence above. Exceptions
@@ -465,17 +468,20 @@ natural places to look when reasoning about consistency.
   `source_path`) resolves imports against that throwaway temp dir and silently
   falls back to the raw tree. The CLI therefore loads each file *by path*
   (`cli_support._transform_file`), not from the bytes it already read.
-- **Macro write-back is token-name-specific, not general provenance.** The only
-  edit the framework propagates into an *imported* macro file is the `@PROFILE@`
-  token bump (`macro_profile.py`), and it works solely because that token is a
-  *named* construct addressable by name across files. Expansion
-  (`macros.expand_*`) is otherwise **lossy** — it returns a throwaway tree with no
-  element→source-file mapping — so there is no mechanism to map any *other*
-  expanded node (a `<format>` in an imported `<macro>`, a typo in an imported
-  `<xml>`) back to the file that defines it. This is the load-bearing limitation
-  behind "consistent expand-and-modify across inline + imported", deferred until a
-  concrete consumer needs it (`galaxy-tool-xml-codemod/macro-aware-normalization.md`,
-  `docs/macro_handling_architecture.md` §4.2/§6; corpus payoff today ~18 tools).
+- **Macro write-back is locate-in-source, not general expansion provenance.** Two
+  edits the framework now propagates into an *imported* macro file both work by
+  locating the construct *in its source file* (not via an expanded-node→source map):
+  the `@PROFILE@` token bump (`macro_profile.py`, addressable by token name, with an
+  importer-consensus gate) and — since 2026-06-03 (Phase 2a) — literal `format`/`ftype`
+  normalization (`macro_datatype.py`, the opt-in `normalize-macros` command, gate-free
+  because lowercasing is validity-safe; registry `docs/decisions.md` D8). Expansion
+  (`macros.expand_*`) remains **lossy** — a throwaway tree with no element→source-file
+  mapping — so an edit that needs *post-expansion attribution* (a token-supplied
+  `format="@FORMAT@"`, an arbitrary expanded node) still has no mechanism. That general
+  provenance layer (Phase 2b) is the load-bearing limitation behind full
+  "consistent expand-and-modify", deferred until a consumer needs it
+  (`galaxy-tool-xml-codemod/docs/macro-aware-normalization.md`,
+  `docs/macro_handling_architecture.md` §4.2/§6; the literal-value payoff was 15 tools).
 
 ---
 

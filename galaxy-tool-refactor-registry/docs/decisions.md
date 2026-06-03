@@ -234,3 +234,39 @@ galaxy-tool-refactor-registry/tests/test_research_note_citations.py`.
   intentionally **not** guarded — there is no committed source of truth to derive
   them from. The companion of D6: D6 keeps generated pages honest about *which rules*
   they list; D7 keeps prose notes honest about *which numbers* they quote.
+## D8 (2026-06-03) — Imported-macro `format`/`ftype` normalization (macro epic, Phase 2a)
+
+**Reproduced by:** `uv run --package galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_macro_datatype.py`; corpus sizing
+`uv run python -m scripts.measure macro-format-residual`
+(`docs/macro_format_residual_stats.md`).
+
+- **The gap.** `Upgrade24_1` (GTX010) lowercases `format`/`ftype` to satisfy the 24.2
+  pattern facet, but only on the tool's **own** tree. A coercible value defined in an
+  *imported* macro file (e.g. `<data format="GTiff">` in `gdal_macros.xml`) is
+  unreachable from the per-tool pipeline, so **15** corpus tools stay stuck below 24.2
+  solely because of it (6 via a shared defining file, 9 sole-owned;
+  `galaxy-tool-xml-codemod/docs/macro-aware-normalization.md`). This is the first
+  consumer of the macro write-back epic (`docs/macro_handling_architecture.md` §6c).
+- **What we chose (Phase 2a, the scoped slice).** `macro_datatype.normalize_macro_files`
+  — the macro-library analog of `Upgrade24_1`: load each `<macros>`-root file as a
+  `MacroDocument`, lowercase every **literal** `format`/`ftype` (the shared tier-2
+  `datatype_format` helper, `skip_tokens=True` to leave `@TOKEN@` placeholders), and
+  reserialise through `format_macro_document` (fmt stays the only serializer). It lives
+  here (parallel to `macro_profile.py`) because it needs tier-1 + tier-2 + fmt. The
+  CLI exposes it as the opt-in `normalize-macros` command — **never** folded into
+  `format`/`upgrade`, because it writes files other than the one named.
+- **Why no per-importer validity gate (unlike `macro_profile`'s consensus).** The edit
+  is exactly the canonicalization `Upgrade24_1` already applies tool-tree-wide as
+  semantics-preserving: lowercase is the canonical Galaxy datatype extension at every
+  profile, and it only *satisfies* the 24.2 pattern facet, never breaks it. An importer
+  blocked by the uppercase value can only improve; one already valid stays valid. So a
+  shared macro file is as safe to edit as the tool's own tree — the shared-file blast
+  radius is *surfaced* (the measure splits shared vs sole-owned), not gated. Contrast
+  `@PROFILE@` (D5), where importers can disagree on a target and consensus is required.
+- **Robustness.** A macro file that fails to load (unsupported version / malformed) is
+  skipped and recorded in `MacroDatatypeResult.unparseable`, never aborting the batch —
+  parsing is the one boundary with no LBYL form.
+- **Scope.** Phase 2a only — literal values. Token-supplied (`format="@FORMAT@"`) and
+  arbitrary expanded-node edits need the general expansion-provenance layer (Phase 2b),
+  still deferred (`docs/macro_handling_architecture.md` §6, §7).

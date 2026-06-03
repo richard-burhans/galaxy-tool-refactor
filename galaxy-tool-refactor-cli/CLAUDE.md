@@ -22,7 +22,7 @@ Rule orchestration lives in the tier-3.6 **registry facade**
 (`galaxy-tool-refactor-registry`); this package depends on it (plus fmt's
 `cli_support` engine and tier-1 parsing) and does CLI plumbing only — it no
 longer imports the codemod / check tiers directly. It exposes the
-`galaxy-tool-refactor` CLI with five subcommands:
+`galaxy-tool-refactor` CLI with six subcommands:
 
 - `format` — apply a preset's fixable rules then cosmetic formatting. Default
   preset `iuc` = `CANONICAL_CODEMODS` (repair + attribute / element order) +
@@ -41,6 +41,12 @@ longer imports the codemod / check tiers directly. It exposes the
   `(advisory)`). Fixable findings exit non-zero; advisory are informational unless
   `--strict`. Macro files are checked for cosmetic (fixable) drift too.
 - `presets` / `rules` — introspection of the baked-in presets and rules.
+- `normalize-macros` — opt-in, repo-scoped pass that lowercases literal
+  `format`/`ftype` in `<macros>`-root files (the macro-library analog of 24.2
+  normalization the per-tool `upgrade` cannot reach). Rewrites files other than the
+  one named (a shared macro file affects every importer), so it is a deliberate,
+  separate command — never part of `format`/`upgrade` (cli §D7;
+  `galaxy-tool-xml-codemod/docs/macro-aware-normalization.md`).
 
 Macro handling is **cosmetic-only and bundle-free** in v1: macro files are
 formatted/checked standalone as encountered (no import-graph, no shared-skip —

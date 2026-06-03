@@ -13,7 +13,7 @@ galaxy-tool-refactor/
 ├── galaxy-tool-xml-fmt/      Tier 3 (formatting)
 ├── galaxy-tool-xml-check/    Tier 3.5 (advisory detect-only IUC checks)
 ├── galaxy-tool-refactor-registry/ Tier 3.6 (unified rule registry + presets; library-first facade)
-├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + presets/rules)
+├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + presets/rules + normalize-macros)
 ├── galaxy-tool-refactor-mcp/ Tier 4 (MCP server over the registry facade; thin FastMCP adapter)
 ├── scripts/                  Shared maintainer scripts (not installed)
 │   ├── corpus_check.py         validate | fmt | codemod | rules | check subcommands
@@ -205,6 +205,14 @@ uv run python -m scripts.measure cheetah-command-complexity
 # eligibility predicate. Backs docs/upgrade_research/16_04_fix_interpreter.md. Writes
 # docs/interpreter_bucket_stats.md (needs the corpus, so not run in CI):
 uv run python -m scripts.measure interpreter-bucket-split
+
+# Macro-file format/ftype residual (macro epic Phase 2a): tools stuck below latest
+# that reach a newer profile once the literal format/ftype in their imported macro
+# files are lowercased (the value Upgrade24_1 can't reach) — sound (temp-copy +
+# re-validate, strict increase), split shared vs sole-owned defining file. Backs
+# galaxy-tool-xml-codemod/docs/macro-aware-normalization.md. Writes
+# docs/macro_format_residual_stats.md (needs the corpus, so not run in CI):
+uv run python -m scripts.measure macro-format-residual
 ```
 
 **Note:** invoke as `python -m scripts.X`, not `python scripts/X.py` — the
@@ -238,14 +246,14 @@ Tiers, each independently installable:
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic rules (indent / blank line / empty-element shorthand) + the shared `cli_support` CLI engine. The only tier that serialises canonical output XML. |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice checks (`IUC` codes, `RuleMeta.detect_only`); read-only LBYL queries over tier 1 yielding `Violation`. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | Unified, code-addressable `RuleHandle` over all three families + named presets (`cosmetic`/`iuc`/`strict`) + `run`/`upgrade`/`detect`. **Library-first** (no click/exit; structured I/O; introspectable). Depends on 0.5/1/2/3/3.5; lower tiers don't depend on it. |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `presets`, `rules`. |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `presets`, `rules`, `normalize-macros`. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the registry facade (a sibling of the CLI). A thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format`/`upgrade`/`check`/`list_presets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) remain future. |
 
 **Orchestration lives in the registry facade (tier 3.6); the CLI is a thin
 front-end.** Each lower tier is consumable standalone; the facade composes them
 into one code-addressable rule set with presets and a library-first
 `run`/`upgrade`/`detect` API. The CLI (`galaxy-tool-refactor-cli`) depends on the
-facade (plus fmt's `cli_support` engine and tier-1 parsing) and owns five
+facade (plus fmt's `cli_support` engine and tier-1 parsing) and owns six
 commands:
 
 - `galaxy-tool-refactor format` — apply a preset's fixable rules (default `iuc` =
@@ -260,6 +268,10 @@ commands:
   under `--preset strict` and are informational unless `--strict`.
 - `galaxy-tool-refactor presets` / `rules` — introspection of the baked-in
   presets and rules.
+- `galaxy-tool-refactor normalize-macros` — opt-in, repo-scoped: lowercase literal
+  `format`/`ftype` in `<macros>`-root files (the macro-library analog of 24.2
+  normalization the per-tool `upgrade` can't reach). Writes files other than the one
+  named, so it is never folded into `format`/`upgrade` (cli `docs/decisions.md` §D7).
 
 Selection is shared across `format`/`upgrade`/`check`: `--preset NAME`,
 `--select CODE…`, `--ignore CODE…` (ruff-style precedence `--ignore` ▸ `--select`

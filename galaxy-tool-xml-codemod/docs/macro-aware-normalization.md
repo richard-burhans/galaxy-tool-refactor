@@ -1,8 +1,14 @@
 # Design note: macro-aware `format`/`ftype` normalization
 
-**Status:** open question — not implemented. Recorded so the decision is
-deliberate rather than defaulted. See `docs/decisions.md` §14 and `PLAN.md`
-(24.1 residual).
+**Status:** **Phase 2a implemented (2026-06-03)** as the opt-in **option D** below —
+the `galaxy-tool-refactor normalize-macros` command over
+`galaxy_tool_refactor_registry.macro_datatype` (registry `docs/decisions.md` D8;
+`docs/macro_handling_architecture.md` §6c). The reproducible residual is **15 tools**
+(6 via a shared defining file, 9 sole-owned; `docs/macro_format_residual_stats.md`,
+`scripts/measure.py macro-format-residual`) — the "~18" below was an ad-hoc
+2026-05-29 by-shape estimate; the sound count (strict profile increase after
+normalizing the bundle) is 15. The rest of this note records the option analysis that
+led there. See `docs/decisions.md` §14 and `PLAN.md` (24.1 residual).
 
 ## Problem
 
@@ -120,20 +126,27 @@ Run explicitly by a maintainer, once per macro file.
   macro-file parser/visitor (the narrower model from B); expands the project's
   surface area for a modest, concentrated payoff.
 
-## Recommendation
+## Recommendation — superseded: option D shipped (2026-06-03)
 
-**Stay with A for now; reach for D only if macro-library normalization becomes
-independently desirable.** The payoff is ~18 tools, concentrated in one shared
-macro library plus scattered singletons, and every automated option requires the
-pipeline to write files beyond the tool it was handed — a real expansion of the
-tool's contract with cross-tool blast radius. That cost is not justified by the
-current reach.
+The original recommendation was "stay with A; reach for D only if macro-library
+normalization becomes independently desirable." We chose **D** after all, as the
+first consumer of the macro write-back epic
+(`docs/macro_handling_architecture.md` §6c): the opt-in, repo-scoped
+`normalize-macros` command, **never** part of the per-tool canonical pipeline, so
+the cross-file blast radius is an explicit, deliberate invocation rather than a side
+effect of formatting one tool. The key enabler was recognising the edit is
+**validity-safe without a gate** — lowercasing a literal `format`/`ftype` is the
+exact canonicalization `Upgrade24_1` already applies tool-tree-wide, and it only
+satisfies the 24.2 pattern facet, so it cannot regress any importer (registry
+`docs/decisions.md` D8). That removes D's main worry (rewriting a shared file is now
+provably safe for every importer), leaving only the need to make the invocation
+explicit — which the separate command does.
 
-B and C are not recommended: B rewrites shared files as a side effect of
-formatting a tool, and C needs expansion provenance the library does not track.
-If a macro-library formatter is wanted for *other* reasons (consistent macro
-formatting across a repo), revisit D and fold this normalization into it as an
-explicit, opt-in, repo-scoped step — never into the per-tool canonical pipeline.
+B and C remain not done: B would rewrite shared files as a *side effect of formatting
+a tool* (D fixes this by being a separate command); C needs the general expansion
+provenance the library still does not track (Phase 2b, deferred). A token-supplied
+value (`format="@FORMAT@"`) still has no single correct macro-file edit and is left
+to Phase 2b.
 
 ### What would change the calculus
 

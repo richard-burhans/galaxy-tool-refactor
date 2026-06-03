@@ -15,7 +15,7 @@ facade (`galaxy-tool-refactor-registry`).
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` *(this package)* |
 
 Rule orchestration lives in the registry facade; this package depends on it
-(plus fmt's `cli_support` engine and tier-1 parsing) and exposes five commands:
+(plus fmt's `cli_support` engine and tier-1 parsing) and exposes six commands:
 
 ```bash
 # Safe, idempotent: apply a preset's fixable rules + cosmetic formatting.
@@ -40,6 +40,11 @@ galaxy-tool-refactor check --preset strict tool.xml
 # Introspection.
 galaxy-tool-refactor presets
 galaxy-tool-refactor rules
+
+# Opt-in, repo-scoped: lowercase literal format/ftype in <macros>-root files (the
+# macro-library fix the per-tool `upgrade` can't reach). Rewrites files other than
+# the one named, so it is a separate command — never part of format/upgrade.
+galaxy-tool-refactor normalize-macros macros/            # --check to preview
 ```
 
 `format`/`upgrade`/`check` share rule selection — `--preset NAME`,

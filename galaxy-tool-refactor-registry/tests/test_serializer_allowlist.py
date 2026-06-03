@@ -49,6 +49,13 @@ _ALLOWLIST: dict[str, tuple[frozenset[str], str]] = {
         frozenset({".write_bytes("}),
         "writes fmt-produced macro-file bytes (format_macro_document)",
     ),
+    (
+        "galaxy-tool-refactor-registry/src/galaxy_tool_refactor_registry/"
+        "macro_datatype.py"
+    ): (
+        frozenset({".write_bytes("}),
+        "writes fmt-produced macro-file bytes (format_macro_document)",
+    ),
     "galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/codemods/_coarse_detect.py": (
         frozenset({"etree.tostring("}),
         "internal before/after compare to detect change (not output)",

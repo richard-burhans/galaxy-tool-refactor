@@ -225,6 +225,17 @@ The maintainer's goal reduces to one question: **leave the single-file model, or
   gated on a concrete consumer (the first imported-macro *structural* codemod, or
   post-expansion detection parity), built alongside the shared-file consensus/skip machinery
   and the §1.4 bundle model.
+  - **Phase 2a shipped (2026-06-03):** the first consumer — imported-macro `format`/`ftype`
+    normalization — landed *without* the provenance layer, by recognising the edit is a
+    validity-safe canonicalization addressable by *locating the literal in its source file*
+    (the `macro_profile` write-back shape), not by post-expansion attribution. It is the
+    opt-in `normalize-macros` command over `galaxy_tool_refactor_registry.macro_datatype`
+    (registry `docs/decisions.md` D8; `macro-aware-normalization.md`); 15 corpus tools
+    (`docs/macro_format_residual_stats.md`). So general write-back is no longer *only*
+    `@PROFILE@`: a second locate-in-source consumer now exists.
+  - **Phase 2b (the general provenance layer) stays deferred** — it is needed only for what
+    2a cannot reach (token-supplied / arbitrary expanded-node edits), which the corpus shows
+    are rare. Re-open when a consumer needs post-expansion attribution.
 - **(d)** Keep the §5 polish items as low-priority maintainability tickets.
 
 ## 7. Open questions / deferred
@@ -240,6 +251,7 @@ The maintainer's goal reduces to one question: **leave the single-file model, or
   (`docs/macro_corpus_stats.md`, "Imports per tool").
 - Fork-on-divergence for shared macro files (no consumer today: 0/46 diverge).
 - `<yield>` resolution / parameterised macros (32.6% of tools — preserve, defer editing).
-- Macro-library normalisation (`format`/`ftype` in imported macros) — see
-  `galaxy-tool-xml-codemod/docs/macro-aware-normalization.md` (current stance: report,
-  don't auto-fix).
+- Macro-library normalisation (`format`/`ftype` in imported macros) — **shipped
+  2026-06-03 (Phase 2a)** as the opt-in `normalize-macros` command; see
+  `galaxy-tool-xml-codemod/docs/macro-aware-normalization.md` and registry
+  `docs/decisions.md` D8. (Token-supplied values await Phase 2b.)
