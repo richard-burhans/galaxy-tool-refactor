@@ -170,10 +170,12 @@ will change.
   call** rather than re-enumerating every mutation kind.
 - **Pipeline contracts** — `canonical.py`:
   - `CANONICAL_CODEMODS` = `FixTypos` → `NormalizeBooleanValues` →
-    `ReorderParamAttributes` → `ReorderToolAttributes` → `ReorderToolChildren` —
-    the **safe, idempotent** format-time pipeline. Never touches `profile=`.
-    (`FixTypos` and `NormalizeBooleanValues` are validity-restoring no-ops unless
-    the tool validates nowhere.)
+    `ReorderParamAttributes` → `ReorderToolAttributes` → `ReorderToolChildren` →
+    `WrapCommandCdata` → `WrapHelpCdata` — the **safe, idempotent** format-time
+    pipeline. Never touches `profile=`. (`FixTypos` and `NormalizeBooleanValues`
+    are validity-restoring no-ops unless the tool validates nowhere; the two
+    `Wrap…Cdata` codemods, GTX018/GTX019, wrap a pure-text `<command>`/`<help>`
+    body in CDATA — behaviour-preserving, codemod §29.)
   - `AUTO_UPGRADE_CODEMODS` = `FixTypos` → `NormalizeBooleanValues` →
     `UpgradeToLatest` — the **opt-in, semantic** profile-upgrade pipeline
     (repair-before-upgrade).
@@ -304,8 +306,10 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
 - **Presets** — `presets.py` — named, developer-defined rule subsets, derived from
   the family registries (never a hand-maintained code list that can drift):
   `cosmetic` (fmt rules only), `iuc` (canonical codemods + cosmetic; the
-  **default**, byte-identical to the historical `format`), `strict` (`iuc` + every
-  advisory check). No user-defined presets.
+  **default**, byte-identical to the standalone `format` pipeline — a regression
+  test pins the facade against the live `CANONICAL_CODEMODS` + fmt, so the two
+  stay in lockstep as canonical grows), `strict` (`iuc` + every advisory check).
+  No user-defined presets.
 - **Selection** — `resolve.py` — `resolve_codes(*, preset, select, ignore)` with
   **ruff-style precedence `--ignore` ▸ `--select` ▸ `--preset`**: `--select`
   *replaces* the preset's set (resets the base, not adds), then `--ignore`
@@ -539,6 +543,8 @@ Each abstraction → its file → the decision record that justifies it.
 | GTX015 | `FixOutputFormatInput` | `galaxy-tool-xml-codemod/.../fix_output_format_input.py` | codemod (upgrade-only, runtime-gated) |
 | GTX016 | `FixInterpreter` | `galaxy-tool-xml-codemod/.../fix_interpreter.py` | codemod (upgrade-only, runtime-gated) |
 | GTX017 | `NormalizeBooleanValues` | `galaxy-tool-xml-codemod/.../normalize_boolean_values.py` | codemod (canonical, validation-driven) |
+| GTX018 | `WrapCommandCdata` | `galaxy-tool-xml-codemod/.../wrap_command_cdata.py` | codemod (canonical — §29) |
+| GTX019 | `WrapHelpCdata` | `galaxy-tool-xml-codemod/.../wrap_help_cdata.py` | codemod (canonical — §29) |
 | IUC001–010 | `TestsPresent` … `HelpCdata` | `galaxy-tool-xml-check/.../checks.py` | check (advisory) |
 | IUC011 | `SingleQuotedCheetah` (uses `command_text.py` lexer) | `galaxy-tool-xml-check/.../checks.py` | check (advisory) |
 | IUC012 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks.py` | check (advisory, reserved no-op stub — D3) |

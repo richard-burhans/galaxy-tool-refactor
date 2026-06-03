@@ -1138,3 +1138,48 @@ single-statement predicate is unit-tested in
   The change diverges *tighter* than Galaxy's advisor (more precise, never
   under-reporting), inside the §22 boundary. `23_0_consider_optional_text` remains a
   candidate pending its own sizing.
+
+## 29. `WrapCommandCdata` (GTX018) / `WrapHelpCdata` (GTX019) — CDATA-wrap bodies
+
+**Date:** 2026-06-03. Reproduced-by: `uv run --package galaxy-tool-xml-codemod
+pytest galaxy-tool-xml-codemod/tests/test_wrap_command_cdata.py
+galaxy-tool-xml-codemod/tests/test_wrap_help_cdata.py
+galaxy-tool-xml-codemod/tests/test_cursor.py`; corpus sweeps via `uv run python -m
+scripts.corpus_check codemod
+galaxy_tool_xml_codemod.codemods.wrap_command_cdata:WrapCommandCdata` and `…
+wrap_help_cdata:WrapHelpCdata`. Sizing: `uv run python -m scripts.measure
+help-formats` backs the `<help>` population; the wrappable counts below were a
+one-off classification scan (mirrors the codemod's eligibility predicate).
+
+- **The practice (IUC #34/#42).** Galaxy runs the `<command>` body through Cheetah
+  then a shell, and renders `<help>` as reStructuredText; the IUC best practice
+  wraps both in `<![CDATA[…]]>` so shell operators (`&&`, `<`, `|`) and markup stay
+  literal without XML-escaping. This was Bucket 3 in `docs/iuc_best_practices.md`,
+  originally **deferred** by the maintainer for content-change risk (fmt §D3 bars
+  fmt from rewriting CDATA content).
+- **Why the re-examination resolved the risk.** Wrapping is **behaviour-preserving
+  by construction**: lxml already exposes the *entity-unescaped* body as `.text`
+  (`&amp;&amp;` is `&&` in the tree), so `set_text(text, cdata=True)` (the §21
+  primitive) only changes how that identical text is *serialised* — the value
+  Galaxy runs/renders is unchanged. The earlier objection was content-change
+  *safety*, which the static-validity oracle (§22) plus the pure-text scoping below
+  settle.
+- **Scope — the pure-text subset only.** The shared predicate
+  (`codemods/_cdata.cdata_wrap_change`, used by both `detect_Command` and
+  `detect_Help`) wraps a body iff it has non-whitespace text, **no child nodes**
+  (`Cursor.child_node_count() == 0` — a mixed-content body can't be one CDATA
+  section), is **not already wrapped** (`Cursor.is_cdata_wrapped()` — a serialise +
+  `<![CDATA[` body check, the two read primitives added this pass), and contains no
+  `]]>` terminator (which cannot live inside a section). The advisory **IUC002 /
+  IUC010** checks are retained — they flag *any* non-CDATA body, so after `format`
+  they continue to cover the mixed-content residual these codemods skip.
+- **Canonical, not upgrade.** Both are safe, idempotent, `profile=`-preserving and
+  so join `CANONICAL_CODEMODS` (the `format` / `iuc` pipeline) after the structural
+  reorders — content-level tidying, independent of child order. This grows the `iuc`
+  preset (GTX013/GTX017 set the precedent for non-whitespace canonical codemods).
+- **Corpus soundness (2026-06-03, combined).** Of **8,607** eligible tools,
+  `WrapCommandCdata` modifies **2,772** and `WrapHelpCdata` **3,247**; both report
+  **0 non-idempotent, 0 post-validate-failed, 0 crashed** — idempotent and
+  validity-preserving on every tool, zero retained regressions. The remaining bodies
+  are already CDATA-wrapped (5,982 command / 5,007 help in the raw scan) or
+  mixed-content (12 command / 9 help; 0 carry a `]]>` terminator).

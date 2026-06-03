@@ -84,6 +84,31 @@ class Cursor:
         """
         return [Cursor(child) for child in self._element if _is_element(child)]
 
+    def child_node_count(self) -> int:
+        """Number of child nodes — elements, comments and PIs alike.
+
+        Unlike ``children()`` (which yields only real elements) this counts every
+        node, so ``0`` means the element's content is a single run of text or one
+        CDATA section. That is the precondition for wrapping a ``<command>`` /
+        ``<help>`` body in one CDATA section (``WrapCommandCdata`` /
+        ``WrapHelpCdata``) — a mixed-content body can't be expressed as one.
+        """
+        return len(self._element)
+
+    def is_cdata_wrapped(self) -> bool:
+        """Whether the element's body is a leading ``<![CDATA[…]]>`` section.
+
+        lxml exposes CDATA as plain ``.text`` with no marker, so this re-serialises
+        (the tier-1 parser keeps CDATA, ``strip_cdata=False``, so it round-trips)
+        and inspects the body — mirroring the advisory tier's IUC002/IUC010
+        predicate. Leading whitespace before the section still counts as wrapped.
+        """
+        serialised: str = etree.tostring(
+            self._element, encoding="unicode", with_tail=False
+        )
+        body = serialised[serialised.index(">") + 1 :]
+        return bool(body.lstrip().startswith("<![CDATA["))
+
     def parent(self) -> Cursor | None:
         parent = self._element.getparent()
         return Cursor(parent) if parent is not None else None

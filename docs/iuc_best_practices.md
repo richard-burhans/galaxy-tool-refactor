@@ -63,17 +63,28 @@ elements past a comment could silently re-associate it with the wrong element.
 The `reorder_children` primitive skips (no-op) in that case rather than risk
 corruption (codemod decisions §17).
 
-## Bucket 3 — combination (structural/content + cosmetic reflow): not done
+## Bucket 3 — combination (structural/content): DONE (GTX018/GTX019)
 
-| IUC practice | Status |
-|---|---|
-| `<command>` started/finished with CDATA (#34) | Deferred |
-| `<help>` started/finished with CDATA (#42) | Deferred |
+| IUC practice | Code | Status |
+|---|---|---|
+| `<command>` started/finished with CDATA (#34) | GTX018 | **done** (`WrapCommandCdata`) |
+| `<help>` started/finished with CDATA (#42) | GTX019 | **done** (`WrapHelpCdata`) |
 
-CDATA-wrapping touches element **content**, not whitespace, and is deferred for
-content-change risk (fmt decisions §D3). It is a true combination — a lexical
-wrap (codemod-ish) plus a cosmetic reflow (fmt) — and would only ever apply to
-elements not already wrapped. Declined for now by the maintainer.
+CDATA-wrapping touches element **content**, not whitespace, so it was deferred at
+first for content-change risk (fmt decisions §D3). It is now a **canonical
+codemod** — the re-examination resolved the risk: lxml already exposes the
+entity-unescaped body, so wrapping is **behaviour-preserving** (only the
+serialised bytes change, not the value Galaxy runs/renders), the `set_text(…,
+cdata=True)` primitive (codemod §21) does the lexical wrap, and the change is
+scoped to the *pure-text* subset (no child nodes, not already wrapped, no `]]>`
+terminator). A corpus sweep confirms idempotence + post-apply validity with zero
+regressions (2,772 `<command>` / 3,247 `<help>` modified, 0 non-idempotent, 0
+post-validate-failed). See codemod `docs/decisions.md` §29.
+
+The advisory **IUC002 / IUC010** checks (Bucket 4 below) are retained, not
+superseded: they flag *any* non-CDATA `<command>` / `<help>`, so after `format`
+applies GTX018/GTX019 they continue to cover the rare mixed-content residual the
+codemods deliberately skip.
 
 ## Bucket 4 — another way (~40 content/semantic practices): advisory only
 
@@ -101,7 +112,7 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 | IUC check | Code | Status |
 |---|---|---|
 | `<tests>` present | IUC001 | done |
-| `<command>` wrapped in CDATA | IUC002 | done |
+| `<command>` wrapped in CDATA | IUC002 | done (now also fixable — GTX018) |
 | tool `id` charset (#10–12) | IUC003 | done |
 | `version` PEP 440 or `@…@` macro | IUC004 | done |
 | `<requirements>` present | IUC005 | done |
@@ -109,7 +120,7 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 | EDAM topics/operations or `<xrefs>` | IUC007 | done |
 | non-empty `<help>` | IUC008 | done |
 | non-empty `<description>` | IUC009 | done |
-| `<help>` wrapped in CDATA | IUC010 | done |
+| `<help>` wrapped in CDATA | IUC010 | done (now also fixable — GTX019) |
 | single-quoted Cheetah variables (#36) | IUC011 | **done** (read-only command lexer; see below) |
 | `&&` vs a lone `&` (#39) | IUC012 | **placeholder** (deferred — data-backed, ~dead) |
 | package `<requirement>`s pin a version | IUC013 | **done** (275 tools / 661 findings; check D7) |
