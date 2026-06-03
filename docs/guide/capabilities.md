@@ -37,6 +37,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Repair near-miss typos so an invalid tool validates | GTX006 | ✅ Shipped | `iuc` preset |
 | Normalize Python-style booleans (`True`→`true`) to `xs:boolean` | GTX017 | ✅ Shipped | `iuc` preset |
 | Wrap pure-text `<command>` / `<help>` in CDATA | GTX018, GTX019 | ✅ Shipped | `iuc` preset |
+| Single-quote the *provably*-single-valued Cheetah `$var`s in `<command>` | GTX020 | ✅ Shipped | `iuc` preset |
 
 ### Upgrade (profile bump + repair, opt-in & semantic)
 
@@ -65,7 +66,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Capability | Codes | Status | Source |
 |---|---|---|---|
 | IUC best-practice checks (tests, CDATA, id charset, version, requirements, error handling, EDAM, help, description, version pinning) | IUC001–010, IUC013 | ✅ Shipped | `strict` preset |
-| Unquoted Cheetah `$var` in `<command>` (advisory only) | IUC011 | 🟡 Partial | measure-backed; advisory, not auto-fixed |
+| Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTX020, the residual stays advisory | IUC011 | ✅ Shipped | advisory; provable subset fixed (GTX020) |
 | Lone-`&` vs `&&` join | IUC012 | 🔭 Roadmap | registry labels it "not yet implemented" |
 
 ### Surfaces & orchestration

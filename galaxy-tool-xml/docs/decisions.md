@@ -728,3 +728,27 @@ galaxy-tool-xml pytest galaxy-tool-xml/tests/test_binding.py`.
 - **Why a separate type, not reusing `ToolDocument`.** `ToolDocument.model()` /
   `.profile` are tool-specific and meaningless on a `<macros>` root; a dedicated
   type keeps the contract honest and lets fmt/codemod dispatch on document kind.
+
+## 16. Command-text analysis utilities (`command_text` + `command_vars`)
+
+**Date:** 2026-06-03. Reproduced-by: `uv run --package galaxy-tool-xml pytest
+galaxy-tool-xml/tests/test_command_text.py galaxy-tool-xml/tests/test_command_vars.py`.
+
+Two small, dependency-light modules analyse `<command>` Cheetah/shell text:
+
+- `command_text.unquoted_cheetah_vars(text)` — a read-only lexer yielding every
+  fully-unquoted shell-line `$var` with its name, line offset, and absolute
+  `start`/`end` character span (quote-state tracking across newlines, Cheetah
+  directive skipping). It is *not* a parser — no Cheetah grammar, no shell AST.
+- `command_vars` — resolves a `$var` against a tool's `<inputs>` and classifies it
+  (`input_param_info` / `classify_var` / `provably_quotable`) into the
+  quoting-safety buckets, exposing the provable subset `{safe, attr_safe,
+  builtin_path}`.
+
+**Why tier 1.** Both the advisory IUC011 check (tier 3.5) *and* the GTX020 quoting
+codemod (tier 2) need them. Shared code below both must sit in tier 1 (tier 0.5 is
+RuleMeta-only, no `etree`); the parsing foundation is the natural home, and it keeps
+the codemod from depending upward on the check tier. The lexer began life in the
+check tier (where IUC011 shipped) and moved here when GTX020 was added; `scripts.measure`
+imports the same classifier so the corpus sizing and the codemod never diverge.
+These are *analysis* helpers (string in, data out) — the library still emits no XML.

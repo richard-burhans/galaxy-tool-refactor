@@ -222,8 +222,9 @@ naming the variable and the fix (`single-quote it as '$x'`).
 
 ### How
 
-A new **read-only lexer**, `command_text.unquoted_cheetah_vars(text)`
-(`galaxy-tool-xml-check/.../command_text.py`), does a single character scan that:
+A **read-only lexer**, `command_text.unquoted_cheetah_vars(text)` (originally in
+this tier; **moved to tier 1** `galaxy-tool-xml/.../command_text.py` in D8 so the
+GTX020 codemod can share it), does a single character scan that:
 - tracks `'…'` / `"…"` quote state **across newlines** (a span may cross lines);
 - skips **Cheetah directive/comment lines** (`#if`, `#set`, `##`) — but only when
   the leading `#` is *outside* a quote, so a `#` line inside a multi-line string
@@ -246,9 +247,10 @@ flagged tool. (The alternative one-per-tool shape was considered and declined.)
 
 ### Corpus impact
 
-Reproduced-by: `uv run --package galaxy-tool-xml-check pytest
-galaxy-tool-xml-check/tests/test_command_text.py
-galaxy-tool-xml-check/tests/test_checks.py`; full sweep `uv run python -m
+Reproduced-by: `uv run --package galaxy-tool-xml pytest
+galaxy-tool-xml/tests/test_command_text.py` (the lexer, now tier 1) and `uv run
+--package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py`;
+full sweep `uv run python -m
 scripts.corpus_check check`. IUC011 fires on **6,646 tools (71.5% of 9,289 swept),
 48,850 findings** (`docs/corpus_check_stats.md`) — slightly under the D4 sizing
 (73.2% / 50,380) because the shipped lexer's multi-line-quote tracking correctly
@@ -277,15 +279,24 @@ param's kind). Of **49,119** occurrences across **6,699** flagged tools:
 
 | Reference class | Occurrences | Auto-quote? |
 |---|--:|---|
-| `safe` — bare/nested single-token param (data/int/float/bool/select-single/…) | 22,919 (46.7%) | **safe** |
+| `safe` — bare/nested single-token param (data/int/float/bool/select-single/…) | 22,919 (46.7%) | **provable** |
 | `text` — a `text` param (single value, but often free-form options) | 2,320 (4.7%) | judgment |
-| `attr` — `$param.ext` etc. (single-valued metadata) | 694 (1.4%) | usually safe |
-| `builtin` — `$__tool_directory__` / `$on_string` | 1,119 (2.3%) | usually safe |
+| `attr_safe` — `$param.ext` / server-path attr (space-free) | 295 (0.6%) | **provable** |
+| `attr_unsafe` — `$param.name` / `.element_identifier` (dataset label) | 399 (0.8%) | unsafe |
+| `builtin_path` — `$__tool_directory__` etc. (deployment-fixed path) | 1,119 (2.3%) | **provable** |
+| `builtin_label` — `$on_string` (run-varying label) | 0 (0.0%) | unsafe |
 | `structured` — `$cond.x` whose leaf isn't a param (rare) | 5,186 (10.6%) | unknown |
 | `multi` — `multiple=` / `data_collection` param | 368 (0.7%) | **unsafe** (deliberate splat) |
 | `non_input` — root resolves to no input (`#set`-assembled, loop vars) | 16,513 (33.6%) | **unsafe / unknown** |
 
+(The `attr` / `builtin` classes were later split into space-free vs label sub-buckets
+— the provable-vs-not line GTX020 fixes on; see D8.)
+
 ### Decision
+
+> **Revisited and partly reversed — see D8.** The provable subset *did* get an
+> auto-fix (GTX020), and it *does* run under `format`; the reasoning below explains
+> why the *full* fix stays out and the auto-fix is narrow.
 
 **IUC011 stays advisory-only for now.** Two findings drive it:
 
@@ -335,3 +346,37 @@ scripts.corpus_check check`. IUC013 fires on **275 tools (3.0% of 9,289 swept),
 661 findings** (`docs/corpus_check_stats.md`) — a real, actionable signal between
 the rare and the near-universal advisories, not noise. The check tier is now
 **13 active checks** (IUC012 remains the sole no-op stub, D3).
+
+## D8 (2026-06-03) — IUC011's provable subset gets an auto-fix (GTX020), revisiting D6
+
+### Decision
+
+The **provably**-single-valued subset of the IUC011 findings is now auto-fixed by a
+tier-2 codemod, **GTX020 `SingleQuoteCommandVars`** (codemod `docs/decisions.md`
+§30), which runs in the `format` / `iuc` pipeline. This revisits D6's "stays
+advisory-only / never auto-run under `format`" on three points:
+
+- **The mutation is bounded, not the M5 subsystem.** D6 read the fix as a full
+  Cheetah-rewriting mutation. GTX020 is a **positional splice**: it wraps `'…'`
+  around the lexer's existing `start`/`end` span — no Cheetah evaluation, no
+  reference resolution. Idempotent and validity-preserving on the whole corpus
+  (8,607 idempotent, 0 post-validate-failed).
+- **Scope is the *provable* set, wider than D6's safe-only floor.** The
+  `iuc011-fixability` measure was refined to split the old `attr` / `builtin`
+  classes into space-free vs label sub-buckets. GTX020 fixes
+  `{safe, attr_safe, builtin_path}` — values that are space-free for any tool that
+  *currently works* (a path with a space already breaks unquoted). That is **49.5%**
+  of occurrences and **1,287 / 6,699** whole-tool-auto-fixable tools (vs 1,007 for
+  safe-only — `builtin_path` alone adds most of the +280). `builtin_label`
+  (`$on_string`) is excluded and is 0 in the corpus.
+- **It runs under `format`** because every applied quote is behaviour-preserving;
+  this deliberately shifts default-`format` bytes (the workspace / cli / registry
+  byte-identity notes were updated). The **lexer moved to tier 1**
+  (`galaxy-tool-xml/.../command_text.py`) so the codemod (tier 2) and this check
+  (tier 3.5) share it without an upward dependency; `SingleQuotedCheetah` now
+  imports it from there (behaviour unchanged).
+
+IUC011 **stays advisory** and keeps reporting the non-provable residual (free-form
+`text`, `multiple=` splats, `attr_unsafe` / `builtin_label` labels, `structured`,
+`non_input`) — for those, single-quoting is a judgment call a static fixer can't
+make, exactly as D6 found.

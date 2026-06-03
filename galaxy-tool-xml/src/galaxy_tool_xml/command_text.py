@@ -14,8 +14,15 @@ This is the **read-only** slice of the eventual Cheetah/shell lexer (the codemod
 tier's deferred M5): it classifies, it never rewrites, so it needs none of the
 matcher language / mutation cursors / macro provenance that a rewriting lexer
 would. It is deliberately a lexer, not a parser — no Cheetah expression grammar,
-no shell AST; escapes (``\\'``) are not interpreted. Sized by
-``scripts.measure command-unquoted-var``; see ``docs/decisions.md`` D4.
+no shell AST; escapes (``\\'``) are not interpreted.
+
+It lives in tier 1 (the parsing foundation) rather than the advisory-check tier so
+that **both** the detect-only IUC011 check (tier 3.5) *and* the GTX020 quoting
+codemod (tier 2) can share it without a tier-2→tier-3.5 upward dependency. Each
+``UnquotedVar`` carries absolute ``start``/``end`` character offsets so the codemod
+can splice a single-quote pair around exactly the occurrence it found. Sized by
+``scripts.measure command-unquoted-var``; see the check tier's ``docs/decisions.md``
+D4 and ``galaxy-tool-xml/docs/decisions.md`` §16.
 """
 
 from __future__ import annotations
@@ -38,10 +45,16 @@ class UnquotedVar:
         line_offset: 0-based count of newlines before the occurrence in the
             scanned text — add to the ``<command>`` element's ``sourceline`` for
             the file line.
+        start: 0-based character offset of the occurrence's first character
+            (the ``$``) in the scanned text. ``text[start:end] == name``.
+        end: Character offset one past the occurrence's last character — the
+            half-open span the GTX020 codemod wraps in single quotes.
     """
 
     name: str
     line_offset: int
+    start: int
+    end: int
 
 
 def unquoted_cheetah_vars(text: str, /) -> list[UnquotedVar]:
@@ -90,7 +103,14 @@ def unquoted_cheetah_vars(text: str, /) -> list[UnquotedVar]:
             if match is None:
                 index += 1
             else:
-                found.append(UnquotedVar(name=match.group(), line_offset=line_offset))
+                found.append(
+                    UnquotedVar(
+                        name=match.group(),
+                        line_offset=line_offset,
+                        start=match.start(),
+                        end=match.end(),
+                    )
+                )
                 index = match.end()
         else:
             index += 1

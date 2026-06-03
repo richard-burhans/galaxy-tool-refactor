@@ -33,10 +33,13 @@ reports them but does not fail on them by default.
 attribute / structure queries): `IUC001`–`IUC010`, `IUC011` (single-quote Cheetah
 `$var`, via the **read-only `command_text` lexer** — directive-skipping,
 multi-line-quote-aware; the detection-only slice of the codemod tier's deferred
-M5), and `IUC013` (package `<requirement>`s pin a version, D7). `IUC012`
-(`&&`-vs-lone-`&`) stays a no-op stub — its anti-pattern is ~1 tool corpus-wide
-(`docs/decisions.md` D3). See `../docs/iuc_best_practices.md` for the coverage map
-and D3–D7 for the command-text + requirement-pinning check decisions.
+M5; the lexer lives in **tier 1** `galaxy_tool_xml.command_text` so the GTX020
+codemod can share it, D8), and `IUC013` (package `<requirement>`s pin a version,
+D7). `IUC012` (`&&`-vs-lone-`&`) stays a no-op stub — its anti-pattern is ~1 tool
+corpus-wide (`docs/decisions.md` D3). The *provable* subset of IUC011 is now
+auto-fixed by GTX020 (D8); the check keeps flagging the non-provable residual. See
+`../docs/iuc_best_practices.md` for the coverage map and D3–D8 for the command-text
++ requirement-pinning check decisions.
 
 ## Coding standards
 

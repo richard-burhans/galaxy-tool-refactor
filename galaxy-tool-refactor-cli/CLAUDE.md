@@ -25,11 +25,13 @@ longer imports the codemod / check tiers directly. It exposes the
 `galaxy-tool-refactor` CLI with six subcommands:
 
 - `format` — apply a preset's fixable rules then cosmetic formatting. Default
-  preset `iuc` = `CANONICAL_CODEMODS` (repair + attribute / element order) +
-  cosmetic — byte-identical to the historical behaviour. Safe, idempotent, never
-  changes `profile=`. Advisory rules in a selection are reported as notes, never
-  applied. Also cosmetically formats macro-library files (`<macros>` root) —
-  kind-applicable rules only (no codemods); selection governs tools (cli §D5).
+  preset `iuc` = `CANONICAL_CODEMODS` (repair + attribute / element order + the
+  CDATA wraps + GTX020 command-var single-quoting) + cosmetic. Safe, idempotent,
+  never changes `profile=`. (GTX020 shifts default-`format` bytes vs the pre-GTX020
+  historical output — behaviour-preserving; codemod `docs/decisions.md` §30.)
+  Advisory rules in a selection are reported as notes, never applied. Also
+  cosmetically formats macro-library files (`<macros>` root) — kind-applicable
+  rules only (no codemods); selection governs tools (cli §D5).
 - `upgrade` — repair, then iterative profile upgrade, then cosmetic formatting.
   Opt-in and semantic. No `--preset`; `--select`/`--ignore` adjust its rule set.
   Also bumps an imported `@PROFILE@` token in place when every profile-using

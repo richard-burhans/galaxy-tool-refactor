@@ -42,8 +42,11 @@ the CLI and the MCP server (`galaxy-tool-refactor-mcp`) sit on top of it.
   applied by `upgrade`) — appear only in `all_handles()` /
   `list_rules(include_upgrade=True)`.
 - **Apply ordering reproduces `format`.** Codemods in `CANONICAL_CODEMODS` order,
-  then cosmetic fmt in `meta.order`. The `iuc` preset is byte-identical to the
-  old `format` pipeline (a regression test pins this).
+  then cosmetic fmt in `meta.order`. The `iuc` preset reproduces the direct
+  `CANONICAL_CODEMODS` + cosmetic pipeline (a regression test pins facade ==
+  pipeline). Note this tracks the *live* `CANONICAL_CODEMODS`: when GTX020 joined
+  it, default-`format` output shifted vs the pre-GTX020 historical bytes (codemod
+  `docs/decisions.md` §30) — the facade-vs-pipeline pin still holds.
 - **Presets and rules are developer-defined.** No user-defined rules/presets.
 
 ## Coding standards

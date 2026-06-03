@@ -268,11 +268,15 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   Cheetah `$var`. **IUC013** (`RequirementVersionPinned`, D7) flags an unpinned
   `<requirement type="package">`. **IUC012** (`CommandAndJoining`, `&&`-vs-lone-`&`)
   remains a reserved no-op stub — its anti-pattern is ~1 tool corpus-wide (D3).
-- **`command_text.py`** — the read-only lexer IUC011 reads `<command>` text
-  through: a single character scan tracking `'…'` / `"…"` quote state **across
-  newlines** and skipping Cheetah directive/comment lines. It only classifies,
-  never rewrites — the detection-only slice of the codemod tier's deferred M5
-  Cheetah/shell lexer, so it needs none of M4 / mutation cursors / provenance.
+- **`command_text.py`** (now in **tier 1**, `galaxy_tool_xml.command_text`) — the
+  read-only lexer IUC011 reads `<command>` text through: a single character scan
+  tracking `'…'` / `"…"` quote state **across newlines** and skipping Cheetah
+  directive/comment lines, yielding each unquoted `$var` with its character span.
+  It only classifies, never rewrites — the detection-only slice of the codemod
+  tier's deferred M5 Cheetah/shell lexer, so it needs none of M4 / mutation cursors
+  / provenance. It moved to tier 1 (with `command_vars.py`, the quoting-safety
+  classifier) so the GTX020 codemod (tier 2) can share it with this check; see
+  `galaxy-tool-xml/docs/decisions.md` §16.
 
 **Contract:** detect-only, LBYL, no mutation, no dependency on the mutating tiers.
 Findings are advisory — informational unless the user opts into `--strict`.
@@ -553,7 +557,8 @@ Each abstraction → its file → the decision record that justifies it.
 | GTX017 | `NormalizeBooleanValues` | `galaxy-tool-xml-codemod/.../normalize_boolean_values.py` | codemod (canonical, validation-driven) |
 | GTX018 | `WrapCommandCdata` | `galaxy-tool-xml-codemod/.../wrap_command_cdata.py` | codemod (canonical — §29) |
 | GTX019 | `WrapHelpCdata` | `galaxy-tool-xml-codemod/.../wrap_help_cdata.py` | codemod (canonical — §29) |
+| GTX020 | `SingleQuoteCommandVars` | `galaxy-tool-xml-codemod/.../single_quote_command_vars.py` | codemod (canonical — §30; the provable IUC011 fix) |
 | IUC001–010 | `TestsPresent` … `HelpCdata` | `galaxy-tool-xml-check/.../checks.py` | check (advisory) |
-| IUC011 | `SingleQuotedCheetah` (uses `command_text.py` lexer) | `galaxy-tool-xml-check/.../checks.py` | check (advisory) |
+| IUC011 | `SingleQuotedCheetah` (uses the tier-1 `galaxy_tool_xml.command_text` lexer) | `galaxy-tool-xml-check/.../checks.py` | check (advisory; provable subset fixed by GTX020) |
 | IUC012 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks.py` | check (advisory, reserved no-op stub — D3) |
 | IUC013 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks.py` | check (advisory — D7) |

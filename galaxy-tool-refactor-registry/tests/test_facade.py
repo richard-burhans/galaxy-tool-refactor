@@ -16,7 +16,12 @@ from galaxy_tool_refactor_registry.resolve import resolve_codes
 
 
 def _today_format(source: bytes) -> bytes:
-    """Reproduce the app's pre-registry ``format`` pipeline for comparison."""
+    """Reproduce the direct ``CANONICAL_CODEMODS`` + cosmetic pipeline for comparison.
+
+    Re-derives from the *live* ``CANONICAL_CODEMODS`` tuple, so this pins that the
+    facade reproduces the direct pipeline — not a frozen historical byte string
+    (GTX020 joining the tuple shifted both sides together; codemod §30).
+    """
     document = load_tool(source)
     module = Module(document)
     for codemod_cls in CANONICAL_CODEMODS:
@@ -25,7 +30,7 @@ def _today_format(source: bytes) -> bytes:
 
 
 def test_iuc_preset_is_byte_identical_to_today_format(sample_bytes: bytes) -> None:
-    """The regression guard: default (iuc) run == the old format pipeline."""
+    """The regression guard: default (iuc) run == the direct canonical pipeline."""
     out = facade.run(sample_bytes, codes=resolve_codes()).formatted
     assert out == _today_format(sample_bytes)
 

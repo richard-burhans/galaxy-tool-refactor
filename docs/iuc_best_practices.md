@@ -121,7 +121,7 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 | non-empty `<help>` | IUC008 | done |
 | non-empty `<description>` | IUC009 | done |
 | `<help>` wrapped in CDATA | IUC010 | done (now also fixable — GTX019) |
-| single-quoted Cheetah variables (#36) | IUC011 | **done** (read-only command lexer; see below) |
+| single-quoted Cheetah variables (#36) | IUC011 | **done** (read-only command lexer; the *provable* subset is now also fixable — GTX020; see below) |
 | `&&` vs a lone `&` (#39) | IUC012 | **placeholder** (deferred — data-backed, ~dead) |
 | package `<requirement>`s pin a version | IUC013 | **done** (275 tools / 661 findings; check D7) |
 
@@ -138,10 +138,17 @@ deferred. **IUC011 is the opposite and now ships** (`docs/decisions.md` D4 +
 **D5**): excluding Cheetah directive lines and tracking shell quotes (across
 newlines), a genuinely-unquoted `$var` fires on **73.2%** of tools — real signal,
 on par with shipped advisories (IUC005 57.3%, IUC007 89.6%). It is implemented as
-a **read-only command-text lexer** (`galaxy-tool-xml-check/.../command_text.py` —
-the detection-only slice of the codemod tier's deferred M5, needing none of the
+a **read-only command-text lexer** (`galaxy-tool-xml/.../command_text.py`, tier 1
+— the detection-only slice of the codemod tier's deferred M5, needing none of the
 matcher language / mutation cursors / provenance), reporting **one finding per
-unquoted occurrence**. For *why* the command text is shell at all (Cheetah →
+unquoted occurrence**. The *provably*-single-valued subset of those occurrences is
+now **auto-fixed** by GTX020 (`SingleQuoteCommandVars`, a tier-2 codemod in the
+`format`/`iuc` pipeline) — bare single-token params, `$__…__` path built-ins, and
+space-free attrs, whose value can never word-split for a working tool (49.5% of
+occurrences; `scripts.measure iuc011-fixability`, codemod `docs/decisions.md` §30).
+The lexer moved to tier 1 so both the check (3.5) and the codemod (2) share it.
+IUC011 keeps flagging the non-provable residual (free-form `text`, `multiple=`
+splats, `$on_string`, label attrs, `#set`/loop vars). For *why* the command text is shell at all (Cheetah →
 whitespace-flatten → `#!/bin/sh` + `set -e`), which grounds both heuristics, see
 [`galaxy_processing_model.md`](galaxy_processing_model.md). "Profile recency" is
 omitted: it overlaps GTX007 / the `upgrade` command.
