@@ -70,7 +70,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from galaxy_tool_xml.macros import expanded_detection_root
-from packaging.version import InvalidVersion, Version
+from packaging.version import Version
+
+from galaxy_tool_xml_codemod._version import version_or_none
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -334,18 +336,6 @@ PROFILE_UPGRADE_CODES: tuple[ProfileUpgradeCode, ...] = (
 )
 
 
-def _version_or_none(value: str, /) -> Version | None:
-    """Parse *value* as a version, or ``None`` if it is not one.
-
-    ``packaging`` exposes no validity predicate, so the ``try``/``except`` is the
-    sanctioned boundary (mirrors ``codemods/update_profile.py``).
-    """
-    try:
-        return Version(value)
-    except InvalidVersion:
-        return None
-
-
 def upgrade_codes_crossed(
     *, from_profile: str, to_profile: str
 ) -> list[ProfileUpgradeCode]:
@@ -357,8 +347,8 @@ def upgrade_codes_crossed(
     macro token) or the bump is not upward. This is range-based: it does not
     check whether the tool actually trips each code (Galaxy's advisor does that).
     """
-    low = _version_or_none(from_profile)
-    high = _version_or_none(to_profile)
+    low = version_or_none(from_profile)
+    high = version_or_none(to_profile)
     if low is None or high is None:
         return []
     return [
@@ -582,7 +572,7 @@ def crossed_and_applicable_codes(
     """
     if baseline is None or target is None:
         return None
-    if _version_or_none(baseline) is None or _version_or_none(target) is None:
+    if version_or_none(baseline) is None or version_or_none(target) is None:
         return None
     crossed = upgrade_codes_crossed(from_profile=baseline, to_profile=target)
     applicable = [change for change in crossed if change.code in tripped]

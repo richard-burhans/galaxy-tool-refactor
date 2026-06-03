@@ -88,14 +88,16 @@ predominantly genuine doc-drift, not inflated structural claims.)
   library or the package itself (a planted-violation test proves the scan isn't
   vacuous), so a future commit can't silently couple the shared-vocabulary tier.
 - **`Correction` / `BooleanNormalization` (tier-1 public result dataclasses) are not
-  `frozen=True` — Low.** The prior pass (N3) froze the other tier-1 result types but
-  scoped these out. Verified never mutated → freezing is safe; left as a proposal
-  because it is a (minor) tier-1 API-semantics change the prior pass excluded.
-- **Codemods' `applies_to={"tool"}` default has no test guard — Low.** Add a test so
-  a macro-applicable codemod can't land without an explicit opt-in.
-- **Duplicated `_version_or_none` (`profile_semantics.py:337` + `runtime_fixes.py:47`)
-  — Low.** Both are documented mirrors over disjoint datasets; consolidation into a
-  shared tier-2 helper is optional.
+  `frozen=True` — Low. [resolved 2026-06-03].** Both verified never mutated; now
+  `@dataclass(frozen=True)`, completing the frozen-result-type convention the prior
+  pass (N3) began.
+- **Codemods' `applies_to={"tool"}` default has no test guard — Low.
+  [resolved 2026-06-03].** `test_catalog.py::test_every_codemod_is_tool_only` asserts
+  every `coded_codemods()` entry has `applies_to == {"tool"}`, so a macro-applicable
+  codemod can't land on the default and silently mutate macro files.
+- **Duplicated `_version_or_none` (`profile_semantics.py` + `runtime_fixes.py`)
+  — Low. [resolved 2026-06-03].** Consolidated into `galaxy_tool_xml_codemod/
+  _version.py::version_or_none`; both modules now import it.
 
 **Re-confirmed intentional [accepted] (recorded so the next audit doesn't re-flag):**
 - `CodemodCommand` / `RuntimeGatedFix` are plain classes, not ABCs — the tier-2
