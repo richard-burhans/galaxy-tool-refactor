@@ -99,6 +99,12 @@ Sweep for things the change silently invalidated:
   (no rule silently absent), not the corpus *numbers*; the three GTX pages are
   owned by three different sweeps (`check`/`rules`/`fmt`), so a rule change usually
   means regenerating all three (registry `docs/decisions.md` D6).
+- **Numbers cited in `docs/upgrade_research/` prose are guarded** by
+  `galaxy-tool-refactor-registry/tests/test_research_note_citations.py` (the D7
+  companion): if a regenerated `upgrade_behavior_block_stats.md` /
+  `interpreter_bucket_stats.md` count changes, it fails naming the note that still
+  quotes the old number and the regen command. It guards artifact-sourced numbers
+  only — derived/sweep-only figures are out of scope, so still eyeball those.
 
 ## Step 6 — Mechanical gate + ship
 

@@ -161,7 +161,8 @@ orchestration lives in the registry facade (3.6); the CLI/MCP are thin front-end
 | 3 | `galaxy-tool-xml-fmt` | cosmetic `Rule`/`Edit`; the only serializer of canonical output |
 | 3.5 | `galaxy-tool-xml-check` | detect-only IUC `CheckRule`s |
 | 3.6 | `galaxy-tool-refactor-registry` | `RuleHandle`, presets, `run/upgrade/detect` facade |
-| 4 | `galaxy-tool-refactor-cli` (+ future `-mcp`) | thin front-end over the facade |
+| 4 | `galaxy-tool-refactor-cli` | thin user-facing CLI over the facade |
+| 4 | `galaxy-tool-refactor-mcp` | thin agent-facing MCP server over the facade |
 
 Outputs live at [`ARCHITECTURE.md`](../../../ARCHITECTURE.md) and
 [`docs/architecture_audit.md`](../../../docs/architecture_audit.md) — read them as a

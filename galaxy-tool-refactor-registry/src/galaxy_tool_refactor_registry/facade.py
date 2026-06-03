@@ -4,7 +4,7 @@ Every function takes a *source* (a filesystem path, raw XML ``bytes``, or an
 existing ``ToolDocument``) and a resolved *codes* set, and returns a structured
 result — no ``click``, no ``sys.exit``, no printing. Files are written only when
 a ``write_path`` is given. This is the shared core the ``galaxy-tool-refactor``
-CLI and a future MCP server (``galaxy-tool-refactor-mcp``) both sit on top of.
+CLI and the MCP server (``galaxy-tool-refactor-mcp``) both sit on top of.
 
 ``codes`` is what ``resolve.resolve_codes`` / ``resolve.resolve_upgrade_codes``
 produce. ``run`` applies the fixable rules in the selection and reports advisory
@@ -288,7 +288,7 @@ def upgrade(
 
 
 def list_presets() -> list[PresetInfo]:
-    """Structured metadata for every preset (for the CLI and a future MCP)."""
+    """Structured metadata for every preset (for the CLI and the MCP server)."""
     preset_map = presets()
     return [
         PresetInfo(
