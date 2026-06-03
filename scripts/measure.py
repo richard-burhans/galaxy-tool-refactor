@@ -5199,6 +5199,233 @@ def _run_macro_format_residual(args: argparse.Namespace) -> None:
         print(f"\nwrote {_display_path(out_path)}")
 
 
+# --- measurement: macro-token-datatype-residual ---------------------------------
+#
+# Phase-2b sizing (macro epic): of the tools still stuck after Phase 2a (literal
+# format/ftype normalization in macro files + the tool's own tree), how many reach a
+# newer profile when the *token-supplied* datatype values are also normalized — i.e.
+# a `format="@FORMAT@"` whose `<token name="@FORMAT@">` value is coercible (`GTiff`).
+# Split by where the helping token is defined: inline (the tool's own `<macros>`,
+# reachable by an Upgrade24_1 extension) vs imported (a macro file, the macro_profile
+# consensus shape). Both are *locate-in-source* fixes — so a non-zero count sizes the
+# cheap Phase-2 consumer, and a ~zero remainder means the heavyweight
+# expansion-provenance layer (M1) is unjustified for datatypes. Sound: temp-copy the
+# bundle, normalize literals (baseline) then literals+token-values, count only a strict
+# profile increase from the token values. Needs the corpus (not CI).
+
+
+@dataclass
+class _MacroTokenResidualResult:
+    """Tools unstuck by normalizing token-supplied datatype values (beyond 2a)."""
+
+    n_tools: int  # unique parsed tools
+    n_token_datatype: int  # tools with a coercible token-supplied format/ftype, stuck
+    residual_tools: int  # of those, unstuck by normalizing the token value(s)
+    inline_only: int  # residual whose helping token(s) are all inline-defined
+    imported_involved: int  # residual with >=1 imported-defined helping token
+
+
+def _temp_normalize_reached(
+    tool_path: Path, bundle: list[Path], /, *, token_names: frozenset[str]
+) -> str | None:
+    """Newest valid profile after temp-normalizing the tool + bundle.
+
+    Always normalizes literal `format`/`ftype` (tool tree + macro files — the 2a /
+    Upgrade24_1 baseline); additionally rewrites each `<token name=…>` in *token_names*
+    to its lowercased datatype value. Returns the reached profile, or ``None`` if the
+    bundle cannot be mirrored (out-of-dir import) or anything fails to parse.
+    """
+    import shutil
+    import tempfile
+
+    from lxml import etree
+
+    from galaxy_tool_xml.binding import (
+        ToolXmlSyntaxError,
+        load_tool,
+        newest_valid_profile,
+    )
+    from galaxy_tool_xml_codemod.datatype_format import (
+        normalize_datatype_attributes,
+        normalize_datatype_value,
+    )
+
+    tool_dir = tool_path.parent
+    members = [tool_path, *bundle]
+    if any(not member.is_relative_to(tool_dir) for member in members):
+        return None
+    parser = etree.XMLParser(strip_cdata=False)
+    try:
+        with tempfile.TemporaryDirectory() as temp_name:
+            temp_dir = Path(temp_name)
+            for member in members:
+                dest = temp_dir / member.relative_to(tool_dir)
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(member, dest)
+            for temp_file in (temp_dir / m.relative_to(tool_dir) for m in members):
+                tree = etree.parse(str(temp_file), parser)
+                changed = False
+                for element in tree.getroot().iter():
+                    if not isinstance(element.tag, str):
+                        continue
+                    if normalize_datatype_attributes(element, skip_tokens=True):
+                        changed = True
+                    if element.tag == "token" and element.get("name") in token_names:
+                        value = (element.text or "").strip()
+                        normalized = normalize_datatype_value(value)
+                        if value and "@" not in value and normalized not in (value, ""):
+                            element.text = normalized
+                            changed = True
+                if changed:
+                    temp_file.write_bytes(etree.tostring(tree))
+            temp_tool = temp_dir / tool_path.relative_to(tool_dir)
+            return newest_valid_profile(load_tool(temp_tool))
+    except ToolXmlSyntaxError:
+        return None
+
+
+def _measure_macro_token_residual(*, corpus_root: Path) -> _MacroTokenResidualResult:
+    """Size the token-supplied datatype residual left after Phase 2a."""
+    import re as _re
+
+    from galaxy_tool_xml.binding import (
+        ToolXmlSyntaxError,
+        load_tool,
+        newest_valid_profile,
+    )
+    from galaxy_tool_xml.macros import imported_macro_paths, token_definitions
+    from galaxy_tool_xml.profiles import is_newer_profile, latest_profile
+    from galaxy_tool_xml_codemod.datatype_format import normalize_datatype_value
+
+    latest = latest_profile()
+    token_ref = _re.compile(r"@[A-Za-z0-9_]+@")
+    seen: set[str] = set()
+    n_tools = n_token_datatype = residual = inline_only = imported_involved = 0
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        if _parse_tool_root(path) is None:
+            continue
+        n_tools += 1
+        try:
+            document = load_tool(path)
+            refs: set[str] = set()
+            for element in document.root.iter():
+                if not isinstance(element.tag, str):
+                    continue
+                for attribute in ("format", "ftype"):
+                    value = element.get(attribute)
+                    if value and "@" in value:
+                        refs.update(token_ref.findall(value))
+            if not refs:
+                continue
+            defs = {d.name: d for d in token_definitions(document)}
+            candidates = {
+                name: defs[name]
+                for name in refs
+                if name in defs
+                and "@" not in defs[name].value
+                and normalize_datatype_value(defs[name].value)
+                not in (defs[name].value, "")
+            }
+            if not candidates:
+                continue
+            reached_before = newest_valid_profile(document)
+            if reached_before is None or not is_newer_profile(latest, reached_before):
+                continue
+            n_token_datatype += 1
+            bundle = imported_macro_paths(path)
+            reached_literal = _temp_normalize_reached(
+                path, bundle, token_names=frozenset()
+            )
+            reached_token = _temp_normalize_reached(
+                path, bundle, token_names=frozenset(candidates)
+            )
+        except ToolXmlSyntaxError:
+            continue
+        if reached_literal is None or reached_token is None:
+            continue
+        if not is_newer_profile(reached_token, reached_literal):
+            continue
+        residual += 1
+        if any(definition.source is not None for definition in candidates.values()):
+            imported_involved += 1
+        else:
+            inline_only += 1
+    return _MacroTokenResidualResult(
+        n_tools=n_tools,
+        n_token_datatype=n_token_datatype,
+        residual_tools=residual,
+        inline_only=inline_only,
+        imported_involved=imported_involved,
+    )
+
+
+def _render_macro_token_residual_page(result: _MacroTokenResidualResult) -> str:
+    """Render the macro-token-datatype-residual stats markdown page (deterministic)."""
+    return "\n".join(
+        [
+            "# Macro token-supplied datatype residual (Phase-2b sizing)",
+            "",
+            "Sizes what Phase 2a (literal `format`/`ftype` normalization) leaves on the",
+            "table: tools still stuck below the latest profile that reach a newer one",
+            "only when the **token-supplied** datatype values are also normalized — a",
+            '`format="@FORMAT@"` whose `<token>` value is coercible (e.g. `GTiff`).',
+            "Both fixes are *locate-in-source* (the token's definition), so this sizes",
+            "the cheap Phase-2 consumer; a near-zero count means the heavyweight",
+            "expansion-provenance layer (M1) is unjustified for datatypes (see the 2b",
+            "design note). Sound: temp-copy, normalize literals (baseline) then",
+            "literals+token-values, count only a strict profile increase from the tokens.",
+            "",
+            "Regenerate with (needs the corpus, so not run in CI):",
+            "",
+            "```sh",
+            "uv run python -m scripts.measure macro-token-datatype-residual",
+            "```",
+            "",
+            f"Unique `<tool>` files (sha256-deduped): **{result.n_tools:,}**; with a",
+            "coercible token-supplied `format`/`ftype` and stuck below latest: "
+            f"**{result.n_token_datatype:,}**.",
+            "",
+            "## Tools unstuck by normalizing the token value (beyond Phase 2a)",
+            "",
+            f"- **Residual tools:** {result.residual_tools:,}",
+            "- helping token defined **inline** only (Upgrade24_1 extension): "
+            f"{result.inline_only:,}",
+            "- **imported** token involved (macro_profile-shape consensus): "
+            f"{result.imported_involved:,}",
+        ]
+    )
+
+
+def _report_macro_token_residual(result: _MacroTokenResidualResult) -> None:
+    print("\n=== macro-token-datatype-residual ===")
+    print(
+        f"Unique tools: {result.n_tools}; coercible token-supplied datatype + stuck: "
+        f"{result.n_token_datatype}"
+    )
+    print(
+        f"  residual (unstuck by token-value normalization): {result.residual_tools}\n"
+        f"    inline-only token:    {result.inline_only}\n"
+        f"    imported token:       {result.imported_involved}"
+    )
+
+
+def _run_macro_token_residual(args: argparse.Namespace) -> None:
+    result = _measure_macro_token_residual(corpus_root=args.corpus_root)
+    _report_macro_token_residual(result)
+    if not args.all:
+        out_path = _repo_root() / "docs" / "macro_token_residual_stats.md"
+        out_path.write_text(
+            _render_macro_token_residual_page(result) + "\n", encoding="utf-8"
+        )
+        print(f"\nwrote {_display_path(out_path)}")
+
+
 # --- passthrough: corpus-check --------------------------------------------------
 #
 # corpus_check.py is the canonical (and slow) sweep step. Exposing it here as a
@@ -5259,6 +5486,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "output-format-input": _run_output_format_input,
     "help-formats": _run_help_formats,
     "macro-format-residual": _run_macro_format_residual,
+    "macro-token-datatype-residual": _run_macro_token_residual,
 }
 
 _PASSTHROUGH: dict[str, Callable[[argparse.Namespace, list[str]], int]] = {

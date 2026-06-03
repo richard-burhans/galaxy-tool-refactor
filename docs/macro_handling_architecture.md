@@ -233,9 +233,16 @@ The maintainer's goal reduces to one question: **leave the single-file model, or
     (registry `docs/decisions.md` D8; `macro-aware-normalization.md`); 15 corpus tools
     (`docs/macro_format_residual_stats.md`). So general write-back is no longer *only*
     `@PROFILE@`: a second locate-in-source consumer now exists.
-  - **Phase 2b (the general provenance layer) stays deferred** — it is needed only for what
-    2a cannot reach (token-supplied / arbitrary expanded-node edits), which the corpus shows
-    are rare. Re-open when a consumer needs post-expansion attribution.
+  - **Phase 2b (the general provenance layer) stays deferred — now data-backed (2026-06-03).**
+    A sizing measure (`scripts/measure.py macro-token-datatype-residual`,
+    `docs/macro_token_residual_stats.md`) found **0** tools where normalizing a
+    *token-supplied* datatype value unsticks a profile beyond what 2a's literal
+    normalization already achieves — so the token half of 2b has **zero** payoff, and
+    there is no structural-only datatype residual either. 2a is therefore the *complete*
+    datatype solution. The heavyweight expansion-provenance layer (M1) is unjustified for
+    datatypes; its only future trigger is a *structural* codemod that must rewrite a
+    macro-supplied element (none exists). Re-open M1 only then — design recorded in
+    `~/.claude/plans/macro-provenance-2b-design.md`.
 - **(d)** Keep the §5 polish items as low-priority maintainability tickets.
 
 ## 7. Open questions / deferred
