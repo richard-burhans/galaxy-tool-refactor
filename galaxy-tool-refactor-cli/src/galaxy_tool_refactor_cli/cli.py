@@ -1,10 +1,11 @@
 """The ``galaxy-tool-refactor`` command-line interface.
 
-Five subcommands. ``format`` and ``upgrade`` share fmt's file-walking /
+Six subcommands. ``format`` and ``upgrade`` share fmt's file-walking /
 drift-detection engine (``galaxy_tool_xml_fmt.cli_support``) and differ only in
 which rules run before serialisation; ``check`` is a report-only linter that
 mutates nothing; ``rules`` / ``presets`` print the available baked-in rules and
-presets. All rule orchestration is delegated to the tier-3.6 registry facade
+presets; ``normalize-macros`` is a separate, opt-in pass over macro-library files.
+All rule orchestration is delegated to the tier-3.6 registry facade
 (``galaxy_tool_refactor_registry``); this module only does CLI plumbing.
 
 - ``format`` — apply a preset's (or a ``--select``/``--ignore`` selection's)
@@ -23,6 +24,12 @@ presets. All rule orchestration is delegated to the tier-3.6 registry facade
   (GTX) findings fail the run; advisory (IUC) findings are informational unless
   ``--strict``. Macro files are checked for cosmetic (fixable) drift too.
 - ``rules`` / ``presets`` — introspection: the baked-in rules and the presets.
+- ``normalize-macros`` — opt-in, repo-scoped: lowercase literal ``format`` /
+  ``ftype`` in ``<macros>``-root files (the macro-library analog of the 24.2
+  normalization the per-tool ``upgrade`` cannot reach — a value defined in an
+  imported macro file). It rewrites files other than the one named (a shared
+  macro file affects every importer), so it is never folded into ``format`` /
+  ``upgrade``; see ``galaxy-tool-xml-codemod/docs/macro-aware-normalization.md``.
 
 Selection (``--preset`` / ``--select`` / ``--ignore``) is shared by ``format``,
 ``upgrade`` (no ``--preset``), and ``check``; precedence is ruff-style
@@ -37,6 +44,7 @@ from pathlib import Path
 import click
 from galaxy_tool_refactor_registry import facade
 from galaxy_tool_refactor_registry.errors import UnknownPreset, UnknownRuleCode
+from galaxy_tool_refactor_registry.macro_datatype import normalize_macro_files
 from galaxy_tool_refactor_registry.macro_profile import (
     apply_profile_token_plans,
     plan_from_sites,
@@ -468,6 +476,54 @@ def rules_command(include_upgrade: bool) -> None:
             f"{info.code}  [{info.family}/{kind}]  presets:{in_presets}  "
             f"{info.summary}"
         )
+
+
+def _collect_macro_files(paths: tuple[Path, ...], /) -> list[Path]:
+    """Resolve *paths* (files and/or directories) to ``<macros>``-root files.
+
+    A directory is searched recursively for ``*.xml`` whose root opens ``<macros``;
+    a file is included only when it is itself a macro-library file. De-duplicated by
+    resolved path and returned in a stable (sorted) order for deterministic output.
+    """
+    found: list[Path] = []
+    seen: set[Path] = set()
+    for path in paths:
+        candidates = sorted(path.rglob("*.xml")) if path.is_dir() else [path]
+        for candidate in candidates:
+            resolved = candidate.resolve()
+            if resolved in seen or not candidate.is_file():
+                continue
+            seen.add(resolved)
+            if is_macros_root(candidate.read_bytes()):
+                found.append(candidate)
+    return found
+
+
+@main.command(name="normalize-macros")
+@click.argument(
+    "paths", nargs=-1, required=True, type=click.Path(exists=True, path_type=Path)
+)
+@click.option(
+    "--check", is_flag=True, help="Report what would change and write nothing."
+)
+def normalize_macros_command(paths: tuple[Path, ...], check: bool) -> None:
+    """Normalize literal format/ftype in macro-library files (opt-in, repo-scoped).
+
+    Lowercases literal ``format`` / ``ftype`` datatype tokens (leaving ``@TOKEN@``
+    placeholders alone) in every ``<macros>``-root file found under PATHS — the
+    macro-library analog of the 24.2 normalization the per-tool ``upgrade`` cannot
+    reach (a value defined in an imported macro file). Unlike ``format`` / ``upgrade``
+    this rewrites files other than the one named — a shared macro file affects every
+    importer — so it is a deliberate, separate command, never part of ``format``.
+    """
+    result = normalize_macro_files(_collect_macro_files(paths), write=not check)
+    verb = "would normalize" if check else "normalized"
+    for edit in result.edits:
+        click.echo(f"{verb} {edit.macro_file} ({edit.elements_changed} element(s))")
+    for bad in result.unparseable:
+        click.echo(f"skipped (could not parse): {bad}", err=True)
+    if not result.edits:
+        click.echo("no macro-library files needed normalization")
 
 
 if __name__ == "__main__":

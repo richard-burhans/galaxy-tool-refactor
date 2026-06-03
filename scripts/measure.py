@@ -5002,6 +5002,203 @@ def _run_help_formats(args: argparse.Namespace) -> None:
     _report_help_formats(_measure_help_formats(corpus_root=args.corpus_root))
 
 
+# --- measurement: macro-format-residual -----------------------------------------
+#
+# Sizes the population the imported-macro `format`/`ftype` normalization pass
+# (Phase 2a; `galaxy_tool_refactor_registry.macro_datatype`) unsticks: tools stuck
+# below the latest profile that reach a newer one once the literal `format`/`ftype`
+# values in their *imported* macro files are lowercased — the value `Upgrade24_1`
+# cannot reach from the tool's own tree. Replaces the ad-hoc "~18" in
+# `galaxy-tool-xml-codemod/docs/macro-aware-normalization.md`. Sound by construction:
+# per candidate the bundle is copied to a temp dir, normalized, and the tool
+# re-validated — counted only if its newest valid profile strictly increases. Split by
+# shared (>=2 importers) vs sole-owned defining macro file. Needs the corpus (not CI).
+
+
+@dataclass
+class _MacroFormatResidualResult:
+    """Tools unstuck by normalizing `format`/`ftype` in their imported macro files."""
+
+    n_tools: int  # unique parsed tools
+    n_importing: int  # tools importing >=1 macro file
+    residual_tools: int  # tools whose newest valid profile rises after macro normalization
+    shared_file_residual: int  # of those, whose defining file is shared (>=2 importers)
+    sole_file_residual: int  # of those, whose defining file is sole-owned
+    defining_files: dict[str, int]  # defining macro file -> residual tools it unblocks
+
+
+def _macro_format_unsticks(tool_path: Path, /, *, latest: str) -> list[Path] | None:
+    """Return the bundle macro files that unstick *tool_path*, or ``None``.
+
+    ``None`` when the tool imports nothing, has no coercible literal in its bundle,
+    is not stuck below *latest*, cannot be safely mirrored (an out-of-dir import —
+    none occur in the corpus), or does not actually reach a newer profile once its
+    bundle is normalized. The cheap filters run before the expensive validation.
+    """
+    import shutil
+    import tempfile
+
+    from galaxy_tool_xml.binding import (
+        ToolXmlSyntaxError,
+        load_tool,
+        newest_valid_profile,
+    )
+    from galaxy_tool_xml.macros import imported_macro_paths
+    from galaxy_tool_xml.profiles import is_newer_profile
+
+    from galaxy_tool_refactor_registry.macro_datatype import normalize_macro_files
+
+    bundle = imported_macro_paths(tool_path)
+    if not bundle:
+        return None
+    would = normalize_macro_files(bundle, write=False).edits
+    if not would:
+        return None  # no coercible literal anywhere in the bundle
+    tool_dir = tool_path.parent
+    members = [tool_path, *bundle]
+    if any(not member.is_relative_to(tool_dir) for member in members):
+        return None  # cannot mirror an import outside the tool dir (none in corpus)
+    try:
+        reached = newest_valid_profile(load_tool(tool_path))
+        if reached is None or not is_newer_profile(latest, reached):
+            return None  # validates nowhere, or already at latest — not a residual
+        with tempfile.TemporaryDirectory() as temp_name:
+            temp_dir = Path(temp_name)
+            for member in members:
+                dest = temp_dir / member.relative_to(tool_dir)
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(member, dest)
+            temp_bundle = [temp_dir / path.relative_to(tool_dir) for path in bundle]
+            normalize_macro_files(temp_bundle, write=True)
+            temp_tool = temp_dir / tool_path.relative_to(tool_dir)
+            reached_after = newest_valid_profile(load_tool(temp_tool))
+    except ToolXmlSyntaxError:
+        return None  # malformed tool / macro — skip (parsing has no LBYL form)
+    if reached_after is None or not is_newer_profile(reached_after, reached):
+        return None  # normalizing the bundle did not actually advance the tool
+    return [edit.macro_file for edit in would]
+
+
+def _measure_macro_format_residual(*, corpus_root: Path) -> _MacroFormatResidualResult:
+    """Count tools the macro-file `format`/`ftype` normalization pass would unstick."""
+    from galaxy_tool_xml.macros import imported_macro_paths
+    from galaxy_tool_xml.profiles import latest_profile
+
+    latest = latest_profile()
+    seen: set[str] = set()
+    importers: dict[Path, set[Path]] = {}
+    importing_tools: list[Path] = []
+    n_tools = 0
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        if _parse_tool_root(path) is None:
+            continue  # not a <tool> file (macro library, datatypes_conf, …)
+        n_tools += 1
+        bundle = imported_macro_paths(path)
+        if not bundle:
+            continue
+        importing_tools.append(path)
+        for macro_file in bundle:
+            importers.setdefault(macro_file, set()).add(path)
+
+    residual = shared = sole = 0
+    defining: Counter[str] = Counter()
+    for path in importing_tools:
+        unblocking = _macro_format_unsticks(path, latest=latest)
+        if not unblocking:
+            continue
+        residual += 1
+        if any(len(importers.get(macro_file, ())) >= 2 for macro_file in unblocking):
+            shared += 1
+        else:
+            sole += 1
+        for macro_file in unblocking:
+            defining[str(macro_file)] += 1
+    return _MacroFormatResidualResult(
+        n_tools=n_tools,
+        n_importing=len(importing_tools),
+        residual_tools=residual,
+        shared_file_residual=shared,
+        sole_file_residual=sole,
+        defining_files=dict(defining),
+    )
+
+
+def _render_macro_format_residual_page(result: _MacroFormatResidualResult) -> str:
+    """Render the macro-format-residual stats markdown page (deterministic)."""
+    file_rows = [
+        f"| `{Path(name).parent.name}/{Path(name).name}` | {count:,} |"
+        for name, count in sorted(
+            result.defining_files.items(), key=lambda kv: (-kv[1], kv[0])
+        )
+    ]
+    return "\n".join(
+        [
+            "# Macro-file format/ftype residual statistics",
+            "",
+            "Sizes the population the imported-macro `format`/`ftype` normalization",
+            "pass (Phase 2a; `galaxy_tool_refactor_registry.macro_datatype`) unsticks:",
+            "tools stuck below the latest profile that reach a newer one once the",
+            "literal `format`/`ftype` values in their *imported* macro files are",
+            "lowercased — the value `Upgrade24_1` cannot reach from the tool's own tree",
+            "(see `upgrade_research`/`macro-aware-normalization.md`). A tool counts only",
+            "when its newest valid profile **strictly increases** after its bundle is",
+            "normalized in a temp copy and the tool is re-validated.",
+            "",
+            "Regenerate with (needs the corpus, so not run in CI):",
+            "",
+            "```sh",
+            "uv run python -m scripts.measure macro-format-residual",
+            "```",
+            "",
+            f"Unique `<tool>` files (sha256-deduped): **{result.n_tools:,}**; importing",
+            f"a macro file: **{result.n_importing:,}**.",
+            "",
+            "## Tools unstuck by macro-file normalization",
+            "",
+            f"- **Residual tools:** {result.residual_tools:,}",
+            f"- via a **shared** defining file (≥2 importers): "
+            f"{result.shared_file_residual:,}",
+            f"- via a **sole-owned** defining file: {result.sole_file_residual:,}",
+            "",
+            "## Defining macro files (residual tools each unblocks)",
+            "",
+            "| Macro file | Tools unblocked |",
+            "|---|--:|",
+            *file_rows,
+        ]
+    )
+
+
+def _report_macro_format_residual(result: _MacroFormatResidualResult) -> None:
+    print("\n=== macro-format-residual ===")
+    print(
+        f"Unique tools: {result.n_tools}; importing a macro file: "
+        f"{result.n_importing}"
+    )
+    print(
+        f"  residual (unstuck by macro normalization): {result.residual_tools}\n"
+        f"    via shared defining file:   {result.shared_file_residual}\n"
+        f"    via sole-owned defining file: {result.sole_file_residual}"
+    )
+
+
+def _run_macro_format_residual(args: argparse.Namespace) -> None:
+    result = _measure_macro_format_residual(corpus_root=args.corpus_root)
+    _report_macro_format_residual(result)
+    if not args.all:
+        out_path = _repo_root() / "docs" / "macro_format_residual_stats.md"
+        out_path.write_text(
+            _render_macro_format_residual_page(result) + "\n", encoding="utf-8"
+        )
+        print(f"\nwrote {_display_path(out_path)}")
+
+
 # --- passthrough: corpus-check --------------------------------------------------
 #
 # corpus_check.py is the canonical (and slow) sweep step. Exposing it here as a
@@ -5061,6 +5258,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "interpreter-bucket-split": _run_interpreter_buckets,
     "output-format-input": _run_output_format_input,
     "help-formats": _run_help_formats,
+    "macro-format-residual": _run_macro_format_residual,
 }
 
 _PASSTHROUGH: dict[str, Callable[[argparse.Namespace, list[str]], int]] = {

@@ -412,3 +412,35 @@ def test_rules_subcommand_lists_rules() -> None:
     assert "GTX012" not in result.output  # upgrade-only excluded by default
     with_upgrade = CliRunner().invoke(main, ["rules", "--include-upgrade"])
     assert "GTX012" in with_upgrade.output
+
+
+# --- normalize-macros (Phase 2a: macro-library format/ftype normalization) ---------
+
+
+def test_normalize_macros_lowercases_macro_file(tmp_path: Path) -> None:
+    macros = tmp_path / "macros.xml"
+    macros.write_bytes(
+        b'<macros><xml name="o"><data name="x" format="GTiff"/></xml></macros>'
+    )
+    result = CliRunner().invoke(main, ["normalize-macros", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert b'format="gtiff"' in macros.read_bytes()
+    assert "normalized" in result.output
+
+
+def test_normalize_macros_check_writes_nothing(tmp_path: Path) -> None:
+    macros = tmp_path / "macros.xml"
+    original = b'<macros><xml name="o"><data name="x" format="GTiff"/></xml></macros>'
+    macros.write_bytes(original)
+    result = CliRunner().invoke(main, ["normalize-macros", "--check", str(macros)])
+    assert result.exit_code == 0, result.output
+    assert "would normalize" in result.output
+    assert macros.read_bytes() == original  # --check writes nothing
+
+
+def test_normalize_macros_ignores_non_macro_files(tmp_path: Path) -> None:
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(_valid_tool(profile="24.2"))
+    result = CliRunner().invoke(main, ["normalize-macros", str(tool)])
+    assert result.exit_code == 0, result.output
+    assert "no macro-library files needed normalization" in result.output

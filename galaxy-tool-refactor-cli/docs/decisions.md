@@ -255,3 +255,30 @@ inline GTX007 path (§3a) does not reach.
   in the registry (`apply_profile_token_plans`, exception-free, `write` flag);
   the CLI owns only the path walk, parse-error tolerance, and reporting — so a
   future MCP server reuses the same orchestration.
+
+## D7 (2026-06-03) — `normalize-macros`: opt-in macro-library `format`/`ftype` fix
+
+A sixth subcommand, `normalize-macros PATHS… [--check]`, lowercases literal
+`format`/`ftype` in `<macros>`-root files — the macro-library analog of the 24.2
+normalization the per-tool `upgrade` cannot reach (a value defined in an *imported*
+macro file; `galaxy-tool-xml-codemod/docs/macro-aware-normalization.md`, registry
+`docs/decisions.md` D8). 15 corpus tools were stuck solely on this
+(`docs/macro_format_residual_stats.md`).
+
+- **Why a separate command, not part of `format`/`upgrade`.** It rewrites files
+  *other than the one named* — a shared macro file (`gdal_macros.xml`) changes the
+  expansion of every importer. Folding cross-file writes into the per-tool pipeline
+  would make formatting one tool silently edit a shared dependency. Keeping it an
+  explicit, repo-scoped invocation makes the blast radius intentional (the option-D
+  shape from `macro-aware-normalization.md`).
+- **No selection, no preset.** Presets / `--select` / `--ignore` are tool-rule
+  concepts; this is a single fixed canonicalization over macro files, so it takes
+  only paths and `--check`.
+- **Thin over the registry.** The CLI resolves PATHS (directories walked for
+  `<macros>`-root files via `is_macros_root`) and calls
+  `macro_datatype.normalize_macro_files` (`write=not --check`); the library does the
+  edit + reserialise through `format_macro_document` and reports `unparseable` files
+  the CLI surfaces on stderr.
+- **Validity-safe, gate-free** (unlike the `@PROFILE@` consensus of D6): lowercasing a
+  literal datatype token only satisfies the 24.2 pattern, never regresses an importer
+  (registry `docs/decisions.md` D8).
