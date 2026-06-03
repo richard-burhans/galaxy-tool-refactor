@@ -2,6 +2,7 @@
 
 Public surface is reached by explicit submodule imports (no re-exports):
 ``galaxy_tool_xml_check.rules.CheckRule``, ``galaxy_tool_xml_check.detect``
-(``all_checks`` / ``detect_violations``), and the concrete rules in
+(``all_checks`` / ``detect_violations`` / ``sort_violations`` — the last a shared
+``(sourceline, code)`` sort the tier-3.6 facade reuses), and the concrete rules in
 ``galaxy_tool_xml_check.checks``.
 """

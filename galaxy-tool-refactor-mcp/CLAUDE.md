@@ -20,7 +20,9 @@ sibling of the user-facing CLI.
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` *(this repo)* |
 
 It depends on the tier-3.6 facade (plus tier-1 for the `ToolXmlSyntaxError`
-boundary type) and `mcp` (FastMCP). The lower tiers do **not** depend on it.
+boundary type, and tier-0.5 for the `Violation` type — a `TYPE_CHECKING`-only
+import in `service.py`, declared as a direct dep because it is imported directly)
+and `mcp` (FastMCP). The lower tiers do **not** depend on it.
 
 ## Key invariants
 
