@@ -18,11 +18,13 @@ from scripts.measure import (
     _classify_command_language,
     _classify_command_vars,
     _classify_lone_amps,
+    _classify_var_fixability,
     _collection_type_patterns,
     _count_unquoted_vars,
     _cross_source_key_matches,
     _ExpansionGapResult,
     _facts_from_macro_container,
+    _input_param_info,
     _measure_cheetah_command_complexity,
     _measure_collection_type_normalization,
     _measure_command_iuc_heuristics,
@@ -1261,3 +1263,44 @@ def test_classify_command_vars_buckets() -> None:
     assert counts["unquoted"] == 1  # $output
     # $(...) and $1 are not Cheetah vars.
     assert classify("echo $(date) $1") == {}
+
+
+def test_input_param_info_kinds_and_structural() -> None:
+    root = etree.fromstring(
+        b"<tool><inputs>"
+        b'<param name="ds" type="data"/>'
+        b'<param name="txt" type="text"/>'
+        b'<param name="multi" type="data" multiple="true"/>'
+        b'<param name="coll" type="data_collection"/>'
+        b'<conditional name="cond"><param name="sub" type="integer"/></conditional>'
+        b'<section name="sec">'
+        b'<param name="opt" type="select" multiple="true"/></section>'
+        b"</inputs></tool>"
+    )
+    kinds, structural = _input_param_info(root)
+    assert kinds == {
+        "ds": "safe",
+        "txt": "text",
+        "multi": "multi",
+        "coll": "multi",
+        "sub": "safe",  # integer, nested in a conditional
+        "opt": "multi",  # select multiple=
+    }
+    assert structural == {"cond", "sec"}
+
+
+def test_classify_var_fixability_resolves_structured_leaves() -> None:
+    kinds = {"ds": "safe", "txt": "text", "multi": "multi", "sub": "safe"}
+    structural = {"cond", "sec"}
+    classify = _classify_var_fixability
+    assert classify("$ds", kinds, structural) == "safe"
+    assert classify("$txt", kinds, structural) == "text"
+    assert classify("$multi", kinds, structural) == "multi"
+    # $param.attr is a metadata access, not a param leaf.
+    assert classify("$ds.ext", kinds, structural) == "attr"
+    # $cond.sub resolves to the leaf param's kind.
+    assert classify("$cond.sub", kinds, structural) == "safe"
+    assert classify("${cond.sub}", kinds, structural) == "safe"
+    assert classify("$cond.unknownleaf", kinds, structural) == "structured"
+    assert classify("$__tool_directory__", kinds, structural) == "builtin"
+    assert classify("$assembled", kinds, structural) == "non_input"
