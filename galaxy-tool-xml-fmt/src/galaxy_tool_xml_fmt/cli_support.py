@@ -179,7 +179,14 @@ def _transform_file(
     """
     if is_tool_root(original):
         try:
-            tool_document = load_tool(original)
+            # Load from the *path*, not the in-hand bytes, so the document records
+            # its ``source_path`` — a transform that expands macros (the app CLI's
+            # ``upgrade``/``format`` validity + behaviour-code detection) needs it
+            # to resolve ``<import>`` against the file's own directory. Loading
+            # from bytes drops it, silently demoting any imported-macro tool to a
+            # raw-tree (un-expanded) view. ``original`` still drives drift
+            # detection in ``_process_file``.
+            tool_document = load_tool(path)
         except ToolXmlSyntaxError as error:
             _report_malformed(path, error, counts)
             return None
@@ -189,7 +196,7 @@ def _transform_file(
         return transform(tool_document)
     if macro_transform is not None and is_macros_root(original):
         try:
-            macro_document = load_macros(original)
+            macro_document = load_macros(path)
         except ToolXmlSyntaxError as error:
             _report_malformed(path, error, counts)
             return None

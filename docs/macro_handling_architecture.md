@@ -130,6 +130,8 @@ serializer; macro cosmetic formatting is idempotent) and the **registry** tier d
 correctly (registry D5); only the **CLI** docstring + `cli/docs/decisions.md` D5/D6 assert
 the opposite. **Fix: doc-only** (correct the CLI docstring + D5/D6; optionally assert the
 written file is canonical in `test_upgrade_bumps_shared_imported_profile_token`).
+**Resolved (2026-06-02):** the CLI docstring (`cli.py` ~220-245) now states the macro file
+*is* reserialised through `format_macro_document` when the token is bumped.
 
 ### 4.2 [MEDIUM · write-back/provenance] Lossy expansion → no general macro write-back
 4 scouts; the architectural root cause (§1.1, §3). `macros.expand_from_path/_tree`
@@ -142,6 +144,9 @@ Option A) — listed as a *gap* (not just a choice) because it is the load-beari
 "consistent expand-and-modify across inline + imported" goal must close (§6). Corpus payoff
 today ~18 tools → deferral is reasonable. **Sub-item:** that write-back is token-name-specific
 (not general) should be recorded as an explicit asymmetry in `ARCHITECTURE.md §10`.
+**Resolved (2026-06-02):** recorded as an explicit asymmetry in `ARCHITECTURE.md §10`
+("Macro write-back is token-name-specific, not general provenance"). The broader provenance
+gap stays deferred.
 
 ### 4.3 [MEDIUM · provisional] Per-file transform loads from bytes, dropping `source_path`
 1 scout, concrete contrast. `cli_support._transform_file` (`cli_support.py` ~:182) calls
@@ -151,6 +156,13 @@ the upgrade macro phase deliberately loads *from path* "so imports resolve." For
 codemods) this silently loses import resolution. **Provisional** (borders code-review):
 **verify** whether any per-file transform actually needs imports resolved; if so, pass `path`
 to `load_tool`. The only survivor in the write-back cluster flagged *not* intentional.
+**Resolved (2026-06-02) — confirmed a live bug, fixed.** Verified directly: the app CLI's
+`upgrade`/`format` on an imported-macro tool demoted it to the raw (un-expanded) tree —
+`<expand>` nodes made it XSD-invalid → `newest_valid_profile` returned `None` (nothing to
+upgrade) and every validity/detection call logged "macro expansion failed". Fixed by loading
+the per-file document from `path` (so `source_path` is set) in
+`cli_support._transform_file` (fmt `docs/decisions.md` D17; regression test
+`test_upgrade_resolves_imported_macros`).
 
 ## 5. Accepted / intentional design choices (recorded — do NOT relitigate)
 

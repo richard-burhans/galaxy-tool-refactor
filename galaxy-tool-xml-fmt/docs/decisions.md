@@ -864,3 +864,35 @@ The fmt tier now formats macro-library files (`<macros>` root), not just tools.
   formatting them is worthwhile — and **all 1,176 are idempotent (0
   non-idempotent)**, matching the tool-file guarantee in §D9/§D13. This backs
   formatting macro files with the same corpus QA tools already have.
+
+## D17 (2026-06-02) — `cli_support` loads each file by path, not bytes (source_path fix)
+
+**Date:** 2026-06-02. Reproduced-by: `uv run --package galaxy-tool-refactor-cli
+pytest galaxy-tool-refactor-cli/tests/test_cli.py -k imported_macros`. Surfaced by
+the macro-handling audit (`../../docs/macro_handling_architecture.md` §4.3).
+
+- **The bug.** `cli_support._transform_file` loaded the per-file document from the
+  bytes it had already read (`load_tool(original)`), so the document's
+  `source_path` was `None` even though the filesystem `path` was in scope. Tier-1
+  macro expansion resolves `<import>` against `source_path.parent`; with no
+  `source_path` it resolves against the throwaway `TemporaryDirectory` the expander
+  serialises into (ARCHITECTURE.md §10) and silently falls back to the **raw**
+  (un-expanded) tree. So the app CLI's `format`/`upgrade` demoted every
+  imported-macro tool (**47.8%** of the corpus carry an `<import>` —
+  `scripts.measure macro-topology`, "imports a file") to a raw-tree view:
+  `<expand>` nodes
+  left the tree XSD-invalid → `newest_valid_profile` returned `None` → `upgrade`
+  found nothing to do and the run spewed "macro expansion failed: No such file"
+  for every validity/detection call. (The corpus sweeps never caught it because
+  `corpus_check` loads from path; only the CLI hit the bytes path.)
+- **The fix.** Load from `path` (`load_tool(path)` / `load_macros(path)`), so the
+  document records its `source_path` and imports resolve against the file's own
+  directory. `original` still drives drift detection in `_process_file`; the
+  re-read is negligible. This brings the CLI in line with the path-loaded
+  behaviour the corpus sweeps already validate, rather than introducing new
+  behaviour. Verified end-to-end: `galaxy-tool-refactor upgrade --check` on a real
+  imported-macro tool now reports the correct `profile X→latest` bump (was: no
+  change + expansion-failure spam).
+- **Cosmetic-CLI safe.** fmt's own cosmetic CLI doesn't expand macros, so the only
+  effect there is a harmless populated `source_path`; the 90-test fmt suite and the
+  app-CLI suite are unchanged.
