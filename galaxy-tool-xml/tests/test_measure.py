@@ -16,6 +16,7 @@ from scripts.measure import (
     _baseline_bucket,
     _cheetah_feature_flags,
     _classify_command_language,
+    _classify_command_vars,
     _classify_lone_amps,
     _collection_type_patterns,
     _count_unquoted_vars,
@@ -1240,3 +1241,23 @@ def test_classify_lone_amps_buckets() -> None:
     assert classify("server &\nwait")["background"] == 1  # trailing background
     # && is logical-and, never a lone &.
     assert classify("a && b") == {}
+
+
+def test_classify_command_vars_buckets() -> None:
+    """The IUC011 classifier separates shell-arg $vars from Cheetah directives."""
+    classify = _classify_command_vars
+    # A directive line's $vars are template logic, not shell args.
+    assert classify("#if $cond\nrun") == {"directive": 1}
+    assert classify("## $note") == {"directive": 1}
+    # Shell-line quote state.
+    assert classify("echo '$a'")["single_quoted"] == 1
+    assert classify('echo "$b"')["double_quoted"] == 1
+    assert classify("echo $c")["unquoted"] == 1
+    assert classify("echo ${d}")["unquoted"] == 1  # ${...} form
+    # A realistic mix: directive excluded, one quoted + one unquoted on the shell.
+    counts = classify("#set $x = 1\nsamtools sort '$input' -o $output")
+    assert counts["directive"] == 1  # $x
+    assert counts["single_quoted"] == 1  # '$input'
+    assert counts["unquoted"] == 1  # $output
+    # $(...) and $1 are not Cheetah vars.
+    assert classify("echo $(date) $1") == {}

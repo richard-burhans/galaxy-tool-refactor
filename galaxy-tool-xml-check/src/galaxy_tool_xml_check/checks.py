@@ -316,9 +316,13 @@ class HelpCdata(CheckRule):
 class SingleQuotedCheetah(CheckRule):
     """IUC011 — single-quote Cheetah variables in ``<command>`` (placeholder).
 
-    Reserved IUC code; ``detect`` is a no-op. Detecting unquoted Cheetah ``$var``
-    means parsing shell/Cheetah text inside CDATA, which is heuristic and noisy;
-    deferred until it can be tuned. See ``../../docs/iuc_best_practices.md``.
+    Reserved IUC code; ``detect`` is a no-op — but, **unlike IUC012, the signal is
+    real** (``docs/decisions.md`` D4, ``scripts.measure command-unquoted-var``):
+    once Cheetah directive lines are excluded and shell quote-state is tracked, a
+    genuinely-unquoted ``$var`` still fires on **73.2%** of tools — on par with the
+    shipped IUC005/IUC007 advisories. It stays deferred only pending a read-only
+    lexer that tracks multi-line quotes and a per-occurrence-vs-per-tool reporting
+    decision, not for lack of signal. See ``../../docs/iuc_best_practices.md``.
     """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
