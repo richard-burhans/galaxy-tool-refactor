@@ -1,9 +1,11 @@
 """Top-level CLI app for the Galaxy tool refactoring framework.
 
-Tier 4 (the app layer): the only package that composes all the lower tiers
-into a user-facing workflow. It depends on the codemod tier (tier 2) for
-structural transforms and the fmt tier (tier 3) for cosmetic formatting and
-serialization, and exposes the ``galaxy-tool-refactor`` CLI with five commands:
+Tier 4 (the app layer): a thin front-end over the registry facade. Orchestration
+lives in the tier-3.6 facade (``galaxy-tool-refactor-registry``), which composes
+the lower tiers; this package depends on that facade plus fmt's ``cli_support``
+file-walking engine (tier 3) and tier-1 parsing — **not** on the codemod tier
+directly (cli `docs/decisions.md` D4). It exposes the ``galaxy-tool-refactor`` CLI
+with five commands:
 
 - ``format`` — structural canonicalisation + cosmetic formatting (safe,
   idempotent; never changes ``profile=``).

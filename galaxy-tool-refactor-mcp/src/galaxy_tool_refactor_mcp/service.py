@@ -137,7 +137,7 @@ def list_presets() -> list[dict[str, object]]:
 
 
 def list_rules(*, include_upgrade: bool = False) -> list[dict[str, object]]:
-    """The baked-in rules (code / summary / family / fixable / presets / since)."""
+    """The baked-in rules as JSON — every RuleInfo field (incl. cite)."""
     return [
         _rule_info_to_dict(info)
         for info in facade.list_rules(include_upgrade=include_upgrade)

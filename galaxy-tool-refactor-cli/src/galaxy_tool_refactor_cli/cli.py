@@ -404,7 +404,13 @@ def check_command(
             if macro_document.root.tag != "macros":
                 skipped += 1
                 continue
-            findings = [(v, False) for v in detect_macro_document(macro_document)]
+            # Sort to match the tool path (facade.detect returns line-sorted
+            # violations), so `check` output ordering is consistent across kinds.
+            macro_violations = sorted(
+                detect_macro_document(macro_document),
+                key=lambda v: (v.sourceline, v.code),
+            )
+            findings = [(v, False) for v in macro_violations]
         else:
             skipped += 1
             continue

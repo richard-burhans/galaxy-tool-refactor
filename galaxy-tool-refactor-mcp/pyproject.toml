@@ -10,6 +10,7 @@ authors = [{ name = "Richard Burhans" }]
 # server is a thin protocol adapter — `service.py` (facade -> JSON, no `mcp`
 # import) carries the logic; `server.py` binds it to FastMCP.
 dependencies = [
+    "galaxy-tool-refactor-rules",
     "galaxy-tool-refactor-registry",
     "galaxy-tool-xml",
     "mcp>=1.2",
@@ -44,5 +45,6 @@ strict = true
 testpaths = ["tests"]
 
 [tool.uv.sources]
+galaxy-tool-refactor-rules = { workspace = true }
 galaxy-tool-refactor-registry = { workspace = true }
 galaxy-tool-xml = { workspace = true }

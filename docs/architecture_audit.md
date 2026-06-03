@@ -1,5 +1,113 @@
 # Architectural audit — galaxy-tool-refactor
 
+## Re-audit 2026-06-03 (single deep pass + multi-agent escalation)
+
+**Verdict — the architecture is healthy; the boundaries still hold exactly as
+documented.** Since the 2026-05-31 pass a session of 9 merged PRs landed a whole
+new tier-4 package (`galaxy-tool-refactor-mcp`), the IUC011 command-text check + a
+read-only `command_text.py` lexer, the `UpgradeResult.behavior_preserving` verdict,
+a `set_e` detector tightening, runtime-gated GTX016, and a `cli_support`
+import-resolution fix. Re-measured against the (now refreshed) baseline: **no High
+findings, no boundary violations.** The new `mcp` package is a clean thin adapter —
+`service.py` calls only the facade + `resolve` (+ tier-1's `ToolXmlSyntaxError` for
+its error boundary), `server.py` adds the FastMCP binding. The drift was
+**documentation lag** (now corrected) plus one honest-manifest fix.
+
+### New findings (this re-audit)
+
+- **1.x — codemod imported `packaging` without declaring it — Medium [fixed].**
+  `profile_semantics.py:73` and `runtime_fixes.py:26` use `packaging.version`, but
+  `galaxy-tool-xml-codemod/pyproject.toml` declared only `rules` / `xml` / `lxml` —
+  it worked solely via transitive resolution through `galaxy-tool-xml`. The
+  manifest didn't encode a real, used coupling (the exact failure mode the prior
+  pass flagged for `click`). Added `packaging>=23` (matching xml/check); re-synced;
+  codemod tests green.
+- **7.x — `ARCHITECTURE.md` documentation drift — Medium [fixed].** Corrected in
+  Phase 1: IUC011 was still called a "reserved stub" (it ships as
+  `SingleQuotedCheetah`); the `command_text.py` lexer was unmentioned in tier 3.5;
+  `behavior_preserving` was missing from the tier-3.6 result shape; §9 listed
+  runtime-gated GTX `014–015` though GTX016 is also runtime-gated. The
+  reference-index decision-section citations were re-verified — all resolve.
+- **6.x — the audit skill's own worked example is stale — Low [proposal].**
+  `.claude/skills/architecture-audit/SKILL.md`'s tier table says "(+ future
+  `-mcp`)"; mcp has shipped. (Skill tooling, not project `src/` — left as a noted
+  proposal.)
+
+### Re-confirmed from the 2026-05-31 pass (still true)
+
+- **Boundary integrity ✅** — re-verified by import + manifest scan across all 8
+  packages: no sibling cross-imports (codemod ⊥ fmt ⊥ check), nothing below 3.6
+  imports the registry, the CLI and MCP import only the facade (+ tier-1).
+- The registry's declared `galaxy-tool-refactor-rules` dependency is **type-only**
+  (all five imports of `Violation` / `RuleMeta` are under `TYPE_CHECKING`) — a
+  legitimate API-type dependency, *not* the unused-dep pattern. [accepted]
+- The fmt-family `RuleHandle.apply` bypass (2.1 below) and the `apply`
+  mutate-vs-describe asymmetry (§10) remain intentional and documented. [accepted]
+
+### Reserved surface — intentional, not drift [accepted]
+
+- IUC012 `CommandAndJoining` no-op stub — data-backed (~1 tool corpus-wide; check
+  D3). The `command-iuc-heuristics` / `command-lone-amp` / `command-unquoted-var` /
+  `iuc011-fixability` measures back the IUC011-ships / IUC012-deferred split.
+- `Cursor.replace_with` — declared deferred in codemod `PLAN.md` (no consumer).
+- MCP vision **Goal 2** (agent-authored rules) — recorded future; the server ships
+  Goal 1 only.
+
+### Escalation (multi-agent adversarial verification)
+
+**15 finders** (8 per-tier + 7 per-dimension) → **17 candidate findings** → an
+**adversarial refuter per finding**: **0 refuted, 12 confirmed/downgraded, 5
+accepted-intentional** (32 agents). The single pass's structural conclusions
+**hold** — no High, no boundary violations. Escalation's value was a cluster of
+**documentation staleness in package READMEs / module docstrings** that the single
+pass (focused on `ARCHITECTURE.md`) missed, now fixed, plus three test-coverage
+gaps recorded as proposals. (0 refuted is itself a signal: the candidates were
+predominantly genuine doc-drift, not inflated structural claims.)
+
+**New, fixed this pass [fixed]:**
+- **check `README.md` said IUC011 is "not yet implemented" and omitted the
+  `command_text.py` lexer — Medium.** Stale since IUC011 shipped (#66); `decisions.md`
+  D5 + `ARCHITECTURE.md` were correct, the package README was not. Corrected.
+- **`registry.py` module docstring enumerated "GTX014–GTX015 runtime-gated" — Medium.**
+  Omitted GTX016 (and GTX017 from the canonical list). Corrected to 014–016 / +017.
+- **cli `__init__.py` docstring claimed a direct codemod-tier (tier 2) dependency —
+  Medium.** The CLI consumes the facade, not codemod (cli D4); the import list proves
+  it. Rewritten to match.
+- **cli `check`: macro-file findings were unsorted while tool findings are
+  line-sorted — Low.** `facade.detect` returns sorted violations; the macro branch
+  did not. Added an inline `(sourceline, code)` sort for parity (cli tests green).
+- **mcp `list_rules()` docstring omitted the `cite` field — Low.** Corrected.
+- **mcp imported `Violation` (tier 0.5) under `TYPE_CHECKING` without declaring
+  `galaxy-tool-refactor-rules` — Low.** Same type-only pattern the registry declares;
+  added it for manifest honesty (re-synced).
+
+**Proposals [proposal] (not applied — need a decision / a test):**
+- **Tier-0.5 "stay dependency-free" invariant has no test guard — Medium.** Add a
+  test asserting `galaxy_tool_refactor_rules` imports nothing beyond stdlib +
+  itself, so a future commit can't silently couple the shared-vocabulary tier.
+- **`Correction` / `BooleanNormalization` (tier-1 public result dataclasses) are not
+  `frozen=True` — Low.** The prior pass (N3) froze the other tier-1 result types but
+  scoped these out. Verified never mutated → freezing is safe; left as a proposal
+  because it is a (minor) tier-1 API-semantics change the prior pass excluded.
+- **Codemods' `applies_to={"tool"}` default has no test guard — Low.** Add a test so
+  a macro-applicable codemod can't land without an explicit opt-in.
+- **Duplicated `_version_or_none` (`profile_semantics.py:337` + `runtime_fixes.py:47`)
+  — Low.** Both are documented mirrors over disjoint datasets; consolidation into a
+  shared tier-2 helper is optional.
+
+**Re-confirmed intentional [accepted] (recorded so the next audit doesn't re-flag):**
+- `CodemodCommand` / `RuntimeGatedFix` are plain classes, not ABCs — the tier-2
+  deliberately differs from fmt/check (ARCHITECTURE §10; codemod §15/§24).
+- `coarse_detect` for validation-driven codemods isn't independently test-pinned —
+  the corpus parity gate covers detect/apply agreement (codemod §19).
+- `upgrade_steps_applied` / `missing_upgrade` are base no-op hooks overridden only by
+  `UpgradeToLatest` (codemod §14).
+- `meta: ClassVar[RuleMeta]` presence is enforced by mypy-strict, not a runtime test.
+- The registry's `galaxy-tool-refactor-rules` dependency is type-only
+  (`TYPE_CHECKING` imports of `Violation` / `RuleMeta`).
+
+---
+
 **Date:** 2026-05-31  •  **Method:** single deep pass, reading every package's
 `src/` + `pyproject.toml` + selected tests against the contracts written in
 [`../ARCHITECTURE.md`](../ARCHITECTURE.md).  •  **Scope:** abstraction coherence

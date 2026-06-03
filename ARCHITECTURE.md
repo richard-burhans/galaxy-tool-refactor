@@ -259,15 +259,22 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
 - **`all_checks()` / `detect_violations(document)`** — `detect.py` — the
   enumerated check set (sorted by code) and the aggregate runner (findings sorted
   by line). Mirrors codemod's `coded_codemods()` and fmt's `all_rules()`.
-- **The checks** — `checks.py` — IUC001–IUC010 are implemented presence/shape
-  queries (tests, command-CDATA, id charset, version format, requirements, error
-  handling, EDAM xrefs, help, description, help-CDATA). **IUC011 / IUC012**
-  (single-quoted Cheetah, `&&`-vs-`&`) are **reserved stubs** — registered codes
-  whose `detect` returns nothing until tuned.
+- **The checks** — `checks.py` — IUC001–IUC010 are presence/shape queries (tests,
+  command-CDATA, id charset, version format, requirements, error handling, EDAM
+  xrefs, help, description, help-CDATA). **IUC011** (`SingleQuotedCheetah`) is the
+  one command-text check: it reports one advisory per fully-unquoted shell-line
+  Cheetah `$var`. **IUC012** (`CommandAndJoining`, `&&`-vs-lone-`&`) remains a
+  reserved no-op stub — its anti-pattern is ~1 tool corpus-wide (check D3).
+- **`command_text.py`** — the read-only lexer IUC011 reads `<command>` text
+  through: a single character scan tracking `'…'` / `"…"` quote state **across
+  newlines** and skipping Cheetah directive/comment lines. It only classifies,
+  never rewrites — the detection-only slice of the codemod tier's deferred M5
+  Cheetah/shell lexer, so it needs none of M4 / mutation cursors / provenance.
 
 **Contract:** detect-only, LBYL, no mutation, no dependency on the mutating tiers.
 Findings are advisory — informational unless the user opts into `--strict`.
-*(check `docs/decisions.md` §D1; coverage map in `docs/iuc_best_practices.md`.)*
+*(check `docs/decisions.md` D1; IUC011/IUC012 data-backed in D3–D5; coverage map
+in `docs/iuc_best_practices.md`.)*
 
 ---
 
@@ -313,8 +320,12 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
     rules; detect advisory ones on the pre-format tree and return them as notes
     (never mutating for them).
   - `upgrade(source, *, codes, write_path=None) -> UpgradeResult` — always run
-    `UpgradeToLatest` (its purpose), `FixTypos` first if selected, then the rest;
-    reports `steps_applied` / `missing_upgrade`.
+    `UpgradeToLatest` (its purpose), `FixTypos` first if selected, then the
+    runtime-gated fixes the tool *crosses* (GTX014–GTX016, §24), then the rest.
+    Reports `steps_applied` / `missing_upgrade`, a per-tool **semantic warning**
+    note (the crossed Galaxy behaviour codes that *apply* — codemod §23/§25), and
+    `behavior_preserving: bool | None` — the affirmative verdict when the bump
+    crosses no *applicable* behaviour code (codemod §23).
   - `detect(source, *, codes) -> DetectResult` — report-only; fmt rules detected
     as one net-effect group, codemod/advisory rules per-code.
   - `list_presets()` / `list_rules(*, include_upgrade=False)` — introspection.
@@ -396,7 +407,7 @@ break.
 4. **GTX vs IUC code families.** GTX = fixable (codemod + fmt); IUC = advisory
    (`detect_only`). Codes are globally unique and collision-guarded by
    `registry._index()`. Upgrade-only GTX codes exist but are not user-selectable:
-   007–012 (validity-gated, internal to `UpgradeToLatest`) and 014–015
+   007–012 (validity-gated, internal to `UpgradeToLatest`) and 014–016
    (runtime-gated, applied by the facade's `upgrade` — see §4 below).
 5. **Dataclass-result convention.** Entry points return result dataclasses
    (`ParseResult`, `ValidationResult`, `FormatResult`, …) and don't raise on domain
@@ -528,4 +539,5 @@ Each abstraction → its file → the decision record that justifies it.
 | GTX016 | `FixInterpreter` | `galaxy-tool-xml-codemod/.../fix_interpreter.py` | codemod (upgrade-only, runtime-gated) |
 | GTX017 | `NormalizeBooleanValues` | `galaxy-tool-xml-codemod/.../normalize_boolean_values.py` | codemod (canonical, validation-driven) |
 | IUC001–010 | `TestsPresent` … `HelpCdata` | `galaxy-tool-xml-check/.../checks.py` | check (advisory) |
-| IUC011–012 | `SingleQuotedCheetah`, `CommandAndJoining` | `galaxy-tool-xml-check/.../checks.py` | check (advisory, reserved stubs) |
+| IUC011 | `SingleQuotedCheetah` (uses `command_text.py` lexer) | `galaxy-tool-xml-check/.../checks.py` | check (advisory) |
+| IUC012 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks.py` | check (advisory, reserved no-op stub — D3) |

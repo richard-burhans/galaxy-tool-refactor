@@ -2,14 +2,14 @@
 
 ``registry()`` is the **selectable** set — the codemod canonical rules, the fmt
 cosmetic rules, and the advisory IUC checks — keyed by ``RuleMeta.code``. The
-upgrade-only codemods (GTX007–GTX012 validity-gated; GTX014–GTX015 runtime-gated)
+upgrade-only codemods (GTX007–GTX012 validity-gated; GTX014–GTX016 runtime-gated)
 are not selectable; they are kept in the internal index purely so the
 duplicate-code guard sees the whole GTX namespace and so
 ``list_rules(include_upgrade=True)`` can enumerate them.
 
 The GTX/IUC code namespace is collision-free by construction (fmt 001/003/004;
-canonical codemods 002/005/006/013; upgrade codemods 007–012; runtime-gated fixes
-014–015; checks IUC001–012), and ``_index`` asserts it — a future rule that reuses
+canonical codemods 002/005/006/013/017; upgrade codemods 007–012; runtime-gated
+fixes 014–016; checks IUC001–012), and ``_index`` asserts it — a future rule that reuses
 a code fails loudly here rather than silently shadowing another.
 """
 

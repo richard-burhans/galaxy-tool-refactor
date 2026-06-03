@@ -10,6 +10,7 @@ dependencies = [
     "galaxy-tool-refactor-rules",
     "galaxy-tool-xml",
     "lxml>=5",
+    "packaging>=23",       # version comparison in profile_semantics / runtime_fixes
 ]
 
 [build-system]
