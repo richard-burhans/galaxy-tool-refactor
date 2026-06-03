@@ -1,0 +1,7 @@
+# Build dependencies for the Read the Docs / Sphinx build of the guide.
+# HTML output only; Mermaid renders client-side via mermaid.js (no headless
+# browser needed at build time).
+sphinx>=7,<9
+myst-parser>=2,<4
+sphinxcontrib-mermaid>=0.9,<1
+sphinx-rtd-theme>=2,<4

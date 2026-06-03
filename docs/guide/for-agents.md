@@ -21,7 +21,7 @@ Five tools — `format`, `upgrade`, `check`, `list_presets`, `list_rules` — ta
 XML as a string and return JSON. Nothing is written to disk. See
 [usage/mcp](usage/mcp.md). The key signal for autonomy:
 
-```jsonc
+```text
 // upgrade(xml=...) ->
 { "formatted": "<tool … profile=\"26.1\">…", "behavior_preserving": false, "steps_applied": [...] }
 ```

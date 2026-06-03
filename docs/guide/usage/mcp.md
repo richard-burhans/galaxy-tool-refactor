@@ -23,7 +23,7 @@ plus `select` / `ignore` code lists (precedence `ignore` ▸ `select` ▸ `prese
 
 An agent passes the XML in and gets structured JSON back, e.g. `check`:
 
-```jsonc
+```text
 // check(xml="<tool …>…</tool>", preset="strict")
 {
   "violations": [

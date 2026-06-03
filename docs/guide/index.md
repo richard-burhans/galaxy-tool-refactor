@@ -97,4 +97,21 @@ full boundary is in **[soundness](soundness.md)**.
 - **[soundness](soundness.md)** — what "safe upgrade" does and doesn't guarantee.
 - **[leverage](leverage.md)** — where this fits in the Galaxy ecosystem.
 - **[vs planemo](vs-planemo.md)** — how it complements the tools you already use.
-- **[`ARCHITECTURE.md`](../../ARCHITECTURE.md)** — for people working *on* the project.
+- **[`ARCHITECTURE.md`](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/ARCHITECTURE.md)**
+  — for people working *on* the project.
+
+```{toctree}
+:hidden:
+:maxdepth: 2
+
+for-leadership
+for-maintainers
+for-agents
+Using it <usage/cli>
+usage/library
+usage/mcp
+capabilities
+soundness
+vs-planemo
+leverage
+```
