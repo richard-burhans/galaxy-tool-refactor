@@ -22,6 +22,7 @@ from galaxy_tool_xml_check.checks import (
     HelpPresent,
     IdCharset,
     RequirementsPresent,
+    RequirementVersionPinned,
     SingleQuotedCheetah,
     TestsPresent,
     VersionFormat,
@@ -49,6 +50,7 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         HelpCdata,
         SingleQuotedCheetah,
         CommandAndJoining,
+        RequirementVersionPinned,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 

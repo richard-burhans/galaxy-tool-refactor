@@ -30,13 +30,13 @@ not a consumer of the fixers. Findings are advisory: the app's `check` command
 reports them but does not fail on them by default.
 
 **Scope.** Covers the mechanically-detectable IUC practices (presence /
-attribute / structure queries), plus `IUC011` (single-quote Cheetah `$var`),
-which reads `<command>` text through the **read-only `command_text` lexer**
-(directive-skipping, multi-line-quote-aware; the detection-only slice of the
-codemod tier's deferred M5). `IUC012` (`&&`-vs-lone-`&`) stays a no-op stub — its
-anti-pattern is ~1 tool corpus-wide (`docs/decisions.md` D3). See
-`../docs/iuc_best_practices.md` for the coverage map and D3/D4/D5 for the
-command-text-check decisions.
+attribute / structure queries): `IUC001`–`IUC010`, `IUC011` (single-quote Cheetah
+`$var`, via the **read-only `command_text` lexer** — directive-skipping,
+multi-line-quote-aware; the detection-only slice of the codemod tier's deferred
+M5), and `IUC013` (package `<requirement>`s pin a version, D7). `IUC012`
+(`&&`-vs-lone-`&`) stays a no-op stub — its anti-pattern is ~1 tool corpus-wide
+(`docs/decisions.md` D3). See `../docs/iuc_best_practices.md` for the coverage map
+and D3–D7 for the command-text + requirement-pinning check decisions.
 
 ## Coding standards
 

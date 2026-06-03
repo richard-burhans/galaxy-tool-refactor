@@ -372,3 +372,40 @@ class CommandAndJoining(CheckRule):
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
         return ()  # placeholder — detection deferred
+
+
+class RequirementVersionPinned(CheckRule):
+    """IUC013 — package ``<requirement>``\\ s should pin a version.
+
+    A conda/``package`` requirement without a ``version`` is not reproducible — a
+    later environment solve can pick a different release. Other requirement kinds
+    (``set_environment``, ``resource``, …) carry no package version, so only
+    ``type="package"`` (Galaxy's default when ``type`` is omitted) is checked.
+    Fires on 275 tools / 661 findings (``docs/decisions.md`` D7).
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="IUC013",
+        summary="Package <requirement>s should pin a version.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        requirements = document.root.find("requirements")
+        if requirements is None:
+            return
+        for requirement in requirements.findall("requirement"):
+            if requirement.get("type", "package") != "package":
+                continue
+            version = requirement.get("version")
+            if version is None or not version.strip():
+                name = (requirement.text or "").strip() or "?"
+                yield _violation(
+                    document,
+                    requirement,
+                    self.meta,
+                    f"package requirement {name!r} has no version — pin it for "
+                    "reproducibility",
+                )
