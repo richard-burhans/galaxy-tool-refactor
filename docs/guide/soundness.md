@@ -35,6 +35,18 @@ tool still validates. Validity is a sound oracle for **structural** changes. It 
   name, and only when every importer agrees on the target profile. There is **no**
   general mechanism to edit other macro-defined content yet.
 
+## You can see the verdict
+
+`upgrade` reports a **`behavior_preserving`** flag for the bump:
+
+- `true` — it crossed no behaviour-affecting platform change that *applies to this tool*
+  (a clean pass);
+- `false` — at least one applies; look before accepting;
+- `null` — undetermined (e.g. the profile is expressed as a macro token).
+
+The CLI, library, and MCP server all surface it — so automation can auto-accept the
+safe case and escalate the rest, rather than trusting the bump blindly.
+
 ## What this means for you
 
 - Trust `format` unconditionally.

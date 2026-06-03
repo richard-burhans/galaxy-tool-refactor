@@ -50,7 +50,8 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 > 🟡 **The soundness boundary (read `soundness.md`).** `upgrade` guarantees the result
 > is **structurally valid** at the new profile — it does **not** guarantee behaviour is
 > preserved in general. Behaviour-affecting changes are only applied where per-tool
-> detection proves them safe; otherwise they are reported, not made. GTX016 (interpreter)
+> detection proves them safe; otherwise they are reported, not made (`upgrade` surfaces a
+> `behavior_preserving` flag — `true`/`false`/`null` — so callers can gate on it). GTX016 (interpreter)
 > auto-fixes only the clean "bucket A" shape; GTX015 only the single top-level data input.
 > Imported-macro write-back exists **only** for the `@PROFILE@` token by name — there is
 > no general macro write-back yet.

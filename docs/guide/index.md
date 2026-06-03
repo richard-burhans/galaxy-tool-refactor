@@ -28,13 +28,17 @@ This project turns much of that work into **one rule set you can run**:
 
 - **Format** — apply the canonical, IUC-style layout (indentation, attribute and
   element order, CDATA wrapping). Safe and idempotent; never changes behaviour.
-- **Upgrade** — move a tool to the newest profile it can *structurally* reach, with
-  the conservative repairs that bump needs — opt-in and semantic.
+- **Upgrade** — move a tool to the newest profile it can *structurally* reach (e.g. a
+  real tool jumped `profile="18.01"` → `"26.1"`), with the conservative repairs that
+  bump needs — opt-in and semantic.
 - **Check** — report where a tool falls short of best practice (missing tests, no
   version pins, …). Report-only.
 
 It is **evidence-driven**: design decisions are backed by sweeps over a corpus of
 **9,358 real Galaxy tools**, not guesses.
+
+On a tool that already follows IUC conventions, `format` and `check` are often quiet —
+there the value is the **upgrade** and the best-practice report.
 
 ## Pick your path
 

@@ -33,6 +33,10 @@ It turns much of that upkeep into something a computer can do reliably:
   verify are safe.
 - **Checks** tools against community best practices and reports what's missing.
 
+In practice that can be dramatic: in one real case it brought a tool written for a
+**2018-era version of Galaxy up to the current (2026) platform in a single step** —
+applying only the changes it could verify were safe.
+
 It works the same way whether a person runs it at the command line or an **AI assistant**
 runs it on their behalf — which means it can plug into modern, automated workflows.
 
