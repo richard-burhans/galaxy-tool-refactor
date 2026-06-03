@@ -6,14 +6,22 @@
 
 ```mermaid
 flowchart LR
-    A["Thousands of<br/>Galaxy tools"] --> B["Automated<br/>tidy · update · check"]
-    B --> C["Maintainers spend<br/>less time on housekeeping"]
-    B --> D["Tools stay valid,<br/>current & consistent"]
-    C --> E["More effort on<br/>real science"]
-    D --> E2["More reproducible<br/>analyses"]
-```
+    A[("Thousands of<br/>Galaxy tools")] --> B["Automated upkeep<br/>tidy · update · check"]
+    B --> C["Less volunteer time<br/>on housekeeping"]
+    B --> D["Tools stay valid,<br/>current and consistent"]
+    C --> G{{"Advancing Galaxy and<br/>reproducible science"}}
+    D --> G
 
-*(Figure is a rough sketch — to be refined.)*
+    classDef start fill:#f3f3f3,stroke:#777777;
+    classDef work fill:#e8f0ff,stroke:#3b5b9a,stroke-width:2px;
+    classDef outcome fill:#e7f6e7,stroke:#3c7d3c;
+    classDef goal fill:#fff3da,stroke:#b3852a,stroke-width:2px;
+    class A start;
+    class B work;
+    class C outcome;
+    class D outcome;
+    class G goal;
+```
 
 ## The problem, plainly
 

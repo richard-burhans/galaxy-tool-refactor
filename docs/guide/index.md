@@ -6,16 +6,37 @@
 
 ```mermaid
 flowchart LR
-    src["Galaxy tool XML"] --> R{galaxy-tool-refactor}
-    R -->|format| F["canonical XML<br/>(indent · order · CDATA)"]
-    R -->|upgrade| U["newest valid profile<br/>+ safe repairs"]
-    R -->|check| C["best-practice report<br/>(advisory)"]
-    cli["CLI"] -.drives.-> R
-    lib["Python library"] -.drives.-> R
-    mcp["MCP server<br/>(for agents)"] -.drives.-> R
+    subgraph S["Three ways to drive it"]
+        direction TB
+        CLI["CLI"]
+        LIB["Python library"]
+        MCP["MCP server · for agents"]
+    end
+
+    XML[("Galaxy tool<br/>XML")]
+    ENGINE{{"galaxy-tool-refactor<br/>one rule set"}}
+
+    S -. drives .-> ENGINE
+    XML --> ENGINE
+
+    ENGINE -->|format| FMT["canonical XML<br/>indent · order · CDATA"]
+    ENGINE -->|upgrade| UPG["upgraded XML<br/>newest valid profile<br/>+ proven-safe repairs"]
+    ENGINE -->|check| CHK["best-practice report<br/>report-only"]
+
+    classDef engine fill:#e8f0ff,stroke:#3b5b9a,stroke-width:2px;
+    classDef io fill:#f3f3f3,stroke:#777777;
+    classDef safe fill:#e7f6e7,stroke:#3c7d3c;
+    classDef bounded fill:#fff3da,stroke:#b3852a;
+    classDef report fill:#eef1f4,stroke:#666677;
+    class ENGINE engine;
+    class XML io;
+    class FMT safe;
+    class UPG bounded;
+    class CHK report;
 ```
 
-*(Figure is a rough Mermaid sketch — to be refined.)*
+*Colour = guarantee: **green** behaviour-preserving · **amber** bounded (see
+[soundness](soundness.md)) · **grey** report-only.*
 
 ## What it is, plainly
 
