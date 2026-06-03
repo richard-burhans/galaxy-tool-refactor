@@ -973,6 +973,15 @@ class _MacroTopologyResult:
     n_no_shared_macro: int  # tools importing NO shared file (v1-eligible population)
     max_importers: int
     importer_histogram: list[tuple[int, int]]  # (importer_count, n_macro_files)
+    # Imports-per-tool (the inverse of importer_histogram): over tools that pull in
+    # >=1 macro file, how big is each tool's bundle? Transitive uses tier-1
+    # imported_macro_paths (the canonical de-duplicated resolver); direct counts the
+    # tool's own <macros><import> targets only.
+    n_tools_importing: int  # tools with >=1 resolvable imported macro file
+    n_tools_multi_import: int  # tools whose transitive bundle is >=2 files
+    n_nested_import_tools: int  # tools whose transitive bundle > direct (nested <import>)
+    max_transitive_imports: int
+    transitive_import_histogram: list[tuple[int, int]]  # (bundle_size, n_tools)
     top_shared: list[tuple[str, int]]  # (macro file path, importer count)
     notable_token_counts: list[tuple[str, int]]  # (token name, n_tools)
     top_token_names: list[tuple[str, int]]  # (token name, n_tools)
@@ -1023,11 +1032,13 @@ def _import_paths(root: etree._Element, *, tool_path: Path) -> list[tuple[str, P
 
 def _measure_macro_topology(*, corpus_root: Path) -> _MacroTopologyResult:
     """Re-walk the corpus and characterise macro organisation across unique tools."""
-    from galaxy_tool_xml.macros import has_macros
+    from galaxy_tool_xml.macros import has_macros, imported_macro_paths
 
     seen_sha: set[str] = set()
     importers: dict[Path, set[Path]] = defaultdict(set)
     per_tool_imports: list[set[Path]] = []  # resolved, on-disk imports per tool
+    transitive_per_tool: list[int] = []  # bundle size (transitive) over importing tools
+    nested_import_tools = 0  # transitive bundle larger than direct (nested <import>)
     token_tools: Counter[str] = Counter()
     skipped = no_macros = inline_only = with_imports = unresolved = 0
     uses_expand = uses_yield = named_yield = defines_macro = 0
@@ -1062,6 +1073,16 @@ def _measure_macro_topology(*, corpus_root: Path) -> _MacroTopologyResult:
         per_tool_imports.append(existing_imports)
         for resolved in existing_imports:
             importers[resolved].add(path)
+
+        # Imports-per-tool bundle size, over tools that pull in >=1 macro file.
+        # Transitive resolution reuses tier-1 imported_macro_paths (de-duplicated,
+        # skips ../absolute/missing); direct is the tool's own existing <import>s.
+        transitive_count = len(imported_macro_paths(path))
+        direct_count = len(existing_imports)
+        if transitive_count or direct_count:
+            transitive_per_tool.append(transitive_count)
+            if transitive_count > direct_count:
+                nested_import_tools += 1
 
         if not has_macros(root):
             no_macros += 1
@@ -1108,6 +1129,8 @@ def _measure_macro_topology(*, corpus_root: Path) -> _MacroTopologyResult:
 
     counts = sorted(len(tools) for tools in importers.values())
     histogram = sorted(Counter(counts).items())
+    transitive_sorted = sorted(transitive_per_tool)
+    transitive_histogram = sorted(Counter(transitive_sorted).items())
     shared_files = {macro for macro, tools in importers.items() if len(tools) > 1}
     imports_shared = sum(
         1 for tool_imports in per_tool_imports if tool_imports & shared_files
@@ -1140,6 +1163,11 @@ def _measure_macro_topology(*, corpus_root: Path) -> _MacroTopologyResult:
         n_no_shared_macro=(len(seen_sha) - skipped) - imports_shared,
         max_importers=counts[-1] if counts else 0,
         importer_histogram=histogram,
+        n_tools_importing=len(transitive_per_tool),
+        n_tools_multi_import=sum(1 for n in transitive_per_tool if n >= 2),
+        n_nested_import_tools=nested_import_tools,
+        max_transitive_imports=transitive_sorted[-1] if transitive_sorted else 0,
+        transitive_import_histogram=transitive_histogram,
         top_shared=top_shared,
         notable_token_counts=notable,
         top_token_names=top_tokens,
@@ -1197,6 +1225,15 @@ def _report_macro_topology(measurement: _MacroTopologyResult) -> None:
     print("  importer-count histogram (importers: #files):")
     for importer_count, n_files in measurement.importer_histogram:
         print(f"    {importer_count}: {n_files}")
+    print(
+        f"  imports per tool (bundle size over {measurement.n_tools_importing} "
+        f"importing tools): max {measurement.max_transitive_imports}; "
+        f"multi-file (>=2): {measurement.n_tools_multi_import}; "
+        f"nested <import> (transitive > direct): {measurement.n_nested_import_tools}"
+    )
+    print("  bundle-size histogram (transitive files: #tools):")
+    for bundle_size, n_tools in measurement.transitive_import_histogram:
+        print(f"    {bundle_size}: {n_tools}")
     print("  most-shared macro files:")
     for macro, count in measurement.top_shared[:10]:
         print(f"    {count}x  {macro}")
@@ -1295,6 +1332,40 @@ def _render_macro_stats_page(
         )
     else:
         lines.append("_None imported by more than one tool._")
+
+    lines.extend(
+        [
+            "",
+            "## Imports per tool (bundle size)",
+            "",
+            "The inverse of the importer-count distribution above: over the "
+            f"**{num(topology.n_tools_importing)}** tools that pull in at least one "
+            "macro file, how many files does each tool's transitively-resolved "
+            "**bundle** contain? *Direct* counts the tool's own "
+            "`<macros><import>` targets; *transitive* follows each imported file's "
+            "own `<import>`s (tier-1 `imported_macro_paths`). This sizes the "
+            "multi-file bundle population behind a consistent expand-and-modify "
+            "model (`docs/macro_handling_architecture.md` §1.4 / §7).",
+            "",
+            f"Max bundle size: **{num(topology.max_transitive_imports)}** files. "
+            f"Tools importing **2 or more** files: "
+            f"**{num(topology.n_tools_multi_import)}** "
+            f"({pct(topology.n_tools_multi_import, topology.n_tools_importing):.1f}% "
+            "of importing tools). Tools whose transitive bundle is larger than its "
+            "direct imports — i.e. with **nested `<import>`s**: "
+            f"**{num(topology.n_nested_import_tools)}** "
+            f"({pct(topology.n_nested_import_tools, topology.n_tools_importing):.1f}%).",
+            "",
+            "Bundle-size distribution (transitively-imported files per tool):",
+            "",
+            "| Files in bundle | Tools |",
+            "|--:|--:|",
+        ]
+    )
+    lines.extend(
+        f"| {bundle_size} | {num(n_tools)} |"
+        for bundle_size, n_tools in topology.transitive_import_histogram
+    )
 
     lines.extend(
         [

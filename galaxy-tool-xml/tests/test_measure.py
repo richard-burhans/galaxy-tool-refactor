@@ -950,6 +950,63 @@ def test_macro_topology_token_location(macro_corpus: Path) -> None:
     assert token_counts["@TOOL_VERSION@"] == 1  # inline.xml
 
 
+def test_macro_topology_imports_per_tool_flat(macro_corpus: Path) -> None:
+    result = _measure_macro_topology(corpus_root=macro_corpus)
+    # tool1 + tool2 each import a single (un-nested) macros.xml; inline + plain
+    # pull in nothing.
+    assert result.n_tools_importing == 2
+    assert result.transitive_import_histogram == [(1, 2)]
+    assert result.max_transitive_imports == 1
+    assert result.n_tools_multi_import == 0
+    assert result.n_nested_import_tools == 0
+
+
+@pytest.fixture()
+def nested_macro_corpus(tmp_path: Path) -> Path:
+    """Synthetic corpus exercising imports-per-tool bundle sizes.
+
+    A leaf macro file (``base``), a mid file that imports the leaf (``mid``), and
+    three tools: one importing the mid file (transitive bundle 2 > direct 1, i.e.
+    a nested import), one importing both files directly (bundle 2, not nested),
+    and one importing only the leaf (bundle 1).
+    """
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    (repo / "base.xml").write_text(
+        '<macros><token name="@X@">1</token></macros>', encoding="utf-8"
+    )
+    (repo / "mid.xml").write_text(
+        '<macros><import>base.xml</import><token name="@Y@">2</token></macros>',
+        encoding="utf-8",
+    )
+    (repo / "tool_nested.xml").write_text(
+        "<tool><macros><import>mid.xml</import></macros></tool>", encoding="utf-8"
+    )
+    (repo / "tool_two.xml").write_text(
+        "<tool><macros><import>base.xml</import>"
+        "<import>mid.xml</import></macros></tool>",
+        encoding="utf-8",
+    )
+    (repo / "tool_single.xml").write_text(
+        "<tool><macros><import>base.xml</import></macros></tool>", encoding="utf-8"
+    )
+    (repo / "plain.xml").write_text("<tool><inputs/></tool>", encoding="utf-8")
+    return tmp_path
+
+
+def test_macro_topology_imports_per_tool_nested(nested_macro_corpus: Path) -> None:
+    result = _measure_macro_topology(corpus_root=nested_macro_corpus)
+    # Three tools import >=1 macro file (plain imports nothing).
+    assert result.n_tools_importing == 3
+    # tool_single -> {base} (1); tool_nested -> {mid, base} (2); tool_two ->
+    # {base, mid} (2, base deduped).
+    assert result.transitive_import_histogram == [(1, 1), (2, 2)]
+    assert result.max_transitive_imports == 2
+    assert result.n_tools_multi_import == 2  # tool_nested, tool_two
+    # Only tool_nested's transitive bundle (2) exceeds its direct imports (1).
+    assert result.n_nested_import_tools == 1
+
+
 def test_render_macro_stats_page_smoke(macro_corpus: Path) -> None:
     topology = _measure_macro_topology(corpus_root=macro_corpus)
     profile_tokens = _measure_macro_profile_tokens(

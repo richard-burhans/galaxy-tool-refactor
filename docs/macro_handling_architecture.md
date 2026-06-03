@@ -90,6 +90,9 @@ All figures regenerate via `scripts/measure.py`; do not hand-edit.
   `<yield>` 0.5%, `<macro>` definitions 1.4% — both rare → v1 must *preserve* faithfully).
   Distinct imported files 3,368; shared (≥2 importers) **203**; max importers 137. Tools
   importing ≥1 *shared* file **1,545 (16.5%)**; tools with **no shared macro 7,813 (83.5%)**.
+  Inverse (imports *per tool*): of the **4,476** tools importing ≥1 file, **96.2% pull in
+  exactly one**, **3.8% (171) import ≥2**, and **3 (0.1%) have nested `<import>`s**; max
+  bundle 43 files (the §7 bundle-sizing input).
 - `macro-profile-ownership` (`docs/macro_profile_ownership_stats.md`): profile tokens live
   102 inline / ~1,382 directly-imported / **0 deeper** in the chain; of shared
   profile-defining files, **46 agree on one target, 0 diverge** → in-place edit is safe
@@ -226,12 +229,15 @@ The maintainer's goal reduces to one question: **leave the single-file model, or
 
 ## 7. Open questions / deferred
 
-- **Sizing gap (multi-file bundles, §1.4):** there is **no standing measure** for the
-  *per-tool* import-count distribution (how many macro files a tool pulls in, transitively).
-  `macro-topology` counts imports *per file* (importers per macro file) but not the inverse.
-  Recommend extending `macro-topology` with a `imports-per-tool` histogram (and a transitive
-  vs direct split) before committing to a bundle model, so the multi-file population is
-  reproducibly sized.
+- **Sizing gap (multi-file bundles, §1.4) — RESOLVED (2026-06-03).** `macro-topology` now
+  also emits the inverse of the importer distribution: a **per-tool bundle-size histogram**
+  with a transitive-vs-direct split (transitive via tier-1 `imported_macro_paths`). Of the
+  **4,476** tools that import ≥1 macro file, **96.2% (4,305) pull in exactly one file**, only
+  **171 (3.8%) import ≥2**, and just **3 (0.1%) have nested `<import>`s** (transitive bundle
+  larger than direct); max bundle is 43 files. So the multi-file population a bundle model
+  must handle is tiny — the consistent expand-and-modify model can start from the
+  single-sidecar case. `Reproduced-by: scripts/measure.py macro-topology`
+  (`docs/macro_corpus_stats.md`, "Imports per tool").
 - Fork-on-divergence for shared macro files (no consumer today: 0/46 diverge).
 - `<yield>` resolution / parameterised macros (32.6% of tools — preserve, defer editing).
 - Macro-library normalisation (`format`/`ftype` in imported macros) — see

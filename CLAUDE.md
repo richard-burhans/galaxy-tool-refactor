@@ -109,9 +109,10 @@ uv run python -m scripts.regenerate            # regenerate per-version models
 uv run python -m scripts.measure               # ad-hoc corpus queries (--list)
 
 # Macro organisation across the corpus (inline vs imported macro files,
-# shared-macro importer distribution, token names, <yield>, stale macro-token
-# profiles). Writes docs/macro_corpus_stats.md (manually-regenerated artifact;
-# needs the corpus, so it is not run in CI):
+# shared-macro importer distribution, the inverse imports-per-tool bundle-size
+# histogram with a transitive/direct split, token names, <yield>, stale
+# macro-token profiles). Writes docs/macro_corpus_stats.md (manually-regenerated
+# artifact; needs the corpus, so it is not run in CI):
 uv run python -m scripts.measure macro-topology
 uv run python -m scripts.measure macro-profile-tokens
 

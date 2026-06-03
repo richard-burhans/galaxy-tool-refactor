@@ -83,21 +83,42 @@ Most-shared macro files:
 
 | Importers | Macro file |
 |--:|---|
-| 137 | `corpus/bgruening-galaxytools/tools/openms/macros.xml` |
-| 107 | `corpus/galaxy-toolshed/devteam/emboss_5/macros.xml` |
-| 107 | `corpus/tools-iuc/tools/emboss_5/macros.xml` |
-| 62 | `corpus/galaxy-toolshed/luis/ball/galaxy_stubs/macros.xml` |
-| 48 | `corpus/tools-iuc/tools/mothur/macros.xml` |
-| 40 | `corpus/galaxy-toolshed/malex/secimtools/macros.xml` |
-| 37 | `corpus/galaxy-toolshed/iuc/bedtools/macros.xml` |
-| 34 | `corpus/tools-iuc/tools/qiime/qiime_core/macros.xml` |
-| 31 | `corpus/galaxy-toolshed/devteam/picard/picard_macros.xml` |
-| 29 | `corpus/galaxy-toolshed/avowinkel/picard/picard_macros.xml` |
-| 29 | `corpus/galaxy-toolshed/devteam/picard_plus/picard_macros.xml` |
-| 28 | `corpus/galaxy-toolshed/frogs/frogs/macros.xml` |
-| 22 | `corpus/galaxy-toolshed/nilesh/rseqc/rseqc_macros.xml` |
-| 21 | `corpus/galaxy-toolshed/rnateam/vienna_rna/macros.xml` |
-| 20 | `corpus/galaxy-toolshed/bgruening/text_processing/macros.xml` |
+| 137 | `.local/corpus/bgruening-galaxytools/tools/openms/macros.xml` |
+| 107 | `.local/corpus/galaxy-toolshed/devteam/emboss_5/macros.xml` |
+| 107 | `.local/corpus/tools-iuc/tools/emboss_5/macros.xml` |
+| 62 | `.local/corpus/galaxy-toolshed/luis/ball/galaxy_stubs/macros.xml` |
+| 48 | `.local/corpus/tools-iuc/tools/mothur/macros.xml` |
+| 40 | `.local/corpus/galaxy-toolshed/malex/secimtools/macros.xml` |
+| 37 | `.local/corpus/galaxy-toolshed/iuc/bedtools/macros.xml` |
+| 34 | `.local/corpus/tools-iuc/tools/qiime/qiime_core/macros.xml` |
+| 31 | `.local/corpus/galaxy-toolshed/devteam/picard/picard_macros.xml` |
+| 29 | `.local/corpus/galaxy-toolshed/avowinkel/picard/picard_macros.xml` |
+| 29 | `.local/corpus/galaxy-toolshed/devteam/picard_plus/picard_macros.xml` |
+| 28 | `.local/corpus/galaxy-toolshed/frogs/frogs/macros.xml` |
+| 22 | `.local/corpus/galaxy-toolshed/nilesh/rseqc/rseqc_macros.xml` |
+| 21 | `.local/corpus/galaxy-toolshed/rnateam/vienna_rna/macros.xml` |
+| 20 | `.local/corpus/galaxy-toolshed/bgruening/text_processing/macros.xml` |
+
+## Imports per tool (bundle size)
+
+The inverse of the importer-count distribution above: over the **4,476** tools that pull in at least one macro file, how many files does each tool's transitively-resolved **bundle** contain? *Direct* counts the tool's own `<macros><import>` targets; *transitive* follows each imported file's own `<import>`s (tier-1 `imported_macro_paths`). This sizes the multi-file bundle population behind a consistent expand-and-modify model (`docs/macro_handling_architecture.md` §1.4 / §7).
+
+Max bundle size: **43** files. Tools importing **2 or more** files: **171** (3.8% of importing tools). Tools whose transitive bundle is larger than its direct imports — i.e. with **nested `<import>`s**: **3** (0.1%).
+
+Bundle-size distribution (transitively-imported files per tool):
+
+| Files in bundle | Tools |
+|--:|--:|
+| 1 | 4,305 |
+| 2 | 147 |
+| 3 | 12 |
+| 4 | 2 |
+| 5 | 1 |
+| 8 | 2 |
+| 9 | 3 |
+| 10 | 2 |
+| 12 | 1 |
+| 43 | 1 |
 
 ## Tokens
 
