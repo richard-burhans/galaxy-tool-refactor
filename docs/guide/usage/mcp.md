@@ -1,7 +1,7 @@
 # Using it from an MCP client (agents)
 
 > **TL;DR.** The MCP server exposes the same engine to AI agents as five tools —
-> `format`, `upgrade`, `check`, `list_presets`, `list_rules` — over a thin FastMCP
+> `format_tool`, `upgrade_tool`, `check_tool`, `list_presets`, `list_rules` — over a thin FastMCP
 > binding. Tools take the tool XML as a string and return JSON; nothing is written to
 > disk. This is vision Goal 1, and it ships today.
 
@@ -9,22 +9,22 @@
 
 | Tool | Input | Returns |
 |---|---|---|
-| `format` | `xml`, optional `preset`/`select`/`ignore` | canonical XML + advisory notes |
-| `upgrade` | `xml`, optional `select`/`ignore` | upgraded XML, steps, `behavior_preserving`, notes |
-| `check` | `xml`, optional `preset`/`select`/`ignore` | report-only findings (never mutates) |
+| `format_tool` | `xml`, optional `preset`/`select`/`ignore` | canonical XML + advisory notes |
+| `upgrade_tool` | `xml`, optional `select`/`ignore` | upgraded XML, steps, `behavior_preserving`, notes |
+| `check_tool` | `xml`, optional `preset`/`select`/`ignore` | report-only findings (never mutates) |
 | `list_presets` | — | the baked-in presets (name / codes / default / description) |
 | `list_rules` | optional `include_upgrade` | every rule (code / family / fixable / presets / cite) |
 
 Selection mirrors the CLI and library: `preset` ∈ {`cosmetic`, `iuc`, `strict`},
 plus `select` / `ignore` code lists (precedence `ignore` ▸ `select` ▸ `preset`).
-`upgrade` takes no preset — it's semantic.
+`upgrade_tool` takes no preset — it's semantic.
 
 ## Shape of a call
 
-An agent passes the XML in and gets structured JSON back, e.g. `check`:
+An agent passes the XML in and gets structured JSON back, e.g. `check_tool`:
 
 ```text
-// check(xml="<tool …>…</tool>", preset="strict")
+// check_tool(xml="<tool …>…</tool>", preset="strict")
 {
   "violations": [
     {"code": "GTX001", "line": 3,  "message": "Canonical 4-space indentation; no tabs."},
@@ -34,7 +34,7 @@ An agent passes the XML in and gets structured JSON back, e.g. `check`:
 }
 ```
 
-`format` returns the canonical XML; `upgrade` returns the upgraded XML plus
+`format_tool` returns the canonical XML; `upgrade_tool` returns the upgraded XML plus
 `behavior_preserving` (`true`/`false`/`null`) so an agent can decide whether the bump
 is safe to accept unattended — see [soundness](../soundness.md).
 

@@ -55,6 +55,39 @@ dependency direction and the facade-owns-orchestration rule are intact.
 
 ---
 
+## Documentation audit 2026-06-03 (multi-agent escalation)
+
+A companion deep **documentation** audit (7-area finders — root docs, stats numbers,
+guide, upgrade_research, decisions, CLAUDE/README counts, src docstrings — + adversarial
+refuters): **15 raw → 12 surviving, 3 refuted.** Theme: docs that missed the MCP +
+`normalize-macros` updates, plus two stale code-range enumerations. **8 fixed, 4 refuted
+on integration.**
+
+**Fixed:**
+- Guide: `capabilities.md` CLI list 5→6 (`+normalize-macros`) and MCP tools →
+  `format_tool`/`upgrade_tool`/`check_tool`; `usage/mcp.md` (TL;DR, table, and the
+  example call) → the `_tool` names.
+- Root `README.md`: the CLI row + Quick-start gained `normalize-macros`; the MCP row →
+  `*_tool` names.
+- `docs/upgrade_research/README.md`: "auto-fixes only two codes (GTX014/GTX015)" →
+  three (GTX014/GTX015/GTX016).
+- Registry `decisions.md`: the D2 collision-free enumeration (canonical codemods now
+  `…/017/018/019`, runtime-gated `014–016`, checks `IUC001–013`) and D3's runtime-gated
+  range `GTX014–GTX016` — refreshed to the current namespace.
+
+**Refuted on integration (not stale):**
+- "seven tiers" in root/codemod/fmt CLAUDE.md is **correct** — there are 7 tier-*numbers*
+  (0.5/1/2/3/3.5/3.6/4); tier 4 has two *packages* (CLI + MCP). "Eight tiers" would be an
+  error; "eight packages" is the package count.
+- `iuc_best_practices.md`'s **73.2%** unquoted-`$var` figure is the `command-unquoted-var`
+  *measure*, a deliberately different metric from the IUC011 *check* firing rate (71.5% in
+  `corpus_check_stats.md`); the doc cites it correctly.
+
+Three workflow-refuted (macro_profile_ownership measurement-semantics; capabilities ~73%
+artifact-exists; a dated check-tier `decisions.md` record) are not re-litigated.
+
+---
+
 ## Re-audit 2026-06-03 (single deep pass + multi-agent escalation)
 
 **Verdict — the architecture is healthy; the boundaries still hold exactly as

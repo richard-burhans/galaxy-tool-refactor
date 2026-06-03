@@ -69,8 +69,8 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Capability | Status | Source |
 |---|---|---|
 | Code-addressable rule registry + presets (`cosmetic`/`iuc`/`strict`) + `--select`/`--ignore` | ✅ Shipped | `galaxy-tool-refactor-registry` |
-| CLI: `format` / `upgrade` / `check` / `presets` / `rules` | ✅ Shipped | `galaxy-tool-refactor` |
-| MCP server for agents: `format` / `upgrade` / `check` / `list_presets` / `list_rules` | ✅ Shipped | `galaxy-tool-refactor-mcp` (vision Goal 1) |
+| CLI: `format` / `upgrade` / `check` / `presets` / `rules` / `normalize-macros` | ✅ Shipped | `galaxy-tool-refactor` |
+| MCP server for agents: `format_tool` / `upgrade_tool` / `check_tool` / `list_presets` / `list_rules` | ✅ Shipped | `galaxy-tool-refactor-mcp` (vision Goal 1) |
 | Corpus evidence base: 9,358 unique tools, standing measurements | ✅ Shipped | `docs/*_stats.md`, `scripts/measure.py` |
 
 ## Roadmap (🔭 — not built; never stated elsewhere as present tense)

@@ -14,8 +14,8 @@ definition XML.
 | [`galaxy-tool-xml-fmt`](galaxy-tool-xml-fmt/README.md) | pre-release | Opinionated `black`-like cosmetic formatter (with a non-mutating `detect`). The only tier that serialises canonical output XML. |
 | [`galaxy-tool-xml-check`](galaxy-tool-xml-check/README.md) | pre-alpha | Advisory, detect-only IUC best-practice checks (`IUC` codes); read-only, reports but never mutates. Depends only on tiers 1 + 0.5. |
 | [`galaxy-tool-refactor-registry`](galaxy-tool-refactor-registry/README.md) | pre-alpha | Unified, code-addressable rule registry over all three families + named presets (`cosmetic`/`iuc`/`strict`) + a library-first `run`/`upgrade`/`detect` API. The orchestration core the CLI and the MCP server sit on. |
-| [`galaxy-tool-refactor-cli`](galaxy-tool-refactor-cli/README.md) | pre-alpha | The `galaxy-tool-refactor` app CLI — `format`, `upgrade`, report-only `check`, plus `presets` / `rules`, with `--preset` / `--select` / `--ignore` rule selection. |
-| [`galaxy-tool-refactor-mcp`](galaxy-tool-refactor-mcp/README.md) | pre-alpha | An agent-facing **MCP server** over the registry facade (CLI sibling): a thin FastMCP binding over a protocol-agnostic adapter, exposing `format`/`upgrade`/`check`/`list_presets`/`list_rules`. |
+| [`galaxy-tool-refactor-cli`](galaxy-tool-refactor-cli/README.md) | pre-alpha | The `galaxy-tool-refactor` app CLI — `format`, `upgrade`, report-only `check`, `presets` / `rules`, and the opt-in `normalize-macros`, with `--preset` / `--select` / `--ignore` rule selection. |
+| [`galaxy-tool-refactor-mcp`](galaxy-tool-refactor-mcp/README.md) | pre-alpha | An agent-facing **MCP server** over the registry facade (CLI sibling): a thin FastMCP binding over a protocol-agnostic adapter, exposing `format_tool`/`upgrade_tool`/`check_tool`/`list_presets`/`list_rules`. |
 
 ## Quick start
 
@@ -68,6 +68,10 @@ which the app CLI consumes:
   (marked `(advisory)`). Exits non-zero on any fixable finding; advisory findings
   are informational unless `--strict`.
 - `galaxy-tool-refactor presets` / `rules` — list the baked-in presets and rules.
+- `galaxy-tool-refactor normalize-macros` — opt-in, repo-scoped: lowercase literal
+  `format`/`ftype` in `<macros>`-root files (the macro-library fix the per-tool
+  `upgrade` can't reach). A separate command — it writes files other than the one
+  named, so it's never folded into `format`/`upgrade`.
 
 Rule selection (`--preset NAME`, `--select CODE…`, `--ignore CODE…`) is shared by
 `format`/`upgrade`/`check`, ruff-style (`--ignore` ▸ `--select` ▸ `--preset`).
