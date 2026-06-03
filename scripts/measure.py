@@ -1940,6 +1940,125 @@ def _run_command_lone_amp(args: argparse.Namespace) -> None:
     _report_command_lone_amp(_measure_command_lone_amp(corpus_root=args.corpus_root))
 
 
+# --- measurement: command-unquoted-var ------------------------------------------
+#
+# Sizes IUC011 ("single-quote Cheetah variables in <command>") honestly. The crude
+# `command-iuc-heuristics` count (any `$var` not preceded by a single quote) fires
+# on 87% of tools — but that is dominated by `$var` in Cheetah *directives*
+# (`#if $x`, `#set $y = ...`), which are template logic, NOT shell arguments the
+# practice is about. This classifies every `$var` by where it sits: on a Cheetah
+# directive/comment line (`#…`), or — on a shell line, via a quote-state scan —
+# single-quoted (the IUC-correct form), double-quoted (a lesser concern), or fully
+# unquoted (the genuine candidate IUC011 would flag). The "unquoted on a shell
+# line" population is the real question: does a tokenizer-backed IUC011 have signal
+# worth shipping, or is it noise like IUC012? This scan IS the core of the
+# read-only Cheetah/shell lexer such a check needs. Heuristic (no escape handling,
+# inline directives ignored); backs the IUC011 decision. Needs the corpus, not in
+# CI.
+
+_VAR_CLASSES = ("directive", "single_quoted", "double_quoted", "unquoted")
+
+
+def _classify_command_vars(text: str, /) -> Counter[str]:
+    """Tally each Cheetah ``$var`` in *text* into a ``_VAR_CLASSES`` bucket.
+
+    Pure (string in, counts out), so it is unit-tested with synthetic bodies. A
+    line whose stripped form starts with ``#`` is a Cheetah directive/comment (its
+    ``$var``s are template logic, bucketed ``directive``); on every other line a
+    single-pass single/double quote scan classifies each ``$var`` as
+    ``single_quoted`` / ``double_quoted`` / ``unquoted``.
+    """
+    counts: Counter[str] = Counter()
+    for line in text.splitlines():
+        if line.strip().startswith("#"):
+            counts["directive"] += sum(1 for _ in _CHEETAH_VAR.finditer(line))
+            continue
+        in_single = in_double = False
+        i = 0
+        while i < len(line):
+            ch = line[i]
+            if ch == "'" and not in_double:
+                in_single = not in_single
+            elif ch == '"' and not in_single:
+                in_double = not in_double
+            elif ch == "$":
+                match = _CHEETAH_VAR.match(line, i)
+                if match is not None:
+                    counts[
+                        "single_quoted"
+                        if in_single
+                        else "double_quoted"
+                        if in_double
+                        else "unquoted"
+                    ] += 1
+                    i = match.end()
+                    continue
+            i += 1
+    return counts
+
+
+@dataclass
+class _UnquotedVarResult:
+    n_unique_tools: int
+    n_with_command: int
+    n_tools_unquoted: int  # >=1 fully-unquoted shell-line $var (the IUC011 target)
+    per_class_occurrences: dict[str, int]
+
+
+def _measure_command_unquoted_var(*, corpus_root: Path) -> _UnquotedVarResult:
+    """Classify each tool's first-command ``$var`` to size the genuine IUC011 set."""
+    seen: set[str] = set()
+    n_tools = n_with = n_unquoted = 0
+    per_class: Counter[str] = Counter()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        n_tools += 1
+        command = root.find("command")
+        if command is None:
+            continue
+        n_with += 1
+        counts = _classify_command_vars("".join(command.itertext()))
+        per_class.update(counts)
+        if counts["unquoted"]:
+            n_unquoted += 1
+    return _UnquotedVarResult(
+        n_unique_tools=n_tools,
+        n_with_command=n_with,
+        n_tools_unquoted=n_unquoted,
+        per_class_occurrences=dict(per_class),
+    )
+
+
+def _report_command_unquoted_var(result: _UnquotedVarResult) -> None:
+    with_cmd = result.n_with_command
+    pct = 100 * result.n_tools_unquoted / with_cmd if with_cmd else 0.0
+    print("\n=== command-unquoted-var (IUC011 sizing; heuristic) ===")
+    print(
+        f"Unique tools: {result.n_unique_tools}; with <command>: {with_cmd}"
+    )
+    print(
+        f"Tools with >=1 fully-unquoted shell-line $var (the IUC011 target): "
+        f"{result.n_tools_unquoted} ({pct:.1f}%)"
+    )
+    print("$var occurrences by class:")
+    for name in _VAR_CLASSES:
+        print(f"  {name:14} {result.per_class_occurrences.get(name, 0)}")
+
+
+def _run_command_unquoted_var(args: argparse.Namespace) -> None:
+    _report_command_unquoted_var(
+        _measure_command_unquoted_var(corpus_root=args.corpus_root)
+    )
+
+
 # --- measurement: version-tokenization ------------------------------------------
 #
 # Sizes the Phase-3c "create tokens" opportunity: the canonical IUC convention
@@ -4648,6 +4767,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "macro-profile-ownership": _run_macro_profile_ownership,
     "command-iuc-heuristics": _run_command_iuc_heuristics,
     "command-lone-amp": _run_command_lone_amp,
+    "command-unquoted-var": _run_command_unquoted_var,
     "macro-fmt-idempotence": _run_macro_fmt_idempotence,
     "version-tokenization": _run_version_tokenization,
     "expansion-failed-ids": _run_expansion_failed_ids,

@@ -167,3 +167,44 @@ So **2 tools** carry a *genuine* lone `&` (1 background + 1 joining), and the tr
   lands or the corpus shifts. `IUC011` (single-quoted Cheetah, 87% crude noise per
   `command-iuc-heuristics`) was already deferred on the same "needs a real parser"
   grounds (D1).
+
+## D4 (2026-06-03) — IUC011 (single-quoted Cheetah `$var`) has real signal — reconsider
+
+### Finding
+
+Unlike IUC012 (D3, dead at ~1 tool), **IUC011 is worth implementing.** Its
+deferral rested on the crude `command-iuc-heuristics` count — any `$var` not
+immediately preceded by a single quote — firing on **8,126 tools (87.2%)**, most of
+which are `$var` in Cheetah *directives* (`#if $x`, `#set $y = …`): template logic,
+not shell arguments the practice is about. A refined classifier
+(`scripts.measure command-unquoted-var`; combined corpus, 2026-06-03;
+`_classify_command_vars`, unit-tested) excludes directive/`##`-comment lines and
+tracks shell quote state. The genuine target — a fully **unquoted** `$var` on a
+shell line — still fires on **6,823 tools (73.2%)**, 50,380 occurrences:
+
+| `$var` class | Occurrences | IUC011 flags it? |
+|---|---|---|
+| `directive` (on a `#…` line) | 49,654 | no — template logic |
+| `single_quoted` (`'$x'`, the IUC-correct form) | 39,041 | no |
+| `double_quoted` (`"$x"`, a lesser concern) | 10,688 | borderline |
+| `unquoted` (bare `$x` on a shell line) | **50,380** | **yes** |
+
+73.2% is **consistent with the prevalence of already-shipped advisory checks**
+(IUC007 EDAM 89.6%, IUC005 requirements 57.3%) — so high prevalence is not a
+disqualifier here; it is the IUC best practice, and most tools violate it.
+
+### Open questions for shipping (not blockers, but to settle first)
+
+- **A read-only lexer that handles multi-line shell quotes.** The
+  `command-unquoted-var` scan resets quote state per *line* (fine for sizing), but a
+  shipped check must track a `'…'`/`"…"` span that crosses newlines, or it will
+  mis-flag a `$var` inside a multi-line quoted string. This is the small read-only
+  slice of the M5 Cheetah/shell lexer (`../../galaxy-tool-xml-codemod/PLAN.md`) —
+  detection-only, so it needs none of M4 / the mutation cursors / provenance.
+- **Per-occurrence verbosity.** ~7.4 findings/tool (50,380 / 6,823) vs. one per tool
+  for the presence checks (IUC005/007). Decide per-occurrence (point at each `$var`)
+  vs. one-per-tool ("has unquoted Cheetah vars").
+
+The reserved `IUC011` code stays a no-op `detect` until that lexer + reporting
+shape are decided; this entry records that the *signal* question is now settled —
+yes.
