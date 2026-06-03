@@ -13,6 +13,6 @@ Public surface is reached by explicit submodule imports (no re-exports):
 
 The package is library-first: no ``click``/``sys.exit`` in the call path, and it
 writes to disk only when a caller explicitly passes a ``write_path``. That keeps
-it the shared core both the ``galaxy-tool-refactor`` CLI and a future MCP server
-sit on top of (see ``docs/mcp-and-extensibility.md``).
+it the shared core both the ``galaxy-tool-refactor`` CLI and the MCP server
+sit on top of (see ``galaxy-tool-refactor-mcp/docs/vision.md``).
 """

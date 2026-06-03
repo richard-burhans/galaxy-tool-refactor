@@ -203,3 +203,34 @@ galaxy-tool-refactor-registry/tests/test_stat_artifact_coverage.py`.
   Deferred because CI has no corpus (so the corpus dimension is only locally
   checkable) and per-function source hashing is fragile / over-invalidating; the
   in-tree dimension that CI *can* enforce is now covered by Phases 1–2.
+
+## D7 (2026-06-03) — Research-note citation guard (the prose-side companion)
+
+**Reproduced by:** `uv run --package galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_research_note_citations.py`.
+
+- **The gap D6 left open.** D6 guards the *generated* `docs/*_stats.md` pages, but
+  the hand-written per-code notes under `docs/upgrade_research/` *quote* numbers
+  **from** those pages (first-blocker / stuck counts from
+  `upgrade_behavior_block_stats.md`; A / A+A-missing bucket counts from
+  `interpreter_bucket_stats.md`). When an artifact was re-walked (post-GTX016 + the
+  `20_09_consider_set_e` tightening) the counts shifted and **five notes silently
+  kept the old numbers** (`16_04_fix_output_format` 18→33,
+  `16_04_consider_implicit_extra_file_collection` ~3,971→5,381,
+  `23_0_consider_optional_text` ~311→318, `24_2_fix_test_case_validation`
+  4,498→4,956, `16_04_fix_interpreter` header citing the artifact for 1,726 while it
+  read 316) — caught only by a manual accuracy pass (PR #79).
+- **What we chose.** A sibling guard in the same arch-test shape: a `NOTE_CITATIONS`
+  manifest maps each note → `(source page, lookup key)`; the expected count is read
+  **live** from the parsed artifact (`parse_behavior_blocks` keys by
+  `(policy, code)`; `parse_interpreter_buckets` adds the synthetic `A+A-missing`
+  total), so it can't drift from the source. The guard fails — naming the note, the
+  current number, and the regen command — when a note no longer contains the live
+  count (`cited_number_present` matches the thousands-formatted token exactly, so
+  `316` ≠ `3,164`). Corpus-free + deterministic → runs in CI / `qa_gate.sh`.
+- **Scope: artifact-sourced numbers only.** *Derived* figures (the interpreter
+  note's `1,726` = `316` + `1,410` without-codemod baseline) and *sweep-only*
+  figures (the `1,127` rewritten count, which lives in no committed artifact) are
+  intentionally **not** guarded — there is no committed source of truth to derive
+  them from. The companion of D6: D6 keeps generated pages honest about *which rules*
+  they list; D7 keeps prose notes honest about *which numbers* they quote.

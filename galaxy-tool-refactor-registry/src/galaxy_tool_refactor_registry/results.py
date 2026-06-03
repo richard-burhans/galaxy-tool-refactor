@@ -1,7 +1,7 @@
 """Structured result + introspection types the facade returns.
 
 Library-first: every entry point returns one of these plain frozen dataclasses
-(no printing, no exit codes), so the CLI and a future MCP server both consume the
+(no printing, no exit codes), so the CLI and the MCP server both consume the
 same structured data. ``Violation`` (tier 0.5) is the shared finding type.
 """
 

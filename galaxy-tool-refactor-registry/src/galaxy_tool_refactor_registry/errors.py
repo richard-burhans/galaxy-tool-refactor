@@ -3,7 +3,7 @@
 These are plain ``ValueError`` subclasses (LBYL: the facade checks membership and
 raises before doing any work). The CLI catches them at its error boundary and
 re-raises as ``click.BadParameter`` so the user sees a clean message, not a
-traceback; a future MCP server maps them to a structured error response. Keeping
+traceback; the MCP server maps them to a structured error response. Keeping
 them ``click``-free keeps the library usable outside the CLI.
 """
 
