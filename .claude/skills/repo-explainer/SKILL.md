@@ -109,7 +109,19 @@ Write/refresh under `docs/guide/` (see Layout). Figures are rough **Mermaid/ASCI
 (versionable, diffable) — refine to polished graphics later. Enforce both principles
 on every page.
 
-### Step 6 — Self-check before finishing
+### Step 6 — Cross-pollination (only when the whole set exists)
+
+Documents are built in slices, so a sharp example, a crisp phrasing, or a caveat often
+surfaces in a *later* page than the one it most helps. Once all the slices exist, do a
+deliberate **back-propagation pass**: re-read the set as a whole and fold each
+late-discovered asset up into the earlier page where it lands best (e.g. a real
+before/after found while writing `for-maintainers` may belong in `index`'s overview; a
+caveat clarified in `soundness` may want a one-liner in `for-leadership`). Keep each
+page's disclosure level intact — promote the *idea*, re-pitched for that page's layer,
+not the raw text. This pass is intentionally last; don't pre-optimise earlier slices for
+material that doesn't exist yet.
+
+### Step 7 — Self-check before finishing
 
 - No present-tense claim lacks a backing artifact (grep your draft against the matrix).
 - No Roadmap item sits above L1 or reads as present tense.

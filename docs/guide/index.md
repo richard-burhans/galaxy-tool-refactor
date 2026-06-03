@@ -43,12 +43,9 @@ You won't need all of this. Start where you are:
 | You are… | Start here | You'll learn |
 |---|---|---|
 | a **PI / non-technical reader** | [for-leadership](for-leadership.md) | what this is worth, in plain language |
-| an **IUC maintainer or tool author** | for-maintainers *(coming)* | what it fixes/flags in a PR, and how to run it |
-| an **AI agent (or building one)** | for-agents *(coming)* | the MCP tools + library API as a substrate |
-| here to **use it now** | usage: cli / library / mcp *(coming)* | runnable examples |
-
-*This guide is being built iteratively; the linked pages below are live, the
-"(coming)" rows land next.*
+| an **IUC maintainer or tool author** | [for-maintainers](for-maintainers.md) | what it fixes/flags in a PR, and how to run it |
+| an **AI agent (or building one)** | [for-agents](for-agents.md) | the MCP tools + library API as a substrate |
+| here to **use it now** | [cli](usage/cli.md) · [library](usage/library.md) · [mcp](usage/mcp.md) | runnable examples |
 
 ## The honest baseline
 
