@@ -16,9 +16,13 @@ a small, dependency-free "tier 0.5" package consumed by both higher tiers:
 It provides:
 
 - **`galaxy_tool_refactor_rules.meta.RuleMeta`** — a frozen dataclass describing
-  one GTX rule (`code`, `summary`, `since`, `until`, `cite`, `order`). Both a
-  tier-3 formatter `Rule` and a tier-2 `CodemodCommand` carry a
-  `meta: ClassVar[RuleMeta]`, so the two tiers share one registry vocabulary.
+  one GTX/IUC rule (`code`, `summary`, `since`, `until`, `cite`, `order`,
+  `detect_only`, `applies_to`). A tier-3 formatter `Rule`, a tier-2
+  `CodemodCommand`, and a tier-3.5 `CheckRule` each carry a
+  `meta: ClassVar[RuleMeta]`, so the tiers share one registry vocabulary.
+- **`galaxy_tool_refactor_rules.violation.Violation`** — a frozen dataclass for a
+  detect-phase finding (`code`, `sourceline`, `xpath`, `message`); the pure,
+  lxml-free, read-only counterpart to the mutating tier-2 `Change` / tier-3 `Edit`.
 - **`galaxy_tool_refactor_rules.reference.render_rule_reference_table`** — a pure
   helper that renders `(RuleMeta, tier)` pairs as a GitHub-flavored markdown
   glossary table.

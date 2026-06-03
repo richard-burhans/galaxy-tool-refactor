@@ -277,7 +277,9 @@ def upgrade_command(
         action=Action(past="upgraded", conditional="would upgrade"),
         options=RunOptions(check=check, diff=diff, quiet=quiet),
     )
-    sys.exit(exit_code or (1 if (check and macro_pending) else 0))
+    # A pending macro-token bump is a "would change" under either preview mode
+    # (--check or --diff), so both must surface it in the exit code (cli D6).
+    sys.exit(exit_code or (1 if ((check or diff) and macro_pending) else 0))
 
 
 def _upgrade_macro_profile_tokens(

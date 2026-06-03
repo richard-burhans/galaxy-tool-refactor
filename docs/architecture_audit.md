@@ -1,5 +1,60 @@
 # Architectural audit — galaxy-tool-refactor
 
+## Re-audit 2026-06-03b — post macro-epic (PRs #79–#82) + full escalation
+
+**Verdict — healthy; boundaries hold exactly as documented.** A fresh deep pass plus a
+12-finder / adversarial-refuter escalation (per-tier × 8 + per-dimension × 5;
+**15 raw findings → 14 surviving, 0 High, 1 refuted**) over the state after this session's
+four merged PRs (upgrade-research accuracy #79, research-note guard #80, macro Phase-2a
+`normalize-macros` #81, Phase-2b sizing #82). Every survivor was a doc-precision **Low** or a
+contract-enforcement **test gap** — plus **one real bug**. No boundary violation; the
+dependency direction and the facade-owns-orchestration rule are intact.
+
+### New findings (this pass)
+
+- **CLI `upgrade --diff` exit code ignored a pending macro bump — Medium [fixed].**
+  `cli.py:280` was `(check and macro_pending)`; cli D6 says *both* preview modes (`--check`
+  and `--diff`) must surface a pending imported-`@PROFILE@` bump. Now `((check or diff) and
+  macro_pending)`, with regression test `test_upgrade_diff_reflects_pending_imported_token`.
+- **No guard enforced the dependency direction — Medium [fixed].** §1/§9 assert "no tier
+  imports a higher one" and that siblings codemod/fmt/check never import each other, but nothing
+  failed on a future stray import. Added `galaxy-tool-refactor-registry/tests/test_tier_boundaries.py`:
+  scans every package's `src/` for `galaxy_tool_*` imports and fails on any outside its allowed
+  set (mirrors the `pyproject.toml` edges; the CLI is held to facade + fmt + xml, never
+  codemod/check). Corpus-free, CI-run; companion to `test_serializer_allowlist.py`.
+- **Doc-precision Lows [fixed]:** MCP tool names in `ARCHITECTURE.md` + root `CLAUDE.md` were
+  `format`/`upgrade`/`check` → corrected to `format_tool`/`upgrade_tool`/`check_tool`; the rules
+  `README.md` listed 6 of `RuleMeta`'s 8 fields and omitted `Violation` (both added); the rules
+  `CLAUDE.md` called tier-4 a *direct* dependant (it reaches rules transitively via the facade);
+  the check `__init__` public-surface line omitted `sort_violations`; the mcp `CLAUDE.md` omitted
+  its (correct, `TYPE_CHECKING`-only) `rules` dep; the `ARCHITECTURE.md` Reference Index gained
+  rows for `datatype_format` (shared tier-2 helper) and `macro_datatype` (registry, D8).
+
+### Accepted / re-confirmed (not drift)
+
+- `§N5`/`§N6` code comments resolve to *this* audit doc's note table (below), not
+  `ARCHITECTURE.md` — the references are valid.
+- mcp's `galaxy-tool-refactor-rules` dependency is a *direct* `TYPE_CHECKING` import of
+  `Violation` (`service.py:34`) — correct hygiene, not an unused dep.
+- The CLI imports fmt's `cli_support` / `detect` directly (not via the facade) — the established
+  intentional asymmetry (macro files have no codemods; the facade stays the *rule*-orchestration
+  path). Recorded, not changed.
+
+### Refuted (do not re-litigate)
+
+- "Inconsistent `sort_violations` usage in `facade.py`" — refuted: it is a stable shared
+  `(sourceline, code)` sort and the facade's call sites are consistent.
+
+### Proposals (not applied — maintainer decision)
+
+- **Catalog-completeness guard** (every `CodemodCommand` subclass wired into `coded_codemods()`):
+  valuable, but needs careful scoping (base classes + runtime-gated + upgrade-only codemods are
+  not plain catalog entries), so left as a proposal rather than risk a wrong/flaky test.
+- **Per-codemod *unit* idempotence tests** for GTX002/005/013: the corpus sweep already enforces
+  idempotence; unit tests would be redundant belt-and-suspenders.
+
+---
+
 ## Re-audit 2026-06-03 (single deep pass + multi-agent escalation)
 
 **Verdict — the architecture is healthy; the boundaries still hold exactly as

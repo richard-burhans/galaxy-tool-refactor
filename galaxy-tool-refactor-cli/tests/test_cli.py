@@ -183,6 +183,19 @@ def test_upgrade_check_does_not_write_imported_token(tmp_path: Path) -> None:
     assert "would upgrade @PROFILE@" in result.output
 
 
+def test_upgrade_diff_reflects_pending_imported_token(tmp_path: Path) -> None:
+    """`--diff` is a preview mode too: a pending macro bump must exit non-zero
+    and write nothing (cli D6) — regression for the --diff-only exit-code gap."""
+    macros = _write(
+        tmp_path / "macros.xml",
+        b'<macros><token name="@PROFILE@">16.01</token></macros>',
+    )
+    _write(tmp_path / "a.xml", _imported_token_tool("a"))
+    result = CliRunner().invoke(main, ["upgrade", "--diff", str(tmp_path)])
+    assert result.exit_code == 1, result.output
+    assert b"16.01" in macros.read_bytes()  # not written under --diff
+
+
 def test_format_diff_does_not_write(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
     result = CliRunner().invoke(main, ["format", "--diff", str(file)])
