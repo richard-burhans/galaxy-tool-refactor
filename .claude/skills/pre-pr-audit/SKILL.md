@@ -92,6 +92,13 @@ Sweep for things the change silently invalidated:
 - **Never fabricate or hand-edit a measured corpus number.** If a number changed,
   it must come from re-running the standing measurement
   (`scripts/measure.py` / `scripts/corpus_check.py`), not a typed-in guess.
+- **Rule coverage of the stat pages is guarded** by
+  `galaxy-tool-refactor-registry/tests/test_stat_artifact_coverage.py` (run in the
+  gate): if you added a rule, it fails naming each stale `docs/*_stats.md` page and
+  the exact regen command. Trust it over eyeballing — but note it guards *coverage*
+  (no rule silently absent), not the corpus *numbers*; the three GTX pages are
+  owned by three different sweeps (`check`/`rules`/`fmt`), so a rule change usually
+  means regenerating all three (registry `docs/decisions.md` D6).
 
 ## Step 6 — Mechanical gate + ship
 
