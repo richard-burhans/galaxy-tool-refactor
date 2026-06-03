@@ -34,7 +34,7 @@ _MACRO_ELEMENTS = frozenset({"expand", "macros", "import", "token", "macro", "xm
 _CUTOFF = 0.8
 
 
-@dataclass
+@dataclass(frozen=True)
 class Correction:
     """A single near-miss typo suggestion."""
 

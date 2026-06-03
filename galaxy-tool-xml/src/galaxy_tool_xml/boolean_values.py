@@ -47,7 +47,7 @@ _RECOGNIZED_FALSE = frozenset({"false", "no", "off", "0"})
 _ALREADY_CANONICAL = frozenset({"true", "false", "1", "0"})
 
 
-@dataclass
+@dataclass(frozen=True)
 class BooleanNormalization:
     """One boolean attribute value to rewrite to its canonical ``xs:boolean`` form."""
 

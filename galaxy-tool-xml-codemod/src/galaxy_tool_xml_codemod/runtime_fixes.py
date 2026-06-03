@@ -23,8 +23,9 @@ they never run under ``format`` / the ``iuc`` preset and never change ``profile=
 
 from __future__ import annotations
 
-from packaging.version import InvalidVersion, Version
+from packaging.version import Version
 
+from galaxy_tool_xml_codemod._version import version_or_none
 from galaxy_tool_xml_codemod.codemods._runtime_gated import RuntimeGatedFix
 from galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace import (
     FixFromWorkDirWhitespace,
@@ -42,19 +43,6 @@ RUNTIME_GATED_FIXES: tuple[type[RuntimeGatedFix], ...] = (
     FixOutputFormatInput,
     FixFromWorkDirWhitespace,
 )
-
-
-def _version_or_none(value: str, /) -> Version | None:
-    """Parse *value* as a version, or ``None`` if it is not one.
-
-    ``packaging`` exposes no validity predicate, so the ``try``/``except`` is the
-    sanctioned boundary (mirrors ``profile_semantics._version_or_none`` and
-    ``codemods/update_profile.py``).
-    """
-    try:
-        return Version(value)
-    except InvalidVersion:
-        return None
 
 
 def runtime_fixes_for(
@@ -78,8 +66,8 @@ def runtime_fixes_for(
     """
     if baseline_profile is None:
         return ()
-    baseline = _version_or_none(baseline_profile)
-    reached = _version_or_none(reached_profile)
+    baseline = version_or_none(baseline_profile)
+    reached = version_or_none(reached_profile)
     if baseline is None or reached is None:
         return ()
     return tuple(
