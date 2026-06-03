@@ -56,7 +56,7 @@ class Upgrade19_01(CodemodCommand):
     """Upgrade a tool stuck at profile 19.01 toward 19.05 (name output ``<data>``)."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTX008",
+        code="GTR008",
         summary=(
             "Upgrade a tool stuck at profile 19.01 toward 19.05"
             " (name output <data>)."

@@ -1,4 +1,4 @@
-"""Tests for the ``ReorderToolAttributes`` codemod (port of fmt GTX005)."""
+"""Tests for the ``ReorderToolAttributes`` codemod (port of fmt GTR005)."""
 
 from __future__ import annotations
 
@@ -55,14 +55,14 @@ def test_does_not_touch_param_attributes() -> None:
 
 
 def test_detect_yields_located_change_for_unordered_tool() -> None:
-    """``detect`` reports a GTX005 change at the root, without mutating."""
+    """``detect`` reports a GTR005 change at the root, without mutating."""
     from galaxy_tool_xml_codemod.parse import parse_module
 
     xml = b'<tool profile="24.0" id="t" name="n" version="1"><inputs/></tool>'
     module = parse_module(xml)
     changes = list(ReorderToolAttributes().detect(module))
     assert len(changes) == 1
-    assert changes[0].code == "GTX005"
+    assert changes[0].code == "GTR005"
     assert changes[0].xpath == "/tool"
     assert tuple(module.document.root.attrib) == ("profile", "id", "name", "version")
 

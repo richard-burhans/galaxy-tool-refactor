@@ -57,7 +57,7 @@ registry rule code, a CLI/MCP command, or a committed number in `docs/*_stats.md
   per-tool detection proves a change safe. State it up front in technical docs; one
   honest line for leadership. (See `docs/profile_upgrades.md` and the codemod
   decisions on validity-as-oracle.)
-- The registry is honest about itself (e.g. it labels IUC012 "not yet implemented").
+- The registry is honest about itself (e.g. it labels GTR032 "not yet implemented").
   Trust introspection over recollection.
 
 ## Procedure
@@ -68,7 +68,7 @@ registry rule code, a CLI/MCP command, or a committed number in `docs/*_stats.md
 - `uv run galaxy-tool-refactor --help` and per-command `--help` — the CLI surface.
 - MCP tools: `galaxy-tool-refactor-mcp/src/.../server.py` (`format`/`upgrade`/`check`/
   `list_presets`/`list_rules`; `list_rules(include_upgrade=True)` surfaces the
-  upgrade-only codemods GTX007/014–016).
+  upgrade-only codemods GTR007/014–016).
 - Committed corpus numbers: `docs/*_stats.md` (never hand-type a corpus number —
   cite the artifact).
 - Tiers/packages: `ARCHITECTURE.md`. Roadmap: each package's `docs/vision.md` +

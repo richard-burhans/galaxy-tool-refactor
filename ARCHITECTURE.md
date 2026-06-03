@@ -77,7 +77,7 @@ to be a shared primitive so codemod and fmt can each carry rule metadata without
 depending on each other — the seam that keeps the tiers uncoupled.
 
 - **`RuleMeta`** — `meta.py` — frozen descriptor every rule carries as
-  `meta: ClassVar[RuleMeta]`. Fields: `code` (e.g. `"GTX001"`), `summary`,
+  `meta: ClassVar[RuleMeta]`. Fields: `code` (e.g. `"GTR001"`), `summary`,
   `since` / `until` (documentary), `cite`, `order` (fmt application order;
   codemods leave it default), `detect_only` (advisory vs fixable), `applies_to`
   (a subset of `{"tool", "macro"}`; default `{"tool"}` — a rule runs on a macro
@@ -174,7 +174,7 @@ will change.
     `WrapCommandCdata` → `WrapHelpCdata` — the **safe, idempotent** format-time
     pipeline. Never touches `profile=`. (`FixTypos` and `NormalizeBooleanValues`
     are validity-restoring no-ops unless the tool validates nowhere; the two
-    `Wrap…Cdata` codemods, GTX018/GTX019, wrap a pure-text `<command>`/`<help>`
+    `Wrap…Cdata` codemods, GTR018/GTR019, wrap a pure-text `<command>`/`<help>`
     body in CDATA — behaviour-preserving, codemod §29.)
   - `AUTO_UPGRADE_CODEMODS` = `FixTypos` → `NormalizeBooleanValues` →
     `UpgradeToLatest` — the **opt-in, semantic** profile-upgrade pipeline
@@ -189,12 +189,12 @@ will change.
   introduction profile (`baseline < introduced_profile <= reached` — the
   crossing-gate, codemod §24: a tool already past the boundary is left alone, since
   Galaxy already applies the new behaviour there). Members
-  (`FixInterpreter` GTX016 @16.04, `FixOutputFormatInput` GTX015 @16.04,
-  `FixFromWorkDirWhitespace` GTX014 @21.09) are upgrade-only — in `coded_codemods()`,
+  (`FixInterpreter` GTR016 @16.04, `FixOutputFormatInput` GTR015 @16.04,
+  `FixFromWorkDirWhitespace` GTR014 @21.09) are upgrade-only — in `coded_codemods()`,
   not `CANONICAL_CODEMODS`.
-- **`catalog.coded_codemods()`** — `catalog.py` — *every* GTX-coded codemod
+- **`catalog.coded_codemods()`** — `catalog.py` — *every* GTR-coded codemod
   (including the single-step `Upgrade19_01`…`Upgrade25_1` and `UpdateProfile` that
-  `UpgradeToLatest` drives internally, and the runtime-gated GTX014/GTX015/GTX016), for
+  `UpgradeToLatest` drives internally, and the runtime-gated GTR014/GTR015/GTR016), for
   the cross-tier registry.
 
 **Contract:** detect is the primitive; apply is derived; mutations are idempotent
@@ -214,10 +214,10 @@ and a throwaway temp-dir round-trip for macro expansion — neither is output.)
 
 - **`Rule`** — `rules.py` — stateless ABC carrying `meta: ClassVar[RuleMeta]`; its
   single method `edits(tree) -> Iterable[Edit]` *describes* mutations (it yields
-  `Edit`s; it does not itself touch the tree). The three active rules: `GTX001`
-  `CanonicalIndent` (`rule_indent.py`), `GTX003` `BlankLineBetweenSections`
-  (`rule_blank_line.py`, tool-only), `GTX004` `EmptyElementShorthand`
-  (`rule_empty_element.py`). *(GTX002/GTX005 — attribute order — moved to tier 2.)*
+  `Edit`s; it does not itself touch the tree). The three active rules: `GTR001`
+  `CanonicalIndent` (`rule_indent.py`), `GTR003` `BlankLineBetweenSections`
+  (`rule_blank_line.py`, tool-only), `GTR004` `EmptyElementShorthand`
+  (`rule_empty_element.py`). *(GTR002/GTR005 — attribute order — moved to tier 2.)*
 - **`Edit` + `apply_edits`** — `edits.py` — a frozen discriminated union
   (`NoOp | SetText | SetTail | ClearText`); `apply_edits` is the **single place**
   the tree is mutated and the single place the CDATA whitespace-only guard is
@@ -229,7 +229,7 @@ and a throwaway temp-dir round-trip for macro expansion — neither is output.)
   `_subset` form is the per-rule seam the registry uses.
 - **`detect_tool_document` / `_subset` / `detect_macro_document`** — `detect.py` —
   the non-mutating lint phase. Because fmt rules are *unconditional* and can
-  overwrite each other (GTX001 and GTX003 both rewrite top-level-child tails), the
+  overwrite each other (GTR001 and GTR003 both rewrite top-level-child tails), the
   only faithful signal is the **net effect** of the whole pipeline: detect formats
   a throwaway deep copy, records the last rule to touch each node, and diffs
   against the original — one `Violation` per net-changed node, attributed to the
@@ -256,31 +256,31 @@ Read-only IUC best-practice checks that **report but never mutate**. Depends onl
 on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
 
 - **`CheckRule`** — `rules.py` — ABC carrying `meta` (with `detect_only=True` and
-  an `IUC` code); its single method `detect(document) -> Iterable[Violation]` is a
+  an `GTR` code); its single method `detect(document) -> Iterable[Violation]` is a
   non-mutating LBYL tree query.
 - **`all_checks()` / `detect_violations(document)`** — `detect.py` — the
   enumerated check set (sorted by code) and the aggregate runner (findings sorted
   by line). Mirrors codemod's `coded_codemods()` and fmt's `all_rules()`.
-- **The checks** — `checks.py` — IUC001–IUC010 are presence/shape queries (tests,
+- **The checks** — `checks.py` — GTR021–GTR030 are presence/shape queries (tests,
   command-CDATA, id charset, version format, requirements, error handling, EDAM
-  xrefs, help, description, help-CDATA). **IUC011** (`SingleQuotedCheetah`) is the
+  xrefs, help, description, help-CDATA). **GTR031** (`SingleQuotedCheetah`) is the
   one command-text check: it reports one advisory per fully-unquoted shell-line
-  Cheetah `$var`. **IUC013** (`RequirementVersionPinned`, D7) flags an unpinned
-  `<requirement type="package">`. **IUC012** (`CommandAndJoining`, `&&`-vs-lone-`&`)
+  Cheetah `$var`. **GTR033** (`RequirementVersionPinned`, D7) flags an unpinned
+  `<requirement type="package">`. **GTR032** (`CommandAndJoining`, `&&`-vs-lone-`&`)
   remains a reserved no-op stub — its anti-pattern is ~1 tool corpus-wide (D3).
 - **`command_text.py`** (now in **tier 1**, `galaxy_tool_xml.command_text`) — the
-  read-only lexer IUC011 reads `<command>` text through: a single character scan
+  read-only lexer GTR031 reads `<command>` text through: a single character scan
   tracking `'…'` / `"…"` quote state **across newlines** and skipping Cheetah
   directive/comment lines, yielding each unquoted `$var` with its character span.
   It only classifies, never rewrites — the detection-only slice of the codemod
   tier's deferred M5 Cheetah/shell lexer, so it needs none of M4 / mutation cursors
   / provenance. It moved to tier 1 (with `command_vars.py`, the quoting-safety
-  classifier) so the GTX020 codemod (tier 2) can share it with this check; see
+  classifier) so the GTR020 codemod (tier 2) can share it with this check; see
   `galaxy-tool-xml/docs/decisions.md` §16.
 
 **Contract:** detect-only, LBYL, no mutation, no dependency on the mutating tiers.
 Findings are advisory — informational unless the user opts into `--strict`.
-*(check `docs/decisions.md` D1; IUC011/IUC012 data-backed in D3–D5; coverage map
+*(check `docs/decisions.md` D1; GTR031/GTR032 data-backed in D3–D5; coverage map
 in `docs/iuc_best_practices.md`.)*
 
 ---
@@ -302,10 +302,10 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
   — `registry.py` — the cached `code -> RuleHandle` index. `registry()` is the
   **selectable** set (canonical codemods + cosmetic fmt + advisory checks);
   `all_handles()` additionally includes the **upgrade-only** codemods
-  (GTX007–GTX012 — internal to `UpgradeToLatest` — plus the runtime-gated
-  GTX014–GTX016, applied by the facade's `upgrade`), which are not independently
+  (GTR007–GTR012 — internal to `UpgradeToLatest` — plus the runtime-gated
+  GTR014–GTR016, applied by the facade's `upgrade`), which are not independently
   selectable.
-  `_index()` asserts the GTX/IUC namespace is **collision-free** — a reused code
+  `_index()` asserts the GTR namespace is **collision-free** — a reused code
   fails loudly here.
 - **Presets** — `presets.py` — named, developer-defined rule subsets, derived from
   the family registries (never a hand-maintained code list that can drift):
@@ -330,7 +330,7 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
     (never mutating for them).
   - `upgrade(source, *, codes, write_path=None) -> UpgradeResult` — always run
     `UpgradeToLatest` (its purpose), `FixTypos` first if selected, then the
-    runtime-gated fixes the tool *crosses* (GTX014–GTX016, §24), then the rest.
+    runtime-gated fixes the tool *crosses* (GTR014–GTR016, §24), then the rest.
     Reports `steps_applied` / `missing_upgrade`, a per-tool **semantic warning**
     note (the crossed Galaxy behaviour codes that *apply* — codemod §23/§25), and
     `behavior_preserving: bool | None` — the affirmative verdict when the bump
@@ -370,8 +370,8 @@ codemod / check tiers directly. Six subcommands:
   whole-run phase first (`_upgrade_macro_profile_tokens`) that bumps agreed
   imported `@PROFILE@` tokens, then wraps `facade.upgrade` per file.
 - **`check`** — report-only linter; one `file:line  CODE  message` per finding.
-  Fixable (GTX) findings fail the run; advisory (IUC, under `--preset strict`) are
-  informational unless `--strict`. Wraps `facade.detect`.
+  Fixable findings fail the run; advisory findings (the `detect_only` checks, under
+  `--preset strict`) are informational unless `--strict`. Wraps `facade.detect`.
 - **`presets` / `rules`** — introspection over `facade.list_presets` /
   `list_rules`.
 - **`normalize-macros`** — opt-in, repo-scoped: lowercase literal `format` /
@@ -416,11 +416,15 @@ break.
    3). Note the families implement this differently — see
    [§10](#10-known-asymmetries) — but the registry's `RuleHandle` normalises them
    to one `detect` / `apply` shape.
-4. **GTX vs IUC code families.** GTX = fixable (codemod + fmt); IUC = advisory
-   (`detect_only`). Codes are globally unique and collision-guarded by
-   `registry._index()`. Upgrade-only GTX codes exist but are not user-selectable:
+4. **One unified `GTR` rule namespace.** Every rule — fmt cosmetic, structural
+   codemod, and advisory check alike — carries a `GTR###` code; **fixability is a
+   rule property** (`RuleHandle.fixable` / `RuleMeta.detect_only`), deliberately
+   *not* encoded in the prefix (the old `GTX`=fixable / `IUC`=advisory split was
+   incidental and was retired). Codes are globally unique and collision-guarded by
+   `registry._index()`. Upgrade-only GTR codes exist but are not user-selectable:
    007–012 (validity-gated, internal to `UpgradeToLatest`) and 014–016
-   (runtime-gated, applied by the facade's `upgrade` — see §4 below).
+   (runtime-gated, applied by the facade's `upgrade` — see §4 below). The advisory
+   checks (GTR021–GTR033) enforce the external IUC best-practices standard.
 5. **Dataclass-result convention.** Entry points return result dataclasses
    (`ParseResult`, `ValidationResult`, `FormatResult`, …) and don't raise on domain
    failures. Exceptions are reserved for the CLI boundary (chained `from e`) and
@@ -458,7 +462,7 @@ natural places to look when reasoning about consistency.
   callers.
 - **Cosmetic detect is net-effect, not per-rule.** A single-rule fmt subset can
   report churn a coherent subset would cancel; only the shipped presets (full
-  GTX001/003/004 trio) are guaranteed idempotent. The same order-sensitivity means
+  GTR001/003/004 trio) are guaranteed idempotent. The same order-sensitivity means
   the registry's `apply_selection` deliberately **batches** the selected fmt rules
   through `format_tool_document_subset` rather than calling each fmt
   `RuleHandle.apply` one at a time — so a fmt handle's per-rule `apply` exists for
@@ -495,7 +499,7 @@ The invariants above are enforced by standing tooling, not goodwill (`scripts/`)
 
 - **`corpus_check.py`** — corpus sweeps with five subcommands: `validate`
   (tier-1 invariants), `fmt` (tier-3 idempotence), `codemod <module>:<Class>`
-  (one structural codemod's idempotence + post-validity), `rules` (every GTX rule
+  (one structural codemod's idempotence + post-validity), `rules` (every GTR rule
   in isolation), `check` (unified detect violation counts). Failures are retained
   as permanent regression fixtures.
 - **`measure.py`** — decision-backing "standing measurements"; each subcommand
@@ -541,24 +545,24 @@ Each abstraction → its file → the decision record that justifies it.
 
 | Code | Class | File | Family |
 |---|---|---|---|
-| GTX001 | `CanonicalIndent` | `galaxy-tool-xml-fmt/.../rule_indent.py` | fmt (cosmetic) |
-| GTX002 | `ReorderParamAttributes` | `galaxy-tool-xml-codemod/.../reorder_param_attributes.py` | codemod (canonical) |
-| GTX003 | `BlankLineBetweenSections` | `galaxy-tool-xml-fmt/.../rule_blank_line.py` | fmt (cosmetic, tool-only) |
-| GTX004 | `EmptyElementShorthand` | `galaxy-tool-xml-fmt/.../rule_empty_element.py` | fmt (cosmetic) |
-| GTX005 | `ReorderToolAttributes` | `galaxy-tool-xml-codemod/.../reorder_tool_attributes.py` | codemod (canonical) |
-| GTX006 | `FixTypos` | `galaxy-tool-xml-codemod/.../fix_typos.py` | codemod (canonical, validation-driven) |
-| GTX007 | `UpdateProfile` | `galaxy-tool-xml-codemod/.../update_profile.py` | codemod (upgrade-only) |
-| GTX008–011 | `Upgrade19_01` … `Upgrade25_1` | `galaxy-tool-xml-codemod/.../upgrade_*.py` | codemod (upgrade-only) |
-| GTX012 | `UpgradeToLatest` | `galaxy-tool-xml-codemod/.../upgrades.py` | codemod (upgrade-only orchestrator) |
-| GTX013 | `ReorderToolChildren` | `galaxy-tool-xml-codemod/.../reorder_tool_children.py` | codemod (canonical) |
-| GTX014 | `FixFromWorkDirWhitespace` | `galaxy-tool-xml-codemod/.../fix_from_work_dir_whitespace.py` | codemod (upgrade-only, runtime-gated) |
-| GTX015 | `FixOutputFormatInput` | `galaxy-tool-xml-codemod/.../fix_output_format_input.py` | codemod (upgrade-only, runtime-gated) |
-| GTX016 | `FixInterpreter` | `galaxy-tool-xml-codemod/.../fix_interpreter.py` | codemod (upgrade-only, runtime-gated) |
-| GTX017 | `NormalizeBooleanValues` | `galaxy-tool-xml-codemod/.../normalize_boolean_values.py` | codemod (canonical, validation-driven) |
-| GTX018 | `WrapCommandCdata` | `galaxy-tool-xml-codemod/.../wrap_command_cdata.py` | codemod (canonical — §29) |
-| GTX019 | `WrapHelpCdata` | `galaxy-tool-xml-codemod/.../wrap_help_cdata.py` | codemod (canonical — §29) |
-| GTX020 | `SingleQuoteCommandVars` | `galaxy-tool-xml-codemod/.../single_quote_command_vars.py` | codemod (canonical — §30; the provable IUC011 fix) |
-| IUC001–010 | `TestsPresent` … `HelpCdata` | `galaxy-tool-xml-check/.../checks.py` | check (advisory) |
-| IUC011 | `SingleQuotedCheetah` (uses the tier-1 `galaxy_tool_xml.command_text` lexer) | `galaxy-tool-xml-check/.../checks.py` | check (advisory; provable subset fixed by GTX020) |
-| IUC012 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks.py` | check (advisory, reserved no-op stub — D3) |
-| IUC013 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks.py` | check (advisory — D7) |
+| GTR001 | `CanonicalIndent` | `galaxy-tool-xml-fmt/.../rule_indent.py` | fmt (cosmetic) |
+| GTR002 | `ReorderParamAttributes` | `galaxy-tool-xml-codemod/.../reorder_param_attributes.py` | codemod (canonical) |
+| GTR003 | `BlankLineBetweenSections` | `galaxy-tool-xml-fmt/.../rule_blank_line.py` | fmt (cosmetic, tool-only) |
+| GTR004 | `EmptyElementShorthand` | `galaxy-tool-xml-fmt/.../rule_empty_element.py` | fmt (cosmetic) |
+| GTR005 | `ReorderToolAttributes` | `galaxy-tool-xml-codemod/.../reorder_tool_attributes.py` | codemod (canonical) |
+| GTR006 | `FixTypos` | `galaxy-tool-xml-codemod/.../fix_typos.py` | codemod (canonical, validation-driven) |
+| GTR007 | `UpdateProfile` | `galaxy-tool-xml-codemod/.../update_profile.py` | codemod (upgrade-only) |
+| GTR008–011 | `Upgrade19_01` … `Upgrade25_1` | `galaxy-tool-xml-codemod/.../upgrade_*.py` | codemod (upgrade-only) |
+| GTR012 | `UpgradeToLatest` | `galaxy-tool-xml-codemod/.../upgrades.py` | codemod (upgrade-only orchestrator) |
+| GTR013 | `ReorderToolChildren` | `galaxy-tool-xml-codemod/.../reorder_tool_children.py` | codemod (canonical) |
+| GTR014 | `FixFromWorkDirWhitespace` | `galaxy-tool-xml-codemod/.../fix_from_work_dir_whitespace.py` | codemod (upgrade-only, runtime-gated) |
+| GTR015 | `FixOutputFormatInput` | `galaxy-tool-xml-codemod/.../fix_output_format_input.py` | codemod (upgrade-only, runtime-gated) |
+| GTR016 | `FixInterpreter` | `galaxy-tool-xml-codemod/.../fix_interpreter.py` | codemod (upgrade-only, runtime-gated) |
+| GTR017 | `NormalizeBooleanValues` | `galaxy-tool-xml-codemod/.../normalize_boolean_values.py` | codemod (canonical, validation-driven) |
+| GTR018 | `WrapCommandCdata` | `galaxy-tool-xml-codemod/.../wrap_command_cdata.py` | codemod (canonical — §29) |
+| GTR019 | `WrapHelpCdata` | `galaxy-tool-xml-codemod/.../wrap_help_cdata.py` | codemod (canonical — §29) |
+| GTR020 | `SingleQuoteCommandVars` | `galaxy-tool-xml-codemod/.../single_quote_command_vars.py` | codemod (canonical — §30; the provable GTR031 fix) |
+| GTR021–GTR030 | `TestsPresent` … `HelpCdata` | `galaxy-tool-xml-check/.../checks.py` | check (advisory) |
+| GTR031 | `SingleQuotedCheetah` (uses the tier-1 `galaxy_tool_xml.command_text` lexer) | `galaxy-tool-xml-check/.../checks.py` | check (advisory; provable subset fixed by GTR020) |
+| GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks.py` | check (advisory, reserved no-op stub — D3) |
+| GTR033 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks.py` | check (advisory — D7) |

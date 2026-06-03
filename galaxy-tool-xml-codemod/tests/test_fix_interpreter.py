@@ -1,4 +1,4 @@
-"""Tests for the ``FixInterpreter`` (GTX016) runtime-gated codemod.
+"""Tests for the ``FixInterpreter`` (GTR016) runtime-gated codemod.
 
 Rewrites a deprecated ``<command interpreter="python">script.py …</command>`` to
 ``<command>python '$__tool_directory__/script.py' …</command>`` (dropping the
@@ -28,7 +28,7 @@ def test_bucket_a_rewrites_and_drops_attribute() -> None:
         _HEAD + b'<command interpreter="python">myscript.py $input</command></tool>'
     )
     changes = list(FixInterpreter().detect(module))
-    assert len(changes) == 1 and changes[0].code == "GTX016"
+    assert len(changes) == 1 and changes[0].code == "GTR016"
     FixInterpreter().apply(module)
     command = module.document.root.find("command")
     assert command is not None
@@ -106,4 +106,4 @@ def test_is_idempotent() -> None:
 
 def test_introduced_at_1604() -> None:
     assert FixInterpreter.introduced_profile == "16.04"
-    assert FixInterpreter.meta.code == "GTX016"
+    assert FixInterpreter.meta.code == "GTR016"

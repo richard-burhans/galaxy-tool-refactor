@@ -72,7 +72,7 @@ uv run pytest
 
 ---
 
-## D2 (2026-05-27) — GTX002: `<param>` attribute ordering
+## D2 (2026-05-27) — GTR002: `<param>` attribute ordering
 
 > **Superseded 2026-05-28 — see D10.** This rule has moved to
 > `galaxy-tool-xml-codemod` as `ReorderParamAttributes` (a structural
@@ -172,21 +172,21 @@ document *says*; tier 3 changes how it is *laid out*.
 
 ---
 
-## D4 (2026-05-27) — GTX003: blank line between top-level `<tool>` children, and the `order` field on `RuleMeta`
+## D4 (2026-05-27) — GTR003: blank line between top-level `<tool>` children, and the `order` field on `RuleMeta`
 
 ### Decision
 
-A new rule, **GTX003**, inserts one blank line between consecutive
-top-level children of `<tool>`. Nested elements retain GTX001's
+A new rule, **GTR003**, inserts one blank line between consecutive
+top-level children of `<tool>`. Nested elements retain GTR001's
 single-newline indentation. Editorial: PLAN.md says "one blank between
 sibling top-level sections, no blank inside dense leaf sequences" and
 no external source prescribes it more concretely (`cite=None`).
 
-### Framework change forced by GTX003
+### Framework change forced by GTR003
 
-GTX003 must run **after** GTX001 — it overwrites the tail values GTX001
+GTR003 must run **after** GTR001 — it overwrites the tail values GTR001
 sets. Until this rule, rule order was implicit (import-order, which
-`ruff isort` alphabetises). GTX003 broke that: `rule_blank_line` sorts
+`ruff isort` alphabetises). GTR003 broke that: `rule_blank_line` sorts
 before `rule_indent` alphabetically, so the blank-line tails were
 overwritten by the subsequent indentation pass.
 
@@ -198,9 +198,9 @@ Current assignments:
 
 | Rule | `order` |
 |---|---|
-| GTX001 (indentation) | 10 |
-| GTX002 (param attr order) | 50 |
-| GTX003 (blank line) | 90 |
+| GTR001 (indentation) | 10 |
+| GTR002 (param attr order) | 50 |
+| GTR003 (blank line) | 90 |
 
 Default of `100` keeps any future not-yet-classified rule at the end.
 Multiples-of-ten leave room to insert between.
@@ -221,11 +221,11 @@ the test); passed after the `order` field was added.
 
 ---
 
-## D5 (2026-05-27) — GTX004: empty-element shorthand
+## D5 (2026-05-27) — GTR004: empty-element shorthand
 
 ### Decision
 
-A new rule, **GTX004**, normalises leaf elements whose only content is
+A new rule, **GTR004**, normalises leaf elements whose only content is
 whitespace (e.g. `<inputs>\n</inputs>`) to the short form `<inputs/>`.
 
 ### Scope
@@ -259,8 +259,8 @@ emits `<foo/>`.
 
 ### Rule order
 
-`order=20` — runs after GTX001 (indent, 10) and before GTX002 (param
-attr, 50). Position doesn't actually matter for GTX004 since no other
+`order=20` — runs after GTR001 (indent, 10) and before GTR002 (param
+attr, 50). Position doesn't actually matter for GTR004 since no other
 rule touches leaf-element text, but the slot leaves room for future
 text-mutating rules.
 
@@ -284,7 +284,7 @@ clearing those texts to `None`, which makes lxml drop the comment node
 entirely from output — the next format pass then produced different
 bytes, and the comment was permanently lost.
 
-GTX004 now skips any node whose `.tag` is not a `str`. The behaviour
+GTR004 now skips any node whose `.tag` is not a `str`. The behaviour
 is covered by `test_whitespace_only_xml_comment_is_preserved` in
 `tests/test_rule_empty_element.py` and by the regression fixtures
 replayed under `tests/test_regressions.py`. Post-fix, the 2026-05-28
@@ -292,7 +292,7 @@ sweep reports 4,014 / 4,014 idempotent (D9).
 
 ---
 
-## D6 (2026-05-28) — GTX005: `<tool>` attribute ordering, and the shared `attribute_ordering` helper
+## D6 (2026-05-28) — GTR005: `<tool>` attribute ordering, and the shared `attribute_ordering` helper
 
 > **Superseded 2026-05-28 — see D10.** This rule and the
 > `attribute_ordering` helper have both moved to
@@ -304,13 +304,13 @@ sweep reports 4,014 / 4,014 idempotent (D9).
 
 ### Decision
 
-A new rule, **GTX005**, enforces canonical attribute order on the root
+A new rule, **GTR005**, enforces canonical attribute order on the root
 `<tool>` element. Order: `id`, `name`, `version`, `profile`, then
 alphabetical for the rest.
 
 ### Refactor: shared `attribute_ordering` module
 
-GTX005 has the same shape as GTX002 (priority map + sort within an
+GTR005 has the same shape as GTR002 (priority map + sort within an
 element's `attrib`). Rather than duplicate the implementation, the
 shared logic moved to
 `src/galaxy_tool_xml_fmt/attribute_ordering.py`:
@@ -321,7 +321,7 @@ shared logic moved to
   `ReorderAttributes` edits for any element whose current attribute
   order differs from the canonical.
 
-Each per-element-kind rule (GTX002 for `<param>`, GTX005 for `<tool>`)
+Each per-element-kind rule (GTR002 for `<param>`, GTR005 for `<tool>`)
 defines its own priority table and calls the helper. Future
 element-kind orderings plug in the same way.
 
@@ -340,7 +340,7 @@ authority than IUC, but it's the only documented source.
 
 ### Rule order
 
-`order=55` — runs just after GTX002 (`order=50`). The two are
+`order=55` — runs just after GTR002 (`order=50`). The two are
 independent (different element kinds), so the choice is arbitrary; the
 explicit slot leaves room to insert between if a future rule's ordering
 matters.
@@ -375,7 +375,7 @@ This policy is **already enforced by lxml's ``etree.tostring`` default**
 | `it's fine` | `a="it's fine"` |
 | `has both " and '` | `a="has both &quot; and '"` |
 
-So there is no GTX rule for this. The policy is locked in by
+So there is no GTR rule for this. The policy is locked in by
 ``tests/test_attribute_quoting.py``, which acts as regression
 coverage against any future lxml change.
 
@@ -427,7 +427,7 @@ verified 2026-05-28:
 | `attr` whose value contains `\n` | `attr="line1&#10;line2"` (newline becomes an entity, attribute stays on one line) |
 | `attr` value with literal tab | `attr="...&#9;..."` (tab becomes `&#9;`) |
 
-So no GTX rule is needed. The policy is locked in by
+So no GTR rule is needed. The policy is locked in by
 ``tests/test_attribute_line_layout.py``, which includes a strong
 no-newline-inside-any-start-tag assertion as a backstop against any
 future serializer drift.
@@ -511,9 +511,9 @@ Partial sweeps (`--limit`, `--repo`) do not regenerate it.
 | Non-idempotent | 0 |
 | Crashed | 0 |
 
-The initial run before the GTX004 comment-skip refinement (D5) found
+The initial run before the GTR004 comment-skip refinement (D5) found
 12 non-idempotent tools, all variants of the same bug: whitespace-only
-XML comments were being clobbered by GTX004. Those fixtures are
+XML comments were being clobbered by GTR004. Those fixtures are
 retained as permanent regression coverage (`tests/test_regressions.py`)
 even though they now pass — they encode the bug class so we don't
 regress it.
@@ -567,15 +567,15 @@ uv run python -m scripts.corpus_check fmt
 
 ### Decision
 
-The two structural rules (former **GTX002** `<param>` attribute order
-and former **GTX005** `<tool>` attribute order) have been deleted from
+The two structural rules (former **GTR002** `<param>` attribute order
+and former **GTR005** `<tool>` attribute order) have been deleted from
 this package and re-implemented in `galaxy-tool-xml-codemod` as the
 `ReorderParamAttributes` and `ReorderToolAttributes` codemods. They
 are exposed via that package's `CANONICAL_CODEMODS` tuple.
 
 - **`format_tool_document` is now cosmetic-only.** It no longer imports
   `galaxy-tool-xml-codemod`, runs only the three remaining cosmetic
-  rules (GTX001 indent, GTX003 blank line, GTX004 empty-element
+  rules (GTR001 indent, GTR003 blank line, GTR004 empty-element
   shorthand), and works with just `galaxy-tool-xml + galaxy-tool-xml-fmt`
   installed.
 - **`galaxy-tool-xml-codemod` is an optional `[canonical]` extra** of
@@ -643,7 +643,7 @@ and not shared.
 This realises §D1 §Layout's plan ("a shared rule-engine package will be
 extracted only when a second consumer materialises"): the codemod tier is now
 that consumer, carrying the same `meta: ClassVar[RuleMeta]` on every codemod so
-the GTX registry spans both tiers (GTX001–GTX012). The fmt stat page's new
+the GTR registry spans both tiers (GTR001–GTR012). The fmt stat page's new
 "Rule reference" table is generated from that cross-tier metadata.
 
 ### Rationale
@@ -770,12 +770,12 @@ D2 for the shared `Violation` type; the effort (PR1–5) merged in #15).
   pipeline would change, located on the source tree (real line numbers) and
   attributed to the owning rule's `meta.code` / `meta.summary`.
 - **Why net-diff, not per-edit.** fmt rules emit *unconditional* overlapping
-  rewrites — GTX001 sets every child's tail, GTX003 then overrides top-level
+  rewrites — GTR001 sets every child's tail, GTR003 then overrides top-level
   `<tool>` child tails (blank line). So an individual `Edit` "changing the tree"
   does **not** mean the document is non-canonical: on an already-canonical file,
-  GTX001 wants to strip GTX003's blank line (a change to the intermediate state)
-  that GTX003 immediately re-adds. Mapping changing edits to violations
-  therefore false-positives on canonical files (empirically: 2 phantom GTX001
+  GTR001 wants to strip GTR003's blank line (a change to the intermediate state)
+  that GTR003 immediately re-adds. Mapping changing edits to violations
+  therefore false-positives on canonical files (empirically: 2 phantom GTR001
   findings on a canonical 3-section tool). Detection instead formats a throwaway
   copy, records the **last** rule to touch each node's whitespace (the owner),
   and diffs the formatted copy against the original — net-zero churn is silent,
@@ -783,7 +783,7 @@ D2 for the shared `Violation` type; the effort (PR1–5) merged in #15).
 - **Implementation notes.** (1) lxml hands out a fresh Python proxy per
   `.iter()`, so `id()` is unstable across calls; detect captures each node list
   once and reuses those proxies (live views over shared nodes). (2) Comment / PI
-  nodes are included, not just elements: GTX001/GTX003 rewrite a comment's tail
+  nodes are included, not just elements: GTR001/GTR003 rewrite a comment's tail
   (a blank line after a top-level comment is a real change), so omitting them
   let detect miss changes the pipeline makes — caught by the corpus parity gate
   on bimib/cobraxy (now a regression test).
@@ -814,8 +814,8 @@ Support for the rule-selection facade (`galaxy-tool-refactor-registry`, tier 3.6
   output. The net-diff attribution logic for detect stays here (its owning tier),
   not reconstructed in the facade.
 - **Coherence is the caller's job for arbitrary subsets.** The shipped presets
-  always include the full GTX001/GTX003/GTX004 trio (coherent, idempotent); a
-  lone-rule selection (`--select GTX001`) can leave non-canonical trivia a
+  always include the full GTR001/GTR003/GTR004 trio (coherent, idempotent); a
+  lone-rule selection (`--select GTR001`) can leave non-canonical trivia a
   coherent subset would have cancelled. Documented, not prevented.
 - **`TransformOutcome.notes: tuple[str, ...]`** replaced the old singular
   `note: str | None`. One per-file notes channel carries both the upgrade summary
@@ -834,8 +834,8 @@ galaxy-tool-xml-fmt/tests/test_subset.py galaxy-tool-xml-fmt/tests/test_cli.py`.
 The fmt tier now formats macro-library files (`<macros>` root), not just tools.
 
 - **Rules filter by document kind via `RuleMeta.applies_to`** (tier-0.5 D3).
-  GTX001 (indent) and GTX004 (empty-element shorthand) are widened to
-  `{"tool","macro"}` — generic XML cosmetics; GTX003 (blank line between `<tool>`
+  GTR001 (indent) and GTR004 (empty-element shorthand) are widened to
+  `{"tool","macro"}` — generic XML cosmetics; GTR003 (blank line between `<tool>`
   sections) stays tool-only, so a macro file is *not* given tool-shaped blank
   lines. `format.rules_for_kind(kind)` returns the applicable subset;
   `format_macro_document(MacroDocument)` is the `<macros>` counterpart to

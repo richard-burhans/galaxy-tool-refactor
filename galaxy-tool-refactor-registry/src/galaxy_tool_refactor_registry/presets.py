@@ -8,9 +8,9 @@ it never drifts from the rules that actually exist):
 - ``iuc`` — the canonical codemods (typo repair + attribute / element order) plus
   the cosmetic rules. This is exactly today's ``format`` behaviour, the
   "black-like opinionated formatter", and the **default** preset.
-- ``strict`` — ``iuc`` plus every advisory IUC check (report-only). "Format me,
+- ``strict`` — ``iuc`` plus every advisory check (report-only). "Format me,
   and flag everything the IUC standard cares about." (The two reserved advisory
-  stubs IUC011/IUC012 are members but never fire until implemented.)
+  stubs GTR031/GTR032 are members but never fire until implemented.)
 
 Adding or changing a preset is a developer task — there are no user-defined
 presets, by design.
@@ -30,7 +30,7 @@ _DESCRIPTIONS: dict[str, str] = {
     "cosmetic": "Cosmetic whitespace only (indent, blank lines, shorthand).",
     "iuc": "The opinionated canonical formatter: typo repair + attribute/element "
     "order + cosmetic formatting (the default).",
-    "strict": "Everything in 'iuc' plus the advisory IUC best-practice checks "
+    "strict": "Everything in 'iuc' plus the advisory best-practice checks "
     "(report-only).",
 }
 

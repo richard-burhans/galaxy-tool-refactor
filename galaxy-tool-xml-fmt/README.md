@@ -11,7 +11,7 @@ The **formatting** tier of the Galaxy refactoring architecture:
 | 1 | **parsing & validation** | `galaxy-tool-xml` | parse · profile-aware validate · typed view |
 | 2 | **structure** | `galaxy-tool-xml-codemod` | structural refactors |
 | 3 | **formatting** | **`galaxy-tool-xml-fmt`** *(this repo)* | cosmetic formatter |
-| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only IUC checks |
+| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only checks |
 | 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | unified rules + presets (facade) |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | composes the tiers via the facade (`format` / `upgrade` / `check`) |
 
@@ -46,16 +46,16 @@ cosmetic-only CLI split is `docs/decisions.md` §D12.
 
 | Code | Summary | Source |
 |---|---|---|
-| GTX001 | Canonical 4-space indentation | IUC tool-XML style |
-| GTX003 | One blank line between top-level `<tool>` children | editorial |
-| GTX004 | Collapse whitespace-only leaves to `<foo/>` form | editorial |
+| GTR001 | Canonical 4-space indentation | IUC tool-XML style |
+| GTR003 | One blank line between top-level `<tool>` children | editorial |
+| GTR004 | Collapse whitespace-only leaves to `<foo/>` form | editorial |
 
 D7 and D8 in `docs/decisions.md` cover two policies — always-double-
 quote attributes and one-line-per-element layout — that lxml's
 serializer enforces by default; both are locked in by tests but
-ship no GTX rule.
+ship no GTR rule.
 
-The earlier GTX002 (`<param>` attribute order) and GTX005 (`<tool>`
+The earlier GTR002 (`<param>` attribute order) and GTR005 (`<tool>`
 attribute order) were structural, not cosmetic, and have **moved**
 to `galaxy-tool-xml-codemod` as `ReorderParamAttributes` and
 `ReorderToolAttributes`. They're applied by the tier-4 app's

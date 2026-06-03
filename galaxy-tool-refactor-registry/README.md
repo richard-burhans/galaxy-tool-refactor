@@ -2,8 +2,8 @@
 
 The **rule-registry facade** (tier 3.6) of the Galaxy tool refactoring framework:
 a single, code-addressable view over every baked-in rule across the three rule
-families — codemod (tier 2, structural GTX), fmt (tier 3, cosmetic GTX), and
-check (tier 3.5, advisory IUC) — plus **named presets** and **per-rule
+families — codemod (tier 2, structural GTR), fmt (tier 3, cosmetic GTR), and
+check (tier 3.5, advisory) — plus **named presets** and **per-rule
 enable/disable**, behind a **library-first** API.
 
 ```
@@ -31,9 +31,9 @@ and a future agent-facing MCP server be thin adapters over the same core. See
 
 | Preset | Contents | Notes |
 |---|---|---|
-| `cosmetic` | fmt cosmetic rules (GTX001/003/004) | whitespace / indent / shorthand only |
-| `iuc` *(default)* | canonical codemods (GTX006/002/005/013) + cosmetic | today's `format` — the opinionated formatter |
-| `strict` | `iuc` + advisory IUC checks | format + flag everything IUC cares about (report-only) |
+| `cosmetic` | fmt cosmetic rules (GTR001/003/004) | whitespace / indent / shorthand only |
+| `iuc` *(default)* | canonical codemods (GTR006/002/005/013) + cosmetic | today's `format` — the opinionated formatter |
+| `strict` | `iuc` + advisory checks | format + flag everything IUC cares about (report-only) |
 
 Adding or changing rules and presets is a **developer** task — there are no
 user-defined rules or presets.

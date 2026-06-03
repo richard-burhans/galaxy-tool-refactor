@@ -104,7 +104,7 @@ def test_profile_token_site_none_for_inline_token(tmp_path: Path) -> None:
         "<command><![CDATA[echo x]]></command>"
         '<inputs/><outputs><data name="o"/></outputs></tool>',
     )
-    assert profile_token_site(load_tool(tool)) is None  # inline is GTX007 3a's job
+    assert profile_token_site(load_tool(tool)) is None  # inline is GTR007 3a's job
 
 
 def test_profile_token_site_none_for_literal_profile(tmp_path: Path) -> None:

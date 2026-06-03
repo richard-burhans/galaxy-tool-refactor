@@ -18,11 +18,11 @@ All rule orchestration is delegated to the tier-3.6 registry facade
   semantic; presets do not apply (``--select``/``--ignore`` adjust its rule set).
   Also bumps an imported ``@PROFILE@`` token in place when every profile-using
   importer in the run agrees on the target (else reports and skips); a
-  ``profile="@TOKEN@"`` whose token is inline is handled per-file by GTX007.
+  ``profile="@TOKEN@"`` whose token is inline is handled per-file by GTR007.
 - ``check`` — report where tools deviate from the selection, one
   ``file:line  CODE  message`` per finding, without changing anything. Fixable
-  (GTX) findings fail the run; advisory (IUC) findings are informational unless
-  ``--strict``. Macro files are checked for cosmetic (fixable) drift too.
+  findings fail the run; advisory (``detect_only``) findings are informational
+  unless ``--strict``. Macro files are checked for cosmetic (fixable) drift too.
 - ``rules`` / ``presets`` — introspection: the baked-in rules and the presets.
 - ``normalize-macros`` — opt-in, repo-scoped: lowercase literal ``format`` /
   ``ftype`` in ``<macros>``-root files (the macro-library analog of the 24.2
@@ -108,7 +108,7 @@ _SELECT_OPTION = click.option(
     multiple=True,
     metavar="CODE",
     help="Run only these rule codes (replaces the preset's set). "
-    "Repeatable or comma-separated, e.g. --select GTX001,GTX003.",
+    "Repeatable or comma-separated, e.g. --select GTR001,GTR003.",
 )
 _IGNORE_OPTION = click.option(
     "--ignore",
@@ -229,17 +229,17 @@ def upgrade_command(
 
     Opt-in and semantic. The profile upgrade always runs; ``--select`` / ``--ignore``
     adjust the *other* fixable rules (by default typo repair + cosmetic
-    formatting) — e.g. ``--ignore GTX006`` upgrades without typo repair. Presets
+    formatting) — e.g. ``--ignore GTR006`` upgrades without typo repair. Presets
     are a ``format``/``check`` concept and are **not** accepted here.
 
     A ``profile="@PROFILE@"`` whose token lives in an *imported* macro file is
     upgraded by bumping that token in place — but only when every profile-using
     importer in this run agrees on the target profile; a macro file whose
     importers disagree is reported and left untouched (no over-declaration). The
-    inline-token case is handled per-file by GTX007. The token value is the *only*
+    inline-token case is handled per-file by GTR007. The token value is the *only*
     semantic edit, but the macro file it lives in **is** reserialised through fmt's
     ``format_macro_document`` when the token is bumped (so a bumped file is also
-    cosmetically normalised — GTX001/GTX004); ``upgrade`` runs no *separate*
+    cosmetically normalised — GTR001/GTR004); ``upgrade`` runs no *separate*
     cosmetic macro pass over un-bumped macro files the way ``format`` does. PATHS
     may be files or directories.
 
@@ -261,7 +261,7 @@ def upgrade_command(
 
     # Whole-run phase first: bump imported @PROFILE@ tokens where every
     # profile-using importer agrees on the target (the inline case is handled
-    # per-file by GTX007 in the transform below). This edits *macro* files, so it
+    # per-file by GTR007 in the transform below). This edits *macro* files, so it
     # cannot ride the per-file tool transform.
     macro_pending = _upgrade_macro_profile_tokens(
         paths, check=check, diff=diff, quiet=quiet
@@ -371,7 +371,7 @@ def check_command(
     """Report where tools deviate from the selection, without changing them.
 
     Runs the selected rules' detect phases (default preset ``iuc``): *fixable*
-    (GTX — what ``format`` would change) and, under ``--preset strict``, the
+    (GTR — what ``format`` would change) and, under ``--preset strict``, the
     *advisory* IUC best-practice checks (marked ``(advisory)``). Prints one
     ``file:line  CODE  message`` per finding. Exits non-zero on any *fixable*
     finding or error; advisory findings are informational unless ``--strict``.
@@ -390,7 +390,7 @@ def check_command(
             errored += 1
             continue
         # Each finding is a (violation, is_advisory) pair. Tool files run the
-        # full selected detect (fixable GTX + advisory IUC); macro files run the
+        # full selected detect (fixable GTR + advisory); macro files run the
         # cosmetic macro rules only (all fixable). Other XML is skipped.
         if is_tool_root(original):
             try:

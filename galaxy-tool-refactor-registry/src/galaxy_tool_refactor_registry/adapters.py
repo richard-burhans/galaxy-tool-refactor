@@ -3,7 +3,7 @@
 Three builders, one per family, plus the family class enumerations the registry
 and apply phase consume. The *selectable* codemods are exactly
 ``CANONICAL_CODEMODS`` (typo repair + the reorderers — the safe, format-time
-rules); the remaining GTX codemods are the upgrade-only steps
+rules); the remaining GTR codemods are the upgrade-only steps
 (``UpdateProfile`` + the per-version ``Upgrade*`` + the ``UpgradeToLatest``
 orchestrator) which are internal to the ``upgrade`` pipeline and not
 independently selectable — they are exposed for introspection only.
@@ -36,7 +36,7 @@ def selectable_codemods() -> tuple[type[CodemodCommand], ...]:
 
 
 def upgrade_only_codemods() -> tuple[type[CodemodCommand], ...]:
-    """The GTX codemods internal to ``upgrade`` (not independently selectable)."""
+    """The GTR codemods internal to ``upgrade`` (not independently selectable)."""
     canonical = set(CANONICAL_CODEMODS)
     return tuple(cls for cls in coded_codemods() if cls not in canonical)
 
@@ -52,7 +52,7 @@ def fmt_rule_by_code() -> dict[str, type[Rule]]:
 
 
 def advisory_checks() -> tuple[type[CheckRule], ...]:
-    """The advisory (detect-only) IUC checks."""
+    """The advisory (detect-only) checks."""
     return all_checks()
 
 

@@ -22,7 +22,7 @@ Rule orchestration lives in the registry facade; this package depends on it
 # Default preset `iuc` = structural canonicalisation + cosmetic; never profile=.
 galaxy-tool-refactor format tool.xml
 galaxy-tool-refactor format --preset cosmetic tool.xml   # whitespace only
-galaxy-tool-refactor format --ignore GTX002 tool.xml     # all but param-reorder
+galaxy-tool-refactor format --ignore GTR002 tool.xml     # all but param-reorder
 galaxy-tool-refactor format tools/                       # also formats <macros> files
 
 # Opt-in, semantic: repair typos, then upgrade profile= to the latest reachable
@@ -31,8 +31,8 @@ galaxy-tool-refactor format tools/                       # also formats <macros>
 galaxy-tool-refactor upgrade tool.xml
 
 # Report-only linter: one `file:line  CODE  message` per finding, mutating
-# nothing. Default (`iuc`) reports the fixable GTX rules; `--preset strict` adds
-# the advisory IUC checks (marked `(advisory)`). Exits non-zero on any fixable
+# nothing. Default (`iuc`) reports the fixable GTR rules; `--preset strict` adds
+# the advisory checks (marked `(advisory)`). Exits non-zero on any fixable
 # finding; advisory findings are informational unless --strict.
 galaxy-tool-refactor check tool.xml
 galaxy-tool-refactor check --preset strict tool.xml

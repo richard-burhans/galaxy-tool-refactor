@@ -11,26 +11,26 @@ from galaxy_tool_refactor_rules.violation import Violation
 
 def test_violation_is_frozen() -> None:
     violation = Violation(
-        code="GTX001", sourceline=12, xpath="/tool", message="needs a fix"
+        code="GTR001", sourceline=12, xpath="/tool", message="needs a fix"
     )
     with pytest.raises(dataclasses.FrozenInstanceError):
-        violation.code = "GTX999"  # type: ignore[misc]
+        violation.code = "GTR999"  # type: ignore[misc]
 
 
 def test_violation_carries_supplied_values() -> None:
     violation = Violation(
-        code="GTX002",
+        code="GTR002",
         sourceline=7,
         xpath="/tool/inputs/param[1]",
         message="<param> attributes are not in IUC order",
     )
-    assert violation.code == "GTX002"
+    assert violation.code == "GTR002"
     assert violation.sourceline == 7
     assert violation.xpath == "/tool/inputs/param[1]"
     assert violation.message == "<param> attributes are not in IUC order"
 
 
 def test_violation_equality_is_by_value() -> None:
-    one = Violation(code="GTX001", sourceline=1, xpath="/tool", message="m")
-    two = Violation(code="GTX001", sourceline=1, xpath="/tool", message="m")
+    one = Violation(code="GTR001", sourceline=1, xpath="/tool", message="m")
+    two = Violation(code="GTR001", sourceline=1, xpath="/tool", message="m")
     assert one == two

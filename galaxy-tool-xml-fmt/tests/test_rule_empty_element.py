@@ -1,4 +1,4 @@
-"""Tests for GTX004: empty-element shorthand."""
+"""Tests for GTR004: empty-element shorthand."""
 
 from __future__ import annotations
 
@@ -75,7 +75,7 @@ def test_empty_element_shorthand_is_idempotent(
 def test_whitespace_only_xml_comment_is_preserved(
     make_doc: Callable[[bytes], ToolDocument],
 ) -> None:
-    # GTX004 must not iterate Comment / ProcessingInstruction nodes — their
+    # GTR004 must not iterate Comment / ProcessingInstruction nodes — their
     # ``.text`` mimics a whitespace-only empty element, and clearing it makes
     # lxml drop the comment from the output (the 12 corpus regressions of
     # 2026-05-28 were all variants of this).

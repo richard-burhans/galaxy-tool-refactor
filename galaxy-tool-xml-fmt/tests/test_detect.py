@@ -31,7 +31,7 @@ def test_canonical_document_reports_no_violations(
     """The key invariant: an already-canonical document has zero violations.
 
     Naively mapping each changing ``Edit`` to a violation over-reports here,
-    because GTX001 rewrites top-level-child tails that GTX003 then overrides.
+    because GTR001 rewrites top-level-child tails that GTR003 then overrides.
     The net-diff detector must stay silent.
     """
     canonical_bytes = format_tool_document(make_doc(_FLAT))
@@ -41,11 +41,11 @@ def test_canonical_document_reports_no_violations(
 def test_flat_document_reports_indent_and_blank_line_violations(
     make_doc: Callable[[bytes], ToolDocument],
 ) -> None:
-    """A flat, unformatted document flags GTX001 (indent) and GTX003 (blank line)."""
+    """A flat, unformatted document flags GTR001 (indent) and GTR003 (blank line)."""
     violations = detect_tool_document(make_doc(_FLAT))
     codes = {violation.code for violation in violations}
-    assert "GTX001" in codes
-    assert "GTX003" in codes
+    assert "GTR001" in codes
+    assert "GTR003" in codes
     # Every violation is located on the source tree.
     assert all(violation.xpath.startswith("/tool") for violation in violations)
     assert all(violation.sourceline >= 1 for violation in violations)
@@ -54,15 +54,15 @@ def test_flat_document_reports_indent_and_blank_line_violations(
 def test_whitespace_only_leaf_reports_gtx004(
     make_doc: Callable[[bytes], ToolDocument],
 ) -> None:
-    """A whitespace-only leaf is reported at its xpath, owned by GTX004.
+    """A whitespace-only leaf is reported at its xpath, owned by GTR004.
 
-    (The ``<tool>`` root also picks up a GTX001 child-indent violation; the leaf
-    itself is the GTX004 one.)
+    (The ``<tool>`` root also picks up a GTR001 child-indent violation; the leaf
+    itself is the GTR004 one.)
     """
     payload = b"<tool id='t' name='T' version='0'><inputs>  </inputs></tool>"
     violations = detect_tool_document(make_doc(payload))
     by_xpath = {violation.xpath: violation for violation in violations}
-    assert by_xpath["/tool/inputs"].code == "GTX004"
+    assert by_xpath["/tool/inputs"].code == "GTR004"
 
 
 def test_detect_does_not_mutate_the_input(
@@ -81,9 +81,9 @@ def test_violation_message_is_the_owning_rules_summary(
     """Each violation carries its owning rule's one-line summary as the message."""
     violations = detect_tool_document(make_doc(_FLAT))
     by_code = {violation.code: violation for violation in violations}
-    assert by_code["GTX001"].message == "Canonical 4-space indentation; no tabs."
+    assert by_code["GTR001"].message == "Canonical 4-space indentation; no tabs."
     assert (
-        by_code["GTX003"].message
+        by_code["GTR003"].message
         == "One blank line between top-level children of <tool>."
     )
 
@@ -93,7 +93,7 @@ def test_canonical_document_with_comment_reports_no_violations(
 ) -> None:
     """Comments must not false-positive on a canonical doc.
 
-    GTX001/GTX003 rewrite a comment's *tail*, so a comment-bearing canonical
+    GTR001/GTR003 rewrite a comment's *tail*, so a comment-bearing canonical
     document must still report zero violations (regression guard: detect once
     missed comment tails, disagreeing with format on bimib/cobraxy).
     """
@@ -104,8 +104,8 @@ def test_canonical_document_with_comment_reports_no_violations(
 def test_detects_missing_blank_line_on_top_level_comment(
     make_doc: Callable[[bytes], ToolDocument],
 ) -> None:
-    """A top-level comment lacking the blank line after it is flagged (GTX003)."""
+    """A top-level comment lacking the blank line after it is flagged (GTR003)."""
     violations = detect_tool_document(make_doc(_WITH_COMMENT))
     comment_violations = [v for v in violations if "comment()" in v.xpath]
     assert comment_violations
-    assert all(violation.code == "GTX003" for violation in comment_violations)
+    assert all(violation.code == "GTR003" for violation in comment_violations)

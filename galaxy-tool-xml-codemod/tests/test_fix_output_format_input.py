@@ -1,4 +1,4 @@
-"""Tests for ``FixOutputFormatInput`` (GTX015), the format=input runtime-gated fix."""
+"""Tests for ``FixOutputFormatInput`` (GTR015), the format=input runtime-gated fix."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def test_single_data_input_swaps_to_format_source() -> None:
         _tool(b'<param type="data" name="i"/>', b'<data name="o" format="input"/>')
     )
     changes = list(FixOutputFormatInput().detect(module))
-    assert len(changes) == 1 and changes[0].code == "GTX015"
+    assert len(changes) == 1 and changes[0].code == "GTR015"
     FixOutputFormatInput().apply(module)
     data = module.document.root.find("outputs/data")
     assert data.get("format") is None

@@ -21,7 +21,7 @@ depend on directly; the app tier (4) reaches it transitively through the facade:
 
 It owns the shared rule **metadata + diagnostics** vocabulary — three things:
 
-- `meta.py` — the `RuleMeta` frozen dataclass (the GTX rule descriptor).
+- `meta.py` — the `RuleMeta` frozen dataclass (the GTR rule descriptor).
 - `violation.py` — the `Violation` frozen dataclass (the per-occurrence detect
   result: `code`, `int` `sourceline`, `str` `xpath`, `message`). Pure primitives,
   no lxml — the read-only counterpart to tier-2 `Change` / tier-3 `Edit`.
@@ -62,6 +62,6 @@ Run these from the **workspace root** (`galaxy-tool-refactor/`):
 - `galaxy-tool-xml-fmt/src/galaxy_tool_xml_fmt/rules.py` — the tier-3 `Rule` ABC
   that carries `meta: ClassVar[RuleMeta]`.
 - `galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/catalog.py` — the tier-2
-  catalog of GTX-coded codemods.
+  catalog of GTR-coded codemods.
 - `scripts/corpus_check.py` — the stat-page generator that renders the
   cross-tier rule reference table via `render_rule_reference_table`.

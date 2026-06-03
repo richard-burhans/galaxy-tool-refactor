@@ -73,7 +73,7 @@ class NormalizeBooleanValues(CodemodCommand):
     """Normalize non-canonical boolean values so a globally-invalid tool validates."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTX017",
+        code="GTR017",
         summary=(
             "Normalize Python-style boolean attribute values (True/Yes/…) to "
             "canonical xs:boolean so a globally-invalid tool validates."

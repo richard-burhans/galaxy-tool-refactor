@@ -101,7 +101,7 @@ reproducible command for any data-driven claim.
 `visit_<Tag>` → `detect_<Tag>` (and made `detect` the primitive, with `apply`
 derived); the dispatch-by-tag rationale below is otherwise unchanged. The
 "two structural codemods" framing is the M3-era snapshot (the catalog now also
-ships GTX013 and the validation-driven codemods).
+ships GTR013 and the validation-driven codemods).
 
 - **What we chose:** `_visit_method_name("param") → "visit_Param"` —
   string transformation of the XML tag.
@@ -459,24 +459,24 @@ ships GTX013 and the validation-driven codemods).
   can't advance a particular tool is not reported as missing (that's an
   incomplete codemod / unfixable tool, not an absent one).
 
-## 15. Codemods carry `RuleMeta` metadata + GTX codes; `coded_codemods()` catalog
+## 15. Codemods carry `RuleMeta` metadata + GTR codes; `coded_codemods()` catalog
 
 **Date:** 2026-05-29.
 
 - **What we chose:** Every bundled codemod now carries a
-  `meta: ClassVar[RuleMeta]` GTX descriptor, mirroring the formatter tier. The
+  `meta: ClassVar[RuleMeta]` GTR descriptor, mirroring the formatter tier. The
   descriptor type is imported from the shared, dependency-free
   `galaxy-tool-refactor-rules` package (tier 0.5), so the fmt and codemod tiers
   expose one uniform rule-metadata vocabulary. The two attribute-reorder
-  codemods keep their existing codes (`GTX002`, `GTX005`); the validation-driven
-  and upgrade codemods get new codes `GTX006`–`GTX012`
+  codemods keep their existing codes (`GTR002`, `GTR005`); the validation-driven
+  and upgrade codemods get new codes `GTR006`–`GTR012`
   (`FixTypos`, `UpdateProfile`, `Upgrade19_01`, `Upgrade24_0`, `Upgrade24_1`,
   `Upgrade25_1`, `UpgradeToLatest`).
-- **Why every codemod, not just the style rules:** the GTX namespace is now the
+- **Why every codemod, not just the style rules:** the GTR namespace is now the
   project-wide registry of *every* tool-XML transformation, not only the
   IUC-style ones. A complete registry is what makes the cross-tier "Rule
   reference" table on the corpus-format stat page meaningful.
-- **`catalog.coded_codemods()`** returns all GTX-coded codemods sorted by code.
+- **`catalog.coded_codemods()`** returns all GTR-coded codemods sorted by code.
   It is deliberately distinct from `CANONICAL_CODEMODS` (canonical.py): that
   tuple is the *ordered pipeline* fmt's CLI runs and omits the single-step
   `upgrade_vN` codemods (which `UpgradeToLatest` drives internally), whereas the
@@ -513,7 +513,7 @@ ships GTX013 and the validation-driven codemods).
   broken-and-outdated tool must be repaired before it can upgrade. `FixTypos` is
   idempotent, so its presence in both is harmless. `UpdateProfile` and the
   single-step `Upgrade*` codemods are not listed in either tuple directly —
-  `UpgradeToLatest` orchestrates them (per §13–14), and the GTX catalog
+  `UpgradeToLatest` orchestrates them (per §13–14), and the GTR catalog
   (`coded_codemods()`, §15) still enumerates all of them.
 - **Coverage:** `test_canonical.py` pins both contracts' membership and order;
   `test_regressions.py` gained an `AUTO_UPGRADE_CODEMODS` idempotence replay so
@@ -522,11 +522,11 @@ ships GTX013 and the validation-driven codemods).
 - **Reproduced-by:** `uv run --package galaxy-tool-xml-codemod pytest
   galaxy-tool-xml-codemod/tests/test_canonical.py`.
 
-## 17. `ReorderToolChildren` (GTX013) + the `Cursor.reorder_children` primitive
+## 17. `ReorderToolChildren` (GTR013) + the `Cursor.reorder_children` primitive
 
 **Date:** 2026-05-29.
 
-- **What we chose:** a new structural codemod, `ReorderToolChildren` (GTX013),
+- **What we chose:** a new structural codemod, `ReorderToolChildren` (GTR013),
   reorders the root `<tool>`'s child elements to the IUC convention
   (best-practice #52: `description, macros, edam_topics, edam_operations,
   xrefs, parallelism, requirements, code, stdio, version_command, command,
@@ -599,7 +599,7 @@ ships GTX013 and the validation-driven codemods).
     imperative `visit_<Tag>` walk and its `False`-halt descent control are
     removed (no bundled codemod used the halt; the three reorderers were the only
     `visit_` users).
-  - The three structural reorderers (GTX002/005/013) became `detect_<Tag>`
+  - The three structural reorderers (GTR002/005/013) became `detect_<Tag>`
     methods yielding one located `Change` per out-of-order element. To keep the
     "would it change?" decision in **one** place, `Cursor` gained
     `would_reorder_attributes` / `would_reorder_children` predicates; the
@@ -624,14 +624,14 @@ ships GTX013 and the validation-driven codemods).
   with no behavioural change — the three reorderers report the **same** modified
   counts as before the refactor.
 - **Corpus result (combined, 8,607 eligible tools), 0 parity mismatches:**
-  GTX002 6,075 modified · GTX005 1,020 · GTX013 4,640 — identical to §16–17
+  GTR002 6,075 modified · GTR005 1,020 · GTR013 4,640 — identical to §16–17
   baselines; FixTypos and UpgradeToLatest coarse-detect parity also clean.
 - **Reproduced-by:** `uv run --package galaxy-tool-xml-codemod pytest
   galaxy-tool-xml-codemod/tests/` (`test_change.py`, `test_codemod.py`,
   `test_coarse_detect.py`, the reorderer suites, `test_cursor.py`); corpus gate
   `uv run python -m scripts.corpus_check codemod
   galaxy_tool_xml_codemod.codemods.reorder_param_attributes:ReorderParamAttributes`
-  (and the GTX005/GTX013/FixTypos/UpgradeToLatest specs). The effort (PR1–5)
+  (and the GTR005/GTR013/FixTypos/UpgradeToLatest specs). The effort (PR1–5)
   merged in #15.
 
 ## 20. `MacroModule` + `parse_macro_module` (codemods over macro files)
@@ -812,11 +812,11 @@ via `uv run python -m scripts.measure semantic-upgrade-boundaries`.
   "prove the construct is absent ⇒ the tool is free to move past it" framing,
   made an explicit signal rather than mere absence. It is **conservative**: a tool
   whose only applicable code is auto-neutralised by a runtime-gated fix
-  (GTX014/015/016, §24) is still reported `False` for now — under-claiming safety
+  (GTR014/015/016, §24) is still reported `False` for now — under-claiming safety
   is the sound direction under §22; crediting auto-fixed codes is deferred.
-- **Why a note in `upgrade`, not a check/IUC rule.** The risk is intrinsic to the
+- **Why a note in `upgrade`, not a check rule.** The risk is intrinsic to the
   *upgrade transition* (baseline → target), not a static property of a tool, so it
-  has no meaning in `check`/`format` and needs no GTX/IUC code. It rides the
+  has no meaning in `check`/`format` and needs no GTR code. It rides the
   `UpgradeResult.notes` channel, so the CLI surfaces it for free.
 - **Baseline choices.** Undeclared `profile=` → `16.01` (matches Galaxy's default
   and tier-1's `resolve_profile(None)`; the highest-impact case). A macro-token
@@ -872,22 +872,22 @@ output-format-input`.
   109 auto-fixable `format="input"` tools already declare profile ≥16.04 (`scripts/
   measure output-format-input`), and all 4 whitespace `from_work_dir` tools predate
   21.09 (profile 16.07) — so it is a soundness backstop with no behaviour change
-  today. The real beneficiary is the planned GTX016 `interpreter=` fix: the
+  today. The real beneficiary is the planned GTR016 `interpreter=` fix: the
   adversarial review found bucket-A `interpreter=` tools that *already* declare ≥16.04
   (Galaxy ignores `interpreter=` for any profile ≠ 16.01), which the gate will
-  correctly leave alone — to be sized by its own measure when GTX016 lands. (Surfaced
+  correctly leave alone — to be sized by its own measure when GTR016 lands. (Surfaced
   by the upgrade-soundness adversarial review, 2026-06-02.)
 - **Upgrade-only.** Runtime-gated fixes are in `coded_codemods()` (so the registry
-  enumerates them and the GTX namespace stays collision-guarded) but **not** in
+  enumerates them and the GTR namespace stays collision-guarded) but **not** in
   `CANONICAL_CODEMODS` — they never run under `format` / the `iuc` preset and never
   change `profile=`. They surface only via `list_rules(include_upgrade=True)`.
   (Forks settled with the maintainer: upgrade-only path; a new family rather than
   extending `UpgradeToLatest`; first cut = the one pure-AUTO fix.)
-- **Fix 1: `FixFromWorkDirWhitespace` (GTX014, 21.09).** A deterministic
+- **Fix 1: `FixFromWorkDirWhitespace` (GTR014, 21.09).** A deterministic
   `value.strip()` on every `<data from_work_dir>` — semantics-preserving (whitespace
   was never significant pre-21.09 and is a bug at 21.09+). Plain detect-primitive
   (`detect_Data`), so it inherits detect-parity, idempotence, and the corpus sweep.
-- **Fix 2: `FixOutputFormatInput` (GTX015, 16.04).** Replaces an output
+- **Fix 2: `FixOutputFormatInput` (GTR015, 16.04).** Replaces an output
   `<data format="input">` with `format_source="<input>"` — but **only** for a tool
   with exactly one *top-level* `<param type="data">` (then the source is
   unambiguous and an unqualified reference resolves). Tools with zero, two-or-more,
@@ -898,7 +898,7 @@ output-format-input`.
   at a collection or a different input) would change behaviour. `scripts/measure
   output-format-input` sizes it: **6** co-present `format="input"` elements exist in the
   corpus but **0** fall in the auto-fixable subset (all 6 belong to tools with 0 or 2+
-  data inputs, which GTX015 never fired on), so the guard is a soundness backstop, not
+  data inputs, which GTR015 never fired on), so the guard is a soundness backstop, not
   a count change. It **overrides `detect`** (not the
   per-tag walk) because choosing `format_source` needs whole-tool context; `apply`
   still derives from `detect` (so detect/apply parity holds). Sized first via
@@ -933,7 +933,7 @@ macro-expansion-detection-gap`.
   ported from Galaxy's `lib/galaxy/tool_util/upgrade/__init__.py` @ `b45c58a2`.
   `tripped_upgrade_codes(document)` returns the codes that fire (range-independent);
   `upgrade_codes_applicable(...)` = `crossed ∩ tripped`. The facade captures
-  `tripped` on the **pre-upgrade** tree (GTX014/GTX015 mutate the very features the
+  `tripped` on the **pre-upgrade** tree (GTR014/GTR015 mutate the very features the
   detectors inspect) and the note becomes "*N of M crossed … apply to this tool*".
   `PROFILE_UPGRADE_CODES` stays a pure data mirror — detection is a separate layer.
 - **We port Galaxy's *intent*, not its literal `b45c58a2` code**, which has
@@ -983,11 +983,11 @@ macro-expansion-detection-gap`.
   `20_09` `set_e` on a multi-statement command, `24_2` has-tests). The win is
   *precision per code*, not on/off. Sanity-checked: no inverted predicate;
   `16_04_fix_output_format`→107 and `21_09_fix_from_work_dir_whitespace`→4 match the
-  GTX015/GTX014 populations; `17_09`→0 and `24_0_consider_python_environment`→0 are
+  GTR015/GTR014 populations; `17_09`→0 and `24_0_consider_python_environment`→0 are
   genuinely rare conditions. (The §28 `set_e` tightening drops its applicable count
   to **4,674** — the −1,300 that moves the aggregate from 28,667 to 27,367.)
 
-## 26. `NormalizeBooleanValues` (GTX017) — boolean case repair
+## 26. `NormalizeBooleanValues` (GTR017) — boolean case repair
 
 **Date:** 2026-06-02. Reproduced-by: `uv run --package galaxy-tool-xml-codemod
 pytest galaxy-tool-xml-codemod/tests/test_normalize_boolean_values.py` and `uv run
@@ -1029,7 +1029,7 @@ galaxy_tool_xml_codemod.codemods.normalize_boolean_values:NormalizeBooleanValues
   additional blocking issues; `NormalizeBooleanValues` and `FixTypos` target
   disjoint failure modes, so the canonical pipeline now repairs both.
 
-## 27. `FixInterpreter` (GTX016) — inline a deprecated `<command interpreter=…>`
+## 27. `FixInterpreter` (GTR016) — inline a deprecated `<command interpreter=…>`
 
 **Date:** 2026-06-02. Reproduced-by: `uv run --package galaxy-tool-xml-codemod
 pytest galaxy-tool-xml-codemod/tests/test_fix_interpreter.py
@@ -1060,7 +1060,7 @@ galaxy_tool_xml_codemod.codemods.fix_interpreter:FixInterpreter`.
   (`test_script_name_in_leading_comment_is_not_mistargeted`).
 - **CDATA-preserving.** First codemod to rewrite `<command>` text; `Cursor.set_text` gains
   a `cdata=True` flag (`etree.CDATA`) so shell operators (`&&`, `<`) stay literal. An
-  originally-non-CDATA command gaining CDATA is an accepted, IUC002-aligned side effect.
+  originally-non-CDATA command gaining CDATA is an accepted, GTR022-aligned side effect.
 - **No file-exists gate in the codemod** (only in the measure's bucket-A refinement). The
   rewrite is faithful whether or not the script is co-located — Galaxy built the same
   `<tool_dir>/<token>` path regardless, failing identically if absent. Gating on the
@@ -1139,7 +1139,7 @@ single-statement predicate is unit-tested in
   under-reporting), inside the §22 boundary. `23_0_consider_optional_text` remains a
   candidate pending its own sizing.
 
-## 29. `WrapCommandCdata` (GTX018) / `WrapHelpCdata` (GTX019) — CDATA-wrap bodies
+## 29. `WrapCommandCdata` (GTR018) / `WrapHelpCdata` (GTR019) — CDATA-wrap bodies
 
 **Date:** 2026-06-03. Reproduced-by: `uv run --package galaxy-tool-xml-codemod
 pytest galaxy-tool-xml-codemod/tests/test_wrap_command_cdata.py
@@ -1170,13 +1170,13 @@ one-off classification scan (mirrors the codemod's eligibility predicate).
   (`Cursor.child_node_count() == 0` — a mixed-content body can't be one CDATA
   section), is **not already wrapped** (`Cursor.is_cdata_wrapped()` — a serialise +
   `<![CDATA[` body check, the two read primitives added this pass), and contains no
-  `]]>` terminator (which cannot live inside a section). The advisory **IUC002 /
-  IUC010** checks are retained — they flag *any* non-CDATA body, so after `format`
+  `]]>` terminator (which cannot live inside a section). The advisory **GTR022 /
+  GTR030** checks are retained — they flag *any* non-CDATA body, so after `format`
   they continue to cover the mixed-content residual these codemods skip.
 - **Canonical, not upgrade.** Both are safe, idempotent, `profile=`-preserving and
   so join `CANONICAL_CODEMODS` (the `format` / `iuc` pipeline) after the structural
   reorders — content-level tidying, independent of child order. This grows the `iuc`
-  preset (GTX013/GTX017 set the precedent for non-whitespace canonical codemods).
+  preset (GTR013/GTR017 set the precedent for non-whitespace canonical codemods).
 - **Corpus soundness (2026-06-03, combined).** Of **8,607** eligible tools,
   `WrapCommandCdata` modifies **2,772** and `WrapHelpCdata` **3,247**; both report
   **0 non-idempotent, 0 post-validate-failed, 0 crashed** — idempotent and
@@ -1184,7 +1184,7 @@ one-off classification scan (mirrors the codemod's eligibility predicate).
   are already CDATA-wrapped (5,982 command / 5,007 help in the raw scan) or
   mixed-content (12 command / 9 help; 0 carry a `]]>` terminator).
 
-## 30. `SingleQuoteCommandVars` (GTX020) — auto-quote the provable IUC011 subset
+## 30. `SingleQuoteCommandVars` (GTR020) — auto-quote the provable GTR031 subset
 
 **Date:** 2026-06-03. Reproduced-by: `uv run --package galaxy-tool-xml-codemod
 pytest galaxy-tool-xml-codemod/tests/test_single_quote_command_vars.py`; the
@@ -1195,7 +1195,7 @@ galaxy_tool_xml_codemod.codemods.single_quote_command_vars:SingleQuoteCommandVar
 
 - **The practice (IUC #36).** Single-quote a Cheetah `$var` in `<command>` so it
   reaches the shell as one literal argument (no word-splitting / glob / injection).
-  The advisory `IUC011` check (`galaxy-tool-xml-check/docs/decisions.md` D5) reports
+  The advisory `GTR031` check (`galaxy-tool-xml-check/docs/decisions.md` D5) reports
   every unquoted occurrence; D6 deferred an auto-fix as "partial, wrong shape, never
   auto-run under `format`". This codemod is the **revisit** (check D8): it ships the
   fix for the subset where quoting is *provably* behaviour-preserving.
@@ -1209,7 +1209,7 @@ galaxy_tool_xml_codemod.codemods.single_quote_command_vars:SingleQuoteCommandVar
   a space already breaks unquoted), so the quote is a strict no-op there. Excluded
   as not-provable: `text` / `multiple=` params, `$on_string` and `.name` /
   `.element_identifier` label attrs (run-varying dataset labels), `structured`,
-  `#set`/loop (`non_input`). IUC011 keeps flagging that residual.
+  `#set`/loop (`non_input`). GTR031 keeps flagging that residual.
 - **Wider than D6's floor, and *why* it's still provable.** D6 sketched a
   "safe-class-only" fix (46.7%). Sizing the two extra classes
   (`scripts.measure iuc011-fixability`) showed `builtin_path` (1,119 occ) +
@@ -1232,7 +1232,7 @@ galaxy_tool_xml_codemod.codemods.single_quote_command_vars:SingleQuoteCommandVar
   rewritten, a deliberate, data-backed reversal of D6's "never auto-run under
   `format`". Justified because every applied quote is behaviour-preserving. The
   workspace / cli / registry byte-identity notes were updated accordingly.
-- **Corpus soundness (2026-06-03, combined).** Of **8,607** eligible tools, GTX020
+- **Corpus soundness (2026-06-03, combined).** Of **8,607** eligible tools, GTR020
   modifies **4,433** and reports **8,607 idempotent, 0 non-idempotent, 0
   post-validate-failed, 0 crashed** — quoting is idempotent and validity-preserving
   on every tool, zero retained regressions.

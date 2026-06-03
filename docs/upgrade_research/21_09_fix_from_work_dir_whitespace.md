@@ -5,7 +5,7 @@
 | **Code** | `21_09_fix_from_work_dir_whitespace` |
 | **Profile** | 21.09 |
 | **Level** | `must_fix` |
-| **Auto-fix today** | **GTX014** `FixFromWorkDirWhitespace` (full) |
+| **Auto-fix today** | **GTR014** `FixFromWorkDirWhitespace` (full) |
 | **Stuck tools** (must_fix-only) | **0** — always cleared (see `../upgrade_behavior_block_stats.md`) |
 | **Galaxy PR** | https://github.com/galaxyproject/galaxy/pull/12536 |
 
@@ -55,12 +55,12 @@ the strip is **behaviour-preserving**: pre-21.09 Galaxy already stripped the val
 (`xml.py:603`), so the stripped path is the one the tool ran with. (For a tool
 *already* at `>=21.09`, stripping is a correctness fix to an already-broken
 whitespace path, not behaviour preservation — but the whitespace `from_work_dir`
-occurrences are a handful of **pre-21.09** tools, GTX014's entire applicable
+occurrences are a handful of **pre-21.09** tools, GTR014's entire applicable
 population, none already at ≥ 21.09; codemod `docs/decisions.md` §25,
 `scripts/measure.py upgrade-codes-applicability`.) There is no ambiguity and no
 author intent required.
 
-## What GTX014 already does
+## What GTR014 already does
 
 `codemods/fix_from_work_dir_whitespace.py` (`FixFromWorkDirWhitespace`,
 `RuntimeGatedFix`, `introduced_profile="21.09"`): `detect_Data` reads
@@ -70,5 +70,5 @@ behaviour-preserving upgrade.
 
 ## Mechanical-fix feasibility / status
 
-Fully solved by GTX014 — the canonical "always-safe runtime-gated fix." No further
+Fully solved by GTR014 — the canonical "always-safe runtime-gated fix." No further
 work needed; included here for completeness of the must_fix set.

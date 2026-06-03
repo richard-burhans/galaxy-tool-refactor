@@ -27,10 +27,10 @@ An agent passes the XML in and gets structured JSON back, e.g. `check_tool`:
 // check_tool(xml="<tool …>…</tool>", preset="strict")
 {
   "violations": [
-    {"code": "GTX001", "line": 3,  "message": "Canonical 4-space indentation; no tabs."},
-    {"code": "IUC005", "line": 1,  "message": "Tool should declare <requirements>."}
+    {"code": "GTR001", "line": 3,  "message": "Canonical 4-space indentation; no tabs."},
+    {"code": "GTR025", "line": 1,  "message": "Tool should declare <requirements>."}
   ],
-  "advisory_codes": ["IUC001", "IUC005", "…"]
+  "advisory_codes": ["GTR021", "GTR025", "…"]
 }
 ```
 

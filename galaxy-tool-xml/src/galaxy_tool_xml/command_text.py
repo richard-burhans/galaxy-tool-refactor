@@ -1,4 +1,4 @@
-"""A small read-only lexer over ``<command>`` body text (the IUC011 substrate).
+"""A small read-only lexer over ``<command>`` body text (the GTR031 substrate).
 
 Galaxy command text is Cheetah that renders to a shell script. To tell a genuine
 shell-argument ``$var`` (which the IUC ``single-quote your Cheetah variables``
@@ -17,7 +17,7 @@ would. It is deliberately a lexer, not a parser — no Cheetah expression gramma
 no shell AST; escapes (``\\'``) are not interpreted.
 
 It lives in tier 1 (the parsing foundation) rather than the advisory-check tier so
-that **both** the detect-only IUC011 check (tier 3.5) *and* the GTX020 quoting
+that **both** the detect-only GTR031 check (tier 3.5) *and* the GTR020 quoting
 codemod (tier 2) can share it without a tier-2→tier-3.5 upward dependency. Each
 ``UnquotedVar`` carries absolute ``start``/``end`` character offsets so the codemod
 can splice a single-quote pair around exactly the occurrence it found. Sized by
@@ -48,7 +48,7 @@ class UnquotedVar:
         start: 0-based character offset of the occurrence's first character
             (the ``$``) in the scanned text. ``text[start:end] == name``.
         end: Character offset one past the occurrence's last character — the
-            half-open span the GTX020 codemod wraps in single quotes.
+            half-open span the GTR020 codemod wraps in single quotes.
     """
 
     name: str

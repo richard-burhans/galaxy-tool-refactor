@@ -1,4 +1,4 @@
-"""Tests for GTX003: blank line between top-level <tool> children."""
+"""Tests for GTR003: blank line between top-level <tool> children."""
 
 from __future__ import annotations
 

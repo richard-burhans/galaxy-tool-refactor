@@ -8,11 +8,11 @@ definition XML.
 
 | Package | PyPI status | Role |
 |---|---|---|
-| [`galaxy-tool-refactor-rules`](galaxy-tool-refactor-rules/README.md) | pre-alpha | Shared `RuleMeta` descriptor + `Violation` diagnostic + glossary renderer. Dependency-free; underpins the GTX/IUC rule registry across the tiers. |
+| [`galaxy-tool-refactor-rules`](galaxy-tool-refactor-rules/README.md) | pre-alpha | Shared `RuleMeta` descriptor + `Violation` diagnostic + glossary renderer. Dependency-free; underpins the GTR rule registry across the tiers. |
 | [`galaxy-tool-xml`](galaxy-tool-xml/README.md) | pre-release | Parse, validate, and inspect Galaxy tool XML. Foundation for the other tiers. |
 | [`galaxy-tool-xml-codemod`](galaxy-tool-xml-codemod/README.md) | pre-alpha | Detect-primitive `CodemodCommand` framework + bundled structural codemods (`CANONICAL_CODEMODS`, `AUTO_UPGRADE_CODEMODS`); each rule has a detect (lint) and a fix phase. |
 | [`galaxy-tool-xml-fmt`](galaxy-tool-xml-fmt/README.md) | pre-release | Opinionated `black`-like cosmetic formatter (with a non-mutating `detect`). The only tier that serialises canonical output XML. |
-| [`galaxy-tool-xml-check`](galaxy-tool-xml-check/README.md) | pre-alpha | Advisory, detect-only IUC best-practice checks (`IUC` codes); read-only, reports but never mutates. Depends only on tiers 1 + 0.5. |
+| [`galaxy-tool-xml-check`](galaxy-tool-xml-check/README.md) | pre-alpha | Advisory, detect-only IUC best-practice checks (`GTR` codes); read-only, reports but never mutates. Depends only on tiers 1 + 0.5. |
 | [`galaxy-tool-refactor-registry`](galaxy-tool-refactor-registry/README.md) | pre-alpha | Unified, code-addressable rule registry over all three families + named presets (`cosmetic`/`iuc`/`strict`) + a library-first `run`/`upgrade`/`detect` API. The orchestration core the CLI and the MCP server sit on. |
 | [`galaxy-tool-refactor-cli`](galaxy-tool-refactor-cli/README.md) | pre-alpha | The `galaxy-tool-refactor` app CLI — `format`, `upgrade`, report-only `check`, `presets` / `rules`, and the opt-in `normalize-macros`, with `--preset` / `--select` / `--ignore` rule selection. |
 | [`galaxy-tool-refactor-mcp`](galaxy-tool-refactor-mcp/README.md) | pre-alpha | An agent-facing **MCP server** over the registry facade (CLI sibling): a thin FastMCP binding over a protocol-agnostic adapter, exposing `format_tool`/`upgrade_tool`/`check_tool`/`list_presets`/`list_rules`. |
@@ -37,7 +37,7 @@ composes them into the user-facing workflow:
                   galaxy-tool-xml ← parse, validate, typed views (lxml tree = source of truth)
               ↑        ↑        ↑
  galaxy-tool-xml-   galaxy-tool-   galaxy-tool-xml-check
- codemod (tier 2)   xml-fmt (3)    (advisory IUC checks, tier 3.5)
+ codemod (tier 2)   xml-fmt (3)    (advisory checks, tier 3.5)
  structural         cosmetic       read-only; reports, never writes
               ↑        ↑        ↑
               galaxy-tool-refactor-registry  ← unified rule registry + presets (tier 3.6)
@@ -64,7 +64,7 @@ which the app CLI consumes:
   adjust its fixable rule set.
 - `galaxy-tool-refactor check` — report-only linter: prints
   `file:line  CODE  message` for the selected rules. The default (`iuc`) reports
-  only *fixable* GTX findings; `--preset strict` adds the *advisory* IUC checks
+  only *fixable* GTR findings; `--preset strict` adds the *advisory* checks
   (marked `(advisory)`). Exits non-zero on any fixable finding; advisory findings
   are informational unless `--strict`.
 - `galaxy-tool-refactor presets` / `rules` — list the baked-in presets and rules.
@@ -118,10 +118,10 @@ uv run python -m scripts.corpus_check fmt
 # Sweep one structural (tier-2) codemod for idempotence + post-codemod validity
 uv run python -m scripts.corpus_check codemod <dotted.module>:<ClassName>
 
-# Per-rule isolation QA (every GTX rule alone); writes docs/corpus_rule_stats.md
+# Per-rule isolation QA (every GTR rule alone); writes docs/corpus_rule_stats.md
 uv run python -m scripts.corpus_check rules
 
-# Unified-detect violation counts (what `check` reports, incl. advisory IUC);
+# Unified-detect violation counts (what `check` reports, incl. advisory);
 # writes docs/corpus_check_stats.md
 uv run python -m scripts.corpus_check check
 

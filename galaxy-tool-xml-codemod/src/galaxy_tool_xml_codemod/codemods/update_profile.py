@@ -49,7 +49,7 @@ class UpdateProfile(CodemodCommand):
     """Set ``profile=`` to the newest profile the tool validates at (bump-up-only)."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTX007",
+        code="GTR007",
         summary=(
             "Set profile= to the newest profile the tool validates at"
             " (bump-up-only)."

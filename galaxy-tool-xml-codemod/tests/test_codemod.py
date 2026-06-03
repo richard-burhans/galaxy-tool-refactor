@@ -51,7 +51,7 @@ def test_detect_is_non_mutating(minimal_tool_path: Path) -> None:
     class StampHidden(CodemodCommand):
         def detect_Tool(self, cursor: Cursor) -> Iterable[Change]:
             yield Change(
-                code="GTX000",
+                code="GTR000",
                 sourceline=cursor.sourceline,
                 xpath=cursor.xpath,
                 message="would stamp hidden",
@@ -69,7 +69,7 @@ def test_apply_runs_detected_change_thunks(minimal_tool_path: Path) -> None:
     class StampHidden(CodemodCommand):
         def detect_Tool(self, cursor: Cursor) -> Iterable[Change]:
             yield Change(
-                code="GTX000",
+                code="GTR000",
                 sourceline=cursor.sourceline,
                 xpath=cursor.xpath,
                 message="would stamp hidden",

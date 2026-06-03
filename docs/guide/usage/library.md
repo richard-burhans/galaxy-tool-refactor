@@ -48,7 +48,7 @@ Rule selection is shared: `resolve.resolve_codes(preset=…, select=…, ignore=
 ## Introspection
 
 ```python
-for info in facade.list_rules():            # include_upgrade=True adds GTX007/014–016
+for info in facade.list_rules():            # include_upgrade=True adds GTR007/014–016
     print(info.code, info.family, info.fixable, info.presets)
 for p in facade.list_presets():
     print(p.name, p.is_default, p.codes)

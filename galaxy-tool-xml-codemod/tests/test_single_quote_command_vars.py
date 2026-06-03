@@ -1,11 +1,11 @@
-"""Tests for ``SingleQuoteCommandVars`` (GTX020).
+"""Tests for ``SingleQuoteCommandVars`` (GTR020).
 
 Single-quotes only the provably-single-valued unquoted Cheetah ``$var``\\ s in a
 ``<command>`` body — the ``{safe, attr_safe, builtin_path}`` classes
 (``galaxy_tool_xml.command_vars``) whose value can never contain whitespace for a
 tool that currently works. Free-form ``text`` params, deliberate ``multiple=``
 splats, label attrs (``.name``), and ``#set``/loop vars are left untouched (the
-IUC011 advisory check still flags them).
+GTR031 advisory check still flags them).
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ def test_quotes_only_the_provable_classes() -> None:
         b"]]></command>"
     )
     changes = list(SingleQuoteCommandVars().detect(module))
-    assert len(changes) == 1 and changes[0].code == "GTX020"
+    assert len(changes) == 1 and changes[0].code == "GTR020"
     SingleQuoteCommandVars().apply(module)
     assert _command_text(module.document.root) == (
         "python '$__tool_directory__'/s.py '$ds' --ext '$ds.ext' "

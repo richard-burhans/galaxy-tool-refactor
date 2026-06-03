@@ -27,7 +27,7 @@ def test_canonical_set_includes_both_attribute_reorder_codemods() -> None:
 
 
 def test_canonical_set_includes_element_reorder_codemod() -> None:
-    """The element-order codemod (GTX013) is in the canonical set."""
+    """The element-order codemod (GTR013) is in the canonical set."""
     assert ReorderToolChildren in CANONICAL_CODEMODS
 
 

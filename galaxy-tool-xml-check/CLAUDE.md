@@ -18,7 +18,7 @@ never mutate.
 | 3.6 | rule registry / presets | `galaxy-tool-refactor-registry` |
 | 4 | app / CLI | `galaxy-tool-refactor-cli` |
 
-It owns the IUC-coded **detect-only** rules (`RuleMeta.detect_only=True`): a
+It owns the GTR-coded **detect-only** rules (`RuleMeta.detect_only=True`): a
 `CheckRule` ABC (`rules.py`), the concrete checks (`checks.py`), and the registry
 + runner (`detect.py` — `all_checks()` / `detect_violations()`). Each check is an
 LBYL tree query over a tier-1 `ToolDocument` that yields the shared tier-0.5
@@ -30,14 +30,14 @@ not a consumer of the fixers. Findings are advisory: the app's `check` command
 reports them but does not fail on them by default.
 
 **Scope.** Covers the mechanically-detectable IUC practices (presence /
-attribute / structure queries): `IUC001`–`IUC010`, `IUC011` (single-quote Cheetah
+attribute / structure queries): `GTR021`–`GTR030`, `GTR031` (single-quote Cheetah
 `$var`, via the **read-only `command_text` lexer** — directive-skipping,
 multi-line-quote-aware; the detection-only slice of the codemod tier's deferred
-M5; the lexer lives in **tier 1** `galaxy_tool_xml.command_text` so the GTX020
-codemod can share it, D8), and `IUC013` (package `<requirement>`s pin a version,
-D7). `IUC012` (`&&`-vs-lone-`&`) stays a no-op stub — its anti-pattern is ~1 tool
-corpus-wide (`docs/decisions.md` D3). The *provable* subset of IUC011 is now
-auto-fixed by GTX020 (D8); the check keeps flagging the non-provable residual. See
+M5; the lexer lives in **tier 1** `galaxy_tool_xml.command_text` so the GTR020
+codemod can share it, D8), and `GTR033` (package `<requirement>`s pin a version,
+D7). `GTR032` (`&&`-vs-lone-`&`) stays a no-op stub — its anti-pattern is ~1 tool
+corpus-wide (`docs/decisions.md` D3). The *provable* subset of GTR031 is now
+auto-fixed by GTR020 (D8); the check keeps flagging the non-provable residual. See
 `../docs/iuc_best_practices.md` for the coverage map and D3–D8 for the command-text
 + requirement-pinning check decisions.
 

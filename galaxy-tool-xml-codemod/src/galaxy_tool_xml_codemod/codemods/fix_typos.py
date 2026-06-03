@@ -117,7 +117,7 @@ class FixTypos(CodemodCommand):
     """Repair near-miss spelling typos so a globally-invalid tool validates."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTX006",
+        code="GTR006",
         summary="Repair near-miss spelling typos so a globally-invalid tool validates.",
         since="0.0.1",
     )

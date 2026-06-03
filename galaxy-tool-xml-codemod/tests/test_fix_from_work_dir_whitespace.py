@@ -1,4 +1,4 @@
-"""Tests for the ``FixFromWorkDirWhitespace`` runtime-gated fix (GTX014).
+"""Tests for the ``FixFromWorkDirWhitespace`` runtime-gated fix (GTR014).
 
 From profile 21.09 Galaxy quotes `from_work_dir` output filenames, so surrounding
 whitespace becomes literal (Galaxy's `21_09_fix_from_work_dir_whitespace` must-fix
@@ -29,7 +29,7 @@ def test_strips_surrounding_whitespace_and_detects_it() -> None:
     module = parse_module(_tool(b'<data name="o" from_work_dir=" out.txt "/>'))
     changes = list(FixFromWorkDirWhitespace().detect(module))
     assert len(changes) == 1
-    assert changes[0].code == "GTX014"
+    assert changes[0].code == "GTR014"
     # detect did not mutate
     assert module.document.root.find("outputs/data").get("from_work_dir") == " out.txt "
     FixFromWorkDirWhitespace().apply(module)

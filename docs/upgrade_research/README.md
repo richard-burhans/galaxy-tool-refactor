@@ -20,15 +20,15 @@ mechanical-fix feasibility · status.
 > **`must_fix`** = bumping past this profile *breaks* the tool unless changed.
 > **`consider`** = a runtime-behaviour change to review (the tool still runs). Our
 > toolchain auto-fixes three codes today via runtime-gated fixes the `upgrade` path
-> applies (GTX014/GTX015/GTX016); see the per-code notes.
+> applies (GTR014/GTR015/GTR016); see the per-code notes.
 
 ## `must_fix` codes
 
 | Code | Profile | Auto-fix today | Mechanical feasibility | Note |
 |---|---|---|---|---|
-| `16_04_fix_interpreter` | 16.04 | **GTX016** `FixInterpreter` — bucket-A rewrite to `$__tool_directory__` (runtime-gated) | [note](16_04_fix_interpreter.md) |
-| `16_04_fix_output_format` | 16.04 | **GTX015** (partial) | covered for sole-data-input; residual is ambiguous | [note](16_04_fix_output_format.md) |
-| `21_09_fix_from_work_dir_whitespace` | 21.09 | **GTX014** (full) | fully solved (always-safe strip) | [note](21_09_fix_from_work_dir_whitespace.md) |
+| `16_04_fix_interpreter` | 16.04 | **GTR016** `FixInterpreter` — bucket-A rewrite to `$__tool_directory__` (runtime-gated) | [note](16_04_fix_interpreter.md) |
+| `16_04_fix_output_format` | 16.04 | **GTR015** (partial) | covered for sole-data-input; residual is ambiguous | [note](16_04_fix_output_format.md) |
+| `21_09_fix_from_work_dir_whitespace` | 21.09 | **GTR014** (full) | fully solved (always-safe strip) | [note](21_09_fix_from_work_dir_whitespace.md) |
 | `24_2_fix_test_case_validation` | 24.2 | none | low — needs Galaxy's param-model validator; mostly detect-only | [note](24_2_fix_test_case_validation.md) |
 
 ## `consider` codes
@@ -72,9 +72,9 @@ the notes are labelled accordingly; approximate `grep`-based figures are marked.
 
 ## Where this points
 
-- **Auto-fixed already:** `21_09_fix_from_work_dir_whitespace` (GTX014, full),
-  `16_04_fix_output_format` (GTX015, the unambiguous subset).
-- **Shipped:** `16_04_fix_interpreter` → **GTX016** `FixInterpreter`, a conservative
+- **Auto-fixed already:** `21_09_fix_from_work_dir_whitespace` (GTR014, full),
+  `16_04_fix_output_format` (GTR015, the unambiguous subset).
+- **Shipped:** `16_04_fix_interpreter` → **GTR016** `FixInterpreter`, a conservative
   bucket-A `RuntimeGatedFix` — the largest behaviour-block, dropped 1,726 → 316 stuck.
 - **Legacy-restore opt-ins** (mechanical but pin the older behaviour, so not
   best-practice): `16_04_exit_code`, `20_09_consider_set_e`,

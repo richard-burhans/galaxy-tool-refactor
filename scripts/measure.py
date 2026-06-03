@@ -1777,8 +1777,8 @@ def _run_macro_profile_ownership(args: argparse.Namespace) -> None:
 
 # --- measurement: command-iuc-heuristics ----------------------------------------
 #
-# Sizes the two reserved advisory placeholders (check §D1): IUC011 (single-quote
-# Cheetah variables in <command>) and IUC012 (join shell commands with `&&`, not
+# Sizes the two reserved advisory placeholders (check §D1): GTR031 (single-quote
+# Cheetah variables in <command>) and GTR032 (join shell commands with `&&`, not
 # a lone `&`). Both would be CDATA-text heuristics, deferred precisely because
 # they risk firing as noise. This counts, across each unique tool's first
 # <command> body, how many candidate findings each heuristic would raise — the
@@ -1798,9 +1798,9 @@ _LONE_AMP = re.compile(r"(?<!&)&(?!&)")
 class _CommandIucHeuristicsResult:
     n_unique_tools: int
     n_with_command: int
-    n_tools_unquoted_var: int  # IUC011 candidates: >=1 unquoted Cheetah var
+    n_tools_unquoted_var: int  # GTR031 candidates: >=1 unquoted Cheetah var
     n_unquoted_var_findings: int  # total unquoted-var occurrences
-    n_tools_lone_amp: int  # IUC012 candidates: >=1 lone `&`
+    n_tools_lone_amp: int  # GTR032 candidates: >=1 lone `&`
     n_lone_amp_findings: int  # total lone-`&` occurrences
 
 
@@ -1817,7 +1817,7 @@ def _count_unquoted_vars(text: str, /) -> int:
 def _measure_command_iuc_heuristics(
     *, corpus_root: Path
 ) -> _CommandIucHeuristicsResult:
-    """Count IUC011/IUC012 candidate findings across each tool's first command."""
+    """Count GTR031/GTR032 candidate findings across each tool's first command."""
     seen: set[str] = set()
     n_tools = n_with = 0
     tools_var = var_findings = tools_amp = amp_findings = 0
@@ -1861,17 +1861,17 @@ def _report_command_iuc_heuristics(result: _CommandIucHeuristicsResult) -> None:
     def pct(n: int) -> float:
         return 100 * n / with_cmd if with_cmd else 0.0
 
-    print("\n=== command-iuc-heuristics (IUC011/IUC012 sizing; heuristic) ===")
+    print("\n=== command-iuc-heuristics (GTR031/GTR032 sizing; heuristic) ===")
     print(
         f"Unique tools: {result.n_unique_tools}; with <command>: {with_cmd}"
     )
     print(
-        f"IUC011 unquoted Cheetah $var: {result.n_tools_unquoted_var} tools "
+        f"GTR031 unquoted Cheetah $var: {result.n_tools_unquoted_var} tools "
         f"({pct(result.n_tools_unquoted_var):.1f}%), "
         f"{result.n_unquoted_var_findings} findings"
     )
     print(
-        f"IUC012 lone '&':              {result.n_tools_lone_amp} tools "
+        f"GTR032 lone '&':              {result.n_tools_lone_amp} tools "
         f"({pct(result.n_tools_lone_amp):.1f}%), "
         f"{result.n_lone_amp_findings} findings"
     )
@@ -1885,8 +1885,8 @@ def _run_command_iuc_heuristics(args: argparse.Namespace) -> None:
 
 # --- measurement: command-lone-amp ----------------------------------------------
 #
-# Classifies every lone `&` (the crude IUC012 candidate) in each tool's first
-# <command> by what it actually IS, to settle whether the IUC012 check
+# Classifies every lone `&` (the crude GTR032 candidate) in each tool's first
+# <command> by what it actually IS, to settle whether the GTR032 check
 # ("join with && not a lone &") is worth implementing. The crude `_LONE_AMP`
 # heuristic that command-iuc-heuristics counts is dominated by constructs that are
 # NOT the anti-pattern: shell redirections (`2>&1`, `&>file`, `<&3`), the `|&`
@@ -1894,7 +1894,7 @@ def _run_command_iuc_heuristics(args: argparse.Namespace) -> None:
 # "matched text"). The genuine anti-pattern — `cmd1 & cmd2` written where `&&`
 # was meant — is what's left. A quote-state scan (single/double) tags the quoted
 # class; the rest is classified by adjacency. Heuristic, not a shell parse (that
-# is the deferred M5 lexer); backs the IUC012 deferral in
+# is the deferred M5 lexer); backs the GTR032 deferral in
 # `galaxy-tool-xml-check/docs/decisions.md`. Needs the corpus, not in CI.
 
 _LONE_AMP_CLASSES = (
@@ -1902,7 +1902,7 @@ _LONE_AMP_CLASSES = (
     "pipe",  # |& : bash pipe-with-stderr, not joining
     "quoted",  # inside '...' or "..." : a literal & in an argument (sed/awk)
     "background",  # lone & at end of a command (eol / ; / )) — intentional, not a bug
-    "joining",  # lone & with a following command — the genuine IUC012 anti-pattern
+    "joining",  # lone & with a following command — the genuine GTR032 anti-pattern
 )
 
 
@@ -1948,13 +1948,13 @@ def _classify_lone_amps(text: str, /) -> Counter[str]:
 class _LoneAmpResult:
     n_unique_tools: int
     n_with_command: int
-    n_tools_any_lone_amp: int  # >=1 lone & of any class (the crude IUC012 count)
-    n_tools_genuine: int  # >=1 background/joining lone & (what IUC012 could flag)
+    n_tools_any_lone_amp: int  # >=1 lone & of any class (the crude GTR032 count)
+    n_tools_genuine: int  # >=1 background/joining lone & (what GTR032 could flag)
     per_class_occurrences: dict[str, int]
 
 
 def _measure_command_lone_amp(*, corpus_root: Path) -> _LoneAmpResult:
-    """Classify every tool's first-command lone ``&`` to size the IUC012 anti-pattern."""
+    """Classify every tool's first-command lone ``&`` to size the GTR032 anti-pattern."""
     seen: set[str] = set()
     n_tools = n_with = n_any = n_genuine = 0
     per_class: Counter[str] = Counter()
@@ -1990,13 +1990,13 @@ def _measure_command_lone_amp(*, corpus_root: Path) -> _LoneAmpResult:
 
 
 def _report_command_lone_amp(result: _LoneAmpResult) -> None:
-    print("\n=== command-lone-amp (IUC012 lone-& classification; heuristic) ===")
+    print("\n=== command-lone-amp (GTR032 lone-& classification; heuristic) ===")
     print(
         f"Unique tools: {result.n_unique_tools}; "
         f"with <command>: {result.n_with_command}"
     )
     print(
-        f"Tools with >=1 lone & (crude IUC012 count): {result.n_tools_any_lone_amp}"
+        f"Tools with >=1 lone & (crude GTR032 count): {result.n_tools_any_lone_amp}"
     )
     print(
         f"Tools with a GENUINE lone & (background/joining, not redirect/pipe/quoted):"
@@ -2013,18 +2013,18 @@ def _run_command_lone_amp(args: argparse.Namespace) -> None:
 
 # --- measurement: command-unquoted-var ------------------------------------------
 #
-# Sizes IUC011 ("single-quote Cheetah variables in <command>") honestly. The crude
+# Sizes GTR031 ("single-quote Cheetah variables in <command>") honestly. The crude
 # `command-iuc-heuristics` count (any `$var` not preceded by a single quote) fires
 # on 87% of tools — but that is dominated by `$var` in Cheetah *directives*
 # (`#if $x`, `#set $y = ...`), which are template logic, NOT shell arguments the
 # practice is about. This classifies every `$var` by where it sits: on a Cheetah
 # directive/comment line (`#…`), or — on a shell line, via a quote-state scan —
 # single-quoted (the IUC-correct form), double-quoted (a lesser concern), or fully
-# unquoted (the genuine candidate IUC011 would flag). The "unquoted on a shell
-# line" population is the real question: does a tokenizer-backed IUC011 have signal
-# worth shipping, or is it noise like IUC012? This scan IS the core of the
+# unquoted (the genuine candidate GTR031 would flag). The "unquoted on a shell
+# line" population is the real question: does a tokenizer-backed GTR031 have signal
+# worth shipping, or is it noise like GTR032? This scan IS the core of the
 # read-only Cheetah/shell lexer such a check needs. Heuristic (no escape handling,
-# inline directives ignored); backs the IUC011 decision. Needs the corpus, not in
+# inline directives ignored); backs the GTR031 decision. Needs the corpus, not in
 # CI.
 
 _VAR_CLASSES = ("directive", "single_quoted", "double_quoted", "unquoted")
@@ -2072,12 +2072,12 @@ def _classify_command_vars(text: str, /) -> Counter[str]:
 class _UnquotedVarResult:
     n_unique_tools: int
     n_with_command: int
-    n_tools_unquoted: int  # >=1 fully-unquoted shell-line $var (the IUC011 target)
+    n_tools_unquoted: int  # >=1 fully-unquoted shell-line $var (the GTR031 target)
     per_class_occurrences: dict[str, int]
 
 
 def _measure_command_unquoted_var(*, corpus_root: Path) -> _UnquotedVarResult:
-    """Classify each tool's first-command ``$var`` to size the genuine IUC011 set."""
+    """Classify each tool's first-command ``$var`` to size the genuine GTR031 set."""
     seen: set[str] = set()
     n_tools = n_with = n_unquoted = 0
     per_class: Counter[str] = Counter()
@@ -2111,12 +2111,12 @@ def _measure_command_unquoted_var(*, corpus_root: Path) -> _UnquotedVarResult:
 def _report_command_unquoted_var(result: _UnquotedVarResult) -> None:
     with_cmd = result.n_with_command
     pct = 100 * result.n_tools_unquoted / with_cmd if with_cmd else 0.0
-    print("\n=== command-unquoted-var (IUC011 sizing; heuristic) ===")
+    print("\n=== command-unquoted-var (GTR031 sizing; heuristic) ===")
     print(
         f"Unique tools: {result.n_unique_tools}; with <command>: {with_cmd}"
     )
     print(
-        f"Tools with >=1 fully-unquoted shell-line $var (the IUC011 target): "
+        f"Tools with >=1 fully-unquoted shell-line $var (the GTR031 target): "
         f"{result.n_tools_unquoted} ({pct:.1f}%)"
     )
     print("$var occurrences by class:")
@@ -2132,21 +2132,21 @@ def _run_command_unquoted_var(args: argparse.Namespace) -> None:
 
 # --- measurement: iuc011-fixability ---------------------------------------------
 #
-# Sizes the provably-safe auto-fix population for IUC011 — the GTX020 codemod's
-# scope. Of every unquoted $var the IUC011 lexer reports, how many fall in the
+# Sizes the provably-safe auto-fix population for GTR031 — the GTR020 codemod's
+# scope. Of every unquoted $var the GTR031 lexer reports, how many fall in the
 # provably-quotable subset {safe, attr_safe, builtin_path} that single-quoting
 # cannot change for a tool that currently works (the classifier lives in tier 1:
 # `galaxy_tool_xml.command_vars`). Reports the Option-A floor (bare single-token
 # `safe` params) and the Option-B delta the path-built-in + space-free-attr
-# classes add, so the GTX020 scope decision is data-backed. Reuses the shipped
-# IUC011 lexer so the population is exactly what the check reports. Heuristic
+# classes add, so the GTR020 scope decision is data-backed. Reuses the shipped
+# GTR031 lexer so the population is exactly what the check reports. Heuristic
 # (root-name resolution against <inputs>, no full param-model walk). Needs the
 # corpus, not in CI.
 
 
 @dataclass
 class _Iuc011FixabilityResult:
-    n_tools_flagged: int  # tools with >=1 unquoted var (the IUC011 population)
+    n_tools_flagged: int  # tools with >=1 unquoted var (the GTR031 population)
     n_occurrences: int
     per_class: dict[str, int]
     n_tools_all_provable: int  # flagged tools whose every unquoted var is provable
@@ -2154,7 +2154,7 @@ class _Iuc011FixabilityResult:
 
 
 def _measure_iuc011_fixability(*, corpus_root: Path) -> _Iuc011FixabilityResult:
-    """Classify every IUC011 occurrence by whether single-quoting it is provable."""
+    """Classify every GTR031 occurrence by whether single-quoting it is provable."""
     from galaxy_tool_xml.command_text import unquoted_cheetah_vars
     from galaxy_tool_xml.command_vars import classify_var, input_param_info
 
@@ -3634,8 +3634,8 @@ def _run_macro_expansion_detection_gap(args: argparse.Namespace) -> None:
 # reported, or as defaulted" baseline) against the profile it *reaches* after the
 # `UpgradeToLatest` pipeline runs. Unlike combined_corpus_stats.md's "newest valid
 # profile distribution" (the pre-upgrade validity ceiling), this runs the actual
-# structural upgrade codemods (GTX007-012), so a tool stuck below its ceiling by a
-# restrict-transition climbs. Runtime-gated fixes (GTX014/015) don't change the
+# structural upgrade codemods (GTR007-012), so a tool stuck below its ceiling by a
+# restrict-transition climbs. Runtime-gated fixes (GTR014/015) don't change the
 # profile, so they don't affect this. UpgradeToLatest-only (no FixTypos), matching
 # the reach figure in docs/profile_upgrades.md. Writes
 # docs/upgrade_profile_shift_stats.md. Needs the corpus, so not run in CI.
@@ -3774,9 +3774,9 @@ def _render_profile_shift_page(result: _ProfileShiftResult) -> str:
         "the `UpgradeToLatest` pipeline runs. This differs from",
         "`combined_corpus_stats.md`'s *newest valid profile distribution* (the",
         "pre-upgrade validity ceiling): here the structural upgrade codemods",
-        "(GTX007-012) actually run, so a tool stuck below its ceiling by a",
+        "(GTR007-012) actually run, so a tool stuck below its ceiling by a",
         "restrict-transition climbs. `UpgradeToLatest`-only (no `FixTypos`); the",
-        "runtime-gated fixes (GTX014/015) don't change `profile=`. See",
+        "runtime-gated fixes (GTR014/015) don't change `profile=`. See",
         "`profile_upgrades.md` and codemod `docs/decisions.md` §11-14.",
         "",
         "Regenerate with (needs the corpus, so not run in CI):",
@@ -3867,7 +3867,7 @@ def _run_upgrade_profile_shift(args: argparse.Namespace) -> None:
 # stops on behaviour, only warns), this layers the stop rule on the existing
 # range + detector primitives, so it does NOT call the facade. Auto-fixability is
 # judged exactly, by applying the mapped codemod to a copy and re-detecting — so
-# GTX015's sole-data-input partiality is modeled precisely. Writes
+# GTR015's sole-data-input partiality is modeled precisely. Writes
 # docs/upgrade_behavior_block_stats.md. Needs the corpus, so not run in CI.
 
 _MUST_FIX_ONLY = frozenset({"must_fix"})
@@ -3950,7 +3950,7 @@ def _behavior_code_autofixed(
     and re-runs the detectors on the raw result (``detect_codes_on_root`` — this
     is a raw-tree diagnostic, matching the codemods, which operate on the raw
     tree); the code is auto-fixable for this tool iff its detector no longer fires.
-    This captures partial coverage exactly (e.g. GTX015 only fixes a
+    This captures partial coverage exactly (e.g. GTR015 only fixes a
     sole-top-level-data-input tool).
     """
     from galaxy_tool_xml.document import ToolDocument
@@ -4078,7 +4078,7 @@ def _render_behavior_block_page(result: _BehaviorBlockResult) -> str:
         "judged exactly by applying the mapped codemod and re-detecting.",
         "",
         "Only two behaviour codes are auto-fixable: `21_09_fix_from_work_dir_whitespace`",
-        "(GTX014, full) and `16_04_fix_output_format` (GTX015, only a sole-top-level",
+        "(GTR014, full) and `16_04_fix_output_format` (GTR015, only a sole-top-level",
         "data-input tool). The structural `upgrade_vN` codemods fix *validity*, not",
         "behaviour, so they never clear a blocker here.",
         "",
@@ -4535,7 +4535,7 @@ def _run_cheetah_command_complexity(args: argparse.Namespace) -> None:
 
 # --- measurement: interpreter-bucket-split --------------------------------------
 #
-# Sizes the auto-fixable population for a `16_04_fix_interpreter` codemod (GTX016;
+# Sizes the auto-fixable population for a `16_04_fix_interpreter` codemod (GTR016;
 # docs/upgrade_research/16_04_fix_interpreter.md). Tools with a deprecated
 # `<command interpreter=…>` split into: A (bucket-A: single-token standard interpreter
 # + literal leading script token that exists beside the XML — exactly what the codemod
@@ -4630,7 +4630,7 @@ def _render_interpreter_bucket_page(result: _InterpreterBucketResult) -> str:
             "# Interpreter-rewrite bucket statistics",
             "",
             "Sizes the auto-fixable population for a `16_04_fix_interpreter` codemod",
-            "(GTX016; see `upgrade_research/16_04_fix_interpreter.md`). Tools carrying a",
+            "(GTR016; see `upgrade_research/16_04_fix_interpreter.md`). Tools carrying a",
             "deprecated `<command interpreter=…>` are split by whether the codemod can",
             "mechanically rewrite them to `interpreter '$__tool_directory__/script'`.",
             "Buckets are computed by the codemod's own eligibility predicate",
@@ -4723,14 +4723,14 @@ class _OutputFormatInputResult:
     n_format_input_elements: int
     by_data_input_bucket: dict[str, int]
     n_auto_fixable: int
-    # GTX015's format_source guard (codemod decisions §24): a `format="input"`
+    # GTR015's format_source guard (codemod decisions §24): a `format="input"`
     # output that ALSO carries `format_source` is inert (Galaxy's source branch
     # wins) and must not be overwritten. `n_format_input_with_format_source` is the
     # raw co-present element count; `n_auto_fixable_with_format_source` is the
     # guard-relevant subset — auto-fixable tools the guard now spares.
     n_format_input_with_format_source: int
     n_auto_fixable_with_format_source: int
-    # GTX015's crossing-gate (codemod decisions §24): a tool already declaring
+    # GTR015's crossing-gate (codemod decisions §24): a tool already declaring
     # profile >= 16.04 is left untouched by `upgrade` (Galaxy already disabled
     # `format="input"` there, so a rewrite would change, not preserve, behaviour).
     # The count of auto-fixable tools the crossing-gate would now skip.
@@ -4811,13 +4811,13 @@ def _report_output_format_input(measurement: _OutputFormatInputResult) -> None:
         f"{measurement.n_auto_fixable}"
     )
     print(
-        "Co-present format_source (GTX015 guard skips these — §24):"
+        "Co-present format_source (GTR015 guard skips these — §24):"
         f" {measurement.n_format_input_with_format_source} format=\"input\" element(s)"
         f" overall, {measurement.n_auto_fixable_with_format_source} within the"
         " auto-fixable subset"
     )
     print(
-        "Auto-fixable already declaring profile >= 16.04 (GTX015 crossing-gate skips"
+        "Auto-fixable already declaring profile >= 16.04 (GTR015 crossing-gate skips"
         f" these — §24): {measurement.n_auto_fixable_already_at_16_04}"
     )
 

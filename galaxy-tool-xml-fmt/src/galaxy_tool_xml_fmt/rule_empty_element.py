@@ -1,4 +1,4 @@
-"""GTX004: empty-element shorthand.
+"""GTR004: empty-element shorthand.
 
 When a leaf element carries only whitespace as text (e.g. a tool author
 wrote ``<inputs>\\n</inputs>`` rather than ``<inputs/>``), normalise it
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 class EmptyElementShorthand(Rule):
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTX004",
+        code="GTR004",
         summary="Collapse empty-with-whitespace leaves to <foo/> form.",
         since="0.0.1",
         order=20,

@@ -64,7 +64,7 @@ class UpgradeToLatest(CodemodCommand):
     """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTX012",
+        code="GTR012",
         summary="Iteratively upgrade a tool toward the latest profile.",
         since="0.0.1",
     )

@@ -1,4 +1,4 @@
-"""GTX001: canonical 4-space indentation.
+"""GTR001: canonical 4-space indentation.
 
 Walks the tree and emits ``SetText`` / ``SetTail`` edits so every
 element's child-leading and sibling-trailing whitespace matches the
@@ -28,7 +28,7 @@ _INDENT = "    "
 
 class CanonicalIndent(Rule):
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTX001",
+        code="GTR001",
         summary="Canonical 4-space indentation; no tabs.",
         since="0.0.1",
         cite="https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html",

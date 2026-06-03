@@ -28,30 +28,30 @@ Per-source rollup — the combined sweep spans thousands of single-tool toolshed
 
 ## Rule reference
 
-What each GTX rule does, across both tiers. *fmt*-tier rules are the cosmetic rules swept on this page; *codemod*-tier rules are structural transforms (run by the canonical pipeline) listed here for reference — they do not fire in this sweep, so they do not appear in the trigger tables below.
+What each GTR rule does, across both tiers. *fmt*-tier rules are the cosmetic rules swept on this page; *codemod*-tier rules are structural transforms (run by the canonical pipeline) listed here for reference — they do not fire in this sweep, so they do not appear in the trigger tables below.
 
 | Rule | Tier | What it does |
 |---|---|---|
-| GTX001 | fmt | Canonical 4-space indentation; no tabs. |
-| GTX002 | codemod | Reorder every `<param>` element's attributes to the IUC convention. |
-| GTX003 | fmt | One blank line between top-level children of `<tool>`. |
-| GTX004 | fmt | Collapse empty-with-whitespace leaves to `<foo/>` form. |
-| GTX005 | codemod | Reorder the root `<tool>` element's attributes to the documented prefix. |
-| GTX006 | codemod | Repair near-miss spelling typos so a globally-invalid tool validates. |
-| GTX007 | codemod | Set profile= to the newest profile the tool validates at (bump-up-only). |
-| GTX008 | codemod | Upgrade a tool stuck at profile 19.01 toward 19.05 (name output `<data>`). |
-| GTX009 | codemod | Upgrade a tool stuck at profile 24.0 toward 24.1 (hoist collection filters). |
-| GTX010 | codemod | Upgrade a tool stuck at profile 24.1 toward 24.2 (normalize format). |
-| GTX011 | codemod | Upgrade a tool stuck at profile 25.1 toward 26.0 (drop `<trackster_conf>`). |
-| GTX012 | codemod | Iteratively upgrade a tool toward the latest profile. |
-| GTX013 | codemod | Reorder `<tool>` child elements to the IUC convention. |
-| GTX014 | codemod | Strip surrounding whitespace from `<data from_work_dir>` (literal at profile >= 21.09). |
-| GTX015 | codemod | Replace output `<data format="input">` with format_source for a tool with a single top-level data input. |
-| GTX016 | codemod | Inline a deprecated `<command interpreter=I>`script ...`</command>` as `<command>`I '$__tool_directory__/script' ...`</command>` (single-token interpreter, literal-script first token). |
-| GTX017 | codemod | Normalize Python-style boolean attribute values (True/Yes/…) to canonical xs:boolean so a globally-invalid tool validates. |
-| GTX018 | codemod | Wrap a pure-text `<command>` body in CDATA (IUC #34). |
-| GTX019 | codemod | Wrap a pure-text `<help>` body in CDATA (IUC #42). |
-| GTX020 | codemod | Single-quote provably-single-valued Cheetah variables in `<command>` (bare single-token params, $__…__ path built-ins, space-free attrs). |
+| GTR001 | fmt | Canonical 4-space indentation; no tabs. |
+| GTR002 | codemod | Reorder every `<param>` element's attributes to the IUC convention. |
+| GTR003 | fmt | One blank line between top-level children of `<tool>`. |
+| GTR004 | fmt | Collapse empty-with-whitespace leaves to `<foo/>` form. |
+| GTR005 | codemod | Reorder the root `<tool>` element's attributes to the documented prefix. |
+| GTR006 | codemod | Repair near-miss spelling typos so a globally-invalid tool validates. |
+| GTR007 | codemod | Set profile= to the newest profile the tool validates at (bump-up-only). |
+| GTR008 | codemod | Upgrade a tool stuck at profile 19.01 toward 19.05 (name output `<data>`). |
+| GTR009 | codemod | Upgrade a tool stuck at profile 24.0 toward 24.1 (hoist collection filters). |
+| GTR010 | codemod | Upgrade a tool stuck at profile 24.1 toward 24.2 (normalize format). |
+| GTR011 | codemod | Upgrade a tool stuck at profile 25.1 toward 26.0 (drop `<trackster_conf>`). |
+| GTR012 | codemod | Iteratively upgrade a tool toward the latest profile. |
+| GTR013 | codemod | Reorder `<tool>` child elements to the IUC convention. |
+| GTR014 | codemod | Strip surrounding whitespace from `<data from_work_dir>` (literal at profile >= 21.09). |
+| GTR015 | codemod | Replace output `<data format="input">` with format_source for a tool with a single top-level data input. |
+| GTR016 | codemod | Inline a deprecated `<command interpreter=I>`script ...`</command>` as `<command>`I '$__tool_directory__/script' ...`</command>` (single-token interpreter, literal-script first token). |
+| GTR017 | codemod | Normalize Python-style boolean attribute values (True/Yes/…) to canonical xs:boolean so a globally-invalid tool validates. |
+| GTR018 | codemod | Wrap a pure-text `<command>` body in CDATA (IUC #34). |
+| GTR019 | codemod | Wrap a pure-text `<help>` body in CDATA (IUC #42). |
+| GTR020 | codemod | Single-quote provably-single-valued Cheetah variables in `<command>` (bare single-token params, $__…__ path built-ins, space-free attrs). |
 
 ## Pass 1 rule triggers (raw input → canonical)
 
@@ -59,9 +59,9 @@ Per-rule counts for the first format pass. *Tools touched* is the number of vali
 
 | Rule | Tools touched | Edits emitted |
 |---|---:|---:|
-| GTX001 | 8,608 | 863,912 |
-| GTX003 | 8,608 | 69,431 |
-| GTX004 | 1,405 | 2,472 |
+| GTR001 | 8,608 | 863,912 |
+| GTR003 | 8,608 | 69,431 |
+| GTR004 | 1,405 | 2,472 |
 
 ## Pass 2 rule triggers (canonical → canonical, must be empty)
 
@@ -69,8 +69,8 @@ Per-rule counts for the idempotence pass. A canonical-form input should produce 
 
 | Rule | Tools touched | Edits emitted |
 |---|---:|---:|
-| GTX001 | 8,608 | 863,912 |
-| GTX003 | 8,608 | 69,431 |
+| GTR001 | 8,608 | 863,912 |
+| GTR003 | 8,608 | 69,431 |
 
 ## Failure signatures
 

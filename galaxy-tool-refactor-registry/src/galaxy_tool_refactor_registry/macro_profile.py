@@ -2,7 +2,7 @@
 
 A tool whose ``profile="@TOKEN@"`` resolves to a token defined in an *imported*
 macro file cannot be upgraded by editing the tool alone (that is the inline case,
-handled by ``UpdateProfile``/GTX007). Editing the macro file's ``<token>`` value
+handled by ``UpdateProfile``/GTR007). Editing the macro file's ``<token>`` value
 is safe **only when every tool whose profile uses that token agrees on the same
 target profile** — otherwise bumping the shared token would over-declare a
 profile some importer does not validate at. This module computes that agreement;
@@ -102,7 +102,7 @@ def profile_token_site(document: ToolDocument, /) -> ProfileTokenSite | None:
         None,
     )
     if definition is None or definition.source is None:
-        return None  # inline (GTX007), or the token resolves nowhere
+        return None  # inline (GTR007), or the token resolves nowhere
     return ProfileTokenSite(
         tool=source_path,
         macro_file=definition.source,

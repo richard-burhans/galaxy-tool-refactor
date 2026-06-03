@@ -393,7 +393,7 @@ def test_output_format_input_buckets(tmp_path: Path) -> None:
         '<outputs><data name="o" format="txt"/></outputs></tool>',
         encoding="utf-8",
     )
-    # co-present format_source, NOT auto-fixable (no data inputs): GTX015's guard
+    # co-present format_source, NOT auto-fixable (no data inputs): GTR015's guard
     # skips it, and it does not land in the auto-fixable subset.
     (repo / "copresent_nonauto.xml").write_text(
         '<tool><inputs/>'
@@ -594,13 +594,13 @@ def behavior_corpus(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
     # profile 21.05 -> the only crossed applicable code is the 21.09 from_work_dir
-    # whitespace must_fix, which GTX014 auto-fixes -> reaches latest (both policies).
+    # whitespace must_fix, which GTR014 auto-fixes -> reaches latest (both policies).
     (repo / "workdir.xml").write_text(
         '<tool profile="21.05"><command>run</command>'
         '<outputs><data name="o" from_work_dir=" out.txt "/></outputs></tool>',
         encoding="utf-8",
     )
-    # No profile + format="input" output + a sole top-level data input -> GTX015
+    # No profile + format="input" output + a sole top-level data input -> GTR015
     # auto-fixes the must_fix; <stdio/> silences the 16.04 exit-code consider, so
     # under must_fix-only it reaches latest, and under both it stalls on the
     # unconditional 16_04_consider_implicit_extra_file_collection.
@@ -609,7 +609,7 @@ def behavior_corpus(tmp_path: Path) -> Path:
         '<outputs><data name="o" format="input"/></outputs><stdio/></tool>',
         encoding="utf-8",
     )
-    # Two data inputs -> GTX015 cannot pick one, so 16_04_fix_output_format remains
+    # Two data inputs -> GTR015 cannot pick one, so 16_04_fix_output_format remains
     # a must_fix blocker.
     (repo / "fmt_multi.xml").write_text(
         '<tool><inputs><param type="data" name="a"/><param type="data" name="b"/>'
@@ -630,7 +630,7 @@ def test_measure_behavior_blocks_applies_autofix_and_stop(
     assert result.n_considered == 4  # interp, workdir, fmt_sole, fmt_multi
     assert result.n_excluded == 1  # the @PROFILE@ tool
 
-    # must_fix-only: workdir (GTX014) and fmt_sole (GTX015) reach latest; interp and
+    # must_fix-only: workdir (GTR014) and fmt_sole (GTR015) reach latest; interp and
     # fmt_multi stall on their unfixable must_fix codes.
     must_fix = result.must_fix
     assert must_fix.reached_latest == 2
@@ -1187,7 +1187,7 @@ def test_render_profile_ownership_page_smoke(
     assert "## Do shared files' importers agree on the target profile?" in page
 
 
-# --- command-iuc-heuristics (IUC011 / IUC012 sizing) ----------------------------
+# --- command-iuc-heuristics (GTR031 / GTR032 sizing) ----------------------------
 
 
 def test_count_unquoted_vars_quote_heuristic() -> None:
@@ -1284,7 +1284,7 @@ def test_version_tokenization_buckets(tmp_path: Path) -> None:
 
 
 def test_classify_lone_amps_buckets() -> None:
-    """The IUC012 lone-& classifier separates the anti-pattern from look-alikes."""
+    """The GTR032 lone-& classifier separates the anti-pattern from look-alikes."""
     classify = _classify_lone_amps
     # Redirections are not command joining.
     assert classify("samtools view a 2>&1")["redirect"] == 1
@@ -1296,14 +1296,14 @@ def test_classify_lone_amps_buckets() -> None:
     assert classify("sed 's/^x/&!/' f")["quoted"] == 1
     assert classify('echo "a & b"')["quoted"] == 1
     # The genuine cases.
-    assert classify("cmd1 & cmd2")["joining"] == 1  # the IUC012 anti-pattern
+    assert classify("cmd1 & cmd2")["joining"] == 1  # the GTR032 anti-pattern
     assert classify("server &\nwait")["background"] == 1  # trailing background
     # && is logical-and, never a lone &.
     assert classify("a && b") == {}
 
 
 def test_classify_command_vars_buckets() -> None:
-    """The IUC011 classifier separates shell-arg $vars from Cheetah directives."""
+    """The GTR031 classifier separates shell-arg $vars from Cheetah directives."""
     classify = _classify_command_vars
     # A directive line's $vars are template logic, not shell args.
     assert classify("#if $cond\nrun") == {"directive": 1}
@@ -1325,7 +1325,7 @@ def test_classify_command_vars_buckets() -> None:
 def test_measure_iuc011_fixability_buckets_and_option_b(tmp_path: Path) -> None:
     """The walker buckets each unquoted var and separates the Option-A floor (safe
     bare params) from the Option-B provable set (+ path built-ins / space-free
-    attrs), so a whole-tool count reflects exactly the GTX020 auto-fix population."""
+    attrs), so a whole-tool count reflects exactly the GTR020 auto-fix population."""
     repo = tmp_path / "owner" / "repo"
     repo.mkdir(parents=True)
     # Tool A: every unquoted var is provable, and one is a non-safe provable class

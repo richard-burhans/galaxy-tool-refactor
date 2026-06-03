@@ -1,9 +1,9 @@
-"""The full set of GTX-coded codemods, for documentation and registry use.
+"""The full set of GTR-coded codemods, for documentation and registry use.
 
 Distinct from ``CANONICAL_CODEMODS`` (``canonical.py``): that tuple is the
 *ordered pipeline* fmt's CLI runs, and it omits the single-step ``upgrade_vN``
 codemods because ``UpgradeToLatest`` drives them internally. This catalog lists
-*every* codemod that carries a ``RuleMeta`` GTX code, so a cross-tier rule
+*every* codemod that carries a ``RuleMeta`` GTR code, so a cross-tier rule
 registry (such as the corpus-format stat page) can enumerate them alongside the
 formatter tier's ``all_rules()``.
 """
@@ -45,7 +45,7 @@ from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 
 
 def coded_codemods() -> tuple[type[CodemodCommand], ...]:
-    """Return every GTX-coded codemod class, sorted by ``meta.code``."""
+    """Return every GTR-coded codemod class, sorted by ``meta.code``."""
     classes: list[type[CodemodCommand]] = [
         FixTypos,
         ReorderParamAttributes,

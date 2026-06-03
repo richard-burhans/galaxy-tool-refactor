@@ -1,4 +1,4 @@
-"""Tests for the ``ReorderParamAttributes`` codemod (port of fmt GTX002)."""
+"""Tests for the ``ReorderParamAttributes`` codemod (port of fmt GTR002)."""
 
 from __future__ import annotations
 
@@ -123,13 +123,13 @@ def test_detect_param_does_not_halt_descent_into_nested_elements() -> None:
 
 
 def test_detect_yields_located_change_for_unordered_param() -> None:
-    """``detect`` reports a GTX002 change at the param's xpath, without mutating."""
+    """``detect`` reports a GTR002 change at the param's xpath, without mutating."""
     xml = b"""<tool id="t" name="n" version="1" profile="24.0">
         <inputs><param type="text" name="x"/></inputs></tool>"""
     module = parse_module(xml)
     changes = list(ReorderParamAttributes().detect(module))
     assert len(changes) == 1
-    assert changes[0].code == "GTX002"
+    assert changes[0].code == "GTR002"
     # lxml omits the positional index for an only-child of its tag.
     assert changes[0].xpath == "/tool/inputs/param"
     # detect is non-mutating: the attribute order is untouched.

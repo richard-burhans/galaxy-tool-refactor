@@ -1,4 +1,4 @@
-"""Tests for the concrete advisory IUC checks."""
+"""Tests for the concrete advisory checks."""
 
 from __future__ import annotations
 
@@ -43,75 +43,75 @@ def test_complete_tool_has_no_findings() -> None:
 
 
 def test_iuc001_missing_tests() -> None:
-    assert "IUC001" in _codes(_tool(tests=""))
-    assert "IUC001" not in _codes(_tool())
+    assert "GTR021" in _codes(_tool(tests=""))
+    assert "GTR021" not in _codes(_tool())
 
 
 def test_iuc002_command_not_cdata() -> None:
-    assert "IUC002" in _codes(_tool(command="<command>foo</command>"))
-    assert "IUC002" not in _codes(_tool())
+    assert "GTR022" in _codes(_tool(command="<command>foo</command>"))
+    assert "GTR022" not in _codes(_tool())
 
 
 def test_iuc003_bad_id_charset() -> None:
-    assert "IUC003" in _codes(_tool(tool_id="Bad Id"))
-    assert "IUC003" not in _codes(_tool(tool_id="ok_tool-1.2+x"))
+    assert "GTR023" in _codes(_tool(tool_id="Bad Id"))
+    assert "GTR023" not in _codes(_tool(tool_id="ok_tool-1.2+x"))
 
 
 def test_iuc004_version_not_pep440_and_no_macro() -> None:
-    assert "IUC004" in _codes(_tool(version="not_a_version"))
+    assert "GTR024" in _codes(_tool(version="not_a_version"))
     # A PEP 440 version and a @...@ macro both pass.
-    assert "IUC004" not in _codes(_tool(version="1.2.3"))
-    assert "IUC004" not in _codes(_tool(version="@TOOL_VERSION@+galaxy0"))
+    assert "GTR024" not in _codes(_tool(version="1.2.3"))
+    assert "GTR024" not in _codes(_tool(version="@TOOL_VERSION@+galaxy0"))
 
 
 def test_iuc005_missing_requirements() -> None:
-    assert "IUC005" in _codes(_tool(requirements=""))
-    assert "IUC005" in _codes(_tool(requirements="<requirements/>"))
-    assert "IUC005" not in _codes(_tool())
+    assert "GTR025" in _codes(_tool(requirements=""))
+    assert "GTR025" in _codes(_tool(requirements="<requirements/>"))
+    assert "GTR025" not in _codes(_tool())
 
 
 def test_iuc006_no_error_handling() -> None:
     # No <stdio> and the command has no detect_errors -> flagged.
-    assert "IUC006" in _codes(_tool(stdio=""))
+    assert "GTR026" in _codes(_tool(stdio=""))
     # detect_errors on the command satisfies it without <stdio>.
     satisfied = _tool(
         stdio="",
         command='<command detect_errors="aggressive"><![CDATA[x]]></command>',
     )
-    assert "IUC006" not in _codes(satisfied)
+    assert "GTR026" not in _codes(satisfied)
 
 
 def test_iuc007_no_edam_or_xrefs() -> None:
-    assert "IUC007" in _codes(_tool(edam=""))
+    assert "GTR027" in _codes(_tool(edam=""))
     xrefs = '<xrefs><xref type="bio.tools">foo</xref></xrefs>'
-    assert "IUC007" not in _codes(_tool(edam=xrefs))
+    assert "GTR027" not in _codes(_tool(edam=xrefs))
 
 
 def test_iuc008_missing_help() -> None:
-    assert "IUC008" in _codes(_tool(help_=""))
-    assert "IUC008" not in _codes(_tool())
+    assert "GTR028" in _codes(_tool(help_=""))
+    assert "GTR028" not in _codes(_tool())
 
 
 def test_iuc009_missing_description() -> None:
-    assert "IUC009" in _codes(_tool(description=""))
-    assert "IUC009" not in _codes(_tool())
+    assert "GTR029" in _codes(_tool(description=""))
+    assert "GTR029" not in _codes(_tool())
 
 
 def test_iuc010_help_not_cdata() -> None:
-    assert "IUC010" in _codes(_tool(help_="<help>plain text</help>"))
-    assert "IUC010" not in _codes(_tool())
+    assert "GTR030" in _codes(_tool(help_="<help>plain text</help>"))
+    assert "GTR030" not in _codes(_tool())
 
 
 def test_iuc012_placeholder_never_fires() -> None:
-    """IUC012 (&&-vs-lone-&) is a data-backed no-op stub (decisions D3)."""
+    """GTR032 (&&-vs-lone-&) is a data-backed no-op stub (decisions D3)."""
     codes = _codes(_tool(command="<command><![CDATA[a & b && c]]></command>"))
-    assert "IUC012" not in codes
+    assert "GTR032" not in codes
 
 
 def test_iuc013_flags_unpinned_package_requirements() -> None:
-    """One IUC013 finding per package <requirement> without a version."""
-    # The default tool pins its requirement, so IUC013 stays silent.
-    assert "IUC013" not in _codes(_tool())
+    """One GTR033 finding per package <requirement> without a version."""
+    # The default tool pins its requirement, so GTR033 stays silent.
+    assert "GTR033" not in _codes(_tool())
     unpinned = _tool(
         requirements=(
             "<requirements>"
@@ -121,7 +121,7 @@ def test_iuc013_flags_unpinned_package_requirements() -> None:
             "</requirements>"
         )
     )
-    found = [v for v in detect_violations(load_tool(unpinned)) if v.code == "IUC013"]
+    found = [v for v in detect_violations(load_tool(unpinned)) if v.code == "GTR033"]
     assert len(found) == 2  # loose + blank (pinned is fine)
     assert any("loose" in v.message for v in found)
 
@@ -134,19 +134,19 @@ def test_iuc013_ignores_non_package_and_flags_bare_default() -> None:
             "</requirement></requirements>"
         )
     )
-    assert "IUC013" not in _codes(env)  # set_environment isn't a package pin
+    assert "GTR033" not in _codes(env)  # set_environment isn't a package pin
     bare = _tool(
         requirements="<requirements><requirement>foo</requirement></requirements>"
     )
-    assert "IUC013" in _codes(bare)  # no type= defaults to package -> flagged
+    assert "GTR033" in _codes(bare)  # no type= defaults to package -> flagged
 
 
 def _iuc011(tool_bytes: bytes) -> list:
-    return [v for v in detect_violations(load_tool(tool_bytes)) if v.code == "IUC011"]
+    return [v for v in detect_violations(load_tool(tool_bytes)) if v.code == "GTR031"]
 
 
 def test_iuc011_flags_each_unquoted_cheetah_var() -> None:
-    """One IUC011 finding per fully-unquoted shell-line $var, naming the var."""
+    """One GTR031 finding per fully-unquoted shell-line $var, naming the var."""
     tool = _tool(command="<command><![CDATA[prog --in $input --ref $ref]]></command>")
     found = _iuc011(tool)
     assert len(found) == 2
@@ -158,7 +158,7 @@ def test_iuc011_flags_each_unquoted_cheetah_var() -> None:
 
 def test_iuc011_ignores_quoted_and_directive_vars() -> None:
     """Single/double-quoted vars and directive-line vars are not flagged."""
-    # The default tool single-quotes its one var, so IUC011 stays silent.
+    # The default tool single-quotes its one var, so GTR031 stays silent.
     assert _iuc011(_tool()) == []
     quoted = _tool(command='<command><![CDATA[prog "$a" \'$b\']]></command>')
     assert _iuc011(quoted) == []
@@ -172,20 +172,20 @@ def test_violations_are_located() -> None:
     """Findings carry a source line and an xpath into the tool."""
     broken = _tool(tests="", command="<command>x</command>")
     violations = detect_violations(load_tool(broken))
-    assert violations  # at least IUC001 and IUC002
+    assert violations  # at least GTR021 and GTR022
     assert all(v.xpath.startswith("/tool") for v in violations)
     assert all(v.sourceline >= 1 for v in violations)
 
 
 def test_iuc002_partial_or_child_cdata_is_flagged() -> None:
-    """Only the command's own body being CDATA-wrapped clears IUC002.
+    """Only the command's own body being CDATA-wrapped clears GTR022.
 
     Leading unprotected text (`echo <![CDATA[...]]>`) or a CDATA-bearing *child*
-    leaves the command body unprotected, so IUC002 must still fire.
+    leaves the command body unprotected, so GTR022 must still fire.
     """
-    assert "IUC002" in _codes(_tool(command="<command>echo <![CDATA[hi]]></command>"))
+    assert "GTR022" in _codes(_tool(command="<command>echo <![CDATA[hi]]></command>"))
     child = "<command>echo <token><![CDATA[x]]></token></command>"
-    assert "IUC002" in _codes(_tool(command=child))
+    assert "GTR022" in _codes(_tool(command=child))
     # Fully wrapped, even with leading whitespace, is fine.
     wrapped_ws = "<command>\n    <![CDATA[echo hi]]></command>"
-    assert "IUC002" not in _codes(_tool(command=wrapped_ws))
+    assert "GTR022" not in _codes(_tool(command=wrapped_ws))

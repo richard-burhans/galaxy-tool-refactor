@@ -1,4 +1,4 @@
-"""Tests for the GTX-coded codemod catalog."""
+"""Tests for the GTR-coded codemod catalog."""
 
 from __future__ import annotations
 
@@ -6,29 +6,29 @@ from galaxy_tool_xml_codemod.canonical import CANONICAL_CODEMODS
 from galaxy_tool_xml_codemod.catalog import coded_codemods
 
 _EXPECTED_CODES = {
-    "GTX002",  # ReorderParamAttributes
-    "GTX005",  # ReorderToolAttributes
-    "GTX006",  # FixTypos
-    "GTX007",  # UpdateProfile
-    "GTX008",  # Upgrade19_01
-    "GTX009",  # Upgrade24_0
-    "GTX010",  # Upgrade24_1
-    "GTX011",  # Upgrade25_1
-    "GTX012",  # UpgradeToLatest
-    "GTX013",  # ReorderToolChildren
-    "GTX014",  # FixFromWorkDirWhitespace (runtime-gated)
-    "GTX015",  # FixOutputFormatInput (runtime-gated)
-    "GTX016",  # FixInterpreter (runtime-gated)
-    "GTX017",  # NormalizeBooleanValues
-    "GTX018",  # WrapCommandCdata
-    "GTX019",  # WrapHelpCdata
-    "GTX020",  # SingleQuoteCommandVars
+    "GTR002",  # ReorderParamAttributes
+    "GTR005",  # ReorderToolAttributes
+    "GTR006",  # FixTypos
+    "GTR007",  # UpdateProfile
+    "GTR008",  # Upgrade19_01
+    "GTR009",  # Upgrade24_0
+    "GTR010",  # Upgrade24_1
+    "GTR011",  # Upgrade25_1
+    "GTR012",  # UpgradeToLatest
+    "GTR013",  # ReorderToolChildren
+    "GTR014",  # FixFromWorkDirWhitespace (runtime-gated)
+    "GTR015",  # FixOutputFormatInput (runtime-gated)
+    "GTR016",  # FixInterpreter (runtime-gated)
+    "GTR017",  # NormalizeBooleanValues
+    "GTR018",  # WrapCommandCdata
+    "GTR019",  # WrapHelpCdata
+    "GTR020",  # SingleQuoteCommandVars
 }
 
 
-def test_every_coded_codemod_carries_a_gtx_code() -> None:
+def test_every_coded_codemod_carries_a_gtr_code() -> None:
     codes = [cls.meta.code for cls in coded_codemods()]
-    assert all(code.startswith("GTX") for code in codes)
+    assert all(code.startswith("GTR") for code in codes)
 
 
 def test_catalog_codes_match_expected_set() -> None:

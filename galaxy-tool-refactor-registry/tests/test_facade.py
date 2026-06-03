@@ -20,7 +20,7 @@ def _today_format(source: bytes) -> bytes:
 
     Re-derives from the *live* ``CANONICAL_CODEMODS`` tuple, so this pins that the
     facade reproduces the direct pipeline — not a frozen historical byte string
-    (GTX020 joining the tuple shifted both sides together; codemod §30).
+    (GTR020 joining the tuple shifted both sides together; codemod §30).
     """
     document = load_tool(source)
     module = Module(document)
@@ -51,7 +51,7 @@ def test_strict_reports_advisory_but_same_bytes_as_iuc(sample_bytes: bytes) -> N
     iuc = facade.run(sample_bytes, codes=resolve_codes()).formatted
     strict = facade.run(sample_bytes, codes=resolve_codes(preset="strict"))
     assert strict.formatted == iuc
-    assert strict.advisory  # several IUC checks fire on this skeletal tool
+    assert strict.advisory  # several checks fire on this skeletal tool
     assert all(v.code in advisory_codes() for v in strict.advisory)
     assert all(note.endswith("(advisory)") for note in strict.notes)
 
@@ -141,7 +141,7 @@ def test_upgrade_ignore_fixtypos_still_upgrades() -> None:
 
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
-    codes = resolve_upgrade_codes(ignore=["GTX006"])
+    codes = resolve_upgrade_codes(ignore=["GTR006"])
     result = facade.upgrade(_UPGRADABLE, codes=codes)
     # The profile upgrade is intrinsic; dropping FixTypos does not disable it.
     assert f'profile="{latest_profile()}"'.encode() in result.formatted
@@ -317,11 +317,11 @@ def test_introspection_lists_presets_and_rules() -> None:
 
     rules = facade.list_rules()
     codes = {r.code for r in rules}
-    assert "GTX012" not in codes  # upgrade-only excluded by default
+    assert "GTR012" not in codes  # upgrade-only excluded by default
     with_upgrade = {r.code for r in facade.list_rules(include_upgrade=True)}
-    assert "GTX012" in with_upgrade
+    assert "GTR012" in with_upgrade
     # Each fixable rule is in at least one preset; advisory rules in strict.
-    iuc_rule = next(r for r in rules if r.code == "GTX002")
+    iuc_rule = next(r for r in rules if r.code == "GTR002")
     assert "iuc" in iuc_rule.presets and iuc_rule.fixable
-    adv_rule = next(r for r in rules if r.code == "IUC001")
+    adv_rule = next(r for r in rules if r.code == "GTR021")
     assert adv_rule.presets == ("strict",) and not adv_rule.fixable

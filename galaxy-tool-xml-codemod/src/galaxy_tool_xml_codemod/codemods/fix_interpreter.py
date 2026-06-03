@@ -1,4 +1,4 @@
-"""Codemod: inline a deprecated ``<command interpreter=…>`` (GTX016).
+"""Codemod: inline a deprecated ``<command interpreter=…>`` (GTR016).
 
 Before profile 16.04 Galaxy ran ``<command interpreter="python">script.py …</command>``
 as ``python '<tool_dir>/script.py' …`` at runtime — it took the first whitespace
@@ -7,7 +7,7 @@ prepended the interpreter (``.local/galaxy-src`` ``evaluation.py:781-787``). Fro
 the ``interpreter`` attribute is ignored, so an upgraded tool breaks unless the command
 is rewritten (Galaxy's ``16_04_fix_interpreter`` *must-fix* upgrade code).
 
-This is a **runtime-gated fix** (like GTX014/GTX015): the construct is XSD-valid at
+This is a **runtime-gated fix** (like GTR014/GTR015): the construct is XSD-valid at
 every profile, so the ``upgrade`` path applies it once a tool *crosses* the 16.04
 boundary (``runtime_fixes.py``; crossing-gate, codemod ``docs/decisions.md`` §24). It
 acts only on "bucket A" — a single-token standard ``interpreter`` whose body begins
@@ -19,7 +19,7 @@ rewritten statically and stay in the §23 warning.
 at the offset ``first_command_token_span`` located (the first non-blank, non-``##``
 content line), so a script name appearing inside a leading ``##`` comment is never
 mistargeted — only the real, first invocation is rewritten. The new body is emitted as
-CDATA (IUC002) so shell operators stay literal. The path is emitted as the literal
+CDATA (GTR022) so shell operators stay literal. The path is emitted as the literal
 ``'$__tool_directory__/<token>'``; see the research note (16_04_fix_interpreter) for
 the (admin-controlled, out-of-scope) single-quote boundary vs Galaxy's ``shlex.quote``.
 """
@@ -64,7 +64,7 @@ class FixInterpreter(RuntimeGatedFix):
     """Inline a deprecated ``<command interpreter=…>`` so a 16.04+ tool still runs."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTX016",
+        code="GTR016",
         summary=(
             "Inline a deprecated <command interpreter=I>script ...</command> as"
             " <command>I '$__tool_directory__/script' ...</command> (single-token"

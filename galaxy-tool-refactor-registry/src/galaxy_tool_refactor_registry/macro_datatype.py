@@ -1,6 +1,6 @@
 """Normalize literal ``format`` / ``ftype`` in imported macro files (Phase 2a).
 
-The macro-library analog of ``Upgrade24_1`` (GTX010). ``Upgrade24_1`` lowercases /
+The macro-library analog of ``Upgrade24_1`` (GTR010). ``Upgrade24_1`` lowercases /
 strips ``format`` / ``ftype`` on a tool's **own** tree, but a coercible value defined
 in an *imported* macro file (e.g. ``<data format="GTiff">`` in ``gdal_macros.xml``) is
 unreachable from the per-tool pipeline — so a handful of tools stay stuck below 24.2

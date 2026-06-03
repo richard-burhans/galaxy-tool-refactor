@@ -1,4 +1,4 @@
-"""Tests for the command-var quoting-safety classifier (GTX020 / IUC011 substrate)."""
+"""Tests for the command-var quoting-safety classifier (GTR020 / GTR031 substrate)."""
 
 from __future__ import annotations
 

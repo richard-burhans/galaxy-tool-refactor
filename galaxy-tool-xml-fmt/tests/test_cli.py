@@ -94,7 +94,7 @@ def test_non_tool_non_macro_xml_is_skipped(tmp_path: Path) -> None:
 
 def test_macro_file_is_formatted(tmp_path: Path) -> None:
     # A <macros> library is now formatted with the kind-applicable rules
-    # (GTX001 indent, GTX004 shorthand) — not skipped.
+    # (GTR001 indent, GTR004 shorthand) — not skipped.
     file = _write(
         tmp_path / "macros.xml",
         b'<macros><token name="@TOOL_VERSION@">1.0</token></macros>',

@@ -1,4 +1,4 @@
-"""Codemod: replace output ``format="input"`` with ``format_source`` (GTX015).
+"""Codemod: replace output ``format="input"`` with ``format_source`` (GTR015).
 
 From profile 16.04 Galaxy disables ``format="input"`` on a tool output — the
 behaviour was ill-defined (Galaxy's ``16_04_fix_output_format`` *must-fix* code).
@@ -73,7 +73,7 @@ class FixOutputFormatInput(RuntimeGatedFix):
     """Rewrite output ``<data format="input">`` to ``format_source`` (single input)."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTX015",
+        code="GTR015",
         summary=(
             'Replace output <data format="input"> with format_source for a tool'
             " with a single top-level data input."

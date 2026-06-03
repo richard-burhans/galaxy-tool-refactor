@@ -5,8 +5,8 @@
 | **Code** | `16_04_fix_interpreter` |
 | **Profile** | 16.04 |
 | **Level** | `must_fix` |
-| **Auto-fix today** | **GTX016** `FixInterpreter` (bucket A; runtime-gated) |
-| **Stuck tools** (must_fix-only) | **316** now (post-GTX016; see `../upgrade_behavior_block_stats.md`) — down from **1,726** without this codemod (= 316 + the 1,410 bucket-A/A-missing tools GTX016 clears) |
+| **Auto-fix today** | **GTR016** `FixInterpreter` (bucket A; runtime-gated) |
+| **Stuck tools** (must_fix-only) | **316** now (post-GTR016; see `../upgrade_behavior_block_stats.md`) — down from **1,726** without this codemod (= 316 + the 1,410 bucket-A/A-missing tools GTR016 clears) |
 | **Galaxy PR** | https://github.com/galaxyproject/galaxy/pull/1688 |
 
 > Galaxy-source citations are from the local clone `.local/galaxy-src/` @ `c6e0ee3`
@@ -84,7 +84,7 @@ For interpreter `I` and leading script token `S`:
 ## Corpus reality
 
 ~2,000+ raw files carry `interpreter=` (deduped/applicable/sub-16.04 = the 1,726
-that would be stuck without GTX016). Value mix (approximate `grep`, not a standing measure): `python` ~59%,
+that would be stuck without GTR016). Value mix (approximate `grep`, not a standing measure): `python` ~59%,
 `perl` ~22%, `bash`/`sh` ~12%, `Rscript` ~3%, long tail (`python2.7`, `python3`,
 `Rscript --no-save`, `python -W ignore`, `java -jar`, `docker`, `/usr/bin/php`,
 full paths). Shapes:
@@ -103,15 +103,15 @@ full paths). Shapes:
 Galaxy chose the script **after Cheetah substitution** (`split()[0]` on the rendered
 line). A codemod sees only the unrendered XML, so *"the script is the first token"*
 holds reliably **only for bucket A**. B/C/D defeat a naive first-token rule. The
-conservative, GTX015-style scope is to auto-fix only bucket A — a single leading
+conservative, GTR015-style scope is to auto-fix only bucket A — a single leading
 literal script token + a single-token standard interpreter (optionally requiring the
 script file to exist beside the XML) — and leave B/C/D to detect/warn.
 
 ## Where the fix plugs in
 
 `FixInterpreter` (`codemods/fix_interpreter.py`) is a `RuntimeGatedFix` (the
-GTX014/GTX015 family; `codemods/_runtime_gated.py` + `runtime_fixes.py`),
-`introduced_profile="16.04"`, code **GTX016**, upgrade-only. The eligibility predicate
+GTR014/GTR015 family; `codemods/_runtime_gated.py` + `runtime_fixes.py`),
+`introduced_profile="16.04"`, code **GTR016**, upgrade-only. The eligibility predicate
 is the shared `codemods/_interpreter.py` core (so the codemod and the
 `interpreter-bucket-split` measure agree by construction). Mutation via `Cursor`:
 `cursor.set_text(new_body, cdata=True)` (CDATA wrap, the first repo code to do so) then
@@ -120,7 +120,7 @@ is the shared `codemods/_interpreter.py` core (so the codemod and the
 
 ## Status / recommendation
 
-**Shipped: `FixInterpreter` (GTX016).** The conservative bucket-A codemod described
+**Shipped: `FixInterpreter` (GTR016).** The conservative bucket-A codemod described
 above — the single highest-impact behaviour-preserving fix. It rewrites
 bucket-A-by-shape tools (the `interpreter-bucket-split` measure's **A** 1,383 +
 **A-missing** 27; the file-exists check is a measurement refinement, not a codemod
@@ -133,5 +133,5 @@ A-missing 27, across all profiles); the `corpus_check codemod` sweep **rewrites
 1,127** of them (idempotent, 0 post-validate-failed — the gap being bucket-A tools
 that don't actually cross the 16.04 boundary in the sweep, e.g. already declaring
 ≥ 16.04, so the runtime gate never fires); and the behaviour-block walk, which counts
-only sub-16.04 first-blockers, drops **1,726 → 316** as GTX016 clears its 1,410
+only sub-16.04 first-blockers, drops **1,726 → 316** as GTR016 clears its 1,410
 (`upgrade_behavior_block_stats.md`), the residual 316 being bucket B/C.

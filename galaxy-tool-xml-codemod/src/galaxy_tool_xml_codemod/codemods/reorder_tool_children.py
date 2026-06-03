@@ -48,7 +48,7 @@ class ReorderToolChildren(CodemodCommand):
     """Reorder the root ``<tool>`` element's children to the IUC convention."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTX013",
+        code="GTR013",
         summary="Reorder <tool> child elements to the IUC convention.",
         since="0.0.1",
         cite="https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html",

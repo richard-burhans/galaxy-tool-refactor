@@ -83,17 +83,17 @@ def test_detect_subset_with_all_rules_equals_whole_pipeline(
 def test_detect_single_rule_subset_reports_only_that_code(
     make_doc: Callable[[bytes], ToolDocument],
 ) -> None:
-    """Selecting only the blank-line rule reports GTX003 and not GTX001."""
+    """Selecting only the blank-line rule reports GTR003 and not GTR001."""
     violations = detect_tool_document_subset(
         make_doc(_FLAT), rule_classes=(BlankLineBetweenSections,)
     )
     codes = {violation.code for violation in violations}
-    assert codes == {"GTX003"}
+    assert codes == {"GTR003"}
 
 
 def test_rules_for_kind_filters_by_applies_to() -> None:
     # Every active rule applies to tools; macros get the generic XML rules only
-    # (GTX001 indent, GTX004 shorthand) — not the tool-only blank-line rule.
+    # (GTR001 indent, GTR004 shorthand) — not the tool-only blank-line rule.
     assert set(rules_for_kind("tool")) == set(all_rules())
     assert set(rules_for_kind("macro")) == {CanonicalIndent, EmptyElementShorthand}
     assert BlankLineBetweenSections not in rules_for_kind("macro")
@@ -104,7 +104,7 @@ def test_format_macro_document_indents_and_shorthands() -> None:
         b'<macros><token name="@TOOL_VERSION@">1.0</token><thing></thing></macros>'
     )
     out = format_macro_document(document)
-    # GTX001: children indented under <macros>.
+    # GTR001: children indented under <macros>.
     assert b'\n    <token name="@TOOL_VERSION@">1.0</token>\n' in out
-    # GTX004: the empty <thing></thing> collapses to <thing/>.
+    # GTR004: the empty <thing></thing> collapses to <thing/>.
     assert b"<thing/>" in out

@@ -542,7 +542,7 @@ def tripped_upgrade_codes(document: ToolDocument, /) -> frozenset[str]:
     conservative over-report, never silent.
 
     Capture this against the **pre-upgrade** tool: the ``upgrade`` codemods
-    (GTX014/GTX015) mutate the very features some detectors look for, so detecting
+    (GTR014/GTR015) mutate the very features some detectors look for, so detecting
     after they run would under-report. Intersect the result with
     ``upgrade_codes_crossed`` for the range-aware applicable set
     (``upgrade_codes_applicable`` does exactly that).

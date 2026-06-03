@@ -50,7 +50,7 @@ dependency direction and the facade-owns-orchestration rule are intact.
 - **Catalog-completeness guard** (every `CodemodCommand` subclass wired into `coded_codemods()`):
   valuable, but needs careful scoping (base classes + runtime-gated + upgrade-only codemods are
   not plain catalog entries), so left as a proposal rather than risk a wrong/flaky test.
-- **Per-codemod *unit* idempotence tests** for GTX002/005/013: the corpus sweep already enforces
+- **Per-codemod *unit* idempotence tests** for GTR002/005/013: the corpus sweep already enforces
   idempotence; unit tests would be redundant belt-and-suspenders.
 
 ---
@@ -69,18 +69,18 @@ on integration.**
   example call) → the `_tool` names.
 - Root `README.md`: the CLI row + Quick-start gained `normalize-macros`; the MCP row →
   `*_tool` names.
-- `docs/upgrade_research/README.md`: "auto-fixes only two codes (GTX014/GTX015)" →
-  three (GTX014/GTX015/GTX016).
+- `docs/upgrade_research/README.md`: "auto-fixes only two codes (GTR014/GTR015)" →
+  three (GTR014/GTR015/GTR016).
 - Registry `decisions.md`: the D2 collision-free enumeration (canonical codemods now
-  `…/017/018/019`, runtime-gated `014–016`, checks `IUC001–013`) and D3's runtime-gated
-  range `GTX014–GTX016` — refreshed to the current namespace.
+  `…/017/018/019`, runtime-gated `014–016`, checks `GTR021–GTR033`) and D3's runtime-gated
+  range `GTR014–GTR016` — refreshed to the current namespace.
 
 **Refuted on integration (not stale):**
 - "seven tiers" in root/codemod/fmt CLAUDE.md is **correct** — there are 7 tier-*numbers*
   (0.5/1/2/3/3.5/3.6/4); tier 4 has two *packages* (CLI + MCP). "Eight tiers" would be an
   error; "eight packages" is the package count.
 - `iuc_best_practices.md`'s **73.2%** unquoted-`$var` figure is the `command-unquoted-var`
-  *measure*, a deliberately different metric from the IUC011 *check* firing rate (71.5% in
+  *measure*, a deliberately different metric from the GTR031 *check* firing rate (71.5% in
   `corpus_check_stats.md`); the doc cites it correctly.
 
 Three workflow-refuted (macro_profile_ownership measurement-semantics; capabilities ~73%
@@ -92,9 +92,9 @@ artifact-exists; a dated check-tier `decisions.md` record) are not re-litigated.
 
 **Verdict — the architecture is healthy; the boundaries still hold exactly as
 documented.** Since the 2026-05-31 pass a session of 9 merged PRs landed a whole
-new tier-4 package (`galaxy-tool-refactor-mcp`), the IUC011 command-text check + a
+new tier-4 package (`galaxy-tool-refactor-mcp`), the GTR031 command-text check + a
 read-only `command_text.py` lexer, the `UpgradeResult.behavior_preserving` verdict,
-a `set_e` detector tightening, runtime-gated GTX016, and a `cli_support`
+a `set_e` detector tightening, runtime-gated GTR016, and a `cli_support`
 import-resolution fix. Re-measured against the (now refreshed) baseline: **no High
 findings, no boundary violations.** The new `mcp` package is a clean thin adapter —
 `service.py` calls only the facade + `resolve` (+ tier-1's `ToolXmlSyntaxError` for
@@ -111,10 +111,10 @@ its error boundary), `server.py` adds the FastMCP binding. The drift was
   pass flagged for `click`). Added `packaging>=23` (matching xml/check); re-synced;
   codemod tests green.
 - **7.x — `ARCHITECTURE.md` documentation drift — Medium [fixed].** Corrected in
-  Phase 1: IUC011 was still called a "reserved stub" (it ships as
+  Phase 1: GTR031 was still called a "reserved stub" (it ships as
   `SingleQuotedCheetah`); the `command_text.py` lexer was unmentioned in tier 3.5;
   `behavior_preserving` was missing from the tier-3.6 result shape; §9 listed
-  runtime-gated GTX `014–015` though GTX016 is also runtime-gated. The
+  runtime-gated GTR `014–015` though GTR016 is also runtime-gated. The
   reference-index decision-section citations were re-verified — all resolve.
 - **6.x — the audit skill's own worked example is stale — Low [proposal].**
   `.claude/skills/architecture-audit/SKILL.md`'s tier table says "(+ future
@@ -134,9 +134,9 @@ its error boundary), `server.py` adds the FastMCP binding. The drift was
 
 ### Reserved surface — intentional, not drift [accepted]
 
-- IUC012 `CommandAndJoining` no-op stub — data-backed (~1 tool corpus-wide; check
+- GTR032 `CommandAndJoining` no-op stub — data-backed (~1 tool corpus-wide; check
   D3). The `command-iuc-heuristics` / `command-lone-amp` / `command-unquoted-var` /
-  `iuc011-fixability` measures back the IUC011-ships / IUC012-deferred split.
+  `iuc011-fixability` measures back the GTR031-ships / GTR032-deferred split.
 - `Cursor.replace_with` — declared deferred in codemod `PLAN.md` (no consumer).
 - MCP vision **Goal 2** (agent-authored rules) — recorded future; the server ships
   Goal 1 only.
@@ -153,11 +153,11 @@ gaps recorded as proposals. (0 refuted is itself a signal: the candidates were
 predominantly genuine doc-drift, not inflated structural claims.)
 
 **New, fixed this pass [fixed]:**
-- **check `README.md` said IUC011 is "not yet implemented" and omitted the
-  `command_text.py` lexer — Medium.** Stale since IUC011 shipped (#66); `decisions.md`
+- **check `README.md` said GTR031 is "not yet implemented" and omitted the
+  `command_text.py` lexer — Medium.** Stale since GTR031 shipped (#66); `decisions.md`
   D5 + `ARCHITECTURE.md` were correct, the package README was not. Corrected.
-- **`registry.py` module docstring enumerated "GTX014–GTX015 runtime-gated" — Medium.**
-  Omitted GTX016 (and GTX017 from the canonical list). Corrected to 014–016 / +017.
+- **`registry.py` module docstring enumerated "GTR014–GTR015 runtime-gated" — Medium.**
+  Omitted GTR016 (and GTR017 from the canonical list). Corrected to 014–016 / +017.
 - **cli `__init__.py` docstring claimed a direct codemod-tier (tier 2) dependency —
   Medium.** The CLI consumes the facade, not codemod (cli D4); the import list proves
   it. Rewritten to match.
@@ -207,7 +207,7 @@ and boundary integrity, *not* a line-level bug hunt (see `/code-review` for that
 
 This audit measures the code against the just-written architecture baseline. The
 **headline is reassuring**: the tier boundaries hold exactly as documented — no
-sibling-tier cross-imports, no upward dependencies, the GTX/IUC namespace is
+sibling-tier cross-imports, no upward dependencies, the GTR namespace is
 collision-guarded, and the load-bearing "apply order reproduces `format`" contract
 is pinned by a regression test. The findings below are refinements, latent
 footguns, and doc-precision gaps, not structural breakage.
@@ -249,8 +249,8 @@ collects all selected fmt rule classes and runs them as one batch through
 `apply` — for the fmt family the uniform `RuleHandle.apply` interface is dead
 within this repo.
 
-The bypass is *correct and intentional*: fmt rules are order-sensitive (GTX001 and
-GTX003 both rewrite top-level-child tails), so running them one-at-a-time via the
+The bypass is *correct and intentional*: fmt rules are order-sensitive (GTR001 and
+GTR003 both rewrite top-level-child tails), so running them one-at-a-time via the
 per-rule handle could leave non-canonical intermediate trivia — the same
 incoherent-subset caveat `format_tool_document_subset` already documents. The
 hazard is that a future consumer (e.g. the MCP server) sees a uniform
@@ -319,7 +319,7 @@ currently legitimate, which is exactly why they belong in an allowlist:
 | `xml/macros.py:247` | serialise to a **temp dir** for macro expansion (throwaway, not output) — see 6.1 |
 | `check/checks.py:67` | serialise one element to a `str` for content inspection (read-only) |
 | `codemod/_coarse_detect.py:53,55` | before/after `tostring` to detect change (internal compare) |
-| `codemod/cursor.py` | serialise one element to a `str` for read-only CDATA-wrap inspection (GTX018/019, added 2026-06-03) |
+| `codemod/cursor.py` | serialise one element to a `str` for read-only CDATA-wrap inspection (GTR018/019, added 2026-06-03) |
 | `registry/facade.py:89,175`, `registry/macro_profile.py:188` | write **fmt-produced** bytes to disk |
 
 **Proposal:** add an architecture test (in registry or a workspace-level
@@ -382,7 +382,7 @@ own package. This is the documented "Cursor is generic; the codemod base stays
 tool-only until a macro-subject codemod needs it" reservation (codemod decisions
 §20). Intentional reserved surface.
 
-### 6.4 IUC011 / IUC012 stubs — ✅ [accepted]
+### 6.4 GTR031 / GTR032 stubs — ✅ [accepted]
 
 Registered codes whose `detect` returns nothing, members of the `strict` preset so
 they are auto-covered when implemented (check decisions; `iuc_best_practices.md`).
@@ -404,7 +404,7 @@ deliberately-chosen contract phrasing.
 
 The per-package `CLAUDE.md`s and `decisions.md`s matched the code on every spot
 check (RuleMeta fields, the `RuleHandle` shape, preset membership, selection
-precedence, the CANONICAL/AUTO_UPGRADE split, GTX/IUC code assignments). The
+precedence, the CANONICAL/AUTO_UPGRADE split, GTR code assignments). The
 `decisions.md` section numbers cited from `ARCHITECTURE.md` all resolve.
 
 ---
@@ -453,7 +453,7 @@ verified** by an agent prompted to *refute* it, and the survivors synthesised.
 
 **Headline:** escalation **validated the original audit** — every load-bearing
 invariant (single-source-of-truth tree, no-serializer-in-tier-1, deterministic
-profile resolution, lenient xsdata binding, collision-guarded GTX/IUC namespace,
+profile resolution, lenient xsdata binding, collision-guarded GTR namespace,
 library-first facade) was independently re-derived and re-confirmed, and most
 would-be Medium/High candidates were *downgraded* to Low because the code already
 honours the contracts — only test/doc coverage lags. No new boundary violations,
@@ -479,12 +479,12 @@ default is relied on implicitly by the 10 codemods. All Low / doc-only.
 - **§4.1 (serializer not test-guarded)** was independently re-derived — escalation
   endorses the *same* allowlist-architecture-test recommendation and the baseline's
   site inventory. Treat 4.1 as the priority proposal.
-- **New-adjacent:** the GTX/IUC collision guard (`registry.py:48`) exists and is
+- **New-adjacent:** the GTR collision guard (`registry.py:48`) exists and is
   correct, but no test forces a *duplicate* to prove it fires — a natural companion
   to the 4.1 allowlist test.
 - §2.2 (unenforced `meta`), §5.1 (advisory-aggregation parallelism), §5.2, §6.1/§7.1
   (writes-to-disk imprecision, still loose in the two package `CLAUDE.md`s), §6.3,
-  §7.2 (doc/code agreement, full GTX/IUC table resolves) — all independently
+  §7.2 (doc/code agreement, full GTR table resolves) — all independently
   re-confirmed.
 
 ### Refuted (do not re-litigate)
@@ -546,9 +546,9 @@ independent re-confirmations, 2 refuted**).
 **Headline:** the architecture **holds**. Escalation surfaced *no new structural
 defect and no boundary violation* — every load-bearing invariant the prior pass
 pinned was independently re-confirmed. The only new surface is a single root cause:
-the `RuntimeGatedFix` family (GTX014/GTX015) landed **after** this baseline was
+the `RuntimeGatedFix` family (GTR014/GTR015) landed **after** this baseline was
 written, so prose/docstring/test *enumerations* of the upgrade-only set still said
-"GTX007–GTX012". The code is correct everywhere (`upgrade_only_codemods()` derives
+"GTR007–GTR012". The code is correct everywhere (`upgrade_only_codemods()` derives
 the set dynamically), so this was a documentation-and-test-spec lag, not a
 behavioural break. All of it is now fixed.
 
@@ -556,10 +556,10 @@ behavioural break. All of it is now fixed.
 
 | # | Finding | Dim | Sev | Status |
 |---|---|---|---|---|
-| R1 | `ARCHITECTURE.md` upgrade-only enumerations omitted the runtime-gated pair (line 273 omitted GTX015; contract §4 omitted GTX014/015) — internally contradicting the doc's own rule-codes table | doc/code | High* | **fixed** |
+| R1 | `ARCHITECTURE.md` upgrade-only enumerations omitted the runtime-gated pair (line 273 omitted GTR015; contract §4 omitted GTR014/015) — internally contradicting the doc's own rule-codes table | doc/code | High* | **fixed** |
 | R2 | `ARCHITECTURE.md` tier-2 prose + reference index had no `RuntimeGatedFix` family / validity-gated-vs-runtime-gated distinction; §-cite omitted §22–24 | doc/code | Medium | **fixed** (tier-2 bullet + 2 ref-index rows + cite §11–18, §22–24) |
 | R3 | CLI `upgrade` docstring silent that runtime-gated fixes auto-mutate the tool | doc/code | Medium | **fixed** (cli.py upgrade docstring) |
-| R4 | `test_registry.py` hardcoded the upgrade-only set `{GTX007..GTX012}` (omitted 014/015) with permissive `isdisjoint`/subset assertions — passed despite being incomplete; violates the derive-not-hardcode contract (registry D3) | contract-enforcement | Medium | **fixed** — both the selectable and upgrade-only sets now **derive** from `CANONICAL_CODEMODS` / `coded_codemods()` / `all_handles()−known_codes()` and assert equality, plus an explicit GTX014/015 wiring guard; `by_code` now checks 014/015 too |
+| R4 | `test_registry.py` hardcoded the upgrade-only set `{GTR007..GTR012}` (omitted 014/015) with permissive `isdisjoint`/subset assertions — passed despite being incomplete; violates the derive-not-hardcode contract (registry D3) | contract-enforcement | Medium | **fixed** — both the selectable and upgrade-only sets now **derive** from `CANONICAL_CODEMODS` / `coded_codemods()` / `all_handles()−known_codes()` and assert equality, plus an explicit GTR014/015 wiring guard; `by_code` now checks 014/015 too |
 | R5 | Docstring/comment enumeration cluster: `registry.py` module docstring + namespace list, `facade.list_rules` docstring, registry `CLAUDE.md` "Selectable ≠ all", `cli/__init__.py` ("two commands" → it has five), `runtime_fixes.py` ordering comment | doc/code | Low | **fixed** (all sites) |
 | R6 | CLI declares an unused direct dependency on `galaxy-tool-refactor-rules` (reached only transitively via the facade) | boundary | Low | **fixed** (dropped from `dependencies` + `[tool.uv.sources]`; `uv sync` re-run) |
 | R7 | No CLI-level end-to-end test for a runtime-gated fix during `upgrade` (the facade + codemod layers have it; the 24.1 migration is double-covered) | contract-enforcement | Low | **proposal** (low risk — facade test covers it) |
@@ -576,7 +576,7 @@ the no-profile **16.01** runtime baseline (warning correctness depends on it) an
 `resolve_profile(None) → 16.01 → 16.10`; the four frozen tier-1 result dataclasses
 (note: a just-shipped fix, finding N3 — not a long-standing invariant); tier-0.5
 dependency-freedom; fmt cosmetic-only + the `Rule.edits` describe-vs-mutate split;
-check-tier purity + the IUC011/012 reserved stubs; and that the `RuntimeGatedFix`
+check-tier purity + the GTR031/012 reserved stubs; and that the `RuntimeGatedFix`
 *design* is sound (the `introduced_profile` marker is runtime-test-enforced, not
 type-checker-enforced; membership in `coded_codemods()` keeps it collision-guarded;
 the facade applies `runtime_fixes_for(reached, *, baseline)` after `UpgradeToLatest`

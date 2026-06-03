@@ -9,7 +9,7 @@ The **structure** tier of the Galaxy refactoring architecture:
 | 1 | **parsing & validation** | `galaxy-tool-xml` | parse · profile-aware validate · typed view |
 | 2 | **structure** | **`galaxy-tool-xml-codemod`** *(this repo)* | structural refactors |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | cosmetic `black`-like formatter |
-| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only IUC checks |
+| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only checks |
 | 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | unified rules + presets (facade) |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | composes the tiers via the facade (`format` / `upgrade` / `check`) |
 
@@ -44,7 +44,7 @@ The codemods:
 - `ReorderToolChildren` — IUC `<tool>` child-element order (best-practice #52);
   validity-safe because the `<tool>` content model is order-free (`xs:all`).
 
-Every bundled codemod carries a `RuleMeta` GTX code (GTX002, GTX005–GTX013);
+Every bundled codemod carries a `RuleMeta` GTR code (GTR002, GTR005–GTR013);
 `catalog.coded_codemods()` enumerates them. See `docs/decisions.md` §15–17.
 
 The upgrade registry is grown empirically: the `corpus_check codemod`
@@ -76,7 +76,7 @@ for codemod_cls in CANONICAL_CODEMODS:
 | `cursor.Cursor` | lxml-backed view with read + typed mutation primitives. |
 | `codemod.CodemodCommand` | Base for user-authored codemods (tag-PascalCase dispatch). |
 | `codemods.fix_typos.FixTypos` | Repair near-miss typos until a globally-invalid tool validates (canonical, runs first). |
-| `codemods.normalize_boolean_values.NormalizeBooleanValues` | Normalize Python-style boolean values (`True`/`Yes`/…) to `xs:boolean` until a globally-invalid tool validates (canonical, GTX017). |
+| `codemods.normalize_boolean_values.NormalizeBooleanValues` | Normalize Python-style boolean values (`True`/`Yes`/…) to `xs:boolean` until a globally-invalid tool validates (canonical, GTR017). |
 | `upgrades.UpgradeToLatest` | In `AUTO_UPGRADE_CODEMODS`. Loop UpdateProfile + single-step upgrades to reach the latest profile. |
 | `codemods.update_profile.UpdateProfile` | Declare the newest profile the tool validates at, bump-up-only. Building block run *inside* `UpgradeToLatest` — not itself a pipeline member. |
 | `upgrades.UPGRADE_CODEMODS` | Registry: sticking version → its single-step upgrade codemod. |
@@ -87,7 +87,7 @@ for codemod_cls in CANONICAL_CODEMODS:
 | `codemods.reorder_tool_children.ReorderToolChildren` | IUC `<tool>` child-element order (#52). |
 | `canonical.CANONICAL_CODEMODS` | Ordered canonical/format pipeline (the app's `format` command). |
 | `canonical.AUTO_UPGRADE_CODEMODS` | Ordered opt-in upgrade pipeline (the app's `upgrade` command). |
-| `catalog.coded_codemods` | Every GTX-coded codemod, sorted by code (for the rule registry). |
+| `catalog.coded_codemods` | Every GTR-coded codemod, sorted by code (for the rule registry). |
 | `eligibility.corpus_test_profile` | Codemod-sweep validation-profile policy (sweep default). |
 
 ## Setup

@@ -6,9 +6,9 @@ Where `galaxy-tool-refactor upgrade` moves a tool's profile: the profile it
 the `UpgradeToLatest` pipeline runs. This differs from
 `combined_corpus_stats.md`'s *newest valid profile distribution* (the
 pre-upgrade validity ceiling): here the structural upgrade codemods
-(GTX007-012) actually run, so a tool stuck below its ceiling by a
+(GTR007-012) actually run, so a tool stuck below its ceiling by a
 restrict-transition climbs. `UpgradeToLatest`-only (no `FixTypos`); the
-runtime-gated fixes (GTX014/015) don't change `profile=`. See
+runtime-gated fixes (GTR014/015) don't change `profile=`. See
 `profile_upgrades.md` and codemod `docs/decisions.md` §11-14.
 
 Regenerate with (needs the corpus, so not run in CI):

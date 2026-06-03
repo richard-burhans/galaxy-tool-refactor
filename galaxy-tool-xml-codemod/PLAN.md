@@ -102,9 +102,9 @@ The two structural rules previously in `galaxy-tool-xml-fmt` have
 been ported as proper codemods (verb-noun naming, TDD):
 
 - `codemods/reorder_param_attributes.py::ReorderParamAttributes`
-  (was fmt GTX002). Lifts `_IUC_PRIORITY` verbatim.
+  (was fmt GTR002). Lifts `_IUC_PRIORITY` verbatim.
 - `codemods/reorder_tool_attributes.py::ReorderToolAttributes`
-  (was fmt GTX005). Lifts `_TOOL_PRIORITY` verbatim.
+  (was fmt GTR005). Lifts `_TOOL_PRIORITY` verbatim.
 - `canonical.py` exposes `CANONICAL_CODEMODS` and `AUTO_UPGRADE_CODEMODS`
   (`tuple[type[CodemodCommand], ...]`). The tier-4 app
   (`galaxy-tool-refactor-cli`) consumes them; fmt is cosmetic-only and does

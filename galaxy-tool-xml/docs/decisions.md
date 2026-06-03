@@ -645,19 +645,19 @@ that merely mentions an interpreter in a comment is counted as that interpreter.
 **Date:** 2026-05-29.
 
 - **What we chose:** a fourth `corpus_check` subcommand, `rules`, that runs
-  **every** GTX rule *in isolation* (no other rules) across the corpus and
-  writes `docs/corpus_rule_stats.md`. fmt rules (GTX001/003/004) are gated on
+  **every** GTR rule *in isolation* (no other rules) across the corpus and
+  writes `docs/corpus_rule_stats.md`. fmt rules (GTR001/003/004) are gated on
   validation and checked for **idempotence + no-crash only** — a rule like
-  GTX003 run without GTX001 emits valid-but-non-canonical output, which is
+  GTR003 run without GTR001 emits valid-but-non-canonical output, which is
   expected; we only assert it is stable and does not raise. Codemods
-  (GTX002, GTX005–GTX012) reuse the existing `codemod` exercise (idempotence +
-  post-codemod validity + eligibility), and `UpgradeToLatest` (GTX012)
+  (GTR002, GTR005–GTR012) reuse the existing `codemod` exercise (idempotence +
+  post-codemod validity + eligibility), and `UpgradeToLatest` (GTR012)
   additionally surfaces its reach / sticking-point / per-step-advance discovery
   as upgrade QA. Failures retain to the owning tier's regression fixtures.
 - **Why:** the `fmt` sweep runs all fmt rules together and the `codemod` sweep
   runs one codemod at a time; neither gave a single, persisted per-rule QA view
   across both tiers. Isolating each rule pinpoints which rule owns a regression
-  and keeps the GTX registry honest. The upgrade characterization lives here as
+  and keeps the GTR registry honest. The upgrade characterization lives here as
   QA (the `UpgradeToLatest` row) rather than as a separate user-facing page,
   since `corpus_check codemod` already isolates it and `measure.py
   upgrade-headroom` (§10.12) sizes the addressable population.
@@ -745,10 +745,10 @@ Two small, dependency-light modules analyse `<command>` Cheetah/shell text:
   quoting-safety buckets, exposing the provable subset `{safe, attr_safe,
   builtin_path}`.
 
-**Why tier 1.** Both the advisory IUC011 check (tier 3.5) *and* the GTX020 quoting
+**Why tier 1.** Both the advisory GTR031 check (tier 3.5) *and* the GTR020 quoting
 codemod (tier 2) need them. Shared code below both must sit in tier 1 (tier 0.5 is
 RuleMeta-only, no `etree`); the parsing foundation is the natural home, and it keeps
 the codemod from depending upward on the check tier. The lexer began life in the
-check tier (where IUC011 shipped) and moved here when GTX020 was added; `scripts.measure`
+check tier (where GTR031 shipped) and moved here when GTR020 was added; `scripts.measure`
 imports the same classifier so the corpus sizing and the codemod never diverge.
 These are *analysis* helpers (string in, data out) — the library still emits no XML.

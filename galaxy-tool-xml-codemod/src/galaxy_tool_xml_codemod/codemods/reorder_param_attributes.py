@@ -1,6 +1,6 @@
 """Codemod: rewrite ``<param>`` attribute order to the IUC convention.
 
-Port of the fmt package's GTX002 rule, restated as a structural codemod.
+Port of the fmt package's GTR002 rule, restated as a structural codemod.
 Mutually-exclusive pairs (``min`` / ``truevalue``, ``max`` / ``falsevalue``,
 ``value`` / ``checked``) share a priority slot; in practice only one of
 each pair appears on a given ``<param>``. Attributes outside the IUC
@@ -41,7 +41,7 @@ class ReorderParamAttributes(CodemodCommand):
     """Reorder every ``<param>`` element's attributes to the IUC convention."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTX002",
+        code="GTR002",
         summary="Reorder every <param> element's attributes to the IUC convention.",
         since="0.0.1",
         cite="https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html",

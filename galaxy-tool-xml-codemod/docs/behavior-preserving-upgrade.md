@@ -45,7 +45,7 @@ Pinnable = can the *old* behaviour be restored while *declaring the new profile*
 | **16.04** | non-zero exit (not stderr) is the error default; `set -e` on | ⚠️ **partial** | restorable via an explicit `detect_errors` / `<stdio>` block, but reproducing the exact legacy stderr-check is involved (note: most corpus tools are already ≥16.10, so 16.04 only bites the no-/sub-16.04-profile baseline) |
 | **24.0** | undeclared `data_source` request params dropped | ⚠️ **partial** | declare them in `<request_param_translation>` — only for `data_source` tools, and the original param set isn't always recoverable |
 | **25.1** | credentials move to `<credentials>` | ⚠️ **partial** | a structural migration, but needs knowing which credentials the tool used |
-| **24.2** | `data_column` params require a valid `data_ref` | ⚠️ **needs author intent** | the *correct* `data_ref` can't be guessed (this is the validity-blocking part GTX010-adjacent work would face) |
+| **24.2** | `data_column` params require a valid `data_ref` | ⚠️ **needs author intent** | the *correct* `data_ref` can't be guessed (this is the validity-blocking part GTR010-adjacent work would face) |
 | **18.01** per-job `$HOME` · **18.09** qualified input refs · **19.05** Python 2→3 · **20.05** JSON `None`/lists · **20.09** `set -e` (multi-command) · **21.09** `from_work_dir` whitespace / `data_source` venv · **23.0** optional-text → `None` | various runtime defaults | ❌ **no XML knob** | preserving these means editing the tool's command/Cheetah/dependencies (or not bumping at all); not mechanically or safely synthesizable |
 
 ## What supporting it would require
@@ -119,8 +119,8 @@ introduction profile (codemod `decisions.md` §24).
 
 | Galaxy `must_fix` code | Profile | Auto? | Note |
 |---|---|---|---|
-| `21_09_fix_from_work_dir_whitespace` | 21.09 | **AUTO — shipped** | `FixFromWorkDirWhitespace` (GTX014): deterministic `value.strip()` on `<data from_work_dir>`, applied as a runtime-gated fix during `upgrade` |
-| `16_04_fix_output_format` | 16.04 | **AUTO-with-heuristic — shipped** | `FixOutputFormatInput` (GTX015): `format="input"` → `format_source="X"` for a single top-level data input — the deduped sweep fixes 79 tools (the `output-format-input` measure sizes the raw split: 109 of ~150 are single-top-level); multi/nested/no-input cases reported |
+| `21_09_fix_from_work_dir_whitespace` | 21.09 | **AUTO — shipped** | `FixFromWorkDirWhitespace` (GTR014): deterministic `value.strip()` on `<data from_work_dir>`, applied as a runtime-gated fix during `upgrade` |
+| `16_04_fix_output_format` | 16.04 | **AUTO-with-heuristic — shipped** | `FixOutputFormatInput` (GTR015): `format="input"` → `format_source="X"` for a single top-level data input — the deduped sweep fixes 79 tools (the `output-format-input` measure sizes the raw split: 109 of ~150 are single-top-level); multi/nested/no-input cases reported |
 | `16_04_fix_interpreter` | 16.04 | NEEDS-INTENT | rewriting `interpreter=` to a full `$__tool_directory__` call needs the script name/position — better as an advisory `check` |
 | `24_2_fix_test_case_validation` | 24.2 | NEEDS-INTENT | a bundle of parameter-model fixes (unknown-param, select-by-value, column-int, qualify names); decompose later |
 

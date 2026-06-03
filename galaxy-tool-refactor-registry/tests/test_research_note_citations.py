@@ -6,7 +6,7 @@ The per-code upgrade-research notes quote "first-blocker" / "stuck" counts that 
 from ``docs/upgrade_behavior_block_stats.md`` (and a few interpreter-bucket counts
 from ``docs/interpreter_bucket_stats.md``). Those artifacts are regenerated from
 corpus sweeps; the notes are hand-written prose. When an artifact was re-walked
-(after GTX016 shipped + the ``20_09_consider_set_e`` detector was tightened) the
+(after GTR016 shipped + the ``20_09_consider_set_e`` detector was tightened) the
 first-blocker counts shifted and **five notes silently kept the old numbers** —
 exactly the drift the ``docs/*_stats.md`` coverage guard
 (``test_stat_artifact_coverage``) does *not* catch, because it guards generated

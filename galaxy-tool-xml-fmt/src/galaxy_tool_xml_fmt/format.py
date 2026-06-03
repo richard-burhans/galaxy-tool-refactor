@@ -101,7 +101,7 @@ def format_tool_document_subset(
 
     This is the per-rule seam the rule-selection facade
     (``galaxy-tool-refactor-registry``) uses. A coherent subset (the shipped
-    presets always include the full GTX001/GTX003/GTX004 trio) is idempotent;
+    presets always include the full GTR001/GTR003/GTR004 trio) is idempotent;
     an arbitrary single-rule subset is the caller's responsibility — running
     one whitespace rule without the others can leave non-canonical trivia.
 

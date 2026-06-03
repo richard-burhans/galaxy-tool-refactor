@@ -56,21 +56,21 @@ See [soundness](../soundness.md) for exactly what `upgrade` guarantees.
 
 ```text
 $ galaxy-tool-refactor check --preset strict tools/qualimap/qualimap_macros.xml
-tools/qualimap/qualimap_macros.xml:3   GTX001  Canonical 4-space indentation; no tabs.
-tools/qualimap/qualimap_macros.xml:16  GTX001  Canonical 4-space indentation; no tabs.
+tools/qualimap/qualimap_macros.xml:3   GTR001  Canonical 4-space indentation; no tabs.
+tools/qualimap/qualimap_macros.xml:16  GTR001  Canonical 4-space indentation; no tabs.
 …
 4 fixable finding(s) in 1 file(s).
 ```
 
-`check` exits non-zero on any *fixable* (GTX) finding; advisory (IUC) findings are
+`check` exits non-zero on any *fixable* finding; advisory findings are
 informational unless you add `--strict`.
 
 ## Choosing rules (shared across format / upgrade / check)
 
 ```sh
-galaxy-tool-refactor check  --preset strict   tools/      # +advisory IUC checks
-galaxy-tool-refactor format --select GTX001,GTX003 tool.xml  # only these rules
-galaxy-tool-refactor format --ignore GTX006   tool.xml      # everything-but typo repair
+galaxy-tool-refactor check  --preset strict   tools/      # +advisory checks
+galaxy-tool-refactor format --select GTR001,GTR003 tool.xml  # only these rules
+galaxy-tool-refactor format --ignore GTR006   tool.xml      # everything-but typo repair
 ```
 
 Precedence is ruff-style: `--ignore` ▸ `--select` ▸ `--preset` (and `--select` replaces

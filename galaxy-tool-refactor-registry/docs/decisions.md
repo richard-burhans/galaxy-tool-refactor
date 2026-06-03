@@ -8,8 +8,8 @@ rationale. Mirrors the conventions of the sibling packages' `docs/decisions.md`.
 ### Decision
 
 A new package, `galaxy-tool-refactor-registry`, exposes a unified,
-code-addressable view over the three rule families (codemod GTX, fmt GTX,
-advisory IUC), named presets (`cosmetic` / `iuc` / `strict`, default `iuc`),
+code-addressable view over the three rule families (codemod GTR, fmt GTR,
+advisory), named presets (`cosmetic` / `iuc` / `strict`, default `iuc`),
 per-rule `--select`/`--ignore`, and a **library-first** `run`/`upgrade`/`detect`
 API. The `galaxy-tool-refactor` CLI is rewired to consume it; a future MCP server
 (`galaxy-tool-refactor-mcp`) will too.
@@ -46,10 +46,10 @@ and has `apply=None`.
 The three families have genuinely different mechanics (Change/thunk vs.
 Edit-on-tree vs. report-only). A single thin handle lets the registry, presets,
 and facade treat every rule the same and address it by `RuleMeta.code` — which is
-also the unit a future MCP tool or a plugin loader enumerates. The GTX/IUC code
+also the unit a future MCP tool or a plugin loader enumerates. The GTR code
 namespace is collision-free (fmt 001/003/004; canonical codemods
 002/005/006/013/017/018/019; upgrade codemods 007–012; runtime-gated fixes 014–016;
-checks IUC001–013); `registry._index` asserts it so a
+checks GTR021–GTR033); `registry._index` asserts it so a
 future code clash fails loudly rather than silently shadowing.
 
 ## D3 (2026-05-30) — Presets, default `iuc`, and selectable vs. upgrade-only
@@ -59,23 +59,23 @@ future code clash fails loudly rather than silently shadowing.
 Three presets, derived from the family registries (single source of truth, no
 hardcoded code lists that can drift):
 
-- `cosmetic` = fmt cosmetic rules (GTX001/003/004).
-- `iuc` = `CANONICAL_CODEMODS` (GTX006/017/002/005/013) + cosmetic — **the
+- `cosmetic` = fmt cosmetic rules (GTR001/003/004).
+- `iuc` = `CANONICAL_CODEMODS` (GTR006/017/002/005/013) + cosmetic — **the
   default**. Byte-identical to the previous `format` pipeline on already-valid
-  tools (pinned by a regression test); GTX017 (`NormalizeBooleanValues`), like
-  GTX006 (`FixTypos`), is a no-op unless the tool validates nowhere.
-- `strict` = `iuc` + every advisory IUC check (report-only).
+  tools (pinned by a regression test); GTR017 (`NormalizeBooleanValues`), like
+  GTR006 (`FixTypos`), is a no-op unless the tool validates nowhere.
+- `strict` = `iuc` + every advisory check (report-only).
 
 The selectable set (`registry()`, what `--select`/`--ignore` accept) is exactly
 canonical codemods + cosmetic fmt + advisory checks. The upgrade-only codemods —
-GTX007–GTX012 (internal to `UpgradeToLatest`'s loop) and the runtime-gated
-GTX014–GTX016 (applied by `upgrade`) — are **not** selectable; they surface only
+GTR007–GTR012 (internal to `UpgradeToLatest`'s loop) and the runtime-gated
+GTR014–GTR016 (applied by `upgrade`) — are **not** selectable; they surface only
 via `list_rules(include_upgrade=True)`.
 
 ### Rationale
 
-`strict` includes the *whole* advisory family rather than freezing at IUC001–010,
-so when the reserved IUC011/IUC012 stubs gain real logic they are automatically
+`strict` includes the *whole* advisory family rather than freezing at GTR021–GTR030,
+so when the reserved GTR031/GTR032 stubs gain real logic they are automatically
 covered; today they fire nothing, so this is observationally identical. Default
 `iuc` keeps bare `format` unchanged for existing users. Excluding the upgrade-only
 codes from selection avoids exposing internal pipeline steps as if they were
@@ -101,7 +101,7 @@ standalone, user-toggleable rules.
   `UpgradeToLatest` unconditionally (its purpose) plus the fixable rules from
   `resolve_upgrade_codes` (base = `FixTypos` + cosmetic fmt; `FixTypos` runs
   first as the repair precondition). `--select`/`--ignore` adjust that base — e.g.
-  `--ignore GTX006` upgrades without typo repair.
+  `--ignore GTR006` upgrades without typo repair.
 
 ### Rationale
 
@@ -129,7 +129,7 @@ galaxy-tool-refactor-registry/tests/test_macro_profile.py`.
 
 - **What we chose.** `macro_profile.py` — the pure decision core for upgrading a
   `profile="@TOKEN@"` whose token is defined in an *imported* macro file (the
-  ~1,382-tool bulk; the inline case is `UpdateProfile`/GTX007). Two pieces kept
+  ~1,382-tool bulk; the inline case is `UpdateProfile`/GTR007). Two pieces kept
   separate so the policy is testable without I/O: `profile_token_site(document)`
   reads one tool and returns the defining macro file + token name + the tool's
   `newest_valid_profile` target (or `None` for a literal/inline/unresolved
@@ -167,8 +167,8 @@ galaxy-tool-refactor-registry/tests/test_stat_artifact_coverage.py`.
   sweeps, each owned by a *different* `scripts/corpus_check.py` subcommand
   (`corpus_check_stats.md`←`check`, `corpus_rule_stats.md`←`rules`,
   `corpus_format_stats.md`←`fmt`). Nothing *forced* the regen, so pages drifted:
-  GTX014–GTX017 silently lagged out of the rule + format pages for **four PRs**
-  (both stuck at the GTX013 sweep) until the GTX018/GTX019 PR caught them up.
+  GTR014–GTR017 silently lagged out of the rule + format pages for **four PRs**
+  (both stuck at the GTR013 sweep) until the GTR018/GTR019 PR caught them up.
 - **What we chose (Phase 1).** A coverage guard mirroring
   `test_serializer_allowlist.py`: a test-local `STAT_ARTIFACTS` manifest maps each
   page → its regen command → the code-set it must list, with the code-set derived
@@ -182,7 +182,7 @@ galaxy-tool-refactor-registry/tests/test_stat_artifact_coverage.py`.
   **not** verify the corpus-measured counts (those need the corpus, unavailable in
   CI). The per-page code-sets match the generators exactly: check =
   fmt ∪ canonical-codemod ∪ advisory-IUC; rule/format = fmt ∪ *all* coded codemods
-  (incl. the upgrade-only GTX007–GTX012 the glossary lists).
+  (incl. the upgrade-only GTR007–GTR012 the glossary lists).
 - **Home — registry/tests, not `scripts/`.** The guard needs every rule family's
   registry; the registry tier already imports all of them. It cannot live in a
   `scripts/`-importing test because the registry package has its own
@@ -213,7 +213,7 @@ galaxy-tool-refactor-registry/tests/test_research_note_citations.py`.
   the hand-written per-code notes under `docs/upgrade_research/` *quote* numbers
   **from** those pages (first-blocker / stuck counts from
   `upgrade_behavior_block_stats.md`; A / A+A-missing bucket counts from
-  `interpreter_bucket_stats.md`). When an artifact was re-walked (post-GTX016 + the
+  `interpreter_bucket_stats.md`). When an artifact was re-walked (post-GTR016 + the
   `20_09_consider_set_e` tightening) the counts shifted and **five notes silently
   kept the old numbers** (`16_04_fix_output_format` 18→33,
   `16_04_consider_implicit_extra_file_collection` ~3,971→5,381,
@@ -241,7 +241,7 @@ galaxy-tool-refactor-registry/tests/test_macro_datatype.py`; corpus sizing
 `uv run python -m scripts.measure macro-format-residual`
 (`docs/macro_format_residual_stats.md`).
 
-- **The gap.** `Upgrade24_1` (GTX010) lowercases `format`/`ftype` to satisfy the 24.2
+- **The gap.** `Upgrade24_1` (GTR010) lowercases `format`/`ftype` to satisfy the 24.2
   pattern facet, but only on the tool's **own** tree. A coercible value defined in an
   *imported* macro file (e.g. `<data format="GTiff">` in `gdal_macros.xml`) is
   unreachable from the per-tool pipeline, so **15** corpus tools stay stuck below 24.2
@@ -270,3 +270,82 @@ galaxy-tool-refactor-registry/tests/test_macro_datatype.py`; corpus sizing
 - **Scope.** Phase 2a only — literal values. Token-supplied (`format="@FORMAT@"`) and
   arbitrary expanded-node edits need the general expansion-provenance layer (Phase 2b),
   still deferred (`docs/macro_handling_architecture.md` §6, §7).
+
+## D9 (2026-06-03) — Unified `GTR` rule namespace (retire the GTX/IUC split)
+
+### Decision
+
+Every rule across all three families now carries a single `GTR###` ("Galaxy Tool
+Refactor") code. The historical two-prefix scheme — `GTX` for fixable (fmt +
+codemod) rules, `IUC` for advisory checks — is retired. **Fixability is a rule
+property** (`RuleHandle.fixable` / `RuleMeta.detect_only`), never encoded in the
+code prefix. This is PR A of the sub-rule/partition work (Flavor 1); PR B adds the
+dotted `GTR###.1`/`.2` partition sub-rules.
+
+### Rationale
+
+- The `GTX`/`IUC` split was incidental (it grew out of the order rules were added),
+  and it conflated *identity* with *fixability*. The sub-rule partition work makes
+  that conflation untenable: a single best-practice can have both a fixable part and
+  an advisory part, so its code cannot live in a fixable-or-advisory prefix.
+- One namespace is less to explain and impossible to mis-bucket. The collision
+  guard (`registry._index`) now polices one space. The advisory checks
+  (`GTR021`–`GTR033`) still *enforce* the external **IUC best-practices** standard —
+  that name refers to the standard, not to our code prefix.
+
+### Mapping (old → new), number-preserving
+
+`GTX0NN → GTR0NN` (prefix swap, number kept); `IUC0NN → GTR0(NN+20)`. So
+`GTX001…GTX020 → GTR001…GTR020`, and `IUC001…IUC013 → GTR021…GTR033`. Every prose
+range stayed consecutive (`GTX007–012 → GTR007–012`, `IUC001–010 → GTR021–030`).
+
+| New | Old | Rule | Family / fixable |
+|---|---|---|---|
+| GTR001 | GTX001 | indent | fmt / fixable |
+| GTR002 | GTX002 | reorder `<param>` attrs | codemod / fixable |
+| GTR003 | GTX003 | blank line between `<tool>` children | fmt / fixable |
+| GTR004 | GTX004 | empty-element shorthand | fmt / fixable |
+| GTR005 | GTX005 | reorder `<tool>` attrs | codemod / fixable |
+| GTR006 | GTX006 | FixTypos | codemod / fixable |
+| GTR007 | GTX007 | UpdateProfile | codemod / upgrade-only |
+| GTR008 | GTX008 | Upgrade19_01 | codemod / upgrade-only |
+| GTR009 | GTX009 | Upgrade24_0 | codemod / upgrade-only |
+| GTR010 | GTX010 | Upgrade24_1 | codemod / upgrade-only |
+| GTR011 | GTX011 | Upgrade25_1 | codemod / upgrade-only |
+| GTR012 | GTX012 | UpgradeToLatest | codemod / upgrade-only |
+| GTR013 | GTX013 | reorder `<tool>` children | codemod / fixable |
+| GTR014 | GTX014 | FixFromWorkDirWhitespace | codemod / runtime-gated |
+| GTR015 | GTX015 | FixOutputFormatInput | codemod / runtime-gated |
+| GTR016 | GTX016 | FixInterpreter | codemod / runtime-gated |
+| GTR017 | GTX017 | NormalizeBooleanValues | codemod / fixable |
+| GTR018 | GTX018 | WrapCommandCdata | codemod / fixable |
+| GTR019 | GTX019 | WrapHelpCdata | codemod / fixable |
+| GTR020 | GTX020 | SingleQuoteCommandVars | codemod / fixable |
+| GTR021 | IUC001 | tests present | check / advisory |
+| GTR022 | IUC002 | `<command>` CDATA | check / advisory |
+| GTR023 | IUC003 | id charset | check / advisory |
+| GTR024 | IUC004 | version format | check / advisory |
+| GTR025 | IUC005 | requirements present | check / advisory |
+| GTR026 | IUC006 | error handling | check / advisory |
+| GTR027 | IUC007 | EDAM/xrefs | check / advisory |
+| GTR028 | IUC008 | help present | check / advisory |
+| GTR029 | IUC009 | description present | check / advisory |
+| GTR030 | IUC010 | `<help>` CDATA | check / advisory |
+| GTR031 | IUC011 | single-quote `$var` | check / advisory |
+| GTR032 | IUC012 | `&&`-vs-lone-`&` (no-op stub) | check / advisory |
+| GTR033 | IUC013 | requirement version pinned | check / advisory |
+
+### Note for PR B
+
+The three command/help/quoting practices each have a fixable rule **and** an
+advisory residual (GTR018/GTR022, GTR019/GTR030, GTR020/GTR031). PR B collapses each
+pair into a partition parent + `.1` (fix) / `.2` (advisory-residual) sub-rule and
+restricts the advisory to the non-provable complement. Until then they remain
+distinct flat codes (overlapping, as before the rename).
+
+### Reproduction
+
+```sh
+bash scripts/qa_gate.sh
+uv run galaxy-tool-refactor rules           # every code now GTR###
+```
