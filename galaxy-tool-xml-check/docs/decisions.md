@@ -33,28 +33,29 @@ PR4 of the detect/fix rule-split effort (PR1–5, merged in #15).
 
 ### Scope
 
-Implemented (10): `IUC001` tests present · `IUC002` `<command>` CDATA · `IUC003`
+Implemented (10 at PR4; `IUC011` added later — see D5): `IUC001` tests present ·
+`IUC002` `<command>` CDATA · `IUC003`
 id charset · `IUC004` version PEP 440 / `@…@` macro · `IUC005` requirements
 present · `IUC006` error handling (`detect_errors` / `<stdio>`) · `IUC007`
 EDAM/xrefs present · `IUC008` non-empty `<help>` · `IUC009` non-empty
 `<description>` · `IUC010` `<help>` CDATA.
 
-Reserved placeholders (`detect()` is a no-op stub, pending tuning to avoid
-noise): `IUC011` single-quote Cheetah variables, `IUC012` `&&`-vs-lone-`&`
+Reserved placeholders at PR4 (`detect()` a no-op stub, pending tuning to avoid
+noise): `IUC011` single-quote Cheetah variables and `IUC012` `&&`-vs-lone-`&`
 command joining — both require parsing shell/Cheetah text inside `<command>`
-CDATA and are deferred. A standalone "profile recency" check is intentionally
-omitted: it overlaps `GTX007` / the `upgrade` command.
+CDATA. **Both were later settled with data (see D3/D4/D5):** `IUC012` stays a
+no-op (the anti-pattern is ~1 tool corpus-wide, D3); `IUC011` shipped with a
+read-only command lexer (D5) once a refined measure showed its signal is real
+(D4). A standalone "profile recency" check is intentionally omitted: it overlaps
+`GTX007` / the `upgrade` command.
 
-**The deferral is now backed by data** (2026-05-30, combined corpus;
-Reproduced-by: `uv run python -m scripts.measure command-iuc-heuristics`). Of
-9,318 tools with a `<command>`, the crude `IUC011` heuristic (any `$var` not
-immediately preceded by a single quote) would fire on **8,126 tools (87.2%),
-115,007 findings** — confirming the noise concern: most matches are Cheetah
-directives (`#if $x`), not unquoted shell arguments, so a literal-text `IUC011`
-is not worth shipping without real Cheetah-aware parsing. `IUC012` (a lone `&`)
-is far rarer — **431 tools (4.6%), 640 findings** — so it is the tractable one
-to implement first should we revisit these. The measurement is the sizing tool
-for that decision.
+**The PR4 crude sizing** (2026-05-30, combined corpus; Reproduced-by: `uv run
+python -m scripts.measure command-iuc-heuristics`): of 9,318 tools with a
+`<command>`, the crude `IUC011` heuristic (any `$var` not immediately preceded by
+a single quote) fired on **8,126 tools (87.2%)** — but most matches are Cheetah
+directives (`#if $x`), not shell arguments. D4 refines this (directive-excluded,
+quote-aware) to the genuine 73.2%, and D5 ships the check on that basis; `IUC012`
+remained a lone-`&` at 431 tools but D3 shows ~all are redirects/pipes/literals.
 
 ### Caveats
 
@@ -72,8 +73,9 @@ for that decision.
 uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/
 # per-check corpus hit rates: see docs/corpus_check_stats.md (full sweep, the
 # authoritative source). PR4 first validated with a 2,000-tool sanity sample;
-# none of the 10 active checks fire at 0% or 100% (the IUC011/IUC012
-# placeholders correctly flag nothing). Regenerate with:
+# none of the 10 active checks fire at 0% or 100% (at PR4 the IUC011/IUC012
+# placeholders flagged nothing; IUC011 now ships — D5 — IUC012 still does not).
+# Regenerate with:
 uv run python -m scripts.corpus_check check
 ```
 
@@ -112,8 +114,8 @@ rules. It writes `docs/corpus_check_stats.md` (a *fixable* GTX table and an
 0 crashes. Headlines: GTX003 blank-line 99.4% · GTX001 indent 71.7% · GTX002
 param-order 71.3% · GTX013 child-order 53.9%; IUC007 EDAM/xrefs 89.6% · IUC005
 requirements 57.3% · IUC002 command-CDATA 35.2% · IUC010 help-CDATA 39.6%;
-placeholders IUC011/IUC012 0%. See `docs/corpus_check_stats.md` for the full
-table (the authoritative source).
+placeholders IUC011/IUC012 0% *(at PR5; IUC011 now 71.5% — D5)*. See
+`docs/corpus_check_stats.md` for the full table (the authoritative source).
 
 ### Reproduction
 
@@ -208,3 +210,48 @@ disqualifier here; it is the IUC best practice, and most tools violate it.
 The reserved `IUC011` code stays a no-op `detect` until that lexer + reporting
 shape are decided; this entry records that the *signal* question is now settled —
 yes.
+
+## D5 (2026-06-03) — IUC011 ships: a read-only command-text lexer, per-occurrence
+
+### Decision
+
+`IUC011` (single-quote Cheetah `$var` in `<command>`) is now **implemented** —
+the first command-CDATA-text check, and the first to need more than an XML query.
+It reports **one advisory finding per fully-unquoted shell-line `$var`**, each
+naming the variable and the fix (`single-quote it as '$x'`).
+
+### How
+
+A new **read-only lexer**, `command_text.unquoted_cheetah_vars(text)`
+(`galaxy-tool-xml-check/.../command_text.py`), does a single character scan that:
+- tracks `'…'` / `"…"` quote state **across newlines** (a span may cross lines);
+- skips **Cheetah directive/comment lines** (`#if`, `#set`, `##`) — but only when
+  the leading `#` is *outside* a quote, so a `#` line inside a multi-line string
+  stays literal;
+- reports a `$var` only when **fully unquoted** (a double-quoted `$var` is a lesser
+  concern, intentionally not flagged — keeps the check to the genuine
+  word-splitting/injection hazard).
+
+This is the **detection-only slice of the codemod tier's deferred M5** Cheetah/
+shell lexer (`../../galaxy-tool-xml-codemod/PLAN.md`): because it classifies and
+never rewrites, it needs none of M4 / the mutation cursors / macro provenance.
+`IUC012` stays a no-op (D3); the M5 mutation subsystem stays deferred.
+
+### Reporting shape
+
+**Per-occurrence**, not one-per-tool: each finding carries the var's own
+`sourceline` (`<command>` sourceline + the lexer's newline offset) and points at a
+specific `$var` to quote — more actionable for a linter, at ~7 findings per
+flagged tool. (The alternative one-per-tool shape was considered and declined.)
+
+### Corpus impact
+
+Reproduced-by: `uv run --package galaxy-tool-xml-check pytest
+galaxy-tool-xml-check/tests/test_command_text.py
+galaxy-tool-xml-check/tests/test_checks.py`; full sweep `uv run python -m
+scripts.corpus_check check`. IUC011 fires on **6,646 tools (71.5% of 9,289 swept),
+48,850 findings** (`docs/corpus_check_stats.md`) — slightly under the D4 sizing
+(73.2% / 50,380) because the shipped lexer's multi-line-quote tracking correctly
+excludes vars the per-line sizing scan over-counted. `IUC012` remains 0. (The
+regen also added the previously-missing `GTX017` row — the artifact predated it.)
+Advisory, so it never fails `check` unless `--strict`.

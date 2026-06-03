@@ -110,7 +110,7 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 | non-empty `<help>` | IUC008 | done |
 | non-empty `<description>` | IUC009 | done |
 | `<help>` wrapped in CDATA | IUC010 | done |
-| single-quoted Cheetah variables (#36) | IUC011 | **placeholder** (deferred — has signal, see below) |
+| single-quoted Cheetah variables (#36) | IUC011 | **done** (read-only command lexer; see below) |
 | `&&` vs a lone `&` (#39) | IUC012 | **placeholder** (deferred — data-backed, ~dead) |
 
 The two `<command>`-CDATA-text heuristics (IUC011/IUC012) are **reserved
@@ -122,13 +122,14 @@ command-lone-amp`): of the 431 tools the crude lone-`&` heuristic flags, the
 genuine `cmd1 & cmd2` anti-pattern appears in **1** — the rest are redirections
 (`2>&1`), quoted `&` literals (sed/awk), and `|&` pipes. A precise check needs
 the M5 shell lexer, not a regex, and would flag ~1 tool, so IUC012 stays
-deferred. **IUC011 is the opposite** (`docs/decisions.md` D4, `scripts.measure
-command-unquoted-var`): excluding Cheetah directive lines and tracking shell
-quotes, a genuinely-unquoted `$var` still fires on **73.2%** of tools (50,380
-occurrences) — real signal, on par with shipped advisories (IUC005 57.3%, IUC007
-89.6%). IUC011 is worth building; it waits only on a read-only lexer that handles
-multi-line quotes and a reporting-shape decision (per-occurrence vs per-tool), not
-on "is there signal". For *why* the command text is shell at all (Cheetah →
+deferred. **IUC011 is the opposite and now ships** (`docs/decisions.md` D4 +
+**D5**): excluding Cheetah directive lines and tracking shell quotes (across
+newlines), a genuinely-unquoted `$var` fires on **73.2%** of tools — real signal,
+on par with shipped advisories (IUC005 57.3%, IUC007 89.6%). It is implemented as
+a **read-only command-text lexer** (`galaxy-tool-xml-check/.../command_text.py` —
+the detection-only slice of the codemod tier's deferred M5, needing none of the
+matcher language / mutation cursors / provenance), reporting **one finding per
+unquoted occurrence**. For *why* the command text is shell at all (Cheetah →
 whitespace-flatten → `#!/bin/sh` + `set -e`), which grounds both heuristics, see
 [`galaxy_processing_model.md`](galaxy_processing_model.md). "Profile recency" is
 omitted: it overlaps GTX007 / the `upgrade` command.

@@ -102,11 +102,37 @@ def test_iuc010_help_not_cdata() -> None:
     assert "IUC010" not in _codes(_tool())
 
 
-def test_placeholders_never_fire() -> None:
-    """The reserved Cheetah / && placeholders emit nothing on any tool."""
-    codes = _codes(_tool(command="<command><![CDATA[$unquoted && a & b]]></command>"))
-    assert "IUC011" not in codes
+def test_iuc012_placeholder_never_fires() -> None:
+    """IUC012 (&&-vs-lone-&) is a data-backed no-op stub (decisions D3)."""
+    codes = _codes(_tool(command="<command><![CDATA[a & b && c]]></command>"))
     assert "IUC012" not in codes
+
+
+def _iuc011(tool_bytes: bytes) -> list:
+    return [v for v in detect_violations(load_tool(tool_bytes)) if v.code == "IUC011"]
+
+
+def test_iuc011_flags_each_unquoted_cheetah_var() -> None:
+    """One IUC011 finding per fully-unquoted shell-line $var, naming the var."""
+    tool = _tool(command="<command><![CDATA[prog --in $input --ref $ref]]></command>")
+    found = _iuc011(tool)
+    assert len(found) == 2
+    assert {v.message for v in found} == {
+        "unquoted Cheetah variable $input in <command> — single-quote it as '$input'",
+        "unquoted Cheetah variable $ref in <command> — single-quote it as '$ref'",
+    }
+
+
+def test_iuc011_ignores_quoted_and_directive_vars() -> None:
+    """Single/double-quoted vars and directive-line vars are not flagged."""
+    # The default tool single-quotes its one var, so IUC011 stays silent.
+    assert _iuc011(_tool()) == []
+    quoted = _tool(command='<command><![CDATA[prog "$a" \'$b\']]></command>')
+    assert _iuc011(quoted) == []
+    directive = _tool(
+        command="<command><![CDATA[#if $cond\nrun '$x'\n#end if]]></command>"
+    )
+    assert _iuc011(directive) == []
 
 
 def test_violations_are_located() -> None:
