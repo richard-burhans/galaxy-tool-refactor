@@ -263,8 +263,9 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   command-CDATA, id charset, version format, requirements, error handling, EDAM
   xrefs, help, description, help-CDATA). **IUC011** (`SingleQuotedCheetah`) is the
   one command-text check: it reports one advisory per fully-unquoted shell-line
-  Cheetah `$var`. **IUC012** (`CommandAndJoining`, `&&`-vs-lone-`&`) remains a
-  reserved no-op stub — its anti-pattern is ~1 tool corpus-wide (check D3).
+  Cheetah `$var`. **IUC013** (`RequirementVersionPinned`, D7) flags an unpinned
+  `<requirement type="package">`. **IUC012** (`CommandAndJoining`, `&&`-vs-lone-`&`)
+  remains a reserved no-op stub — its anti-pattern is ~1 tool corpus-wide (D3).
 - **`command_text.py`** — the read-only lexer IUC011 reads `<command>` text
   through: a single character scan tracking `'…'` / `"…"` quote state **across
   newlines** and skipping Cheetah directive/comment lines. It only classifies,
@@ -541,3 +542,4 @@ Each abstraction → its file → the decision record that justifies it.
 | IUC001–010 | `TestsPresent` … `HelpCdata` | `galaxy-tool-xml-check/.../checks.py` | check (advisory) |
 | IUC011 | `SingleQuotedCheetah` (uses `command_text.py` lexer) | `galaxy-tool-xml-check/.../checks.py` | check (advisory) |
 | IUC012 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks.py` | check (advisory, reserved no-op stub — D3) |
+| IUC013 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks.py` | check (advisory — D7) |

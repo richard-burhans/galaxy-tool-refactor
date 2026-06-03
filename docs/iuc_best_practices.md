@@ -112,6 +112,7 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 | `<help>` wrapped in CDATA | IUC010 | done |
 | single-quoted Cheetah variables (#36) | IUC011 | **done** (read-only command lexer; see below) |
 | `&&` vs a lone `&` (#39) | IUC012 | **placeholder** (deferred — data-backed, ~dead) |
+| package `<requirement>`s pin a version | IUC013 | **done** (275 tools / 661 findings; check D7) |
 
 The two `<command>`-CDATA-text heuristics (IUC011/IUC012) are **reserved
 placeholders** — registered codes, no-op `detect` — pending tuning to avoid

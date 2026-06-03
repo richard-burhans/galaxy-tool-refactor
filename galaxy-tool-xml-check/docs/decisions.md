@@ -33,7 +33,7 @@ PR4 of the detect/fix rule-split effort (PR1–5, merged in #15).
 
 ### Scope
 
-Implemented (10 at PR4; `IUC011` added later — see D5): `IUC001` tests present ·
+Implemented (10 at PR4; `IUC011` added in D5, `IUC013` in D7): `IUC001` tests present ·
 `IUC002` `<command>` CDATA · `IUC003`
 id charset · `IUC004` version PEP 440 / `@…@` macro · `IUC005` requirements
 present · `IUC006` error handling (`detect_errors` / `<stdio>`) · `IUC007`
@@ -304,3 +304,34 @@ param's kind). Of **49,119** occurrences across **6,699** flagged tools:
 If revisited, the safe scope is a **narrow, opt-in GTX** that quotes only the
 `safe` class (bare single-token params, incl. structured leaves) and never touches
 `non_input` / `multi` — never auto-run under `format`.
+
+## D7 (2026-06-03) — IUC013: package `<requirement>`s should pin a version
+
+### Decision
+
+A new advisory check, `RequirementVersionPinned` (`IUC013`), flags a
+`<requirement type="package">` that carries no `version` — an unpinned conda
+package is not reproducible (a later environment solve can pick a different
+release). It is the first **advisory check added after the original PR4 batch**,
+and a worked example that the check tier grows by one bounded `CheckRule` at a
+time. Surfaced by the post-architecture-audit "next work" survey.
+
+### Scope / predicate
+
+- Only `type="package"` requirements (Galaxy's default when `type` is omitted —
+  4 corpus tools rely on the default) carry a pinnable version; `set_environment`
+  / `resource` / `binary` / `*-module` kinds are skipped. (Of 7,057 corpus
+  `<requirement>`s, 7,053 are `package`.)
+- A `version` that is absent or whitespace-only is "unpinned". A macro-token
+  version (`@TOOL_VERSION@`) counts as pinned (it resolves to a literal).
+- Per-occurrence: one `Violation` per unpinned requirement, naming the package.
+- Advisory (`detect_only`), like every IUC check — informational unless `--strict`.
+
+### Corpus impact
+
+Reproduced-by: `uv run --package galaxy-tool-xml-check pytest
+galaxy-tool-xml-check/tests/test_checks.py`; full sweep `uv run python -m
+scripts.corpus_check check`. IUC013 fires on **275 tools (3.0% of 9,289 swept),
+661 findings** (`docs/corpus_check_stats.md`) — a real, actionable signal between
+the rare and the near-universal advisories, not noise. The check tier is now
+**13 active checks** (IUC012 remains the sole no-op stub, D3).

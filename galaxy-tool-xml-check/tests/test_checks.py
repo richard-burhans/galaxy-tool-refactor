@@ -108,6 +108,39 @@ def test_iuc012_placeholder_never_fires() -> None:
     assert "IUC012" not in codes
 
 
+def test_iuc013_flags_unpinned_package_requirements() -> None:
+    """One IUC013 finding per package <requirement> without a version."""
+    # The default tool pins its requirement, so IUC013 stays silent.
+    assert "IUC013" not in _codes(_tool())
+    unpinned = _tool(
+        requirements=(
+            "<requirements>"
+            '<requirement type="package" version="1.0">pinned</requirement>'
+            '<requirement type="package">loose</requirement>'
+            '<requirement type="package" version="  ">blank</requirement>'
+            "</requirements>"
+        )
+    )
+    found = [v for v in detect_violations(load_tool(unpinned)) if v.code == "IUC013"]
+    assert len(found) == 2  # loose + blank (pinned is fine)
+    assert any("loose" in v.message for v in found)
+
+
+def test_iuc013_ignores_non_package_and_flags_bare_default() -> None:
+    """Non-package kinds carry no version; a bare <requirement> defaults to package."""
+    env = _tool(
+        requirements=(
+            '<requirements><requirement type="set_environment">PATH'
+            "</requirement></requirements>"
+        )
+    )
+    assert "IUC013" not in _codes(env)  # set_environment isn't a package pin
+    bare = _tool(
+        requirements="<requirements><requirement>foo</requirement></requirements>"
+    )
+    assert "IUC013" in _codes(bare)  # no type= defaults to package -> flagged
+
+
 def _iuc011(tool_bytes: bytes) -> list:
     return [v for v in detect_violations(load_tool(tool_bytes)) if v.code == "IUC011"]
 

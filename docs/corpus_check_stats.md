@@ -39,3 +39,4 @@ Detect-only IUC best-practice checks. Advisory: `check` reports them but does no
 | IUC010 | check | 3,680 | 39.6% | 3,680 | `<help>` body should be wrapped in CDATA. |
 | IUC011 | check | 6,646 | 71.5% | 48,850 | Single-quote Cheetah variables in `<command>`. |
 | IUC012 | check | 0 | 0.0% | 0 | Join shell commands with && not a lone & (not yet implemented). |
+| IUC013 | check | 275 | 3.0% | 661 | Package `<requirement>`s should pin a version. |
