@@ -31,7 +31,7 @@ Galaxy emits this **unconditionally** within the 16.04 migration
 guard). Our detector mirrors that: `_DETECTORS["16_04_consider_implicit_extra_file_collection"] = lambda _root: True`.
 
 Because it is unconditional, **every** sub-16.04 tool trips it. This is exactly why
-the `must_fix`+`consider` policy in `../upgrade_behavior_block_stats.md` shows ~3,971
+the `must_fix`+`consider` policy in `../upgrade_behavior_block_stats.md` shows 5,381
 tools stalling here (it is the catalogue-first applicable code at 16.04, so it
 shadows the others as the "first blocker").
 

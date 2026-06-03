@@ -6,7 +6,7 @@
 | **Profile** | 16.04 |
 | **Level** | `must_fix` |
 | **Auto-fix today** | **GTX016** `FixInterpreter` (bucket A; runtime-gated) |
-| **Stuck tools** (must_fix-only) | **1,726** (see `../upgrade_behavior_block_stats.md`) |
+| **Stuck tools** (must_fix-only) | **316** now (post-GTX016; see `../upgrade_behavior_block_stats.md`) — down from **1,726** without this codemod (= 316 + the 1,410 bucket-A/A-missing tools GTX016 clears) |
 | **Galaxy PR** | https://github.com/galaxyproject/galaxy/pull/1688 |
 
 > Galaxy-source citations are from the local clone `.local/galaxy-src/` @ `c6e0ee3`
@@ -84,7 +84,7 @@ For interpreter `I` and leading script token `S`:
 ## Corpus reality
 
 ~2,000+ raw files carry `interpreter=` (deduped/applicable/sub-16.04 = the 1,726
-stuck). Value mix (approximate `grep`, not a standing measure): `python` ~59%,
+that would be stuck without GTX016). Value mix (approximate `grep`, not a standing measure): `python` ~59%,
 `perl` ~22%, `bash`/`sh` ~12%, `Rscript` ~3%, long tail (`python2.7`, `python3`,
 `Rscript --no-save`, `python -W ignore`, `java -jar`, `docker`, `/usr/bin/php`,
 full paths). Shapes:
@@ -127,6 +127,11 @@ bucket-A-by-shape tools (the `interpreter-bucket-split` measure's **A** 1,383 +
 gate — the rewrite is faithful regardless, see codemod `docs/decisions.md` §27). The
 rewrite uses a **positional splice** anchored at the first content line so a script
 name in a leading `##` comment is never mistargeted, and emits CDATA so shell
-operators stay literal. Corpus impact: 1,127 tools rewritten (idempotent, 0
-post-validate-failed); the `16_04_fix_interpreter` behaviour-block drops **1,726 →
-316** (`upgrade_behavior_block_stats.md`), the residual being bucket B/C.
+operators stay literal. Corpus impact (three population-distinct counts): the
+`interpreter-bucket-split` measure sizes **1,410** tools eligible by shape (A 1,383 +
+A-missing 27, across all profiles); the `corpus_check codemod` sweep **rewrites
+1,127** of them (idempotent, 0 post-validate-failed — the gap being bucket-A tools
+that don't actually cross the 16.04 boundary in the sweep, e.g. already declaring
+≥ 16.04, so the runtime gate never fires); and the behaviour-block walk, which counts
+only sub-16.04 first-blockers, drops **1,726 → 316** as GTX016 clears its 1,410
+(`upgrade_behavior_block_stats.md`), the residual 316 being bucket B/C.
