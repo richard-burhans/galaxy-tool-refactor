@@ -36,6 +36,7 @@ from scripts.measure import (
     _measure_macro_fmt_idempotence,
     _measure_macro_profile_ownership,
     _measure_macro_profile_tokens,
+    _measure_macro_token_residual,
     _measure_macro_topology,
     _measure_output_format_input,
     _measure_param_types,
@@ -1361,3 +1362,38 @@ def test_classify_var_fixability_resolves_structured_leaves() -> None:
     assert classify("$cond.unknownleaf", kinds, structural) == "structured"
     assert classify("$__tool_directory__", kinds, structural) == "builtin"
     assert classify("$assembled", kinds, structural) == "non_input"
+
+
+def test_measure_macro_token_residual_detects_imported_token(tmp_path: Path) -> None:
+    """A tool stuck at 24.1 only because an imported token supplies an uppercase
+    datatype is counted, and a tool whose token is already lowercase is not — so a
+    corpus-wide 0 means "no such tool", not a broken measure."""
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+
+    def _tool(*, fmt_token: str) -> str:
+        return (
+            '<tool id="m" name="M" version="1.0.0" profile="24.1">'
+            f"<macros><import>{fmt_token}_macros.xml</import></macros>"
+            "<command><![CDATA[echo x]]></command>"
+            "<inputs/>"
+            '<outputs><data name="o" format="@FMT@"/></outputs>'
+            "</tool>"
+        )
+
+    # Coercible imported token (GTiff) — expanded format trips the 24.2 pattern.
+    (repo / "up.xml").write_text(_tool(fmt_token="up"), encoding="utf-8")
+    (repo / "up_macros.xml").write_text(
+        '<macros><token name="@FMT@">GTiff</token></macros>', encoding="utf-8"
+    )
+    # Already-lowercase token — nothing to coerce, must not be counted.
+    (repo / "ok.xml").write_text(_tool(fmt_token="ok"), encoding="utf-8")
+    (repo / "ok_macros.xml").write_text(
+        '<macros><token name="@FMT@">bam</token></macros>', encoding="utf-8"
+    )
+
+    result = _measure_macro_token_residual(corpus_root=tmp_path)
+    assert result.n_token_datatype == 1  # only the GTiff tool is a coercible candidate
+    assert result.residual_tools == 1
+    assert result.imported_involved == 1
+    assert result.inline_only == 0

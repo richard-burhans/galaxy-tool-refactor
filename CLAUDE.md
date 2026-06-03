@@ -213,6 +213,13 @@ uv run python -m scripts.measure interpreter-bucket-split
 # galaxy-tool-xml-codemod/docs/macro-aware-normalization.md. Writes
 # docs/macro_format_residual_stats.md (needs the corpus, so not run in CI):
 uv run python -m scripts.measure macro-format-residual
+
+# Phase-2b sizing: of the tools still stuck after 2a, how many reach a newer profile
+# when token-supplied datatype values (format="@FMT@" whose <token> value is coercible)
+# are also normalized — split inline vs imported token. 0 across the corpus => the
+# heavyweight expansion-provenance layer is unjustified for datatypes (2a is complete).
+# Writes docs/macro_token_residual_stats.md (needs the corpus, so not run in CI):
+uv run python -m scripts.measure macro-token-datatype-residual
 ```
 
 **Note:** invoke as `python -m scripts.X`, not `python scripts/X.py` — the
