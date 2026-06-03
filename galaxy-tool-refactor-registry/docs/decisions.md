@@ -158,7 +158,7 @@ galaxy-tool-refactor-registry/tests/test_macro_profile.py`.
   a non-agreeing plan is recorded as a skip and never touched. The CLI `upgrade`
   command drives it as a whole-run phase (cli §D6).
 
-## D6 (2026-06-03) — Stat-artifact coverage guard (derived-doc freshness, Phase 1)
+## D6 (2026-06-03) — Stat-artifact freshness guard (derived-doc coverage + summary)
 
 **Reproduced by:** `uv run --package galaxy-tool-refactor-registry pytest
 galaxy-tool-refactor-registry/tests/test_stat_artifact_coverage.py`.
@@ -188,7 +188,18 @@ galaxy-tool-refactor-registry/tests/test_stat_artifact_coverage.py`.
   `scripts/`-importing test because the registry package has its own
   `[tool.pytest.ini_options]`, so the root `pythonpath = ["."]` (which makes
   `scripts` importable elsewhere) does not apply to its test run.
-- **Phase 2 (deferred, planned).** Generalize `covered_codes` → watched-input
-  *fingerprint* (rule set + measure source + corpus snapshot) embedded in each
-  page header, so *any* watched-input change (not just a missing rule) forces a
-  whole-page recompute.
+- **Phase 2 (shipped) — summary currency.** The manifest now carries each covered
+  rule's `(code, summary)`, and `test_every_covered_summary_is_current` asserts the
+  rule's *current* summary appears in the page — so **rewording** a rule's summary
+  (not just adding a code) forces a regen. The page renders summaries through one
+  backtick transform (`<token>` → `` `<token>` ``, `reference._backtick_xml_tokens`,
+  duplicated as the check tier's `_check_md_summary` — verified identical for all 32
+  rules); the guard mirrors that one-line regex locally so it stays a pure
+  test-tier addition (no sweep/library change — the user picked the lean
+  render-and-check over a header fingerprint). Still corpus-free + CI-run.
+- **Phase 3 (deferred).** A watched-input *fingerprint* (rule set + **measure
+  source** + **corpus snapshot**) embedded in each page header, so a changed
+  *measure* or corpus — not just rule metadata — forces a whole-page recompute.
+  Deferred because CI has no corpus (so the corpus dimension is only locally
+  checkable) and per-function source hashing is fragile / over-invalidating; the
+  in-tree dimension that CI *can* enforce is now covered by Phases 1–2.
