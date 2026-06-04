@@ -1,5 +1,10 @@
 # How Galaxy processes tool-XML text: Cheetah sections & `<help>`
 
+> For a compact, jargon-free quick-reference table of **every Cheetah location** (with
+> element-text-vs-attribute position) and **the variables Galaxy injects per location**, see
+> [`cheetah_in_tool_xml.md`](cheetah_in_tool_xml.md). This page is the detailed companion
+> (full `<command>` job-script pipeline + `<help>` rendering).
+
 Cross-tier reference: what Galaxy's own code actually *does* with the
 text-bearing sections of a tool XML — the **Cheetah-templated** sections
 (`<command>` and its siblings) at job-build time, and the **`<help>`** section at
