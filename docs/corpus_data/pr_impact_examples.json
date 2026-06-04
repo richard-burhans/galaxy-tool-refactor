@@ -1,0 +1,25 @@
+{
+  "repo": "galaxyproject/tools-iuc",
+  "examples": [
+    {
+      "pr": 7068,
+      "html_url": "https://github.com/galaxyproject/tools-iuc/pull/7068",
+      "relpath": "tools/bbtools/macros.xml",
+      "baseline": "first",
+      "code": "GTR002",
+      "kind": "hunk_subset",
+      "before": "<param name=\"reads_collection\" type=\"data_collection\" format=\"fastqsanger,fastqsanger.gz\" collection_type=\"paired\" label=\"Collection of fastqsanger paired read files\"/>",
+      "after": "<param name=\"reads_collection\" type=\"data_collection\" format=\"fastqsanger,fastqsanger.gz\" label=\"Collection of fastqsanger paired read files\" collection_type=\"paired\"/>"
+    },
+    {
+      "pr": 6129,
+      "html_url": "https://github.com/galaxyproject/tools-iuc/pull/6129",
+      "relpath": "tools/lumpy_sv/lumpy_sv.xml",
+      "baseline": "base",
+      "code": "GTR002",
+      "kind": "hunk_subset",
+      "before": "<param name=\"discordant_alns\" ftype=\"bam\" value=\"discordants.bam\"/>\n<param name=\"input_bams\" ftype=\"qname_sorted.bam\" value=\"blasted.bam\"/>\n<param name=\"discordant_alns\" type=\"data\" format=\"bam\" multiple=\"true\" optional=\"true\" label=\"Discordant reads input\"/>\n<param name=\"input_bams\" type=\"data\" format=\"qname_sorted.bam\" multiple=\"true\" label=\"BAM input dataset\"/>\n<param name=\"split_alns\" type=\"data\" format=\"bam\" multiple=\"true\" optional=\"true\" label=\"Split alignments input\"/>",
+      "after": "<param name=\"discordant_alns\" value=\"discordants.bam\" ftype=\"bam\"/>\n<param name=\"input_bams\" value=\"blasted.bam\" ftype=\"qname_sorted.bam\"/>\n<param name=\"discordant_alns\" type=\"data\" format=\"bam\" optional=\"true\" label=\"Discordant reads input\" multiple=\"true\"/>\n<param name=\"input_bams\" type=\"data\" format=\"qname_sorted.bam\" label=\"BAM input dataset\" multiple=\"true\"/>\n<param name=\"split_alns\" type=\"data\" format=\"bam\" optional=\"true\" label=\"Split alignments input\" multiple=\"true\"/>"
+    }
+  ]
+}
