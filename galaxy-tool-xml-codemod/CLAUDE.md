@@ -37,12 +37,16 @@ contracts in ``canonical.py``:
 
 - ``CANONICAL_CODEMODS`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
   ``ReorderParamAttributes`` → ``ReorderToolAttributes`` →
-  ``ReorderToolChildren`` → ``WrapCommandCdata`` → ``WrapHelpCdata`` (the safe
-  canonical/format pipeline; ``ReorderToolChildren`` = GTX013, IUC #52 element
-  order, validity-safe because ``<tool>`` is ``xs:all``; ``WrapCommandCdata`` /
-  ``WrapHelpCdata`` = GTX018/GTX019, IUC #34/#42, wrap a pure-text
-  ``<command>``/``<help>`` body in CDATA — behaviour-preserving, ``docs/decisions.md``
-  §29).
+  ``ReorderToolChildren`` → ``WrapCommandCdata`` → ``WrapHelpCdata`` →
+  ``SingleQuoteCommandVars`` (the safe canonical/format pipeline;
+  ``ReorderToolChildren`` = GTX013, IUC #52 element order, validity-safe because
+  ``<tool>`` is ``xs:all``; ``WrapCommandCdata`` / ``WrapHelpCdata`` =
+  GTX018/GTX019, IUC #34/#42, wrap a pure-text ``<command>``/``<help>`` body in
+  CDATA — behaviour-preserving, ``docs/decisions.md`` §29;
+  ``SingleQuoteCommandVars`` = GTX020, IUC #36, single-quote the *provably*-
+  single-valued Cheetah vars in ``<command>`` — behaviour-preserving but the first
+  canonical codemod to shift default-``format`` bytes vs the pre-GTX020 output,
+  ``docs/decisions.md`` §30).
 - ``AUTO_UPGRADE_CODEMODS`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
   ``UpgradeToLatest`` (the opt-in profile-upgrade pipeline).
 

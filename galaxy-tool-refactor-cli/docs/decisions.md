@@ -160,8 +160,12 @@ library-first facade is the shared core (see the registry package's
 always-on `check` phase) keeps one consistent selection model across all three
 commands — the price is that bare `check` is now fixable-only; `--preset strict`
 restores "show me everything." The default `format`/`check`/`upgrade` behaviour is
-otherwise unchanged (the `iuc` preset is byte-identical to the old `format`
-pipeline; registry D3).
+otherwise unchanged (the registry refactor itself was byte-identical to the old
+inline `format` pipeline; registry D3). A *later* deliberate change does shift
+default-`format` bytes: GTX020 (`SingleQuoteCommandVars`) joined
+`CANONICAL_CODEMODS`, single-quoting the provably-single-valued `<command>` vars
+(codemod `docs/decisions.md` §30) — behaviour-preserving, but not byte-identical to
+the pre-GTX020 output.
 
 ### Reproduction
 

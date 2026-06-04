@@ -16,10 +16,10 @@ from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_refactor_rules.violation import Violation
+from galaxy_tool_xml.command_text import unquoted_cheetah_vars
 from lxml import etree
 from packaging.version import InvalidVersion, Version
 
-from galaxy_tool_xml_check.command_text import unquoted_cheetah_vars
 from galaxy_tool_xml_check.rules import CheckRule
 
 if TYPE_CHECKING:

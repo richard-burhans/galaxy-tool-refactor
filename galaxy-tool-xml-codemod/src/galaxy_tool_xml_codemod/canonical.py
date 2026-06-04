@@ -32,6 +32,16 @@ command, run before fmt's cosmetic rules). Front-to-back:
    value Galaxy runs/renders. Content-level tidying, so it runs after the
    structural reorders; independent of them (it never touches child order). See
    ``docs/decisions.md`` §29.
+6. ``SingleQuoteCommandVars`` — single-quote the *provably*-single-valued unquoted
+   Cheetah ``$var``\\ s in ``<command>`` (GTX020, the IUC011 single-quote practice).
+   Acts only on references whose value can never contain whitespace for a working
+   tool (bare single-token params, ``$__…__`` path built-ins, space-free attrs),
+   so it is behaviour-preserving like the CDATA wraps. It runs **after**
+   ``WrapCommandCdata`` so it sees the body already in its canonical CDATA form and
+   preserves it. Unlike the rest of this pipeline it changes the default ``format``
+   output for tools that were never previously rewritten — a deliberate, data-backed
+   reversal of the IUC011-stays-advisory stance (``docs/decisions.md`` §30). The
+   advisory ``IUC011`` check still reports the non-provable residual this skips.
 
 It deliberately does **not** change ``profile=`` or apply version migrations —
 that is the upgrade pipeline's job.
@@ -66,6 +76,9 @@ from galaxy_tool_xml_codemod.codemods.reorder_tool_attributes import (
 from galaxy_tool_xml_codemod.codemods.reorder_tool_children import (
     ReorderToolChildren,
 )
+from galaxy_tool_xml_codemod.codemods.single_quote_command_vars import (
+    SingleQuoteCommandVars,
+)
 from galaxy_tool_xml_codemod.codemods.wrap_command_cdata import WrapCommandCdata
 from galaxy_tool_xml_codemod.codemods.wrap_help_cdata import WrapHelpCdata
 from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
@@ -78,6 +91,7 @@ CANONICAL_CODEMODS: tuple[type[CodemodCommand], ...] = (
     ReorderToolChildren,
     WrapCommandCdata,
     WrapHelpCdata,
+    SingleQuoteCommandVars,
 )
 
 AUTO_UPGRADE_CODEMODS: tuple[type[CodemodCommand], ...] = (

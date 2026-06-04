@@ -1183,3 +1183,56 @@ one-off classification scan (mirrors the codemod's eligibility predicate).
   validity-preserving on every tool, zero retained regressions. The remaining bodies
   are already CDATA-wrapped (5,982 command / 5,007 help in the raw scan) or
   mixed-content (12 command / 9 help; 0 carry a `]]>` terminator).
+
+## 30. `SingleQuoteCommandVars` (GTX020) — auto-quote the provable IUC011 subset
+
+**Date:** 2026-06-03. Reproduced-by: `uv run --package galaxy-tool-xml-codemod
+pytest galaxy-tool-xml-codemod/tests/test_single_quote_command_vars.py`; the
+classifier/lexer it shares are pinned in `galaxy-tool-xml/tests/test_command_vars.py`
+and `…/test_command_text.py`. Sizing: `uv run python -m scripts.measure
+iuc011-fixability`. Corpus sweep: `uv run python -m scripts.corpus_check codemod
+galaxy_tool_xml_codemod.codemods.single_quote_command_vars:SingleQuoteCommandVars`.
+
+- **The practice (IUC #36).** Single-quote a Cheetah `$var` in `<command>` so it
+  reaches the shell as one literal argument (no word-splitting / glob / injection).
+  The advisory `IUC011` check (`galaxy-tool-xml-check/docs/decisions.md` D5) reports
+  every unquoted occurrence; D6 deferred an auto-fix as "partial, wrong shape, never
+  auto-run under `format`". This codemod is the **revisit** (check D8): it ships the
+  fix for the subset where quoting is *provably* behaviour-preserving.
+- **Scope — the provable set only.** Quoting changes behaviour only when the value
+  can contain whitespace. The tier-1 classifier (`galaxy_tool_xml.command_vars`,
+  shared with the measure) resolves each occurrence against `<inputs>` and admits
+  exactly `{safe, attr_safe, builtin_path}`: a bare `$param` of a single-token type
+  (number / Galaxy-controlled path / author-fixed `select`), a `$param.ext` /
+  server-path attr (charset-restricted / deployment-fixed), and a `$__…__` Galaxy
+  path built-in. Each is space-free for any tool that *currently works* (a path with
+  a space already breaks unquoted), so the quote is a strict no-op there. Excluded
+  as not-provable: `text` / `multiple=` params, `$on_string` and `.name` /
+  `.element_identifier` label attrs (run-varying dataset labels), `structured`,
+  `#set`/loop (`non_input`). IUC011 keeps flagging that residual.
+- **Wider than D6's floor, and *why* it's still provable.** D6 sketched a
+  "safe-class-only" fix (46.7%). Sizing the two extra classes
+  (`scripts.measure iuc011-fixability`) showed `builtin_path` (1,119 occ) +
+  `attr_safe` (295 occ) lift coverage to **49.5%** of occurrences and add **+280**
+  whole-tool-auto-fixable tools — and they fail in a *deployment*-fixed way, not a
+  per-run way, so they meet the same "no-op for a working tool" bar as `safe`.
+  `builtin_label` (`$on_string`) is excluded and is **0** in the corpus anyway.
+- **Not the M5 mutation subsystem.** D6's objection was that quoting is a
+  "Cheetah-rewriting mutation". It isn't here: the rewrite is a **positional splice**
+  over the lexer's absolute `start`/`end` spans (`unquoted_cheetah_vars`), wrapping
+  `'…'` around an existing run of bytes — no Cheetah evaluation, no reference
+  resolution. Applied **right-to-left** so earlier offsets stay valid; the body is
+  re-emitted preserving its CDATA-ness (`set_text(..., cdata=is_cdata_wrapped())`).
+  Mixed-content `<command>` (child nodes) is skipped. **Idempotent by construction**
+  — a wrapped occurrence reads as single-quoted on the next pass and is not
+  re-flagged.
+- **Canonical, and it *does* shift default-`format` bytes.** It joins
+  `CANONICAL_CODEMODS` after `WrapCommandCdata` (so it sees the canonical CDATA body)
+  — the first canonical codemod that changes output for tools never previously
+  rewritten, a deliberate, data-backed reversal of D6's "never auto-run under
+  `format`". Justified because every applied quote is behaviour-preserving. The
+  workspace / cli / registry byte-identity notes were updated accordingly.
+- **Corpus soundness (2026-06-03, combined).** Of **8,607** eligible tools, GTX020
+  modifies **4,433** and reports **8,607 idempotent, 0 non-idempotent, 0
+  post-validate-failed, 0 crashed** — quoting is idempotent and validity-preserving
+  on every tool, zero retained regressions.

@@ -131,10 +131,11 @@ uv run python -m scripts.measure macro-profile-ownership
 # command-unquoted-var sizes IUC011 honestly — excluding Cheetah directive lines +
 # tracking shell quotes, a genuinely-unquoted `$var` still fires on 73.2% of tools,
 # so IUC011 (unlike IUC012) has real signal (check §D4); iuc011-fixability then
-# resolves each unquoted `$var` against <inputs> to ask whether AUTO-quoting is
-# safe — 46.7% are provably-single-valued params, but 33.6% are #set-assembled/loop
-# vars a static fixer can't reach, so IUC011 stays advisory (check §D6);
-# macro-fmt-idempotence backs fmt §D16:
+# resolves each unquoted `$var` against <inputs> and splits it into provable-vs-not
+# classes — the provable subset {safe, attr_safe, builtin_path} (49.5% of
+# occurrences) is auto-fixed by GTX020 (codemod §30 / check §D8), while the
+# non-provable residual (33.6% #set/loop, plus text/multi/label) keeps IUC011
+# advisory; macro-fmt-idempotence backs fmt §D16:
 uv run python -m scripts.measure command-iuc-heuristics
 uv run python -m scripts.measure command-lone-amp
 uv run python -m scripts.measure command-unquoted-var
@@ -264,9 +265,12 @@ facade (plus fmt's `cli_support` engine and tier-1 parsing) and owns six
 commands:
 
 - `galaxy-tool-refactor format` — apply a preset's fixable rules (default `iuc` =
-  `CANONICAL_CODEMODS` + cosmetic, byte-identical to the historical behaviour)
-  then serialise. Safe, idempotent; never changes `profile=`. Advisory rules in a
-  selection (`--preset strict`) are reported as notes, never applied.
+  `CANONICAL_CODEMODS` + cosmetic) then serialise. Safe, idempotent; never changes
+  `profile=`. Advisory rules in a selection (`--preset strict`) are reported as
+  notes, never applied. (No longer byte-identical to the pre-GTX020 historical
+  output: GTX020 — `SingleQuoteCommandVars` — now also single-quotes the
+  *provably*-single-valued Cheetah vars in `<command>`, a behaviour-preserving fix;
+  codemod `docs/decisions.md` §30.)
 - `galaxy-tool-refactor upgrade` — repair, then iterative profile upgrade, then
   format. Opt-in, semantic. No `--preset` (presets are a format/check concept);
   `--select`/`--ignore` adjust its fixable rule set.

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from galaxy_tool_xml_check.command_text import unquoted_cheetah_vars
+from galaxy_tool_xml.command_text import unquoted_cheetah_vars
 
 
 def _names(text: str) -> list[str]:
@@ -45,3 +45,15 @@ def test_line_offsets_are_zero_based_newline_counts() -> None:
 def test_empty_and_directive_only() -> None:
     assert unquoted_cheetah_vars("") == []
     assert unquoted_cheetah_vars("#if $x\n#end if") == []
+
+
+def test_spans_bound_exactly_the_reference() -> None:
+    # start/end are absolute offsets into the scanned text; text[start:end] == name.
+    text = "samtools sort $input -o ${out.x}"
+    vars_ = unquoted_cheetah_vars(text)
+    assert [(v.name, v.start, v.end) for v in vars_] == [
+        ("$input", 14, 20),
+        ("${out.x}", 24, 32),
+    ]
+    for var in vars_:
+        assert text[var.start : var.end] == var.name

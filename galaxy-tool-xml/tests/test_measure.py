@@ -18,13 +18,11 @@ from scripts.measure import (
     _classify_command_language,
     _classify_command_vars,
     _classify_lone_amps,
-    _classify_var_fixability,
     _collection_type_patterns,
     _count_unquoted_vars,
     _cross_source_key_matches,
     _ExpansionGapResult,
     _facts_from_macro_container,
-    _input_param_info,
     _measure_cheetah_command_complexity,
     _measure_collection_type_normalization,
     _measure_command_iuc_heuristics,
@@ -32,6 +30,7 @@ from scripts.measure import (
     _measure_element_cardinality,
     _measure_help_formats,
     _measure_interpreter_buckets,
+    _measure_iuc011_fixability,
     _measure_macro_expansion_detection_gap,
     _measure_macro_fmt_idempotence,
     _measure_macro_profile_ownership,
@@ -1323,45 +1322,39 @@ def test_classify_command_vars_buckets() -> None:
     assert classify("echo $(date) $1") == {}
 
 
-def test_input_param_info_kinds_and_structural() -> None:
-    root = etree.fromstring(
-        b"<tool><inputs>"
-        b'<param name="ds" type="data"/>'
-        b'<param name="txt" type="text"/>'
-        b'<param name="multi" type="data" multiple="true"/>'
-        b'<param name="coll" type="data_collection"/>'
-        b'<conditional name="cond"><param name="sub" type="integer"/></conditional>'
-        b'<section name="sec">'
-        b'<param name="opt" type="select" multiple="true"/></section>'
-        b"</inputs></tool>"
+def test_measure_iuc011_fixability_buckets_and_option_b(tmp_path: Path) -> None:
+    """The walker buckets each unquoted var and separates the Option-A floor (safe
+    bare params) from the Option-B provable set (+ path built-ins / space-free
+    attrs), so a whole-tool count reflects exactly the GTX020 auto-fix population."""
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # Tool A: every unquoted var is provable, and one is a non-safe provable class
+    # ($__tool_directory__ -> builtin_path), so Option B "newly unlocks" it.
+    (repo / "a.xml").write_text(
+        '<tool id="a" name="A"><inputs><param name="ds" type="data"/></inputs>'
+        "<command><![CDATA[python $__tool_directory__/s.py $ds]]></command></tool>",
+        encoding="utf-8",
     )
-    kinds, structural = _input_param_info(root)
-    assert kinds == {
-        "ds": "safe",
-        "txt": "text",
-        "multi": "multi",
-        "coll": "multi",
-        "sub": "safe",  # integer, nested in a conditional
-        "opt": "multi",  # select multiple=
+    # Tool B: a free-form text param ($opts) keeps it out of the whole-tool set,
+    # even though $ds.ext is a provable space-free attr.
+    (repo / "b.xml").write_text(
+        '<tool id="b" name="B"><inputs>'
+        '<param name="opts" type="text"/><param name="ds" type="data"/></inputs>'
+        "<command><![CDATA[run $opts $ds.ext]]></command></tool>",
+        encoding="utf-8",
+    )
+
+    result = _measure_iuc011_fixability(corpus_root=tmp_path)
+    assert result.n_tools_flagged == 2
+    assert result.n_occurrences == 4
+    assert result.per_class == {
+        "safe": 1,  # $ds
+        "builtin_path": 1,  # $__tool_directory__
+        "text": 1,  # $opts
+        "attr_safe": 1,  # $ds.ext
     }
-    assert structural == {"cond", "sec"}
-
-
-def test_classify_var_fixability_resolves_structured_leaves() -> None:
-    kinds = {"ds": "safe", "txt": "text", "multi": "multi", "sub": "safe"}
-    structural = {"cond", "sec"}
-    classify = _classify_var_fixability
-    assert classify("$ds", kinds, structural) == "safe"
-    assert classify("$txt", kinds, structural) == "text"
-    assert classify("$multi", kinds, structural) == "multi"
-    # $param.attr is a metadata access, not a param leaf.
-    assert classify("$ds.ext", kinds, structural) == "attr"
-    # $cond.sub resolves to the leaf param's kind.
-    assert classify("$cond.sub", kinds, structural) == "safe"
-    assert classify("${cond.sub}", kinds, structural) == "safe"
-    assert classify("$cond.unknownleaf", kinds, structural) == "structured"
-    assert classify("$__tool_directory__", kinds, structural) == "builtin"
-    assert classify("$assembled", kinds, structural) == "non_input"
+    assert result.n_tools_all_provable == 1  # only tool A
+    assert result.n_tools_beyond_safe == 1  # tool A has a builtin_path var
 
 
 def test_measure_macro_token_residual_detects_imported_token(tmp_path: Path) -> None:

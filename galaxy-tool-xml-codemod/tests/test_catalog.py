@@ -22,6 +22,7 @@ _EXPECTED_CODES = {
     "GTX017",  # NormalizeBooleanValues
     "GTX018",  # WrapCommandCdata
     "GTX019",  # WrapHelpCdata
+    "GTX020",  # SingleQuoteCommandVars
 }
 
 
