@@ -92,6 +92,15 @@ wheels = [
 ]
 
 [[package]]
+name = "bashlex"
+version = "0.18"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/76/60/aae0bb54f9af5e0128ba90eb83d8d0d506ee8f0475c4fdda3deeda20b1d2/bashlex-0.18.tar.gz", hash = "sha256:5bb03a01c6d5676338c36fd1028009c8ad07e7d61d8a1ce3f513b7fff52796ee", size = 68742, upload-time = "2023-01-18T15:21:26.402Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f4/be/6985abb1011fda8a523cfe21ed9629e397d6e06fb5bae99750402b25c95b/bashlex-0.18-py2.py3-none-any.whl", hash = "sha256:91d73a23a3e51711919c1c899083890cdecffc91d8c088942725ac13e9dcfffa", size = 69539, upload-time = "2023-01-18T15:21:24.167Z" },
+]
+
+[[package]]
 name = "bleach"
 version = "6.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -544,8 +553,14 @@ dependencies = [
     { name = "xsdata", extra = ["lxml"] },
 ]
 
+[package.optional-dependencies]
+shell-oracle = [
+    { name = "bashlex" },
+]
+
 [package.dev-dependencies]
 dev = [
+    { name = "bashlex" },
     { name = "mercurial" },
     { name = "mypy" },
     { name = "pytest" },
@@ -555,15 +570,18 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "bashlex", marker = "extra == 'shell-oracle'", specifier = ">=0.18" },
     { name = "click", specifier = ">=8" },
     { name = "galaxy-util", specifier = ">=24,<27" },
     { name = "lxml", specifier = ">=5" },
     { name = "packaging", specifier = ">=23" },
     { name = "xsdata", extras = ["lxml"], specifier = ">=26.2" },
 ]
+provides-extras = ["shell-oracle"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "bashlex", specifier = ">=0.18" },
     { name = "mercurial", specifier = ">=6" },
     { name = "mypy" },
     { name = "pytest", specifier = ">=8" },
@@ -584,6 +602,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "bashlex" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "ruff" },
@@ -599,6 +618,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "bashlex", specifier = ">=0.18" },
     { name = "mypy", specifier = ">=1.10" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.5" },
@@ -617,6 +637,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "bashlex" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "ruff" },
@@ -632,6 +653,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "bashlex", specifier = ">=0.18" },
     { name = "mypy", specifier = ">=1.10" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.5" },

@@ -21,7 +21,8 @@ from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_refactor_rules.violation import Violation
 from galaxy_tool_xml.cdata import cdata_wrappable, needs_cdata
 from galaxy_tool_xml.command_text import unquoted_cheetah_vars
-from galaxy_tool_xml.command_vars import input_param_info, provably_quotable
+from galaxy_tool_xml.command_vars import input_param_info
+from galaxy_tool_xml.shell_oracle import quote_is_behavior_preserving
 from lxml import etree
 from packaging.version import InvalidVersion, Version
 
@@ -321,13 +322,17 @@ class SingleQuotedCheetah(CheckRule):
     """GTR020.2 — single-quote Cheetah variables in ``<command>`` (advisory residual).
 
     The advisory half of GTR020: the fixable sibling ``GTR020.1``
-    (``SingleQuoteCommandVars``) auto-quotes the *provable* occurrences, so this
-    reports one finding only per **non-provable** unquoted shell-line ``$var`` — a
-    free-form ``text`` param, a deliberate ``multiple=`` splat, a dataset-label attr,
-    ``$on_string``, or a ``#set``/loop var — where single-quoting is a judgment call a
-    static fixer can't make. Provability uses the shared tier-1 ``provably_quotable``
-    classifier, so the fix/advisory split never drifts. Cheetah directive lines and
-    already-quoted references are excluded by the read-only ``command_text`` lexer.
+    (``SingleQuoteCommandVars``) auto-quotes the behaviour-preserving occurrences, so
+    this reports one finding only per unquoted shell-line ``$var`` it *cannot* — a
+    free-form ``text`` param or ``multiple=`` splat in a word-splitting position, a
+    dataset-label attr, ``$on_string``, a ``#set``/loop var, or (when the
+    ``shell-oracle`` extra is present) an fd-dup target. The residual is computed with
+    the **same** shared tier-1 policy ``quote_is_behavior_preserving`` the fixer uses
+    (value-domain ``provably_quotable``, plus the bashlex shell-context widen/narrow
+    when the extra is installed), so the fix/advisory split never drifts. A
+    mixed-content ``<command>`` (which GTR020.1 skips wholesale) reports all its
+    unquoted vars. Cheetah directive lines and already-quoted references are excluded
+    by the read-only ``command_text`` lexer.
     """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
@@ -347,8 +352,14 @@ class SingleQuotedCheetah(CheckRule):
         xpath = str(document.tree.getpath(command))
         kinds, structural = input_param_info(document.root)
         text = "".join(command.itertext())
+        # GTR020.1 only rewrites a pure-text body; in a mixed-content <command> it fixes
+        # nothing, so every unquoted var there is residual.
+        mixed_content = len(command) > 0
         for occurrence in unquoted_cheetah_vars(text):
-            if provably_quotable(occurrence.name, kinds, structural):
+            fixed_by_gtr020_1 = not mixed_content and quote_is_behavior_preserving(
+                text, occurrence=occurrence, kinds=kinds, structural=structural
+            )
+            if fixed_by_gtr020_1:
                 continue  # GTR020.1 auto-fixes this one
             yield Violation(
                 code=self.meta.code,

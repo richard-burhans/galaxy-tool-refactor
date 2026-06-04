@@ -2243,6 +2243,113 @@ def _run_iuc011_fixability(args: argparse.Namespace) -> None:
     _report_iuc011_fixability(_measure_iuc011_fixability(corpus_root=args.corpus_root))
 
 
+# --- measurement: shell-oracle-quoting ------------------------------------------
+#
+# Sizes the shell boundary oracle's effect on GTR020.1 vs the pure value-domain rule
+# (the Phase-1 widening payoff). For every unquoted $var in a pure-text <command>,
+# compares `provably_quotable` (value-domain) with `quote_is_behavior_preserving`
+# (value-domain + bashlex shell-context): WIDENED = the oracle now quotes a var the
+# value-domain rule would not (a residual var in a no-word-splitting context, e.g. an
+# assignment RHS); NARROWED = the oracle declines a value-domain-safe var (an fd-dup
+# target). Requires the `galaxy-tool-xml[shell-oracle]` extra (bashlex) — without it
+# the oracle degrades to the value-domain rule and both counts are 0. Needs the
+# corpus, not in CI. See galaxy-tool-xml `docs/decisions.md` §17, codemod §31.
+
+
+@dataclass
+class _ShellOracleQuotingResult:
+    oracle_available: bool
+    n_tools_flagged: int  # pure-text commands with >=1 unquoted var
+    n_occurrences: int
+    widened_occurrences: int  # value-domain says no, oracle says yes
+    widened_tools: int
+    narrowed_occurrences: int  # value-domain says yes, oracle says no
+    narrowed_tools: int
+
+
+def _measure_shell_oracle_quoting(*, corpus_root: Path) -> _ShellOracleQuotingResult:
+    """Count where the shell oracle widens / narrows GTR020.1 vs the value-domain rule."""
+    from galaxy_tool_xml.command_text import unquoted_cheetah_vars
+    from galaxy_tool_xml.command_vars import input_param_info, provably_quotable
+    from galaxy_tool_xml.shell_oracle import (
+        quote_is_behavior_preserving,
+        shell_oracle_available,
+    )
+
+    seen: set[str] = set()
+    n_flagged = n_occ = widened_occ = widened_tools = narrowed_occ = narrowed_tools = 0
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        command = root.find("command")
+        if command is None or len(command) > 0:  # mixed content: GTR020.1 skips it
+            continue
+        body = command.text or ""
+        occurrences = unquoted_cheetah_vars(body)
+        if not occurrences:
+            continue
+        n_flagged += 1
+        kinds, structural = input_param_info(root)
+        tool_widened = tool_narrowed = 0
+        for occurrence in occurrences:
+            n_occ += 1
+            value_domain = provably_quotable(occurrence.name, kinds, structural)
+            oracle = quote_is_behavior_preserving(
+                body, occurrence=occurrence, kinds=kinds, structural=structural
+            )
+            if oracle and not value_domain:
+                tool_widened += 1
+            elif value_domain and not oracle:
+                tool_narrowed += 1
+        widened_occ += tool_widened
+        narrowed_occ += tool_narrowed
+        widened_tools += tool_widened > 0
+        narrowed_tools += tool_narrowed > 0
+    return _ShellOracleQuotingResult(
+        oracle_available=shell_oracle_available(),
+        n_tools_flagged=n_flagged,
+        n_occurrences=n_occ,
+        widened_occurrences=widened_occ,
+        widened_tools=widened_tools,
+        narrowed_occurrences=narrowed_occ,
+        narrowed_tools=narrowed_tools,
+    )
+
+
+def _report_shell_oracle_quoting(result: _ShellOracleQuotingResult) -> None:
+    print("\n=== shell-oracle-quoting (GTR020.1 widen/narrow vs value-domain) ===")
+    if not result.oracle_available:
+        print(
+            "shell-oracle extra (bashlex) NOT installed — oracle degrades to the "
+            "value-domain rule; widen/narrow are 0 by construction."
+        )
+    print(
+        f"Pure-text <command>s with >=1 unquoted var: {result.n_tools_flagged}; "
+        f"occurrences: {result.n_occurrences}"
+    )
+    print(
+        f"WIDENED (value-domain no -> oracle yes; e.g. assignment-RHS residual): "
+        f"{result.widened_occurrences} occurrences across {result.widened_tools} tools"
+    )
+    print(
+        f"NARROWED (value-domain yes -> oracle no; fd-dup targets): "
+        f"{result.narrowed_occurrences} occurrences across {result.narrowed_tools} tools"
+    )
+
+
+def _run_shell_oracle_quoting(args: argparse.Namespace) -> None:
+    _report_shell_oracle_quoting(
+        _measure_shell_oracle_quoting(corpus_root=args.corpus_root)
+    )
+
+
 # --- measurement: version-tokenization ------------------------------------------
 #
 # Sizes the Phase-3c "create tokens" opportunity: the canonical IUC convention
@@ -5381,6 +5488,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "command-lone-amp": _run_command_lone_amp,
     "command-unquoted-var": _run_command_unquoted_var,
     "iuc011-fixability": _run_iuc011_fixability,
+    "shell-oracle-quoting": _run_shell_oracle_quoting,
     "macro-fmt-idempotence": _run_macro_fmt_idempotence,
     "version-tokenization": _run_version_tokenization,
     "expansion-failed-ids": _run_expansion_failed_ids,

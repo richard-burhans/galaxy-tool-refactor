@@ -135,11 +135,16 @@ uv run python -m scripts.measure macro-profile-ownership
 # classes — the provable subset {safe, attr_safe, builtin_path} (49.5% of
 # occurrences) is auto-fixed by GTR020.1 (codemod §30 / check §D8), while the
 # non-provable residual (33.6% #set/loop, plus text/multi/label) keeps GTR020.2
-# advisory; macro-fmt-idempotence backs fmt §D16:
+# advisory; shell-oracle-quoting sizes the Phase-1 bashlex-oracle delta on GTR020.1
+# vs the pure value-domain rule — WIDENED (no-split contexts, e.g. assignment RHS,
+# now fixable for any value) vs NARROWED (fd-dup targets), needs the
+# galaxy-tool-xml[shell-oracle] extra (tier-1 §17, codemod §31);
+# macro-fmt-idempotence backs fmt §D16:
 uv run python -m scripts.measure command-iuc-heuristics
 uv run python -m scripts.measure command-lone-amp
 uv run python -m scripts.measure command-unquoted-var
 uv run python -m scripts.measure iuc011-fixability
+uv run python -m scripts.measure shell-oracle-quoting
 uv run python -m scripts.measure macro-fmt-idempotence
 
 # Phase-3c sizing: clean @TOOL_VERSION@/@VERSION_SUFFIX@ extraction candidates

@@ -25,6 +25,9 @@ dev = [
     "pytest>=8",
     "ruff>=0.5",
     "mypy>=1.10",
+    # the galaxy-tool-xml[shell-oracle] extra: GTR020.2's residual uses the shared
+    # quote_is_behavior_preserving policy, which consults bashlex when present.
+    "bashlex>=0.18",
 ]
 
 [tool.ruff]

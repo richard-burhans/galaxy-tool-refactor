@@ -1239,3 +1239,52 @@ galaxy_tool_xml_codemod.codemods.single_quote_command_vars:SingleQuoteCommandVar
   modifies **4,433** and reports **8,607 idempotent, 0 non-idempotent, 0
   post-validate-failed, 0 crashed** — quoting is idempotent and validity-preserving
   on every tool, zero retained regressions.
+
+## 31. `SingleQuoteCommandVars` (GTR020.1) — widen via the shell boundary oracle
+
+**Date:** 2026-06-04. Phase-1 of the cheetah-lex + bashlex boundary-oracle work
+(`../../docs/upgrade_research/cheetah_bashlex_boundary_oracle.md`).
+
+GTR020.1 now decides each occurrence through the shared tier-1 policy
+`galaxy_tool_xml.shell_oracle.quote_is_behavior_preserving` instead of the value-domain
+`provably_quotable` alone. When the optional `galaxy-tool-xml[shell-oracle]` extra
+(bashlex) is installed it composes the value-domain rule with a bashlex shell-context
+classifier; without the extra it *is* `provably_quotable`, so the default `format` output
+is unchanged and license-clean (§30 still describes that default).
+
+### Decisions
+
+- **Widen, not just narrow (user, 2026-06-04).** A Phase-0 finding corrected the earlier
+  "standalone word" idea: single-quoting a *space-free* value is behaviour-preserving even
+  when the var is glued (`${ds}.bam`) or a redirect-file target (`> $ds`), so those must
+  **not** be vetoed (that would break §30's own fixtures). The oracle's real value is the
+  opposite — **widening**: a var in a no-word-splitting context (an assignment RHS,
+  `THREADS=$opts`) is safe to quote for *any* value, promoting part of the GTR020.2
+  advisory residual (free-form `text`, `multiple=` splats) to fixable.
+- **One genuine narrowing: fd-dup.** `2>&$fd` quoted flips a descriptor dup into a file
+  redirect, so `DUP_TARGET` is never quoted even when value-domain-safe.
+- **The `EditCertifier` seam (`certify.py`).** The constructor takes
+  `certifier: EditCertifier | None = None`; `None` (the canonical-pipeline path, which
+  constructs codemods no-arg) uses the tier-1 static policy. The seam reserves the Phase-2
+  CT3 render certifier (`--certify=render`) as a pure addition — no refactor of the static
+  path. A certifier's `should_quote` is signature-compatible with the static policy.
+- **Partition stays exact.** The GTR020.2 advisory check computes its residual from the
+  *same* `quote_is_behavior_preserving`, so widened/narrowed occurrences move between
+  fix and advisory together (check `docs/decisions.md` D10).
+
+### Corpus sizing (combined, sha-deduped; needs the extra)
+
+`scripts.measure shell-oracle-quoting` over 6,670 pure-text `<command>`s (48,789 unquoted
+occurrences): the oracle **widens** GTR020.1 by **66 occurrences across 22 tools** (residual
+vars in no-split contexts — assignment RHS) and **narrows** it by **0** — no value-domain-safe
+var sits in an fd-dup position corpus-wide, so today's GTR020.1 was never unsafe in practice
+and the fd-dup veto is purely defensive. Modest but real; the larger coverage gain
+(`#if`-branch edits) needs the Phase-2 render path.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-xml-codemod pytest \
+  galaxy-tool-xml-codemod/tests/test_single_quote_command_vars.py
+uv run python -m scripts.measure shell-oracle-quoting   # needs galaxy-tool-xml[shell-oracle]
+```

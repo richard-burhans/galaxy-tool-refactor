@@ -330,3 +330,87 @@ sentinel rendering** (E) — letting Cheetah itself certify behaviour-preservati
 than trusting a static parse. Approach **B** (and libCST) are analysis-only and gated on
 a CT3 dev-dependency proving itself; **C** is a last resort. Treat use cases (3)/(4) as
 research, not roadmap.
+
+## Phase 0 spike — feasibility verdicts (2026-06-04)
+
+A read-only spike resolved the four estimate-gating known-unknowns behind the
+**cheetah-lex + bashlex boundary-oracle** design. **The full sub-project record — design,
+correctness proof, architecture, phased build plan, and the reproducible spike probes — is
+[`cheetah_bashlex_boundary_oracle.md`](cheetah_bashlex_boundary_oracle.md)** (session plan:
+`~/.claude/plans/how-difficult-would-it-noble-trinket.md`). Evidence is from local
+clones, not recollection: `idank/bashlex` (`.local/bashlex`), `CheetahTemplate3/cheetah3`
+@ tag `3.4.0.post5` (`.local/cheetah3` — the `ct3==3.4.0.post5` Galaxy pins,
+`pinned-requirements.txt:63`, `CT3>=3.3.3` in `pyproject.toml:32`), and the user's
+`package_output.py` (kegalign tool, `richard-burhans/galaxytools`).
+
+- **KU-1 — bashlex boundary oracle: FEASIBLE / easy.** `bashlex.parse(s, strictmode=False)`
+  returns AST nodes each carrying `.pos = (start, end)` char offsets (`bashlex/ast.py`).
+  `nodevisitor.visitredirect(self, n, n_input, n_type, output, heredoc)` exposes the
+  source fd as `n_input`, the operator as `n_type`, and the target as `output.word`
+  (a word node) **or an int** for fd-dups like `2>&1`. `bashlex.split` gives argv;
+  `$(...)`/pipes/lists/background appear as their own node kinds (`commandsubstitution`,
+  `pipeline`, `list`, operator `&`). **Decision (user, 2026-06-04): track the FULL fd
+  topology, not just 0/1/2.** The seed `package_output.py` `sys.exit`s on any fd outside
+  0–2; bashlex hands us arbitrary fds for free — a `fdvisitor` capturing
+  `(src_fd, op, target)` correctly read `3> custom.fd`, `4>&2`, `2>&1`, `>&-` (close),
+  and order-sensitive `2>&1 1>file` in ~15 lines (spike `.local/spike_fd_topology.py`).
+  Tracking all fds strictly strengthens the equivalence relation (an edit that perturbs
+  any redirection is caught).
+  - **bashlex documentation notes (README + `setup.py` + LICENSE, verified 2026-06-04):**
+    - **LICENSE = GPL v3+** (`LICENSE` is GPLv3; `setup.py: license='GPLv3+'` + OSI
+      classifier; README "same as GNU bash, GNU GPL v3+"). **This is a load-bearing
+      decision input:** the design makes bashlex a *runtime* dep of **tier 1**
+      (`galaxy-tool-xml`, the foundational parsing package), and GPLv3 is strong copyleft.
+      Resolve before the Phase-1 build — options: (a) isolate `boundary_signature()` +
+      bashlex behind an **optional extra** (same treatment as CT3's `[verify]`) so the
+      base tier stays unencumbered; (b) put it in its own dedicated package; (c) accept
+      GPL for the relevant package. **Owner decision required.**
+    - **Documented parse limitations:** no support for arithmetic `$((..))`; "the more
+      complicated parameter expansions such as `${parameter#word}` are taken literally and
+      do not produce child nodes." The latter intersects the `##`-vs-`${var##*/}` hazard
+      noted in `cheetah_command_stats.md` — for the boundary oracle this is acceptable
+      (the *word partition* is still computed; such a word is just opaque), but the
+      cheetah-lex/locator must treat `$((..))` and `${var#…}` as bail-out hazards.
+    - The README/`examples/commandsubstitution-remover.py` confirm the canonical
+      `nodevisitor` → collect `n.pos` → reverse → splice idiom (identical to the user's
+      `package_output.py`), and that `bashlex.split` understands `$(...)`/`<(...)` where
+      `shlex` does not.
+- **KU-2 — CT3 `Parser`-subclass span harvesting: FEASIBLE (the gating unknown is a
+  clean YES).** `SourceReader.pos()` tracks an absolute char offset
+  (`Cheetah/SourceReader.py`); the parse loop is matcher/eater based
+  (`Parser.py` `_HighLevelParser.parse`), so a subclass can record
+  `(kind, start, end)` by reading `self.pos()` around overridden `eatPlaceholder` /
+  `eatDirective`. `##` comments, `#raw…#end raw`, and escaped `\$`/`\#` are consumed
+  *inside* the parse loop (regex matchers use an `escCharLookBehind`), so a span-harvester
+  inherits correct skipping for free — exactly what a regex lexer gets wrong. **CT3
+  already ships the proof of the pattern: `DirectiveAnalyzer.py` is
+  `class Analyzer(Parser.Parser)` overriding `eatDirective` to tally directives without
+  a full compile.** ⇒ Layer A1 (faithful lex via Parser-subclass) is viable; the only
+  cost is the CT3 version-pin coupling. A2 (extend `command_text.py`) remains the
+  dependency-free fallback.
+- **KU-3 — render fidelity & cost: feasible, bounded.** `galaxy.util.template.fill_template(
+  template_text, context=…, python_template_version=…)` is the render entry point
+  (`util/template.py:108`). `NotFound` is raised by the NameMapper on any unresolved
+  name/attr ⇒ a permissive sentinel namespace must implement `__getattr__`/`__getitem__`/
+  `__call__`/`__str__` **and** be truthy/iterable/comparable so `#if`/`#for` don't crash.
+  Sub-19.05 / `python_template_version="2.7"` tools take a `lib2to3`/`fissix` futurize
+  retry path — **default decision: bail (leave advisory) on py2.7 tools** rather than
+  replicate Galaxy's py2 dance. The **vacuous-certificate trap** (an edit inside an
+  unexercised `#if` branch renders identically on both sides ⇒ false certificate, lines
+  216–222) means the locator must bail on any `#if` reaching the edit, or force all
+  branches.
+- **KU-4 — is the Phase-1 win real? YES.** A minimal `boundary_signature` over a
+  pseudo-rendered line (sentinel swapped in for the live `$var`) flags the sentinel as
+  **structurally unsafe** in 4/6 probe cases today's value-domain-only GTR020.1 would
+  quote: glued `--prefix=PRE$var`, glued `$var.bam`, redirection target `> $var`, and
+  fd redirect `2> $var` (spike `.local/spike_ku4_probe.py`). So composing the existing
+  `command_vars.provably_quotable` value-domain test **with** a bashlex structural check
+  (sentinel must occupy exactly one complete `WordNode`, not be a redirection target,
+  not be glued into a larger word) is a genuine soundness upgrade over today's fixer —
+  achievable in **Phase 1 with zero Cheetah dependency**.
+
+**Net verdict:** all three layers are feasible; the design's effort estimate holds
+(C easy, A1 viable / A2 fallback, B bounded). Recommended next step is the Phase-1
+build: a tier-1 read-only `boundary_signature()` (bashlex, full fd topology) + the
+structural-check soundness upgrade to GTR020.1 + the reserved `EditCertifier=None`
+seam — shipping value with no CT3 in the runtime path.

@@ -417,3 +417,25 @@ uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_c
 uv run --package galaxy-tool-refactor-registry pytest \
   galaxy-tool-refactor-registry/tests/test_partition.py   # the soundness guard
 ```
+
+## D10 (2026-06-04) — GTR020.2 residual tracks the shared `quote_is_behavior_preserving`
+
+### Decision
+
+GTR020.2 (`SingleQuotedCheetah`) now computes its residual from the shared tier-1 policy
+`galaxy_tool_xml.shell_oracle.quote_is_behavior_preserving` rather than `provably_quotable`
+directly — the same predicate GTR020.1 fixes by (codemod `docs/decisions.md` §31). So when
+the optional `galaxy-tool-xml[shell-oracle]` extra is present, the occurrences GTR020.1
+*widens* (a `text`/`multiple=` var in an assignment RHS) drop out of the advisory, and the
+ones it *narrows* (fd-dup targets) appear in it — the fix/advisory partition stays exact by
+construction. Without the extra the policy is exactly `provably_quotable`, so this is
+identical to the prior behaviour (D8). A mixed-content `<command>` — which GTR020.1 skips
+wholesale — reports **all** its unquoted vars, since the fixer touches none of them.
+
+This tier still does not depend on the codemod tier: the shared predicate lives in tier 1.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py
+```
