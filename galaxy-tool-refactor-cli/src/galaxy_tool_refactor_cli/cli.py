@@ -1,10 +1,11 @@
 """The ``galaxy-tool-refactor`` command-line interface.
 
-Six subcommands. ``format`` and ``upgrade`` share fmt's file-walking /
+Seven subcommands. ``format`` and ``upgrade`` share fmt's file-walking /
 drift-detection engine (``galaxy_tool_xml_fmt.cli_support``) and differ only in
 which rules run before serialisation; ``check`` is a report-only linter that
-mutates nothing; ``rules`` / ``presets`` print the available baked-in rules and
-presets; ``normalize-macros`` is a separate, opt-in pass over macro-library files.
+mutates nothing; ``find-references`` is a read-only query for a parameter's Cheetah
+``$var`` reference sites; ``rules`` / ``presets`` print the available baked-in rules
+and presets; ``normalize-macros`` is a separate, opt-in pass over macro-library files.
 All rule orchestration is delegated to the tier-3.6 registry facade
 (``galaxy_tool_refactor_registry``); this module only does CLI plumbing.
 
@@ -23,6 +24,10 @@ All rule orchestration is delegated to the tier-3.6 registry facade
   ``file:line  CODE  message`` per finding, without changing anything. Fixable
   findings fail the run; advisory (``detect_only``) findings are informational
   unless ``--strict``. Macro files are checked for cosmetic (fixable) drift too.
+- ``find-references`` — read-only query: print every Cheetah ``$NAME`` reference site
+  (``file:line  [section]  $ref``) across a tool's templated sections. Mutates nothing,
+  not a rule (no selection); the first read-only consumer of the Cheetah reference model
+  (``galaxy_tool_xml.cheetah_refs``). See ``docs/decisions.md`` §D8.
 - ``rules`` / ``presets`` — introspection: the baked-in rules and the presets.
 - ``normalize-macros`` — opt-in, repo-scoped: lowercase literal ``format`` /
   ``ftype`` in ``<macros>``-root files (the macro-library analog of the 24.2
@@ -453,6 +458,55 @@ def check_command(
         )
     fail = bool(errored or fixable or (strict and advisory))
     sys.exit(1 if fail else 0)
+
+
+@main.command(name="find-references")
+@click.argument("name")
+@_PATH_ARGUMENT
+@_QUIET_OPTION
+def find_references_command(
+    name: str, paths: tuple[Path, ...], quiet: bool
+) -> None:
+    """Report every Cheetah $NAME reference across the tools' templated sections.
+
+    Read-only query (mutates nothing). Scans each tool's ``<command>``, inline
+    ``<configfile>``\\ s, env vars, output labels and dynamic options, and prints one
+    ``file:line  [section]  $ref`` per occurrence whose identifier path includes NAME
+    (so ``$NAME``, ``$cond.NAME`` and ``$NAME.ext`` all match). PATHS may be files or
+    directories; non-tool XML is skipped. Conservative — may include occurrences in
+    comments/``#raw`` (see ``galaxy_tool_xml.cheetah_refs``). Non-zero exit on errors.
+    """
+    total = scanned = skipped = errored = 0
+    for target in iter_targets(paths):
+        try:
+            original = target.read_bytes()
+        except OSError as error:
+            click.echo(f"error: cannot read {target}: {error}", err=True)
+            errored += 1
+            continue
+        if not is_tool_root(original):
+            skipped += 1
+            continue
+        try:
+            document = load_tool(original)
+        except ToolXmlSyntaxError as error:
+            click.echo(f"error: {target}: malformed XML: {error}", err=True)
+            errored += 1
+            continue
+        if document.root.tag != "tool":
+            skipped += 1
+            continue
+        scanned += 1
+        for occurrence in facade.find_references(document, name=name).occurrences:
+            total += 1
+            if not quiet:
+                click.echo(
+                    f"{target}:{occurrence.sourceline}  "
+                    f"[{occurrence.section}]  {occurrence.reference}"
+                )
+    if not quiet:
+        click.echo(f"{total} reference(s) to '{name}' across {scanned} tool(s)")
+    sys.exit(1 if errored else 0)
 
 
 @main.command(name="presets")

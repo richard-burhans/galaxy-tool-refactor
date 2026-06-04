@@ -1,4 +1,5 @@
-"""The library-first entry points: ``run`` / ``upgrade`` / ``detect`` + introspection.
+"""The library-first entry points: ``run`` / ``upgrade`` / ``detect`` /
+``find_references`` + introspection.
 
 Every function takes a *source* (a filesystem path, raw XML ``bytes``, or an
 existing ``ToolDocument``) and a resolved *codes* set, and returns a structured
@@ -22,6 +23,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from galaxy_tool_xml.binding import Source, load_tool, newest_valid_profile
+from galaxy_tool_xml.cheetah_refs import tool_cheetah_references
 from galaxy_tool_xml.document import ToolDocument
 from galaxy_tool_xml_check.detect import sort_violations
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
@@ -46,7 +48,9 @@ from galaxy_tool_refactor_registry.presets import (
 from galaxy_tool_refactor_registry.registry import all_handles, registry
 from galaxy_tool_refactor_registry.results import (
     DetectResult,
+    FindReferencesResult,
     FormatResult,
+    ParamOccurrence,
     PresetInfo,
     RuleInfo,
     UpgradeResult,
@@ -128,6 +132,26 @@ def detect(
     sort_violations(violations)
     advisory = frozenset(code for code in codes if not reg[code].fixable)
     return DetectResult(violations=violations, advisory_codes=advisory)
+
+
+def find_references(
+    source: Source | ToolDocument, /, *, name: str
+) -> FindReferencesResult:
+    """Every Cheetah ``$var`` reference whose identifier path includes *name*.
+
+    Read-only: scans the tool's Cheetah-templated sections (``tool_cheetah_references``)
+    and keeps the references one of whose segments is *name* — so a bare ``$name`` and a
+    qualified ``$cond.name`` / ``$name.ext`` both match. No rule selection, no mutation.
+    """
+    document = _to_document(source)
+    occurrences = tuple(
+        ParamOccurrence(
+            section=ref.section, sourceline=ref.sourceline, reference=ref.name
+        )
+        for ref in tool_cheetah_references(document.root)
+        if name in ref.segments
+    )
+    return FindReferencesResult(name=name, occurrences=occurrences)
 
 
 def _upgrade_summary(steps: tuple[str, ...], missing: str | None) -> str | None:

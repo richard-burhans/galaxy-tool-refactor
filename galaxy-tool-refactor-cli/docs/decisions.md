@@ -286,3 +286,29 @@ macro file; `galaxy-tool-xml-codemod/docs/macro-aware-normalization.md`, registr
 - **Validity-safe, gate-free** (unlike the `@PROFILE@` consensus of D6): lowercasing a
   literal datatype token only satisfies the 24.2 pattern, never regresses an importer
   (registry `docs/decisions.md` D8).
+
+## D8 (2026-06-04) — `find-references`: read-only Cheetah `$var` reference query
+
+### Decision
+
+A seventh subcommand, `find-references NAME PATHS…`, prints every Cheetah `$NAME`
+reference site (`file:line  [section]  $ref`) across each tool's templated sections
+(`<command>`, inline `<configfile>`, env vars, output labels, dynamic options). It is a
+**read-only query**, not a rule: no `--preset`/`--select`, no GTR code, mutates nothing,
+exits non-zero only on read/parse errors. It wraps the new facade `find_references` over
+the tier-1 reference model `galaxy_tool_xml.cheetah_refs` (`tool_cheetah_references`).
+
+It is the first read-only consumer of the M5 Cheetah-section-editing work
+(`../../docs/upgrade_research/cheetah_section_editing.md`): read-only first, highest
+coverage, zero mutation risk — validating the reference substrate before any mutator.
+The extractor is a **conservative regex** (it may surface occurrences in `##` comments /
+`#raw` / escaped `\$`); the faithful CT3 lexer is the precision drop-in reserved for the
+first mutator (rename). A query (not a rule) needs no preset, registry handle, or
+`docs/*_stats.md` regeneration.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/test_cli.py -k find_references
+uv run galaxy-tool-refactor find-references input path/to/tool.xml
+```

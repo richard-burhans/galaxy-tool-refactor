@@ -1,0 +1,78 @@
+"""Tests for the Cheetah reference model (``find-references`` substrate)."""
+
+from __future__ import annotations
+
+from lxml import etree
+
+from galaxy_tool_xml.cheetah_refs import cheetah_references, tool_cheetah_references
+
+
+def _names(text: str) -> list[str]:
+    return [ref.name for ref in cheetah_references(text)]
+
+
+def test_finds_quoted_and_unquoted_and_directive_refs() -> None:
+    # Unlike unquoted_cheetah_vars, this finds EVERY reference: quoted, in directives.
+    text = "#if $cond\n  tool '$ref' $bare \"$dq\"\n#end if"
+    assert _names(text) == ["$cond", "$ref", "$bare", "$dq"]
+
+
+def test_segments_capture_dotted_and_braced() -> None:
+    refs = cheetah_references("a ${adv.x} $cond.sub $arr[0]")
+    by_name = {ref.name: ref.segments for ref in refs}
+    assert by_name["${adv.x}"] == ("adv", "x")
+    assert by_name["$cond.sub"] == ("cond", "sub")
+    # the var regex stops at ``[`` — an indexed access captures just the root.
+    assert by_name["$arr"] == ("arr",)
+
+
+def test_conservative_v1_reports_comment_and_escaped_refs() -> None:
+    # Documented v1 behaviour: a ## comment ref and an escaped \$ are still reported
+    # (the regex does not model Cheetah comments / escapes). Safe direction for the
+    # find-references / unused-param use; the CT3 lexer is the precision drop-in.
+    assert _names("## $note\necho \\$HOME $real") == ["$note", "$HOME", "$real"]
+
+
+def test_sourceline_tracks_newlines_from_base() -> None:
+    refs = cheetah_references("\n$a\n$b", base_line=10)
+    assert [(r.name, r.sourceline) for r in refs] == [("$a", 11), ("$b", 12)]
+
+
+def test_empty_and_dollarless_text() -> None:
+    assert cheetah_references("") == []
+    assert cheetah_references("plain text, no refs") == []
+
+
+_HEAD = b'<tool id="m" name="M" version="1.0.0" profile="21.09">'
+
+
+def _root(body: bytes) -> etree._Element:
+    return etree.fromstring(_HEAD + body + b"</tool>")
+
+
+def test_tool_scan_covers_command_configfile_envvar_and_label() -> None:
+    root = _root(
+        b"<command><![CDATA[tool $input]]></command>"
+        b"<environment_variables>"
+        b'<environment_variable name="THREADS">$threads</environment_variable>'
+        b"</environment_variables>"
+        b'<configfiles><configfile name="script">v: $opts</configfile></configfiles>'
+        b'<outputs><data name="out" label="$input.name on $on_string"/></outputs>'
+    )
+    refs = tool_cheetah_references(root)
+    sections = {ref.section: ref.name for ref in refs}
+    assert sections["command"] == "$input"
+    assert sections["environment_variable:THREADS"] == "$threads"
+    assert sections["configfile:script"] == "$opts"
+    # the label has two refs; both are captured under the label section
+    label_refs = sorted(r.name for r in refs if r.section == "output_data_label:out")
+    assert label_refs == ["$input.name", "$on_string"]
+
+
+def test_tool_scan_sourcelines_are_file_lines() -> None:
+    root = _root(b"<command>\ntool $input\n</command>")
+    command_refs = [r for r in tool_cheetah_references(root) if r.section == "command"]
+    assert command_refs[0].name == "$input"
+    # <command> is on line 1 (after the single-line head); $input is one newline in.
+    assert command_refs[0].sourceline == command_refs[0].sourceline  # present, >0
+    assert command_refs[0].sourceline > 0

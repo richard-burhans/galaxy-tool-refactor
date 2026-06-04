@@ -325,3 +325,29 @@ def test_introspection_lists_presets_and_rules() -> None:
     assert "iuc" in iuc_rule.presets and iuc_rule.fixable
     adv_rule = next(r for r in rules if r.code == "GTR021")
     assert adv_rule.presets == ("strict",) and not adv_rule.fixable
+
+
+_REFS_TOOL = (
+    b'<tool id="m" name="M" version="1.0.0" profile="21.09">'
+    b"<command><![CDATA[tool $input --opt $opts $adv.x]]></command>"
+    b'<outputs><data name="o" label="$input.name on $on_string"/></outputs>'
+    b"</tool>"
+)
+
+
+def test_find_references_matches_root_and_segment() -> None:
+    result = facade.find_references(_REFS_TOOL, name="input")
+    # $input in <command> and $input.name in the output label both match.
+    sections = sorted(o.section for o in result.occurrences)
+    assert sections == ["command", "output_data_label:o"]
+    assert all(o.reference.startswith("$input") for o in result.occurrences)
+
+
+def test_find_references_segment_of_qualified_access() -> None:
+    # $adv.x matches a query for the leaf segment "x".
+    result = facade.find_references(_REFS_TOOL, name="x")
+    assert [o.reference for o in result.occurrences] == ["$adv.x"]
+
+
+def test_find_references_no_matches_is_empty() -> None:
+    assert facade.find_references(_REFS_TOOL, name="absent").occurrences == ()

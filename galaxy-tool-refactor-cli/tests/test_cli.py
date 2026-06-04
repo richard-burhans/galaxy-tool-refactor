@@ -458,3 +458,26 @@ def test_normalize_macros_ignores_non_macro_files(tmp_path: Path) -> None:
     result = CliRunner().invoke(main, ["normalize-macros", str(tool)])
     assert result.exit_code == 0, result.output
     assert "no macro-library files needed normalization" in result.output
+
+
+_REFS_TOOL_BYTES = (
+    b'<tool id="m" name="M" version="1.0.0" profile="21.09">'
+    b"<command><![CDATA[tool $input --opt $opts]]></command>"
+    b'<outputs><data name="o" label="$input.name"/></outputs></tool>'
+)
+
+
+def test_find_references_reports_occurrences(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _REFS_TOOL_BYTES)
+    result = CliRunner().invoke(main, ["find-references", "input", str(file)])
+    assert result.exit_code == 0, result.output
+    assert "[command]  $input" in result.output
+    assert "[output_data_label:o]  $input.name" in result.output
+    assert "2 reference(s) to 'input'" in result.output
+
+
+def test_find_references_absent_name_is_zero(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _REFS_TOOL_BYTES)
+    result = CliRunner().invoke(main, ["find-references", "absent", str(file)])
+    assert result.exit_code == 0, result.output
+    assert "0 reference(s) to 'absent'" in result.output

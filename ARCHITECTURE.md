@@ -34,7 +34,7 @@ load-bearing rule:
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic `Rule`s (indent / blank line / shorthand), the `Edit` union + `apply_edits`, `format_tool_document` + the net-diff `detect_tool_document`, the shared `cli_support` engine, the serializer. **The only tier that serialises canonical output XML.** |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice checks (`CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | `RuleHandle` (uniform adapter over all three families), the unified registry, named presets, ruff-style selection, and the **library-first** `run` / `upgrade` / `detect` facade. Composes 0.5/1/2/3/3.5. |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `presets` / `rules` / `normalize-macros`. CLI plumbing only. |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `presets` / `rules` / `normalize-macros`. CLI plumbing only. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`list_presets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
 
 ### Dependency direction
@@ -372,7 +372,10 @@ serializer. *(registry `docs/decisions.md` D1–D5.)*
 
 The user-facing `galaxy-tool-refactor` CLI (`cli.py`). **CLI plumbing only** — all
 rule orchestration is delegated to the facade; this package no longer imports the
-codemod / check tiers directly. Six subcommands:
+codemod / check tiers directly. Seven subcommands (`format`, `upgrade`, `check`,
+`find-references`, `presets`, `rules`, `normalize-macros`) — `find-references` is a
+read-only query for a parameter's Cheetah `$var` reference sites
+(`galaxy_tool_xml.cheetah_refs`; cli `docs/decisions.md` §D8):
 
 - **`format`** — apply a preset's (or selection's) fixable rules then cosmetic
   formatting; never changes `profile=`. Advisory rules in a selection are reported
