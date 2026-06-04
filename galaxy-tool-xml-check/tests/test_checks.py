@@ -198,3 +198,75 @@ def test_iuc018_2_residual_is_child_element_mixed_content() -> None:
     # Fully wrapped, even with leading whitespace, is fine.
     wrapped_ws = "<command>\n    <![CDATA[echo hi]]></command>"
     assert "GTR018.2" not in _codes(_tool(command=wrapped_ws))
+
+
+def _refs_tool(
+    *, inputs: bytes, command: bytes = b"echo hi", extra: bytes = b""
+) -> bytes:
+    return (
+        b'<tool id="m" name="M" version="1.0.0" profile="21.09">'
+        b"<command><![CDATA[" + command + b"]]></command>"
+        b"<inputs>" + inputs + b"</inputs>" + extra
+        + b'<outputs><data name="o"/></outputs></tool>'
+    )
+
+
+def test_gtr034_flags_orphan_param() -> None:
+    tool = _refs_tool(inputs=b'<param name="orphan" type="text"/>')
+    assert "GTR034" in _codes(tool)
+
+
+def test_gtr034_not_flagged_when_dollar_referenced() -> None:
+    tool = _refs_tool(
+        inputs=b'<param name="used" type="text"/>', command=b"echo '$used'"
+    )
+    assert "GTR034" not in _codes(tool)
+
+
+def test_gtr034_not_flagged_via_crossref_attribute() -> None:
+    # data_ref names the data param without a $.
+    tool = _refs_tool(
+        inputs=(
+            b'<param name="ds" type="data"/>'
+            b'<param name="col" type="data_column" data_ref="ds"/>'
+        ),
+        command=b"echo '$col'",  # ds referenced only via data_ref
+    )
+    assert "GTR034" not in _codes(tool)
+
+
+def test_gtr034_not_flagged_for_conditional_selector() -> None:
+    # the selector param drives the <when> branches; never $-referenced here.
+    tool = _refs_tool(
+        inputs=(
+            b'<conditional name="c">'
+            b'<param name="sel" type="select"><option value="a">a</option></param>'
+            b'<when value="a"><param name="x" type="text"/></when>'
+            b"</conditional>"
+        ),
+        command=b"echo '$c.x'",
+    )
+    codes = _codes(tool)
+    assert "GTR034" not in codes  # sel (selector) and x (used) both fine
+
+
+def test_gtr034_not_flagged_when_referenced_only_via_macro_token() -> None:
+    # $opts is reached only through a macro token (@OPTS@ -> $opts); the macro-expanded
+    # scan sees the reference, so the param must not be flagged.
+    tool = (
+        b'<tool id="m" name="M" version="1.0.0" profile="21.09">'
+        b'<macros><token name="@OPTS@">$opts</token></macros>'
+        b"<command><![CDATA[tool @OPTS@]]></command>"
+        b'<inputs><param name="opts" type="text"/></inputs>'
+        b'<outputs><data name="o"/></outputs></tool>'
+    )
+    assert "GTR034" not in _codes(tool)
+
+
+def test_gtr034_not_flagged_when_used_only_in_output_filter() -> None:
+    # <filter>store_ext</filter> references the boolean by bare name (Python expr).
+    tool = _refs_tool(
+        inputs=b'<param name="store_ext" type="boolean" value="false"/>',
+        extra=b'<outputs><data name="o2"><filter>store_ext</filter></data></outputs>',
+    )
+    assert "GTR034" not in _codes(tool)

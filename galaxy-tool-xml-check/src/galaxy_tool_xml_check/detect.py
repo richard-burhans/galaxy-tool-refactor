@@ -25,6 +25,7 @@ from galaxy_tool_xml_check.checks import (
     RequirementVersionPinned,
     SingleQuotedCheetah,
     TestsPresent,
+    UnusedParam,
     VersionFormat,
 )
 from galaxy_tool_xml_check.rules import CheckRule
@@ -51,6 +52,7 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         SingleQuotedCheetah,
         CommandAndJoining,
         RequirementVersionPinned,
+        UnusedParam,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 

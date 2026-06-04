@@ -20,8 +20,10 @@ from typing import TYPE_CHECKING, ClassVar
 from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_refactor_rules.violation import Violation
 from galaxy_tool_xml.cdata import cdata_wrappable, needs_cdata
+from galaxy_tool_xml.cheetah_refs import referenced_identifiers
 from galaxy_tool_xml.command_text import unquoted_cheetah_vars
 from galaxy_tool_xml.command_vars import input_param_info
+from galaxy_tool_xml.macros import expand_from_tree, has_macros
 from galaxy_tool_xml.shell_oracle import quote_is_behavior_preserving
 from lxml import etree
 from packaging.version import InvalidVersion, Version
@@ -71,6 +73,66 @@ def _is_pep440(value: str, /) -> bool:
     except InvalidVersion:
         return False
     return True
+
+
+class UnusedParam(CheckRule):
+    """GTR034 — an ``<inputs>`` ``<param>`` never referenced anywhere the tool uses it.
+
+    A general code-quality advisory (an unused param is dead wiring / cruft). Sound by
+    conservative over-counting: a param is flagged only if its name appears in **none**
+    of the tool's references — neither a Cheetah ``$name`` / ``$cond.name`` use nor any
+    by-name cross-reference attribute (``data_ref``, ``format_source``,
+    ``change_format @input``, options ``filter @ref``, …). The reference set is the
+    shared ``cheetah_refs.referenced_identifiers``, which subsumes every such attribute
+    generically (there is no positional or free-text param linking in Galaxy tool XML).
+    References are read from the **macro-expanded** tree so a param used only inside an
+    ``<expand>`` body is not falsely flagged; if expansion fails the check **bails**
+    (reports nothing). Excluded: a ``<conditional>`` **selector** ``<param>``
+    (structurally used by its ``<when>`` branches) and macro-supplied params (only
+    author-written ``<param>``\\ s are candidates). See ``docs/decisions.md`` D11.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR034",
+        summary="Input <param> is never referenced in the tool.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        inputs = document.root.find("inputs")
+        if inputs is None:
+            return
+        used = self._used_identifiers(document)
+        if used is None:
+            return  # macro expansion failed — bail rather than risk a false positive
+        for param in inputs.iter("param"):
+            name = param.get("name")
+            if not name:
+                continue
+            parent = param.getparent()
+            if parent is not None and parent.tag == "conditional":
+                continue  # the conditional's selector param is structurally used
+            if name not in used:
+                yield _violation(
+                    document,
+                    param,
+                    self.meta,
+                    f'input <param name="{name}"> is never referenced',
+                )
+
+    def _used_identifiers(self, document: ToolDocument, /) -> set[str] | None:
+        """Identifiers referenced across the macro-expanded tree, or ``None`` if a
+        macro-using tool's expansion fails (the caller then bails)."""
+        root = document.root
+        if not has_macros(root):
+            return referenced_identifiers(root)
+        source_dir = document.source_path.parent if document.source_path else None
+        expanded, errors = expand_from_tree(root, source_dir=source_dir)
+        if expanded is None or errors:
+            return None
+        return referenced_identifiers(expanded.getroot())
 
 
 class TestsPresent(CheckRule):

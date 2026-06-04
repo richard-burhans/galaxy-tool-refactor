@@ -76,3 +76,52 @@ def test_tool_scan_sourcelines_are_file_lines() -> None:
     # <command> is on line 1 (after the single-line head); $input is one newline in.
     assert command_refs[0].sourceline == command_refs[0].sourceline  # present, >0
     assert command_refs[0].sourceline > 0
+
+
+from galaxy_tool_xml.cheetah_refs import referenced_identifiers  # noqa: E402
+
+
+def test_referenced_identifiers_unions_refs_and_attr_crossrefs() -> None:
+    root = _root(
+        b"<command><![CDATA[tool $input $cond.sub]]></command>"
+        b"<inputs>"
+        b'<param name="input" type="data"/>'
+        b'<param name="col" type="data_column" data_ref="input"/>'
+        b'<conditional name="cond"><param name="sub" type="select"/></conditional>'
+        b"</inputs>"
+        b'<outputs><data name="out" format_source="input"/></outputs>'
+    )
+    ids = referenced_identifiers(root)
+    # $input + $cond.sub segments, the conditional name, and data_ref / format_source.
+    assert {"input", "cond", "sub"} <= ids
+    # 'col' is referenced nowhere (only its own skipped name attr) -> absent.
+    assert "col" not in ids
+
+
+def test_referenced_identifiers_skips_param_own_name() -> None:
+    # A param referenced nowhere is NOT in the set (its own name attr is skipped).
+    root = _root(
+        b"<command><![CDATA[echo hi]]></command>"
+        b'<inputs><param name="orphan" type="text"/></inputs>'
+    )
+    assert "orphan" not in referenced_identifiers(root)
+
+
+def test_referenced_identifiers_counts_test_param_name() -> None:
+    # a <param> under <tests> (not <inputs>) names an input — its name IS counted.
+    root = _root(
+        b"<command><![CDATA[echo hi]]></command>"
+        b'<inputs><param name="x" type="text"/></inputs>'
+        b'<tests><test><param name="x" value="v"/></test></tests>'
+    )
+    assert "x" in referenced_identifiers(root)
+
+
+def test_referenced_identifiers_catches_bare_name_in_filter_text() -> None:
+    # an output <filter> is a Python expression referencing a param by BARE name.
+    root = _root(
+        b"<command><![CDATA[echo hi]]></command>"
+        b'<inputs><param name="store_ext" type="boolean"/></inputs>'
+        b'<outputs><data name="o"><filter>store_ext</filter></data></outputs>'
+    )
+    assert "store_ext" in referenced_identifiers(root)
