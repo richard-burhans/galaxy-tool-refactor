@@ -100,3 +100,20 @@ class PresetInfo:
     codes: tuple[str, ...]
     is_default: bool
     description: str
+
+
+@dataclass(frozen=True)
+class ParamOccurrence:
+    """One Cheetah ``$var`` reference site for ``find_references``."""
+
+    section: str
+    sourceline: int
+    reference: str
+
+
+@dataclass(frozen=True)
+class FindReferencesResult:
+    """Where a parameter name is referenced across a tool's Cheetah sections."""
+
+    name: str
+    occurrences: tuple[ParamOccurrence, ...] = ()

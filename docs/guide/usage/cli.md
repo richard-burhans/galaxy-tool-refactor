@@ -1,9 +1,10 @@
 # Using it from the command line
 
-> **TL;DR.** Install, then run one of six commands on a tool file or a directory:
-> `format` (fix), `upgrade` (bump profile safely), `check` (report), `presets`/`rules`
-> (introspect), `normalize-macros` (opt-in macro-library fix). `format`/`upgrade`
-> support `--diff` and `--check` so you can preview without writing.
+> **TL;DR.** Install, then run one of seven commands on a tool file or a directory:
+> `format` (fix), `upgrade` (bump profile safely), `check` (report), `find-references`
+> (locate a param's Cheetah `$var` uses), `presets`/`rules` (introspect),
+> `normalize-macros` (opt-in macro-library fix). `format`/`upgrade` support `--diff`
+> and `--check` so you can preview without writing.
 
 ## Install & run
 
@@ -12,12 +13,13 @@ uv sync
 uv run galaxy-tool-refactor --help
 ```
 
-The six commands:
+The seven commands:
 
 ```text
 check            Report where tools deviate from the selection, without changing them.
 format           Apply a preset's fixable rules then cosmetic formatting (never profile=).
 upgrade          Repair and upgrade tools to the latest profile they can reach, then format.
+find-references  Report every Cheetah $var reference to a parameter across a tool (read-only).
 presets          List the available presets and the rule codes each one selects.
 rules            List the baked-in rules: code, family, fixable/advisory, presets.
 normalize-macros Lowercase literal format/ftype in <macros>-root files (opt-in, repo-scoped).

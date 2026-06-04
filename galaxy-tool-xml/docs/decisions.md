@@ -813,3 +813,41 @@ edit must preserve), a `quoting_context` classifier, and the composed policy
 ```sh
 uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_shell_oracle.py
 ```
+
+## 18. Cheetah reference model (`cheetah_refs`)
+
+**Date:** 2026-06-04. First read-only piece of the M5 Cheetah-section-editing work
+(`../../docs/upgrade_research/cheetah_section_editing.md`).
+
+`cheetah_refs.py` finds **every** Cheetah `$var` reference across a tool's
+Cheetah-templated sections — the read-only substrate for `find-references` (and, later,
+param refactors). `cheetah_references(text)` returns `CheetahRef`s (name, identifier
+`segments`, section, `sourceline`, span); `tool_cheetah_references(root)` enumerates the
+`fill_template` sections of the **raw** tree (`<command>`, inline `<configfile>`,
+`<environment_variable>`, output `<data>`/`<collection>` `label`, dynamic
+`<options>`/`<filter>`, `<entry_point>`, `data_source redirect_url_params` — see
+`../../docs/galaxy_processing_model.md`).
+
+### Decisions
+
+- **Distinct from `command_text.unquoted_cheetah_vars`.** That reports only the
+  fully-unquoted shell-line `$var`s in `<command>` for the GTR020 quoting practice; this
+  reports *every* reference (quoted, in `#if`/`#set` directives, in every templated
+  section) because find-references / a future unused-param consumer need them all.
+- **Conservative regex v1, faithful CT3 lexer later.** Uses the `_CHEETAH_VAR` pattern
+  (mirroring `command_text` / `scripts.measure`); it also matches a `$var` inside a `##`
+  comment / `#raw` block or an escaped `\$`. That over-counts in the *safe* direction
+  (find-references shows a superset; unused-param never gets a false "unused"). The
+  spike-confirmed CT3 `Parser`-subclass lexer (99.6% corpus) is the precision drop-in this
+  seam is built for and lands with the first mutator (rename), where `#raw`/comment
+  fidelity matters. References from imported macros / `<expand>` are out of scope (they
+  live in the macro files).
+- **`segments` not just root.** A reference's identifier segments (`${adv.x}` → `(adv, x)`)
+  let a consumer match a parameter name as the *leaf* of a `$cond.sub` access, not only the
+  root — needed for find-references on a conditional sub-param.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_cheetah_refs.py
+```

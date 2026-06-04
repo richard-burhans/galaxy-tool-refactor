@@ -22,7 +22,7 @@ Rule orchestration lives in the tier-3.6 **registry facade**
 (`galaxy-tool-refactor-registry`); this package depends on it (plus fmt's
 `cli_support` engine and tier-1 parsing) and does CLI plumbing only — it no
 longer imports the codemod / check tiers directly. It exposes the
-`galaxy-tool-refactor` CLI with six subcommands:
+`galaxy-tool-refactor` CLI with seven subcommands:
 
 - `format` — apply a preset's fixable rules then cosmetic formatting. Default
   preset `iuc` = `CANONICAL_CODEMODS` (repair + attribute / element order + the
@@ -42,6 +42,10 @@ longer imports the codemod / check tiers directly. It exposes the
   *fixable* GTR findings; `--preset strict` adds the *advisory* checks (marked
   `(advisory)`). Fixable findings exit non-zero; advisory are informational unless
   `--strict`. Macro files are checked for cosmetic (fixable) drift too.
+- `find-references` — read-only query (mutates nothing, not a rule): print every
+  Cheetah `$NAME` reference site (`file:line  [section]  $ref`) across a tool's
+  templated sections — the first consumer of the tier-1 Cheetah reference model
+  (`galaxy_tool_xml.cheetah_refs`); see `docs/decisions.md` §D8.
 - `presets` / `rules` — introspection of the baked-in presets and rules.
 - `normalize-macros` — opt-in, repo-scoped pass that lowercases literal
   `format`/`ftype` in `<macros>`-root files (the macro-library analog of 24.2
