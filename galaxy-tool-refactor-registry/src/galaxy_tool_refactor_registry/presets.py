@@ -10,7 +10,7 @@ it never drifts from the rules that actually exist):
   "black-like opinionated formatter", and the **default** preset.
 - ``strict`` — ``iuc`` plus every advisory check (report-only). "Format me,
   and flag everything the IUC standard cares about." (The two reserved advisory
-  stubs GTR031/GTR032 are members but never fire until implemented.)
+  stubs GTR020.2/GTR032 are members but never fire until implemented.)
 
 Adding or changing a preset is a developer task — there are no user-defined
 presets, by design.

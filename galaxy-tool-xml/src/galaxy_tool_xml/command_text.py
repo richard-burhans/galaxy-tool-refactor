@@ -1,4 +1,4 @@
-"""A small read-only lexer over ``<command>`` body text (the GTR031 substrate).
+"""A small read-only lexer over ``<command>`` body text (the GTR020.2 substrate).
 
 Galaxy command text is Cheetah that renders to a shell script. To tell a genuine
 shell-argument ``$var`` (which the IUC ``single-quote your Cheetah variables``
@@ -17,7 +17,7 @@ would. It is deliberately a lexer, not a parser — no Cheetah expression gramma
 no shell AST; escapes (``\\'``) are not interpreted.
 
 It lives in tier 1 (the parsing foundation) rather than the advisory-check tier so
-that **both** the detect-only GTR031 check (tier 3.5) *and* the GTR020 quoting
+that **both** the detect-only GTR020.2 check (tier 3.5) *and* the GTR020 quoting
 codemod (tier 2) can share it without a tier-2→tier-3.5 upward dependency. Each
 ``UnquotedVar`` carries absolute ``start``/``end`` character offsets so the codemod
 can splice a single-quote pair around exactly the occurrence it found. Sized by

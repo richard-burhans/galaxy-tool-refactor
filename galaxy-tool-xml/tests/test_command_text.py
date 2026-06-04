@@ -1,4 +1,4 @@
-"""Tests for the read-only command-text lexer (GTR031 substrate)."""
+"""Tests for the read-only command-text lexer (GTR020.2 substrate)."""
 
 from __future__ import annotations
 

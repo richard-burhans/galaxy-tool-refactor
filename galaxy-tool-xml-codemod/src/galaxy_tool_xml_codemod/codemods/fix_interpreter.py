@@ -19,7 +19,7 @@ rewritten statically and stay in the §23 warning.
 at the offset ``first_command_token_span`` located (the first non-blank, non-``##``
 content line), so a script name appearing inside a leading ``##`` comment is never
 mistargeted — only the real, first invocation is rewritten. The new body is emitted as
-CDATA (GTR022) so shell operators stay literal. The path is emitted as the literal
+CDATA (GTR018.2) so shell operators stay literal. The path is emitted as the literal
 ``'$__tool_directory__/<token>'``; see the research note (16_04_fix_interpreter) for
 the (admin-controlled, out-of-scope) single-quote boundary vs Galaxy's ``shlex.quote``.
 """

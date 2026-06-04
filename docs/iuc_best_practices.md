@@ -67,8 +67,8 @@ corruption (codemod decisions §17).
 
 | IUC practice | Code | Status |
 |---|---|---|
-| `<command>` started/finished with CDATA (#34) | GTR018 | **done** (`WrapCommandCdata`) |
-| `<help>` started/finished with CDATA (#42) | GTR019 | **done** (`WrapHelpCdata`) |
+| `<command>` started/finished with CDATA (#34) | GTR018 | **done** (`WrapCommandCdata`, GTR018.1) |
+| `<help>` started/finished with CDATA (#42) | GTR019 | **done** (`WrapHelpCdata`, GTR019.1) |
 
 CDATA-wrapping touches element **content**, not whitespace, so it was deferred at
 first for content-change risk (fmt decisions §D3). It is now a **canonical
@@ -81,7 +81,7 @@ terminator). A corpus sweep confirms idempotence + post-apply validity with zero
 regressions (2,772 `<command>` / 3,247 `<help>` modified, 0 non-idempotent, 0
 post-validate-failed). See codemod `docs/decisions.md` §29.
 
-The advisory **GTR022 / GTR030** checks (Bucket 4 below) are retained, not
+The advisory **GTR018.2 / GTR019.2** checks (Bucket 4 below) are retained, not
 superseded: they flag *any* non-CDATA `<command>` / `<help>`, so after `format`
 applies GTR018/GTR019 they continue to cover the rare mixed-content residual the
 codemods deliberately skip.
@@ -112,7 +112,7 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 | check | Code | Status |
 |---|---|---|
 | `<tests>` present | GTR021 | done |
-| `<command>` wrapped in CDATA | GTR022 | done (now also fixable — GTR018) |
+| `<command>` wrapped in CDATA | GTR018.2 | done (now also fixable — GTR018.1) |
 | tool `id` charset (#10–12) | GTR023 | done |
 | `version` PEP 440 or `@…@` macro | GTR024 | done |
 | `<requirements>` present | GTR025 | done |
@@ -120,12 +120,12 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 | EDAM topics/operations or `<xrefs>` | GTR027 | done |
 | non-empty `<help>` | GTR028 | done |
 | non-empty `<description>` | GTR029 | done |
-| `<help>` wrapped in CDATA | GTR030 | done (now also fixable — GTR019) |
-| single-quoted Cheetah variables (#36) | GTR031 | **done** (read-only command lexer; the *provable* subset is now also fixable — GTR020; see below) |
+| `<help>` wrapped in CDATA | GTR019.2 | done (now also fixable — GTR019.1) |
+| single-quoted Cheetah variables (#36) | GTR020.2 | **done** (read-only command lexer; the *provable* subset is now also fixable — GTR020.1; see below) |
 | `&&` vs a lone `&` (#39) | GTR032 | **placeholder** (deferred — data-backed, ~dead) |
 | package `<requirement>`s pin a version | GTR033 | **done** (275 tools / 661 findings; check D7) |
 
-The two `<command>`-CDATA-text heuristics (GTR031/GTR032) are **reserved
+The two `<command>`-CDATA-text heuristics (GTR020.2/GTR032) are **reserved
 placeholders** — registered codes, no-op `detect` — pending tuning to avoid
 noise (distinguishing an unquoted Cheetah `$var` or a command-joining `&` from
 legitimate shell text inside CDATA is heuristic). For GTR032 this is now settled
@@ -134,7 +134,7 @@ command-lone-amp`): of the 431 tools the crude lone-`&` heuristic flags, the
 genuine `cmd1 & cmd2` anti-pattern appears in **1** — the rest are redirections
 (`2>&1`), quoted `&` literals (sed/awk), and `|&` pipes. A precise check needs
 the M5 shell lexer, not a regex, and would flag ~1 tool, so GTR032 stays
-deferred. **GTR031 is the opposite and now ships** (`docs/decisions.md` D4 +
+deferred. **GTR020.2 is the opposite and now ships** (`docs/decisions.md` D4 +
 **D5**): excluding Cheetah directive lines and tracking shell quotes (across
 newlines), a genuinely-unquoted `$var` fires on **73.2%** of tools — real signal,
 on par with shipped advisories (GTR025 57.3%, GTR027 89.6%). It is implemented as
@@ -142,12 +142,12 @@ a **read-only command-text lexer** (`galaxy-tool-xml/.../command_text.py`, tier 
 — the detection-only slice of the codemod tier's deferred M5, needing none of the
 matcher language / mutation cursors / provenance), reporting **one finding per
 unquoted occurrence**. The *provably*-single-valued subset of those occurrences is
-now **auto-fixed** by GTR020 (`SingleQuoteCommandVars`, a tier-2 codemod in the
+now **auto-fixed** by GTR020.1 (`SingleQuoteCommandVars`, a tier-2 codemod in the
 `format`/`iuc` pipeline) — bare single-token params, `$__…__` path built-ins, and
 space-free attrs, whose value can never word-split for a working tool (49.5% of
 occurrences; `scripts.measure iuc011-fixability`, codemod `docs/decisions.md` §30).
 The lexer moved to tier 1 so both the check (3.5) and the codemod (2) share it.
-GTR031 keeps flagging the non-provable residual (free-form `text`, `multiple=`
+GTR020.2 keeps flagging the non-provable residual (free-form `text`, `multiple=`
 splats, `$on_string`, label attrs, `#set`/loop vars). For *why* the command text is shell at all (Cheetah →
 whitespace-flatten → `#!/bin/sh` + `set -e`), which grounds both heuristics, see
 [`galaxy_processing_model.md`](galaxy_processing_model.md). "Profile recency" is

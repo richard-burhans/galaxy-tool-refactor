@@ -33,15 +33,15 @@ command, run before fmt's cosmetic rules). Front-to-back:
    structural reorders; independent of them (it never touches child order). See
    ``docs/decisions.md`` §29.
 6. ``SingleQuoteCommandVars`` — single-quote the *provably*-single-valued unquoted
-   Cheetah ``$var``\\ s in ``<command>`` (GTR020, the GTR031 single-quote practice).
+   Cheetah ``$var``\\ s in ``<command>`` (GTR020, the GTR020.2 single-quote practice).
    Acts only on references whose value can never contain whitespace for a working
    tool (bare single-token params, ``$__…__`` path built-ins, space-free attrs),
    so it is behaviour-preserving like the CDATA wraps. It runs **after**
    ``WrapCommandCdata`` so it sees the body already in its canonical CDATA form and
    preserves it. Unlike the rest of this pipeline it changes the default ``format``
    output for tools that were never previously rewritten — a deliberate, data-backed
-   reversal of the GTR031-stays-advisory stance (``docs/decisions.md`` §30). The
-   advisory ``GTR031`` check still reports the non-provable residual this skips.
+   reversal of the GTR020.2-stays-advisory stance (``docs/decisions.md`` §30). The
+   advisory ``GTR020.2`` check still reports the non-provable residual this skips.
 
 It deliberately does **not** change ``profile=`` or apply version migrations —
 that is the upgrade pipeline's job.

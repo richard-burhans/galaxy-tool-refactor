@@ -45,6 +45,14 @@ class RuleMeta:
             ``{"tool"}`` is the conservative choice — a rule runs on a macro
             file only when it explicitly opts in. Consumers run a rule against a
             document only when the document's kind is in this set.
+        parent: The code of the **partition parent** this rule is a sub-rule of,
+            or ``None`` for a standalone rule. A best-practice that splits into a
+            provably-fixable part and an advisory residual is modelled as a parent
+            practice code (e.g. ``"GTR020"``) with two sub-rules whose own ``code``
+            is dotted: ``"GTR020.1"`` (fixable) and ``"GTR020.2"`` (advisory). The
+            parent is a registry-level grouping (selectable, expands to its
+            children), not itself a rule; this field is what the registry derives
+            the groups from. See registry ``docs/decisions.md`` D10.
     """
 
     code: str
@@ -55,3 +63,4 @@ class RuleMeta:
     order: int = 100
     detect_only: bool = False
     applies_to: frozenset[str] = frozenset({"tool"})
+    parent: str | None = None

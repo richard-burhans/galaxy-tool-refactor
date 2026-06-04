@@ -20,9 +20,9 @@ _EXPECTED_CODES = {
     "GTR015",  # FixOutputFormatInput (runtime-gated)
     "GTR016",  # FixInterpreter (runtime-gated)
     "GTR017",  # NormalizeBooleanValues
-    "GTR018",  # WrapCommandCdata
-    "GTR019",  # WrapHelpCdata
-    "GTR020",  # SingleQuoteCommandVars
+    "GTR018.1",  # WrapCommandCdata (fix half of the GTR018 partition)
+    "GTR019.1",  # WrapHelpCdata (fix half of the GTR019 partition)
+    "GTR020.1",  # SingleQuoteCommandVars (fix half of the GTR020 partition)
 }
 
 

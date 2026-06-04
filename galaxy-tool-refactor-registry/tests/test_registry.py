@@ -74,10 +74,13 @@ def test_advisory_handles_have_no_apply() -> None:
 
 
 def test_fixable_handles_have_apply() -> None:
-    for code in known_codes() - advisory_codes():
-        handle = by_code(code)
-        assert handle.fixable is True
-        assert handle.apply is not None
+    # Iterate real rule handles, not known_codes() — the latter now also includes
+    # partition *parent* group codes (e.g. GTR020), which are not themselves rules.
+    for handle in registry().values():
+        if handle.fixable:
+            assert handle.apply is not None
+        else:
+            assert handle.apply is None
 
 
 def test_every_code_unique_across_families() -> None:

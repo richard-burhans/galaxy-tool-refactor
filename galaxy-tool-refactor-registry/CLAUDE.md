@@ -44,8 +44,8 @@ the CLI and the MCP server (`galaxy-tool-refactor-mcp`) sit on top of it.
 - **Apply ordering reproduces `format`.** Codemods in `CANONICAL_CODEMODS` order,
   then cosmetic fmt in `meta.order`. The `iuc` preset reproduces the direct
   `CANONICAL_CODEMODS` + cosmetic pipeline (a regression test pins facade ==
-  pipeline). Note this tracks the *live* `CANONICAL_CODEMODS`: when GTR020 joined
-  it, default-`format` output shifted vs the pre-GTR020 historical bytes (codemod
+  pipeline). Note this tracks the *live* `CANONICAL_CODEMODS`: when GTR020.1 joined
+  it, default-`format` output shifted vs the pre-partition historical bytes (codemod
   `docs/decisions.md` §30) — the facade-vs-pipeline pin still holds.
 - **Presets and rules are developer-defined.** No user-defined rules/presets.
 

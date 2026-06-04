@@ -380,3 +380,40 @@ GTR031 **stays advisory** and keeps reporting the non-provable residual (free-fo
 `text`, `multiple=` splats, `attr_unsafe` / `builtin_label` labels, `structured`,
 `non_input`) — for those, single-quoting is a judgment call a static fixer can't
 make, exactly as D6 found.
+
+## D9 (2026-06-04) — The three CDATA/quoting advisories become partition `.2` sub-rules
+
+### Decision
+
+The three advisories that share a best-practice with a fixable codemod are now the
+**advisory `.2` sub-rule** of a partition parent (registry `docs/decisions.md` D10),
+and their `detect` is **restricted to the residual the fix can't reach**:
+
+| Was | Now | Fires only on |
+|---|---|---|
+| `GTR022` `CommandCdata` | `GTR018.2` | mixed-content `<command>` (the fix wraps pure-text) |
+| `GTR030` `HelpCdata` | `GTR019.2` | mixed-content `<help>` |
+| `GTR031` `SingleQuotedCheetah` | `GTR020.2` | **non-provable** unquoted `$var` (the fix quotes the provable ones) |
+
+(The flat advisory checks — `GTR021`, `GTR023`–`GTR029`, `GTR032`, `GTR033` — are
+unchanged.) This supersedes the codes used in D5/D6/D8, which predate the partition.
+
+### Why
+
+Before, each advisory **overlapped** its fix (it flagged everything, including the
+auto-fixable part), so `check` double-reported. Restricting each `.2` to the
+*complement* of its `.1` makes the practice's two halves a clean partition: disjoint
+and together exhaustive. The boundary reuses the **shared tier-1 predicates** the fix
+uses — `galaxy_tool_xml.cdata.cdata_wrappable` (CDATA) and
+`command_vars.provably_quotable` (quoting) — so the check (tier 3.5) and codemod
+(tier 2) can never drift, without the check depending on the codemod tier. The
+`is_cdata_wrapped` re-serialise helper moved to tier 1 (`galaxy_tool_xml.cdata`) with
+the predicate.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py
+uv run --package galaxy-tool-refactor-registry pytest \
+  galaxy-tool-refactor-registry/tests/test_partition.py   # the soundness guard
+```

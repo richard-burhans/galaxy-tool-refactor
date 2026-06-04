@@ -22,6 +22,16 @@ def test_rule_meta_defaults() -> None:
     assert meta.order == 100
     assert meta.detect_only is False
     assert meta.applies_to == frozenset({"tool"})
+    assert meta.parent is None
+
+
+def test_rule_meta_partition_child_carries_parent() -> None:
+    meta = RuleMeta(
+        code="GTR020.1", summary="Fix the provable part.", since="0.1.0",
+        parent="GTR020",
+    )
+    assert meta.code == "GTR020.1"
+    assert meta.parent == "GTR020"
 
 
 def test_rule_meta_applies_to_can_widen_to_macro() -> None:

@@ -124,17 +124,17 @@ uv run python -m scripts.measure macro-profile-tokens
 uv run python -m scripts.measure macro-profile-ownership
 
 # Decision-augmenting sizing sweeps (print-only; numbers folded into the
-# decisions docs they back). command-iuc-heuristics sizes the GTR031/GTR032
+# decisions docs they back). command-iuc-heuristics sizes the GTR020.2/GTR032
 # placeholders (check §D1); command-lone-amp classifies every lone `&` by class
 # (redirect/quoted/pipe/background/joining) to settle the GTR032 deferral with
 # data — the genuine `cmd1 & cmd2` anti-pattern is ~1 tool (check §D3);
-# command-unquoted-var sizes GTR031 honestly — excluding Cheetah directive lines +
+# command-unquoted-var sizes GTR020.2 honestly — excluding Cheetah directive lines +
 # tracking shell quotes, a genuinely-unquoted `$var` still fires on 73.2% of tools,
-# so GTR031 (unlike GTR032) has real signal (check §D4); iuc011-fixability then
+# so GTR020.2 (unlike GTR032) has real signal (check §D4); iuc011-fixability then
 # resolves each unquoted `$var` against <inputs> and splits it into provable-vs-not
 # classes — the provable subset {safe, attr_safe, builtin_path} (49.5% of
-# occurrences) is auto-fixed by GTR020 (codemod §30 / check §D8), while the
-# non-provable residual (33.6% #set/loop, plus text/multi/label) keeps GTR031
+# occurrences) is auto-fixed by GTR020.1 (codemod §30 / check §D8), while the
+# non-provable residual (33.6% #set/loop, plus text/multi/label) keeps GTR020.2
 # advisory; macro-fmt-idempotence backs fmt §D16:
 uv run python -m scripts.measure command-iuc-heuristics
 uv run python -m scripts.measure command-lone-amp
@@ -267,8 +267,8 @@ commands:
 - `galaxy-tool-refactor format` — apply a preset's fixable rules (default `iuc` =
   `CANONICAL_CODEMODS` + cosmetic) then serialise. Safe, idempotent; never changes
   `profile=`. Advisory rules in a selection (`--preset strict`) are reported as
-  notes, never applied. (No longer byte-identical to the pre-GTR020 historical
-  output: GTR020 — `SingleQuoteCommandVars` — now also single-quotes the
+  notes, never applied. (No longer byte-identical to the pre-partition historical
+  output: GTR020.1 — `SingleQuoteCommandVars` — now also single-quotes the
   *provably*-single-valued Cheetah vars in `<command>`, a behaviour-preserving fix;
   codemod `docs/decisions.md` §30.)
 - `galaxy-tool-refactor upgrade` — repair, then iterative profile upgrade, then

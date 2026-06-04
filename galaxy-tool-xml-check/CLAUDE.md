@@ -30,16 +30,17 @@ not a consumer of the fixers. Findings are advisory: the app's `check` command
 reports them but does not fail on them by default.
 
 **Scope.** Covers the mechanically-detectable IUC practices (presence /
-attribute / structure queries): `GTR021`–`GTR030`, `GTR031` (single-quote Cheetah
-`$var`, via the **read-only `command_text` lexer** — directive-skipping,
-multi-line-quote-aware; the detection-only slice of the codemod tier's deferred
-M5; the lexer lives in **tier 1** `galaxy_tool_xml.command_text` so the GTR020
-codemod can share it, D8), and `GTR033` (package `<requirement>`s pin a version,
-D7). `GTR032` (`&&`-vs-lone-`&`) stays a no-op stub — its anti-pattern is ~1 tool
-corpus-wide (`docs/decisions.md` D3). The *provable* subset of GTR031 is now
-auto-fixed by GTR020 (D8); the check keeps flagging the non-provable residual. See
-`../docs/iuc_best_practices.md` for the coverage map and D3–D8 for the command-text
-+ requirement-pinning check decisions.
+attribute / structure queries). The **flat** advisories are `GTR021`,
+`GTR023`–`GTR029`, `GTR033` (package `<requirement>`s pin a version, D7) plus the
+`GTR032` (`&&`-vs-lone-`&`) no-op stub (~1 tool corpus-wide, D3). **Three are the
+advisory `.2` half of a partition practice** (D9; registry D10): `GTR018.2` /
+`GTR019.2` (the `<command>` / `<help>` CDATA mixed-content residual) and `GTR020.2`
+(the non-provable unquoted-`$var` residual, via the **read-only `command_text`
+lexer** in **tier 1** `galaxy_tool_xml.command_text`). Each `.2` reuses the same
+tier-1 predicate its fixable sibling (`GTR018.1` / `GTR019.1` / `GTR020.1`, codemod
+tier) uses, so the partition is sound and the check never depends on the codemod
+tier. See `../docs/iuc_best_practices.md` for the coverage map and D3–D9 for the
+command-text + requirement-pinning + partition-residual decisions.
 
 ## Coding standards
 

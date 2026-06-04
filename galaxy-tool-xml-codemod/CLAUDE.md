@@ -41,12 +41,14 @@ contracts in ``canonical.py``:
   ``SingleQuoteCommandVars`` (the safe canonical/format pipeline;
   ``ReorderToolChildren`` = GTR013, IUC #52 element order, validity-safe because
   ``<tool>`` is ``xs:all``; ``WrapCommandCdata`` / ``WrapHelpCdata`` =
-  GTR018/GTR019, IUC #34/#42, wrap a pure-text ``<command>``/``<help>`` body in
+  GTR018.1/GTR019.1, IUC #34/#42, wrap a pure-text ``<command>``/``<help>`` body in
   CDATA — behaviour-preserving, ``docs/decisions.md`` §29;
-  ``SingleQuoteCommandVars`` = GTR020, IUC #36, single-quote the *provably*-
+  ``SingleQuoteCommandVars`` = GTR020.1, IUC #36, single-quote the *provably*-
   single-valued Cheetah vars in ``<command>`` — behaviour-preserving but the first
-  canonical codemod to shift default-``format`` bytes vs the pre-GTR020 output,
-  ``docs/decisions.md`` §30).
+  canonical codemod to shift default-``format`` bytes vs the pre-partition output,
+  ``docs/decisions.md`` §30. The three ``Wrap…``/``SingleQuote…`` codemods are the
+  fixable ``.1`` half of a partition practice — their advisory ``.2`` residual lives
+  in the check tier; registry ``docs/decisions.md`` D10).
 - ``AUTO_UPGRADE_CODEMODS`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
   ``UpgradeToLatest`` (the opt-in profile-upgrade pipeline).
 

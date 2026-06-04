@@ -85,12 +85,61 @@ def by_code(code: str, /) -> RuleHandle:
 
 
 def known_codes() -> frozenset[str]:
-    """Every selectable rule code (what ``--select`` / ``--ignore`` accept)."""
-    return frozenset(registry())
+    """Every code ``--select`` / ``--ignore`` accept: selectable rules + the
+    partition **parent** codes (which expand to their sub-rules, see
+    ``resolve.resolve_codes``)."""
+    return frozenset(registry()) | parent_codes()
 
 
 def advisory_codes() -> frozenset[str]:
-    """The selectable codes that are advisory (report-only, ``detect_only``)."""
+    """The selectable codes that are advisory (report-only, ``detect_only``).
+
+    These are real rule codes (the ``.2`` sub-rules + the flat advisory checks);
+    a partition *parent* is a group, not itself advisory, so it is not included.
+    """
     return frozenset(
         code for code, handle in registry().items() if not handle.fixable
     )
+
+
+@cache
+def partition_groups() -> dict[str, tuple[str, ...]]:
+    """``parent code -> its sub-rule codes`` (sorted) for every partition practice.
+
+    A partition practice (e.g. ``GTR020``) is the parent of a fixable sub-rule
+    (``GTR020.1``) and an advisory residual sub-rule (``GTR020.2``); the grouping is
+    derived from each rule's ``RuleMeta.parent`` (registry ``docs/decisions.md`` D10).
+    """
+    groups: dict[str, list[str]] = {}
+    for code, handle in all_handles().items():
+        if handle.meta.parent is not None:
+            groups.setdefault(handle.meta.parent, []).append(code)
+    return {parent: tuple(sorted(children)) for parent, children in groups.items()}
+
+
+@cache
+def parent_codes() -> frozenset[str]:
+    """The partition-parent group codes (selectable; not themselves rules)."""
+    return frozenset(partition_groups())
+
+
+def expand_codes(codes: frozenset[str], /) -> frozenset[str]:
+    """Replace each partition-parent code with its sub-rule codes; others pass through.
+
+    ``--select GTR020`` selects the whole practice (``GTR020.1`` + ``GTR020.2``);
+    ``--ignore GTR020.2`` drops only the advisory residual.
+    """
+    groups = partition_groups()
+    expanded: set[str] = set()
+    for code in codes:
+        expanded.update(groups.get(code, (code,)))
+    return frozenset(expanded)
+
+
+def display_code(code: str, /) -> str:
+    """The code to show a user for a finding — the partition **parent** if *code* is
+    a sub-rule, else *code* itself (so both halves of a practice read as one name)."""
+    handle = all_handles().get(code)
+    if handle is not None and handle.meta.parent is not None:
+        return handle.meta.parent
+    return code

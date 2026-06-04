@@ -1,11 +1,14 @@
-"""The concrete advisory checks (GTR021–GTR032).
+"""The concrete advisory checks.
 
 Each check is a small LBYL query over the parsed ``ToolDocument`` and yields a
 ``Violation`` located on the offending element. All are ``detect_only`` — they
-report, they never fix. The two ``<command>``-CDATA-text heuristics (single-quote
-Cheetah, ``&&`` vs lone ``&``) are reserved placeholders (``GTR031`` / ``GTR032``)
-whose ``detect`` is a no-op stub, pending tuning to avoid noise; see
-``../../docs/iuc_best_practices.md``.
+report, they never fix. Three are the **advisory residual** sub-rules of a
+partition practice (``GTR018.2`` / ``GTR019.2`` / ``GTR020.2``): they flag only the
+part the fixable sibling (``GTR018.1`` / ``GTR019.1`` / ``GTR020.1``) cannot reach,
+so the practice's fix and advisory partition cleanly (registry ``docs/decisions.md``
+D10). The residual boundary reuses the **shared tier-1 predicates**
+(``galaxy_tool_xml.cdata`` / ``galaxy_tool_xml.command_vars``), so it can never drift
+from what the fix accepts. ``GTR032`` (``&&`` vs lone ``&``) stays a no-op stub.
 """
 
 from __future__ import annotations
@@ -16,7 +19,9 @@ from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_refactor_rules.violation import Violation
+from galaxy_tool_xml.cdata import cdata_wrappable, needs_cdata
 from galaxy_tool_xml.command_text import unquoted_cheetah_vars
+from galaxy_tool_xml.command_vars import input_param_info, provably_quotable
 from lxml import etree
 from packaging.version import InvalidVersion, Version
 
@@ -54,22 +59,6 @@ def _has_text(element: etree._Element, /) -> bool:
     return bool((element.text or "").strip())
 
 
-def _is_cdata_wrapped(element: etree._Element, /) -> bool:
-    """Whether *element*'s own text body is a CDATA section.
-
-    lxml exposes CDATA as plain ``.text``, so the only way to tell is to
-    re-serialise (the tree was parsed with ``strip_cdata=False``, so a CDATA
-    section round-trips as ``<![CDATA[...]]>``). We require the section to be the
-    element's *own* leading content — the text immediately after the opening tag
-    (modulo whitespace) must be the CDATA — so a partly-wrapped body
-    (``echo <![CDATA[...]]>``) or a CDATA-bearing *child* does not count as the
-    element itself being wrapped.
-    """
-    serialised: str = etree.tostring(element, encoding="unicode", with_tail=False)
-    body = serialised[serialised.index(">") + 1 :]
-    return bool(body.lstrip().startswith("<![CDATA["))
-
-
 def _is_pep440(value: str, /) -> bool:
     """Whether *value* parses as a PEP 440 version.
 
@@ -104,11 +93,19 @@ class TestsPresent(CheckRule):
 
 
 class CommandCdata(CheckRule):
-    """GTR022 — the ``<command>`` body should be wrapped in CDATA."""
+    """GTR018.2 — the ``<command>`` body should be wrapped in CDATA (advisory residual).
+
+    The advisory half of the GTR018 practice: the fixable sibling ``GTR018.1``
+    (``WrapCommandCdata``) wraps the pure-text bodies, so this flags only the
+    **residual** the fix cannot reach — a body that needs CDATA but is mixed-content
+    or carries a ``]]>`` terminator (``needs_cdata and not cdata_wrappable``, the
+    shared tier-1 predicate).
+    """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTR022",
-        summary="<command> body should be wrapped in CDATA.",
+        code="GTR018.2",
+        parent="GTR018",
+        summary="<command> CDATA residual the fix can't reach (mixed-content / ]]>).",
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
@@ -118,8 +115,8 @@ class CommandCdata(CheckRule):
         command = document.root.find("command")
         if (
             command is not None
-            and _has_text(command)
-            and not _is_cdata_wrapped(command)
+            and needs_cdata(command)
+            and not cdata_wrappable(command)
         ):
             yield _violation(
                 document, command, self.meta, "<command> is not wrapped in CDATA"
@@ -292,11 +289,17 @@ class DescriptionPresent(CheckRule):
 
 
 class HelpCdata(CheckRule):
-    """GTR030 — the ``<help>`` body should be wrapped in CDATA."""
+    """GTR019.2 — the ``<help>`` body should be wrapped in CDATA (advisory residual).
+
+    The advisory half of GTR019: ``GTR019.1`` (``WrapHelpCdata``) wraps the pure-text
+    bodies, so this flags only the mixed-content / ``]]>``-bearing residual the fix
+    cannot reach (the shared tier-1 ``needs_cdata and not cdata_wrappable``).
+    """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTR030",
-        summary="<help> body should be wrapped in CDATA.",
+        code="GTR019.2",
+        parent="GTR019",
+        summary="<help> CDATA residual the fix can't reach (mixed-content / ]]>).",
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
@@ -306,8 +309,8 @@ class HelpCdata(CheckRule):
         help_element = document.root.find("help")
         if (
             help_element is not None
-            and _has_text(help_element)
-            and not _is_cdata_wrapped(help_element)
+            and needs_cdata(help_element)
+            and not cdata_wrappable(help_element)
         ):
             yield _violation(
                 document, help_element, self.meta, "<help> is not wrapped in CDATA"
@@ -315,18 +318,22 @@ class HelpCdata(CheckRule):
 
 
 class SingleQuotedCheetah(CheckRule):
-    """GTR031 — single-quote Cheetah variables in ``<command>``.
+    """GTR020.2 — single-quote Cheetah variables in ``<command>`` (advisory residual).
 
-    Reports one finding per fully-unquoted shell-line Cheetah ``$var`` (the
-    word-splitting/injection hazard the practice guards against). Cheetah directive
-    lines and already-quoted (``'…'`` / ``"…"``) references are excluded by the
-    read-only ``command_text`` lexer. Sized at 73.2% of tools / 50,380 occurrences
-    (``docs/decisions.md`` D4, ``scripts.measure command-unquoted-var``).
+    The advisory half of GTR020: the fixable sibling ``GTR020.1``
+    (``SingleQuoteCommandVars``) auto-quotes the *provable* occurrences, so this
+    reports one finding only per **non-provable** unquoted shell-line ``$var`` — a
+    free-form ``text`` param, a deliberate ``multiple=`` splat, a dataset-label attr,
+    ``$on_string``, or a ``#set``/loop var — where single-quoting is a judgment call a
+    static fixer can't make. Provability uses the shared tier-1 ``provably_quotable``
+    classifier, so the fix/advisory split never drifts. Cheetah directive lines and
+    already-quoted references are excluded by the read-only ``command_text`` lexer.
     """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTR031",
-        summary="Single-quote Cheetah variables in <command>.",
+        code="GTR020.2",
+        parent="GTR020",
+        summary="Single-quote <command> Cheetah vars: the non-provable residual.",
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
@@ -338,8 +345,11 @@ class SingleQuotedCheetah(CheckRule):
             return
         base_line = command.sourceline or 0
         xpath = str(document.tree.getpath(command))
+        kinds, structural = input_param_info(document.root)
         text = "".join(command.itertext())
         for occurrence in unquoted_cheetah_vars(text):
+            if provably_quotable(occurrence.name, kinds, structural):
+                continue  # GTR020.1 auto-fixes this one
             yield Violation(
                 code=self.meta.code,
                 sourceline=base_line + occurrence.line_offset if base_line else 0,

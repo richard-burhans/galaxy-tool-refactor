@@ -243,10 +243,10 @@ don't carry CDATA):
 
 | Tag | Cheetah-templated? | CDATA-conventional? |
 |---|---|---|
-| `<command>` | yes (`evaluation.py:767`) | yes (GTR022) |
+| `<command>` | yes (`evaluation.py:767`) | yes (GTR018.2) |
 | inline `<configfile>` | yes (`evaluation.py:952`) | yes |
 | `<environment_variable>` | yes unless `inject=…` (`evaluation.py:851`) | sometimes |
-| `<help>` | **no** (RST/markdown, not templated) | yes (GTR030) |
+| `<help>` | **no** (RST/markdown, not templated) | yes (GTR019.2) |
 | `<token>` | **no** (expanded textually *before* Cheetah) | sometimes |
 | `<yield>` | n/a | no (always empty) |
 
@@ -255,7 +255,7 @@ lxml-*decoded* command text (`lib/galaxy/tool_util/parser/xml.py:261-263`:
 `return … command_el.text`), so `<![CDATA[a && b]]>` and the entity-escaped
 `a &amp;&amp; b` yield the **identical** string `a && b` to Cheetah/Galaxy. So losing
 CDATA does **not** change what the tool runs — it just produces an ugly,
-GTR022-violating, non-idempotent diff (and re-escapes shell `&&`/`<`).
+GTR018.2-violating, non-idempotent diff (and re-escapes shell `&&`/`<`).
 
 **lxml facts (probed):** parsing with `strip_cdata=False` (tier-1
 `binding.py:128`) preserves CDATA; assigning a plain `str` to `.text` **destroys the
