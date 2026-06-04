@@ -52,18 +52,63 @@ def _build_index(
     return index
 
 
+def _validate_partitions(index: dict[str, tuple[RuleHandle, bool]], /) -> None:
+    """Assert the partition sub-rule invariants (registry ``docs/decisions.md`` D10).
+
+    For every rule carrying a ``meta.parent`` (a partition sub-rule):
+    - its ``code`` is dotted as ``<parent>.<suffix>`` (so ``display_code`` /
+      ``expand_codes`` and the dotted-code scheme stay coherent);
+    - the parent code is **not** itself a registered rule code — a parent is a
+      selectable group key, not a rule handle;
+    - the parent groups **at least one fixable and one advisory** child — the whole
+      point of a partition is the fix/advisory split.
+
+    Pure and uncached (like ``_build_index``) so the guard is testable on a synthetic
+    index. Raises ``ValueError`` loudly at registry-build time on any violation, so a
+    future partition added without following the scheme fails fast rather than
+    silently mis-rendering.
+    """
+    fixable_kids: dict[str, list[str]] = {}
+    advisory_kids: dict[str, list[str]] = {}
+    for code, (handle, _selectable) in index.items():
+        parent = handle.meta.parent
+        if parent is None:
+            continue
+        if not code.startswith(f"{parent}."):
+            raise ValueError(
+                f"partition sub-rule {code!r} must be coded '<parent>.<suffix>' "
+                f"under its parent {parent!r}"
+            )
+        if parent in index:
+            raise ValueError(
+                f"partition parent {parent!r} collides with a real rule code — "
+                "a parent is a selectable group key, not a rule"
+            )
+        (fixable_kids if handle.fixable else advisory_kids).setdefault(
+            parent, []
+        ).append(code)
+    for parent in fixable_kids.keys() | advisory_kids.keys():
+        if not fixable_kids.get(parent):
+            raise ValueError(f"partition parent {parent!r} has no fixable sub-rule")
+        if not advisory_kids.get(parent):
+            raise ValueError(f"partition parent {parent!r} has no advisory sub-rule")
+
+
 @cache
 def _index() -> dict[str, tuple[RuleHandle, bool]]:
     """Build ``code -> (handle, selectable)`` for every baked-in rule.
 
-    Raises ``ValueError`` on any duplicate code across the families.
+    Raises ``ValueError`` on any duplicate code across the families, or on a
+    malformed partition (``_validate_partitions``).
     """
     entries: list[tuple[RuleHandle, bool]] = []
     entries.extend((codemod_handle(cls), True) for cls in selectable_codemods())
     entries.extend((codemod_handle(cls), False) for cls in upgrade_only_codemods())
     entries.extend((fmt_handle(cls), True) for cls in fmt_rules())
     entries.extend((check_handle(cls), True) for cls in advisory_checks())
-    return _build_index(entries)
+    index = _build_index(entries)
+    _validate_partitions(index)
+    return index
 
 
 def registry() -> dict[str, RuleHandle]:

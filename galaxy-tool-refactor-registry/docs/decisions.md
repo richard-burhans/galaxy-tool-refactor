@@ -377,6 +377,11 @@ unified namespace):
   `--select GTR020` pulls the whole practice while `--ignore GTR020.2` drops only the
   advisory. Presets need no special-casing — they derive from `meta.code`, so `iuc`
   (canonical codemods) gets the `.1` children and `strict` (advisory checks) the `.2`.
+- **Build-time guard** (`_validate_partitions`, called from `_index()`): asserts the
+  scheme so a future partition added wrong fails fast — every sub-rule's code is
+  `<parent>.<suffix>`, the parent code does not collide with a real rule (a parent is
+  a group key, not a rule), and each parent groups at least one fixable **and** one
+  advisory child (the fix/advisory split). Pinned by `tests/test_registry.py`.
 - **Display** (`display_code`): a finding renders under the **parent** code (both
   halves read as one practice, "GTR020"), with the existing `(advisory)` suffix
   distinguishing the residual. The structured `Violation.code` keeps the precise

@@ -3,16 +3,48 @@
 from __future__ import annotations
 
 import pytest
+from galaxy_tool_refactor_rules.meta import RuleMeta
+from galaxy_tool_xml.document import ToolDocument
 
 from galaxy_tool_refactor_registry.errors import UnknownRuleCode
+from galaxy_tool_refactor_registry.handle import RuleHandle
 from galaxy_tool_refactor_registry.registry import (
     _build_index,
+    _index,
+    _validate_partitions,
     advisory_codes,
     all_handles,
     by_code,
     known_codes,
     registry,
 )
+
+
+def _fake_handle(
+    code: str, *, parent: str | None = None, fixable: bool = True
+) -> RuleHandle:
+    """A synthetic RuleHandle for exercising the partition guard in isolation."""
+
+    def _detect(_document: ToolDocument) -> list:
+        return []
+
+    def _apply(_document: ToolDocument) -> None:
+        return None
+
+    return RuleHandle(
+        meta=RuleMeta(
+            code=code, summary="x", since="0.0.1", parent=parent,
+            detect_only=not fixable,
+        ),
+        family="codemod" if fixable else "check",
+        fixable=fixable,
+        detect=_detect,
+        apply=_apply if fixable else None,
+    )
+
+
+def _index_of(*handles: RuleHandle) -> dict[str, tuple[RuleHandle, bool]]:
+    return {h.meta.code: (h, True) for h in handles}
 
 
 def test_known_codes_are_the_selectable_set() -> None:
@@ -98,3 +130,56 @@ def test_duplicate_code_raises() -> None:
     handle = by_code("GTR002")
     with pytest.raises(ValueError, match="duplicate rule code 'GTR002'"):
         _build_index([(handle, True), (handle, True)])
+
+
+def test_real_registry_passes_the_partition_guard() -> None:
+    """The baked-in registry satisfies the partition invariants (it builds, so the
+    guard in _index() already ran; this asserts it explicitly)."""
+    _validate_partitions(_index())  # must not raise
+
+
+def test_partition_guard_accepts_a_well_formed_partition() -> None:
+    _validate_partitions(
+        _index_of(
+            _fake_handle("GTR900.1", parent="GTR900", fixable=True),
+            _fake_handle("GTR900.2", parent="GTR900", fixable=False),
+        )
+    )
+
+
+def test_partition_guard_rejects_a_non_dotted_child_code() -> None:
+    with pytest.raises(ValueError, match="must be coded '<parent>"):
+        _validate_partitions(
+            _index_of(
+                _fake_handle("GTR901X", parent="GTR901", fixable=True),
+                _fake_handle("GTR901.2", parent="GTR901", fixable=False),
+            )
+        )
+
+
+def test_partition_guard_rejects_parent_colliding_with_a_rule() -> None:
+    with pytest.raises(ValueError, match="collides with a real rule"):
+        _validate_partitions(
+            _index_of(
+                _fake_handle("GTR902", fixable=True),  # a real rule named like a parent
+                _fake_handle("GTR902.1", parent="GTR902", fixable=True),
+                _fake_handle("GTR902.2", parent="GTR902", fixable=False),
+            )
+        )
+
+
+def test_partition_guard_requires_both_a_fix_and_an_advisory_child() -> None:
+    with pytest.raises(ValueError, match="no advisory sub-rule"):
+        _validate_partitions(
+            _index_of(
+                _fake_handle("GTR903.1", parent="GTR903", fixable=True),
+                _fake_handle("GTR903.2", parent="GTR903", fixable=True),  # both fixable
+            )
+        )
+    with pytest.raises(ValueError, match="no fixable sub-rule"):
+        _validate_partitions(
+            _index_of(
+                _fake_handle("GTR904.1", parent="GTR904", fixable=False),
+                _fake_handle("GTR904.2", parent="GTR904", fixable=False),  # no fix
+            )
+        )
