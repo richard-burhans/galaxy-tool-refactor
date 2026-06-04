@@ -26,7 +26,7 @@ Structural canonical codemods and cosmetic fmt rules. A finding here means `form
 
 ## Advisory checks (IUC — best practices)
 
-Detect-only IUC best-practice checks. Advisory: `check` reports them but does not fail unless `--strict`. `GTR031`/`GTR032` are reserved placeholders (no detection yet), so they flag nothing.
+Detect-only IUC best-practice checks. Advisory: `check` reports them but does not fail unless `--strict`. `GTR032` (`&&`-vs-lone-`&`) is a reserved placeholder (data-backed deferral, check D3), so it flags nothing. The `.2` rows are the advisory residual of a partition practice (the fixable `.1` sibling is in the codemod table).
 
 | Rule | Tier | Tools flagged | % of tools | Findings | What it flags |
 |---|---|---:|---:|---:|---|

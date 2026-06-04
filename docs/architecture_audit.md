@@ -1,5 +1,74 @@
 # Architectural audit — galaxy-tool-refactor
 
+## Re-audit 2026-06-04 — post GTR-namespace unify + partition sub-rules (PRs #86–#88) + full escalation
+
+**Verdict — healthy; boundaries hold, the new abstractions are coherent.** A refreshed
+`ARCHITECTURE.md` baseline plus a 12-finder / adversarial-refuter escalation (per-tier × 7 +
+per-dimension × 5; **26 raw findings → 23 surviving refutation, 3 refuted**) over the state
+after three merged PRs: #86 (`GTR020.1` provable-quote fix), #87 (unify every rule code under
+one `GTR` prefix; fixability is a rule property, not the prefix), #88 (partition sub-rules — a
+practice splits into a fixable `.1` + an advisory `.2`, the advisory restricted to the
+complement of the fix via a *shared tier-1 predicate*).
+
+**No boundary violations, no real High architecture findings.** The escalation positively
+*re-confirmed* the load-bearing invariants: check (3.5) imports only tier 1 + 0.5 (the
+residual restriction reuses tier-1 predicates, never the codemod tier); the three new tier-1
+analysis modules (`command_text` / `command_vars` / `cdata`) import only stdlib + lxml; the
+partition is modelled uniformly across all three practices; `display_code` is applied
+consistently (CLI → parent, MCP → child, by design); no residual `GTX`/`IUC` *internal* code
+survives in `src/`; the fix/advisory partition is disjoint + exhaustive and pinned by a
+soundness test.
+
+### Findings
+
+**High — fixed:**
+- `[fixed]` **Stale prose in the generated `corpus_check_stats.md`** (line 29) + its generator
+  (`scripts/corpus_check.py`) called `GTR020.2` a "reserved placeholder (flags nothing)" — but
+  it is the partition advisory residual that fires on 57.8% of tools; only `GTR032` is a
+  reserved stub. Corrected both (generator prose + the deterministic page line).
+
+**Low — fixed (safe):**
+- `[fixed]` `Cursor.is_cdata_wrapped()` (tier 2) duplicated the tier-1
+  `cdata.is_cdata_wrapped()` body → now **delegates** to the tier-1 predicate (one definition;
+  the serializer-allowlist entry for `cursor.py` removed as it no longer re-serialises) +
+  docstring updated.
+- `[fixed]` `ARCHITECTURE.md` reference index lacked the three tier-1 analysis modules → rows
+  added; tier-1 §3 module list added; xml `docs/decisions.md` **§16** extended to cover
+  `cdata.py` (it previously documented only `command_text`/`command_vars`).
+- `[fixed]` Present-tense references to the **retired** codes `GTR031`/`GTR022`/`GTR030` in the
+  *live* codemod §29/§30 (and a now-false "flag *any* non-CDATA body" claim) → updated to the
+  current `GTR020.2`/`GTR018.2`/`GTR019.2` + the partition restriction noted. (The check-tier
+  D1–D8 journal keeps its pre-partition codes deliberately — their stats describe the
+  *unrestricted* rules; D9/D10 bridge.)
+- `[fixed]` The facade (`run`/`upgrade`/`detect`) didn't state `codes` must be pre-resolved
+  (parents expanded) → module docstring now says so explicitly.
+- `[fixed]` MCP `_violation_to_dict` didn't document the intentional CLI-parent / MCP-child
+  code asymmetry (registry D10) → docstring added.
+
+**Low — accepted (intentional; recorded so the next audit doesn't re-litigate):**
+- `[accepted]` `Cursor.element` exposes the raw lxml element — a documented seam for tier-1
+  predicates at the partition boundary; tier 2 already depends on tier 1. (Refuted as a
+  "violation".)
+- `[accepted]` MCP returns the precise child code while the CLI shows the parent — deliberate
+  (agents need to distinguish fixable vs advisory; humans want one practice name).
+- `[accepted]` `GTR032` reserved no-op stub (data-backed deferral, check D3); partition parent
+  codes are selectable group keys, not rule handles.
+- `[accepted]` GTR-code references in docstrings of rule-specific classes (e.g. `UnquotedVar`)
+  — consistent house style.
+
+**Proposal (not applied — adding a test/guard, per the safe-fix policy):**
+- `[proposal]` No guard enforces the **partition code-format** invariant (a sub-rule's `code`
+  must be `<parent>.N`). Today the exact-equality `test_partition.py` and code review catch a
+  mistake loudly, so this is Low. A lightweight assertion in `_index()` (or a derived test that
+  every `meta.parent` has exactly a `.1` fixable + `.2` advisory child whose codes start with
+  the parent) would harden it against a future partition added without updating the test.
+
+### Reproduction
+`bash scripts/qa_gate.sh` (green). Workflow: 12 finders × adversarial refuters, run
+2026-06-04.
+
+---
+
 ## Re-audit 2026-06-03b — post macro-epic (PRs #79–#82) + full escalation
 
 **Verdict — healthy; boundaries hold exactly as documented.** A fresh deep pass plus a

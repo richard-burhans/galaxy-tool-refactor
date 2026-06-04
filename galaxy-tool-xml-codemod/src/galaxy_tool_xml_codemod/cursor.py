@@ -18,6 +18,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
+from galaxy_tool_xml.cdata import is_cdata_wrapped as _tier1_is_cdata_wrapped
 from lxml import etree
 
 
@@ -104,16 +105,12 @@ class Cursor:
     def is_cdata_wrapped(self) -> bool:
         """Whether the element's body is a leading ``<![CDATA[…]]>`` section.
 
-        lxml exposes CDATA as plain ``.text`` with no marker, so this re-serialises
-        (the tier-1 parser keeps CDATA, ``strip_cdata=False``, so it round-trips)
-        and inspects the body — mirroring the advisory tier's GTR018.2/GTR019.2
-        predicate. Leading whitespace before the section still counts as wrapped.
+        Delegates to the **shared tier-1 predicate** (``galaxy_tool_xml.cdata``) —
+        the one definition the GTR018/GTR019 CDATA practice partitions on, used by
+        both the ``.1`` fix codemods and the ``.2`` advisory residuals. Leading
+        whitespace before the section still counts as wrapped.
         """
-        serialised: str = etree.tostring(
-            self._element, encoding="unicode", with_tail=False
-        )
-        body = serialised[serialised.index(">") + 1 :]
-        return bool(body.lstrip().startswith("<![CDATA["))
+        return _tier1_is_cdata_wrapped(self._element)
 
     def parent(self) -> Cursor | None:
         parent = self._element.getparent()

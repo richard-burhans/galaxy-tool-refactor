@@ -7,10 +7,13 @@ a ``write_path`` is given. This is the shared core the ``galaxy-tool-refactor``
 CLI and the MCP server (``galaxy-tool-refactor-mcp``) both sit on top of.
 
 ``codes`` is what ``resolve.resolve_codes`` / ``resolve.resolve_upgrade_codes``
-produce. ``run`` applies the fixable rules in the selection and reports advisory
-(``detect_only``) ones as notes (never mutating for them); ``detect`` reports all
-of them without mutating; ``upgrade`` always performs the profile upgrade and
-additionally applies the fixable rules in the selection.
+produce — a set of **real rule codes** with any partition-parent code already
+expanded to its sub-rules (e.g. ``GTR020`` → ``GTR020.1`` / ``GTR020.2``). The facade
+indexes the registry by code directly, so callers must resolve first; passing a bare
+parent code is a caller error. ``run`` applies the fixable rules in the selection and
+reports advisory (``detect_only``) ones as notes (never mutating for them);
+``detect`` reports all of them without mutating; ``upgrade`` always performs the
+profile upgrade and additionally applies the fixable rules in the selection.
 """
 
 from __future__ import annotations

@@ -729,12 +729,14 @@ galaxy-tool-xml pytest galaxy-tool-xml/tests/test_binding.py`.
   `.profile` are tool-specific and meaningless on a `<macros>` root; a dedicated
   type keeps the contract honest and lets fmt/codemod dispatch on document kind.
 
-## 16. Command-text analysis utilities (`command_text` + `command_vars`)
+## 16. Command-text analysis utilities (`command_text` + `command_vars` + `cdata`)
 
-**Date:** 2026-06-03. Reproduced-by: `uv run --package galaxy-tool-xml pytest
-galaxy-tool-xml/tests/test_command_text.py galaxy-tool-xml/tests/test_command_vars.py`.
+**Date:** 2026-06-03 (`command_text`/`command_vars`); 2026-06-04 (`cdata`, with the
+partition work). Reproduced-by: `uv run --package galaxy-tool-xml pytest
+galaxy-tool-xml/tests/test_command_text.py galaxy-tool-xml/tests/test_command_vars.py
+galaxy-tool-xml/tests/test_cdata.py`.
 
-Two small, dependency-light modules analyse `<command>` Cheetah/shell text:
+Three small, dependency-light modules analyse `<command>` / `<help>` body content:
 
 - `command_text.unquoted_cheetah_vars(text)` — a read-only lexer yielding every
   fully-unquoted shell-line `$var` with its name, line offset, and absolute
@@ -744,11 +746,18 @@ Two small, dependency-light modules analyse `<command>` Cheetah/shell text:
   (`input_param_info` / `classify_var` / `provably_quotable`) into the
   quoting-safety buckets, exposing the provable subset `{safe, attr_safe,
   builtin_path}`.
+- `cdata` — `cdata_wrappable` / `needs_cdata` / `is_cdata_wrapped`: predicates on an
+  element deciding whether a pure-text body can be losslessly wrapped in one CDATA
+  section (the GTR018/GTR019 substrate).
 
-**Why tier 1.** Both the advisory GTR031 check (tier 3.5) *and* the GTR020 quoting
-codemod (tier 2) need them. Shared code below both must sit in tier 1 (tier 0.5 is
-RuleMeta-only, no `etree`); the parsing foundation is the natural home, and it keeps
-the codemod from depending upward on the check tier. The lexer began life in the
-check tier (where GTR031 shipped) and moved here when GTR020 was added; `scripts.measure`
-imports the same classifier so the corpus sizing and the codemod never diverge.
-These are *analysis* helpers (string in, data out) — the library still emits no XML.
+**Why tier 1.** Each is shared by a codemod fix sub-rule (tier 2) *and* its advisory
+residual sub-rule (tier 3.5): `provably_quotable` by GTR020.1/GTR020.2,
+`cdata_wrappable` by GTR018.1/GTR018.2 and GTR019.1/GTR019.2. Code shared below both
+must sit in tier 1 (tier 0.5 is RuleMeta-only, no `etree`); the parsing foundation is
+the natural home, and it keeps the codemod from depending upward on the check tier.
+One shared predicate per practice is what makes the partition **sound** — the fix and
+its advisory residual can't drift (registry `docs/decisions.md` D10). `scripts.measure`
+imports the same `command_vars` classifier so the corpus sizing and the codemod never
+diverge. These are *analysis* helpers (string/element in, data out) — the library
+still emits no XML (the `cdata.is_cdata_wrapped` re-serialise is a read-only probe,
+serializer-allowlisted).

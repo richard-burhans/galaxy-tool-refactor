@@ -35,6 +35,14 @@ if TYPE_CHECKING:
 
 
 def _violation_to_dict(violation: Violation, /) -> dict[str, object]:
+    """Serialise a Violation to a JSON-able dict for an agent.
+
+    ``code`` is the **precise rule code**, including a partition sub-rule's dotted
+    child code (``GTR020.1`` for the fix, ``GTR020.2`` for the advisory) — *not* the
+    parent display code. Agents get the exact sub-rule so they can distinguish the
+    fixable half from the advisory residual; the human CLI collapses both to the
+    parent (``GTR020``) via ``display_code``. Intentional asymmetry (registry D10).
+    """
     return {
         "code": violation.code,
         "sourceline": violation.sourceline,
