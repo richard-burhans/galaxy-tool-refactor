@@ -40,6 +40,7 @@ from scripts.measure import (
     _measure_output_format_input,
     _measure_param_types,
     _measure_semantic_upgrade_boundaries,
+    _measure_shell_oracle_quoting,
     _measure_upgrade_behavior_blocks,
     _measure_upgrade_headroom,
     _measure_version_tokenization,
@@ -54,6 +55,8 @@ from scripts.measure import (
     _tally_profile_shift,
     _version_tuple,
 )
+
+from galaxy_tool_xml.shell_oracle import shell_oracle_available
 
 
 @pytest.fixture()
@@ -1355,6 +1358,34 @@ def test_measure_iuc011_fixability_buckets_and_option_b(tmp_path: Path) -> None:
     }
     assert result.n_tools_all_provable == 1  # only tool A
     assert result.n_tools_beyond_safe == 1  # tool A has a builtin_path var
+
+
+@pytest.mark.skipif(
+    not shell_oracle_available(), reason="needs the shell-oracle extra (bashlex)"
+)
+def test_measure_shell_oracle_quoting_widens_and_narrows(tmp_path: Path) -> None:
+    """The widening lever (assignment-RHS residual) and the fd-dup narrowing are
+    counted relative to the value-domain rule, so the corpus delta is reproducible."""
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # Widen: $opts is a free-form text param (not value-domain provable), but in an
+    # assignment RHS it never word-splits -> the oracle quotes it.
+    (repo / "widen.xml").write_text(
+        '<tool id="w" name="W"><inputs><param name="opts" type="text"/></inputs>'
+        "<command><![CDATA[THREADS=$opts]]></command></tool>",
+        encoding="utf-8",
+    )
+    # Narrow: $fd is an integer (value-domain safe), but in a >&-dup position the
+    # oracle declines it.
+    (repo / "narrow.xml").write_text(
+        '<tool id="n" name="N"><inputs><param name="fd" type="integer"/></inputs>'
+        "<command><![CDATA[run 2>&$fd]]></command></tool>",
+        encoding="utf-8",
+    )
+    result = _measure_shell_oracle_quoting(corpus_root=tmp_path)
+    assert result.oracle_available is True
+    assert result.widened_occurrences == 1 and result.widened_tools == 1
+    assert result.narrowed_occurrences == 1 and result.narrowed_tools == 1
 
 
 def test_measure_macro_token_residual_detects_imported_token(tmp_path: Path) -> None:

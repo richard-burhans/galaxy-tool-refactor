@@ -1,19 +1,31 @@
-"""Codemod: single-quote provably-single-valued Cheetah vars in <command> (GTR020).
+"""Codemod: single-quote behaviour-preserving Cheetah vars in <command> (GTR020).
 
 The IUC ``single-quote your Cheetah variables`` practice guards against shell
-word-splitting / injection, but quoting is only *behaviour-preserving* for a
-reference whose rendered value can never contain whitespace. This codemod is the
-fixer for that provable subset: it single-quotes exactly the
-``{safe, attr_safe, builtin_path}`` classes the tier-1 classifier
-(``galaxy_tool_xml.command_vars``) certifies — a bare ``$param`` of a single-token
-type, a ``$param.ext`` / path attribute, or a ``$__…__`` Galaxy path built-in.
-Free-form ``text`` params, deliberate ``multiple=`` splats, label attrs
-(``$input.name``), ``$on_string`` and ``#set``/loop vars are left untouched; the
-advisory ``GTR020.2`` check remains the detector for that non-provable residual.
+word-splitting / injection, but quoting is only *behaviour-preserving* in some
+positions. This codemod is the fixer for the subset that is provably so, via the
+shared tier-1 policy ``galaxy_tool_xml.shell_oracle.quote_is_behavior_preserving``:
 
-It promotes the detection-only ``GTR020.2`` lexer into a fix, so it rides the
-canonical/``format`` pipeline (``canonical.py``; the fix is behaviour-preserving so
-default ``format`` may apply it — see ``docs/decisions.md`` §30). The rewrite is a
+- **value-domain** (always, no dependency): a reference whose rendered value can never
+  contain whitespace — the ``{safe, attr_safe, builtin_path}`` classes
+  (``command_vars``): a bare ``$param`` of a single-token type, a ``$param.ext`` / path
+  attribute, or a ``$__…__`` Galaxy path built-in;
+- **shell-context** (when the optional ``galaxy-tool-xml[shell-oracle]`` extra is
+  installed): the bashlex classifier additionally *widens* to any reference in a
+  no-word-splitting context (an assignment RHS ``THREADS=$opts`` is safe to quote even
+  for a free-form ``text`` param) and *narrows* away fd-dup targets (``2>&$fd``, where
+  quoting a numeric fd flips a duplication into a file redirect). Without the extra the
+  policy is exactly the value-domain rule, so the default ``format`` output is unchanged
+  and license-clean (bashlex is GPL v3+).
+
+Free-form ``text`` params in a splitting position, ``multiple=`` splats, label attrs
+(``$input.name``), ``$on_string`` and ``#set``/loop vars in splitting positions are
+left untouched; the advisory ``GTR020.2`` check reports that residual (using the same
+shared policy, so the fix/advisory partition stays exact). The ``certifier`` constructor
+argument reserves the Phase-2 seam (a render-based ``EditCertifier`` override); it
+defaults to the static policy. See ``docs/decisions.md`` §30–31 and
+``../docs/upgrade_research/cheetah_bashlex_boundary_oracle.md``.
+
+It rides the canonical/``format`` pipeline (``canonical.py``). The rewrite is a
 **positional splice**: each occurrence carries absolute ``start``/``end`` offsets
 (``unquoted_cheetah_vars``), so the wrap targets exactly the reference the lexer
 found and is applied right-to-left to keep earlier offsets valid. The body is
@@ -27,7 +39,8 @@ from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_xml.command_text import UnquotedVar, unquoted_cheetah_vars
-from galaxy_tool_xml.command_vars import input_param_info, provably_quotable
+from galaxy_tool_xml.command_vars import input_param_info
+from galaxy_tool_xml.shell_oracle import quote_is_behavior_preserving
 
 from galaxy_tool_xml_codemod.change import Change
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
@@ -36,6 +49,7 @@ from galaxy_tool_xml_codemod.cursor import Cursor
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
+    from galaxy_tool_xml_codemod.certify import EditCertifier
     from galaxy_tool_xml_codemod.module import Module
 
 _IUC = "https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html"
@@ -65,7 +79,7 @@ def _wrap_occurrences(
 
 
 class SingleQuoteCommandVars(CodemodCommand):
-    """Single-quote the provably-single-valued unquoted Cheetah vars in <command>."""
+    """Single-quote the provably behaviour-preserving Cheetah vars in <command>."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
         code="GTR020.1",
@@ -77,6 +91,12 @@ class SingleQuoteCommandVars(CodemodCommand):
         since="0.0.1",
         cite=_IUC,
     )
+
+    def __init__(self, *, certifier: EditCertifier | None = None) -> None:
+        """*certifier*: a Phase-2 ``EditCertifier`` override; ``None`` (default) uses
+        the tier-1 static policy ``quote_is_behavior_preserving`` (value-domain, plus
+        bashlex shell-context when the ``shell-oracle`` extra is present)."""
+        self._certifier = certifier
 
     def detect(self, module: Module, /) -> Iterator[Change]:
         root = module.document.root
@@ -90,10 +110,15 @@ class SingleQuoteCommandVars(CodemodCommand):
         if not body:
             return
         kinds, structural = input_param_info(root)
+        decide = (
+            self._certifier.should_quote
+            if self._certifier is not None
+            else quote_is_behavior_preserving
+        )
         qualifying = [
             occurrence
             for occurrence in unquoted_cheetah_vars(body)
-            if provably_quotable(occurrence.name, kinds, structural)
+            if decide(body, occurrence=occurrence, kinds=kinds, structural=structural)
         ]
         if not qualifying:
             return
@@ -102,7 +127,7 @@ class SingleQuoteCommandVars(CodemodCommand):
             sourceline=cursor.sourceline,
             xpath=cursor.xpath,
             message=(
-                f"single-quoted {len(qualifying)} provably-single-valued Cheetah "
+                f"single-quoted {len(qualifying)} behaviour-preserving Cheetah "
                 "variable(s) in <command>"
             ),
             mutate=_wrap_occurrences(

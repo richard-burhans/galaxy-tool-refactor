@@ -761,3 +761,48 @@ imports the same `command_vars` classifier so the corpus sizing and the codemod 
 diverge. These are *analysis* helpers (string/element in, data out) — the library
 still emits no XML (the `cdata.is_cdata_wrapped` re-serialise is a read-only probe,
 serializer-allowlisted).
+
+## 17. Shell boundary oracle (`shell_oracle`) — bashlex behind the `[shell-oracle]` extra
+
+**Date:** 2026-06-04.
+
+`shell_oracle.py` is the permanent half of the deferred Cheetah/shell **M5** layer: a
+read-only **boundary oracle** over a realized `<command>` line, parsed with **bashlex**
+(bash's own grammar, ported to Python). It exposes `boundary_signature` (the argv word
+partition + full fd→target redirection topology — the exact behaviour a single-quote
+edit must preserve), a `quoting_context` classifier, and the composed policy
+`quote_is_behavior_preserving`. Design + the Phase-0 spike that de-risked it:
+`../../docs/upgrade_research/cheetah_bashlex_boundary_oracle.md`.
+
+### Decisions
+
+- **bashlex is isolated behind the optional `galaxy-tool-xml[shell-oracle]` extra**, not
+  a hard dependency: bashlex is **GPL v3+** and this tier is MIT. `_bashlex()` guards on
+  `importlib.util.find_spec`; every entry point degrades gracefully when the extra is
+  absent (`boundary_signature`/`quoting_context` → `None`/`UNKNOWN`,
+  `quote_is_behavior_preserving` → the value-domain `provably_quotable`). So the default
+  output is unchanged and license-clean; installing the extra changes behaviour.
+- **The quoting *policy* lives here, in tier 1**, beside `provably_quotable`, because the
+  GTR020.1 fixer (tier 2) and the GTR020.2 advisory check (tier 3.5) both call it — same
+  rationale as §16. One shared predicate keeps their fix/advisory partition exact.
+- **Vars are kept as bash *expansions*, never value-substituted.** bash word-splits
+  expansion *results*, not literal text (`foo=$x` with a space-bearing `$x` stays one
+  value, but the literal `foo=a b` is assignment + command), so substituting a value
+  would mis-model splitting. The classifier replaces each Cheetah var with a simple
+  `$SENTINEL` expansion (so dotted `${x.y}` — invalid bash — never breaks the parse) and
+  reads the target's *syntactic context* from the AST: assignment RHS → `NO_SPLIT`;
+  `>&`/`<&` dup target → `DUP_TARGET`; bare word / redirect-file target / inside `$(…)`
+  → `SPLIT`; parse failure (`[[ … ]]`, `$(( … ))`) or not-found → `UNKNOWN`.
+- **`quote_is_behavior_preserving` = context ∘ value-domain.** `NO_SPLIT` → safe for any
+  value (*widens* the value-domain set — a free-form `text`/`multiple=` var in an
+  assignment RHS becomes fixable); `DUP_TARGET` → never (a *narrowing*: quoting a numeric
+  fd flips a dup into a file redirect; conservatively vetoes file-valued dups too);
+  `SPLIT`/`UNKNOWN` → defer to `provably_quotable`. Known tiny gap: a var used as a
+  literal fd-number prefix `$intvar>file` is `SPLIT` and may be quoted — requires
+  `$integer_param` immediately before `>`, essentially absent in real tools.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_shell_oracle.py
+```
