@@ -64,9 +64,9 @@ _ALLOWLIST: dict[str, tuple[frozenset[str], str]] = {
         frozenset({"etree.tostring("}),
         "serialise one element to a str for read-only CDATA-wrap inspection",
     ),
-    "galaxy-tool-xml-check/src/galaxy_tool_xml_check/checks.py": (
+    "galaxy-tool-xml/src/galaxy_tool_xml/cdata.py": (
         frozenset({"etree.tostring("}),
-        "serialise one element to a str for read-only content inspection",
+        "serialise one element to a str for read-only CDATA detection",
     ),
     "galaxy-tool-xml/src/galaxy_tool_xml/document.py": (
         frozenset({"etree.tostring("}),

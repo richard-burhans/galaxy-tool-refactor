@@ -50,6 +50,7 @@ from galaxy_tool_refactor_registry.macro_profile import (
     plan_from_sites,
     profile_token_site,
 )
+from galaxy_tool_refactor_registry.registry import display_code
 from galaxy_tool_refactor_registry.resolve import (
     resolve_codes,
     resolve_upgrade_codes,
@@ -437,7 +438,7 @@ def check_command(
                 suffix = "  (advisory)" if is_advisory else ""
                 click.echo(
                     f"{target}:{violation.sourceline}  "
-                    f"{violation.code}  {violation.message}{suffix}"
+                    f"{display_code(violation.code)}  {violation.message}{suffix}"
                 )
     if not quiet:
         click.echo(

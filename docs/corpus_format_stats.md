@@ -49,9 +49,9 @@ What each GTR rule does, across both tiers. *fmt*-tier rules are the cosmetic ru
 | GTR015 | codemod | Replace output `<data format="input">` with format_source for a tool with a single top-level data input. |
 | GTR016 | codemod | Inline a deprecated `<command interpreter=I>`script ...`</command>` as `<command>`I '$__tool_directory__/script' ...`</command>` (single-token interpreter, literal-script first token). |
 | GTR017 | codemod | Normalize Python-style boolean attribute values (True/Yes/…) to canonical xs:boolean so a globally-invalid tool validates. |
-| GTR018 | codemod | Wrap a pure-text `<command>` body in CDATA (IUC #34). |
-| GTR019 | codemod | Wrap a pure-text `<help>` body in CDATA (IUC #42). |
-| GTR020 | codemod | Single-quote provably-single-valued Cheetah variables in `<command>` (bare single-token params, $__…__ path built-ins, space-free attrs). |
+| GTR018.1 | codemod | Wrap a pure-text `<command>` body in CDATA (IUC #34). |
+| GTR019.1 | codemod | Wrap a pure-text `<help>` body in CDATA (IUC #42). |
+| GTR020.1 | codemod | Single-quote provably-single-valued Cheetah variables in `<command>` (bare single-token params, $__…__ path built-ins, space-free attrs). |
 
 ## Pass 1 rule triggers (raw input → canonical)
 

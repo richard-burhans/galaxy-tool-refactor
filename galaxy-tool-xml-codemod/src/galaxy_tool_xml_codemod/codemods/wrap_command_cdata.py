@@ -6,7 +6,7 @@ Galaxy runs the ``<command>`` body through Cheetah then a shell, so shell operat
 performs the lexical wrap for the *pure-text* subset (see ``_cdata.cdata_wrap_change``
 for the eligibility predicate); it is behaviour-preserving (only the serialised bytes
 change, not the value Galaxy runs) and so rides the canonical/``format`` pipeline.
-The advisory ``GTR022`` check remains the detector for the mixed-content residual
+The advisory ``GTR018.2`` check remains the detector for the mixed-content residual
 this codemod skips. See ``docs/decisions.md`` §29.
 """
 
@@ -27,7 +27,8 @@ class WrapCommandCdata(CodemodCommand):
     """Wrap a pure-text ``<command>`` body in a ``<![CDATA[…]]>`` section."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTR018",
+        code="GTR018.1",
+        parent="GTR018",
         summary="Wrap a pure-text <command> body in CDATA (IUC #34).",
         since="0.0.1",
         cite="https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html",

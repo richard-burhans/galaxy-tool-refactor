@@ -16,7 +16,7 @@ from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_refactor_registry.adapters import fmt_rules
 from galaxy_tool_refactor_registry.errors import UnknownPreset, UnknownRuleCode
 from galaxy_tool_refactor_registry.presets import DEFAULT_PRESET, presets
-from galaxy_tool_refactor_registry.registry import known_codes
+from galaxy_tool_refactor_registry.registry import expand_codes, known_codes
 
 
 def _validate_codes(codes: Iterable[str], /) -> None:
@@ -52,8 +52,11 @@ def resolve_codes(
     if name not in presets():
         raise UnknownPreset(name)
     _validate_codes((*select, *ignore))
-    base = frozenset(select) if select else presets()[name]
-    return base - frozenset(ignore)
+    # A partition-parent code (e.g. GTR020) selects/ignores the whole practice; a
+    # dotted child (GTR020.2) targets just that half. Preset sets already hold the
+    # child codes, so only the user-supplied select/ignore need expanding.
+    base = expand_codes(frozenset(select)) if select else presets()[name]
+    return base - expand_codes(frozenset(ignore))
 
 
 def upgrade_base_codes() -> frozenset[str]:
@@ -80,5 +83,5 @@ def resolve_upgrade_codes(
     select = tuple(select)
     ignore = tuple(ignore)
     _validate_codes((*select, *ignore))
-    base = frozenset(select) if select else upgrade_base_codes()
-    return base - frozenset(ignore)
+    base = expand_codes(frozenset(select)) if select else upgrade_base_codes()
+    return base - expand_codes(frozenset(ignore))

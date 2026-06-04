@@ -10,11 +10,13 @@ entity-unescaped text, so only the serialised bytes change (entities become lite
 inside CDATA), not the value Galaxy ultimately runs or renders.
 
 Mixed-content bodies (text interleaved with child elements or comments) and
-already-wrapped bodies are left untouched; the advisory GTR022/GTR030 checks remain
-to flag the rare residual these codemods deliberately skip.
+already-wrapped bodies are left untouched; the advisory sub-rules GTR018.2 / GTR019.2
+flag the rare residual these fix sub-rules deliberately skip.
 """
 
 from __future__ import annotations
+
+from galaxy_tool_xml.cdata import cdata_wrappable
 
 from galaxy_tool_xml_codemod.change import Change
 from galaxy_tool_xml_codemod.cursor import Cursor
@@ -23,18 +25,17 @@ from galaxy_tool_xml_codemod.cursor import Cursor
 def cdata_wrap_change(cursor: Cursor, /, *, code: str, element: str) -> Change | None:
     """Return a Change wrapping *cursor*'s body in CDATA, or ``None`` if unwrappable.
 
-    Unwrappable cases (each left for the advisory checks): a whitespace-only body,
-    a mixed-content body (any child node), an already-wrapped body, or a body
-    containing ``]]>`` (which cannot be expressed in one CDATA section).
+    Eligibility is the shared tier-1 ``cdata_wrappable`` predicate (so the advisory
+    GTR018.2 / GTR019.2 residual — ``needs_cdata and not cdata_wrappable`` — can never
+    drift from what this fix accepts). Unwrappable cases each left for the advisory
+    sub-rule: a whitespace-only body, a mixed-content body (any child node), an
+    already-wrapped body, or a body containing ``]]>`` (which cannot be expressed in
+    one CDATA section).
     """
+    if not cdata_wrappable(cursor.element):
+        return None
     text = cursor.text
-    if text is None or not text.strip():
-        return None
-    if cursor.child_node_count() != 0:
-        return None
-    if cursor.is_cdata_wrapped():
-        return None
-    if "]]>" in text:
+    if text is None:  # cdata_wrappable guarantees non-None; keeps mypy + LBYL happy
         return None
     return Change(
         code=code,

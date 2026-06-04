@@ -47,9 +47,12 @@ def test_iuc001_missing_tests() -> None:
     assert "GTR021" not in _codes(_tool())
 
 
-def test_iuc002_command_not_cdata() -> None:
-    assert "GTR022" in _codes(_tool(command="<command>foo</command>"))
-    assert "GTR022" not in _codes(_tool())
+def test_iuc018_2_command_cdata_residual() -> None:
+    # GTR018.2 (advisory) fires only on the residual the fix can't wrap: a
+    # child-element mixed-content body. Pure text is GTR018.1's job.
+    assert "GTR018.2" not in _codes(_tool(command="<command>foo</command>"))
+    assert "GTR018.2" in _codes(_tool(command="<command>echo <a/> done</command>"))
+    assert "GTR018.2" not in _codes(_tool())  # default is CDATA
 
 
 def test_iuc003_bad_id_charset() -> None:
@@ -97,9 +100,11 @@ def test_iuc009_missing_description() -> None:
     assert "GTR029" not in _codes(_tool())
 
 
-def test_iuc010_help_not_cdata() -> None:
-    assert "GTR030" in _codes(_tool(help_="<help>plain text</help>"))
-    assert "GTR030" not in _codes(_tool())
+def test_iuc019_2_help_cdata_residual() -> None:
+    # GTR019.2 (advisory) fires only on mixed-content help the fix can't wrap.
+    assert "GTR019.2" not in _codes(_tool(help_="<help>plain text</help>"))
+    assert "GTR019.2" in _codes(_tool(help_="<help>text <b/> more</help>"))
+    assert "GTR019.2" not in _codes(_tool())
 
 
 def test_iuc012_placeholder_never_fires() -> None:
@@ -142,23 +147,25 @@ def test_iuc013_ignores_non_package_and_flags_bare_default() -> None:
 
 
 def _iuc011(tool_bytes: bytes) -> list:
-    return [v for v in detect_violations(load_tool(tool_bytes)) if v.code == "GTR031"]
+    return [v for v in detect_violations(load_tool(tool_bytes)) if v.code == "GTR020.2"]
 
 
-def test_iuc011_flags_each_unquoted_cheetah_var() -> None:
-    """One GTR031 finding per fully-unquoted shell-line $var, naming the var."""
+def test_iuc020_2_residual_flags_only_non_provable_vars() -> None:
+    """GTR020.2 (advisory) flags only the NON-provable unquoted vars; the provable
+    ones (here $input, a data param) are GTR020.1's job."""
     tool = _tool(command="<command><![CDATA[prog --in $input --ref $ref]]></command>")
     found = _iuc011(tool)
-    assert len(found) == 2
-    assert {v.message for v in found} == {
-        "unquoted Cheetah variable $input in <command> — single-quote it as '$input'",
-        "unquoted Cheetah variable $ref in <command> — single-quote it as '$ref'",
-    }
+    # $input resolves to a data param (provable -> fixed); $ref resolves to no input
+    # (non-provable -> advisory residual).
+    assert len(found) == 1
+    assert found[0].message == (
+        "unquoted Cheetah variable $ref in <command> — single-quote it as '$ref'"
+    )
 
 
 def test_iuc011_ignores_quoted_and_directive_vars() -> None:
     """Single/double-quoted vars and directive-line vars are not flagged."""
-    # The default tool single-quotes its one var, so GTR031 stays silent.
+    # The default tool single-quotes its one var, so GTR020.2 stays silent.
     assert _iuc011(_tool()) == []
     quoted = _tool(command='<command><![CDATA[prog "$a" \'$b\']]></command>')
     assert _iuc011(quoted) == []
@@ -172,20 +179,22 @@ def test_violations_are_located() -> None:
     """Findings carry a source line and an xpath into the tool."""
     broken = _tool(tests="", command="<command>x</command>")
     violations = detect_violations(load_tool(broken))
-    assert violations  # at least GTR021 and GTR022
+    assert violations  # at least GTR021 (no tests); the pure-text command is fixable
     assert all(v.xpath.startswith("/tool") for v in violations)
     assert all(v.sourceline >= 1 for v in violations)
 
 
-def test_iuc002_partial_or_child_cdata_is_flagged() -> None:
-    """Only the command's own body being CDATA-wrapped clears GTR022.
-
-    Leading unprotected text (`echo <![CDATA[...]]>`) or a CDATA-bearing *child*
-    leaves the command body unprotected, so GTR022 must still fire.
+def test_iuc018_2_residual_is_child_element_mixed_content() -> None:
+    """GTR018.2 (advisory) fires on mixed content the fix can't wrap as one section
+    — a child *element* — not on a body the fix can losslessly wrap.
     """
-    assert "GTR022" in _codes(_tool(command="<command>echo <![CDATA[hi]]></command>"))
+    # A child element -> not wrappable -> advisory residual.
     child = "<command>echo <token><![CDATA[x]]></token></command>"
-    assert "GTR022" in _codes(_tool(command=child))
+    assert "GTR018.2" in _codes(_tool(command=child))
+    # Leading text + an inline CDATA (no child element) IS losslessly wrappable by
+    # GTR018.1 (lxml exposes the body as one text run), so the advisory does not fire.
+    inline = "<command>echo <![CDATA[hi]]></command>"
+    assert "GTR018.2" not in _codes(_tool(command=inline))
     # Fully wrapped, even with leading whitespace, is fine.
     wrapped_ws = "<command>\n    <![CDATA[echo hi]]></command>"
-    assert "GTR022" not in _codes(_tool(command=wrapped_ws))
+    assert "GTR018.2" not in _codes(_tool(command=wrapped_ws))

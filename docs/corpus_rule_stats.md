@@ -27,9 +27,9 @@ What each GTR rule does, across both tiers. The isolation tables below report ho
 | GTR015 | codemod | Replace output `<data format="input">` with format_source for a tool with a single top-level data input. |
 | GTR016 | codemod | Inline a deprecated `<command interpreter=I>`script ...`</command>` as `<command>`I '$__tool_directory__/script' ...`</command>` (single-token interpreter, literal-script first token). |
 | GTR017 | codemod | Normalize Python-style boolean attribute values (True/Yes/…) to canonical xs:boolean so a globally-invalid tool validates. |
-| GTR018 | codemod | Wrap a pure-text `<command>` body in CDATA (IUC #34). |
-| GTR019 | codemod | Wrap a pure-text `<help>` body in CDATA (IUC #42). |
-| GTR020 | codemod | Single-quote provably-single-valued Cheetah variables in `<command>` (bare single-token params, $__…__ path built-ins, space-free attrs). |
+| GTR018.1 | codemod | Wrap a pure-text `<command>` body in CDATA (IUC #34). |
+| GTR019.1 | codemod | Wrap a pure-text `<help>` body in CDATA (IUC #42). |
+| GTR020.1 | codemod | Single-quote provably-single-valued Cheetah variables in `<command>` (bare single-token params, $__…__ path built-ins, space-free attrs). |
 
 ## fmt rules (isolated)
 
@@ -61,9 +61,9 @@ Each codemod applied alone to every eligible tool, checked for idempotence and p
 | GTR015 | FixOutputFormatInput | 8,607 | 79 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR016 | FixInterpreter | 8,607 | 1,127 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR017 | NormalizeBooleanValues | 708 | 21 | 708 | 0 | 0 | 687 | 0 |
-| GTR018 | WrapCommandCdata | 8,607 | 2,772 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR019 | WrapHelpCdata | 8,607 | 3,247 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR020 | SingleQuoteCommandVars | 8,607 | 4,433 | 8,607 | 0 | 0 | 0 | 0 |
+| GTR018.1 | WrapCommandCdata | 8,607 | 2,772 | 8,607 | 0 | 0 | 0 | 0 |
+| GTR019.1 | WrapHelpCdata | 8,607 | 3,247 | 8,607 | 0 | 0 | 0 | 0 |
+| GTR020.1 | SingleQuoteCommandVars | 8,607 | 4,433 | 8,607 | 0 | 0 | 0 | 0 |
 
 ## Upgrade discovery (GTR012 `UpgradeToLatest`, isolated)
 

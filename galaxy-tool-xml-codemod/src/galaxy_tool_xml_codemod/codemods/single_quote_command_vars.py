@@ -9,9 +9,9 @@ fixer for that provable subset: it single-quotes exactly the
 type, a ``$param.ext`` / path attribute, or a ``$__…__`` Galaxy path built-in.
 Free-form ``text`` params, deliberate ``multiple=`` splats, label attrs
 (``$input.name``), ``$on_string`` and ``#set``/loop vars are left untouched; the
-advisory ``GTR031`` check remains the detector for that non-provable residual.
+advisory ``GTR020.2`` check remains the detector for that non-provable residual.
 
-It promotes the detection-only ``GTR031`` lexer into a fix, so it rides the
+It promotes the detection-only ``GTR020.2`` lexer into a fix, so it rides the
 canonical/``format`` pipeline (``canonical.py``; the fix is behaviour-preserving so
 default ``format`` may apply it — see ``docs/decisions.md`` §30). The rewrite is a
 **positional splice**: each occurrence carries absolute ``start``/``end`` offsets
@@ -68,7 +68,8 @@ class SingleQuoteCommandVars(CodemodCommand):
     """Single-quote the provably-single-valued unquoted Cheetah vars in <command>."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTR020",
+        code="GTR020.1",
+        parent="GTR020",
         summary=(
             "Single-quote provably-single-valued Cheetah variables in <command> "
             "(bare single-token params, $__…__ path built-ins, space-free attrs)."

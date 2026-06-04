@@ -3188,7 +3188,7 @@ def _check_stats_lines(*, source: str, state: _CheckSweepState) -> list[str]:
             heading="## Advisory checks (IUC — best practices)",
             blurb=(
                 "Detect-only IUC best-practice checks. Advisory: `check` reports "
-                "them but does not fail unless `--strict`. `GTR031`/`GTR032` are "
+                "them but does not fail unless `--strict`. `GTR020.2`/`GTR032` are "
                 "reserved placeholders (no detection yet), so they flag nothing."
             ),
         )

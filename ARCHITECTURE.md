@@ -171,11 +171,13 @@ will change.
 - **Pipeline contracts** — `canonical.py`:
   - `CANONICAL_CODEMODS` = `FixTypos` → `NormalizeBooleanValues` →
     `ReorderParamAttributes` → `ReorderToolAttributes` → `ReorderToolChildren` →
-    `WrapCommandCdata` → `WrapHelpCdata` — the **safe, idempotent** format-time
-    pipeline. Never touches `profile=`. (`FixTypos` and `NormalizeBooleanValues`
-    are validity-restoring no-ops unless the tool validates nowhere; the two
-    `Wrap…Cdata` codemods, GTR018/GTR019, wrap a pure-text `<command>`/`<help>`
-    body in CDATA — behaviour-preserving, codemod §29.)
+    `WrapCommandCdata` → `WrapHelpCdata` → `SingleQuoteCommandVars` — the **safe,
+    idempotent** format-time pipeline. Never touches `profile=`. (`FixTypos` and
+    `NormalizeBooleanValues` are validity-restoring no-ops unless the tool validates
+    nowhere; the `Wrap…Cdata` codemods `GTR018.1`/`GTR019.1` wrap a pure-text
+    `<command>`/`<help>` body in CDATA, and `SingleQuoteCommandVars` `GTR020.1`
+    single-quotes the provable command vars — all behaviour-preserving, codemod
+    §29/§30. Each is the fixable `.1` half of a partition practice, D10.)
   - `AUTO_UPGRADE_CODEMODS` = `FixTypos` → `NormalizeBooleanValues` →
     `UpgradeToLatest` — the **opt-in, semantic** profile-upgrade pipeline
     (repair-before-upgrade).
@@ -261,27 +263,31 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
 - **`all_checks()` / `detect_violations(document)`** — `detect.py` — the
   enumerated check set (sorted by code) and the aggregate runner (findings sorted
   by line). Mirrors codemod's `coded_codemods()` and fmt's `all_rules()`.
-- **The checks** — `checks.py` — GTR021–GTR030 are presence/shape queries (tests,
-  command-CDATA, id charset, version format, requirements, error handling, EDAM
-  xrefs, help, description, help-CDATA). **GTR031** (`SingleQuotedCheetah`) is the
-  one command-text check: it reports one advisory per fully-unquoted shell-line
-  Cheetah `$var`. **GTR033** (`RequirementVersionPinned`, D7) flags an unpinned
-  `<requirement type="package">`. **GTR032** (`CommandAndJoining`, `&&`-vs-lone-`&`)
-  remains a reserved no-op stub — its anti-pattern is ~1 tool corpus-wide (D3).
-- **`command_text.py`** (now in **tier 1**, `galaxy_tool_xml.command_text`) — the
-  read-only lexer GTR031 reads `<command>` text through: a single character scan
+- **The checks** — `checks.py` — flat advisories `GTR021`, `GTR023`–`GTR029`,
+  `GTR033` are presence/shape queries (tests, id charset, version format,
+  requirements, error handling, EDAM xrefs, help, description, requirement pinning).
+  **Three are the advisory `.2` half of a partition practice** (registry D10, check
+  D9): `GTR018.2` / `GTR019.2` (the `<command>` / `<help>` CDATA *residual* — the
+  mixed-content the `GTR018.1` / `GTR019.1` fix can't wrap) and `GTR020.2` (the
+  *non-provable* unquoted `$var` the `GTR020.1` fix can't safely quote). Each reuses
+  the shared tier-1 predicate its fix uses, so the partition is sound.
+  **GTR032** (`CommandAndJoining`, `&&`-vs-lone-`&`) remains a reserved no-op stub
+  — its anti-pattern is ~1 tool corpus-wide (D3).
+- **`command_text.py`** (in **tier 1**, `galaxy_tool_xml.command_text`) — the
+  read-only lexer `GTR020.2` reads `<command>` text through: a single character scan
   tracking `'…'` / `"…"` quote state **across newlines** and skipping Cheetah
   directive/comment lines, yielding each unquoted `$var` with its character span.
   It only classifies, never rewrites — the detection-only slice of the codemod
   tier's deferred M5 Cheetah/shell lexer, so it needs none of M4 / mutation cursors
   / provenance. It moved to tier 1 (with `command_vars.py`, the quoting-safety
-  classifier) so the GTR020 codemod (tier 2) can share it with this check; see
+  classifier, and `cdata.py`, the CDATA-wrappability predicate) so the `GTR020.1` /
+  `GTR018.1` / `GTR019.1` codemods (tier 2) can share them with these checks; see
   `galaxy-tool-xml/docs/decisions.md` §16.
 
 **Contract:** detect-only, LBYL, no mutation, no dependency on the mutating tiers.
 Findings are advisory — informational unless the user opts into `--strict`.
-*(check `docs/decisions.md` D1; GTR031/GTR032 data-backed in D3–D5; coverage map
-in `docs/iuc_best_practices.md`.)*
+*(check `docs/decisions.md` D1; GTR020.2/GTR032 data-backed in D3–D5; the partition
+`.2` residual restriction in D9; coverage map in `docs/iuc_best_practices.md`.)*
 
 ---
 
@@ -423,8 +429,15 @@ break.
    incidental and was retired). Codes are globally unique and collision-guarded by
    `registry._index()`. Upgrade-only GTR codes exist but are not user-selectable:
    007–012 (validity-gated, internal to `UpgradeToLatest`) and 014–016
-   (runtime-gated, applied by the facade's `upgrade` — see §4 below). The advisory
-   checks (GTR021–GTR033) enforce the external IUC best-practices standard.
+   (runtime-gated, applied by the facade's `upgrade` — see §4 below). The flat
+   advisory checks enforce the external IUC best-practices standard.
+   **Partition sub-rules.** A practice that splits into a provably-fixable part and
+   an advisory residual is one **parent** code with two dotted sub-rules: `GTR020.1`
+   (fix) + `GTR020.2` (advisory), under parent `GTR020`. The parent is a
+   registry-level grouping (selectable — `--select GTR020` expands to both — but not
+   itself a rule); each `.2` advisory's detect is restricted to the *complement* of
+   its `.1` fix via a shared tier-1 predicate, so the two partition cleanly. Three
+   practices use this: GTR018 / GTR019 (CDATA) and GTR020 (quoting). Registry D10.
 5. **Dataclass-result convention.** Entry points return result dataclasses
    (`ParseResult`, `ValidationResult`, `FormatResult`, …) and don't raise on domain
    failures. Exceptions are reserved for the CLI boundary (chained `from e`) and
@@ -559,10 +572,9 @@ Each abstraction → its file → the decision record that justifies it.
 | GTR015 | `FixOutputFormatInput` | `galaxy-tool-xml-codemod/.../fix_output_format_input.py` | codemod (upgrade-only, runtime-gated) |
 | GTR016 | `FixInterpreter` | `galaxy-tool-xml-codemod/.../fix_interpreter.py` | codemod (upgrade-only, runtime-gated) |
 | GTR017 | `NormalizeBooleanValues` | `galaxy-tool-xml-codemod/.../normalize_boolean_values.py` | codemod (canonical, validation-driven) |
-| GTR018 | `WrapCommandCdata` | `galaxy-tool-xml-codemod/.../wrap_command_cdata.py` | codemod (canonical — §29) |
-| GTR019 | `WrapHelpCdata` | `galaxy-tool-xml-codemod/.../wrap_help_cdata.py` | codemod (canonical — §29) |
-| GTR020 | `SingleQuoteCommandVars` | `galaxy-tool-xml-codemod/.../single_quote_command_vars.py` | codemod (canonical — §30; the provable GTR031 fix) |
-| GTR021–GTR030 | `TestsPresent` … `HelpCdata` | `galaxy-tool-xml-check/.../checks.py` | check (advisory) |
-| GTR031 | `SingleQuotedCheetah` (uses the tier-1 `galaxy_tool_xml.command_text` lexer) | `galaxy-tool-xml-check/.../checks.py` | check (advisory; provable subset fixed by GTR020) |
+| GTR018.1 / .2 | `WrapCommandCdata` (fix) + command-CDATA residual (advisory) | codemod + check | **partition** GTR018 (§29, registry D10) |
+| GTR019.1 / .2 | `WrapHelpCdata` (fix) + help-CDATA residual (advisory) | codemod + check | **partition** GTR019 (§29) |
+| GTR020.1 / .2 | `SingleQuoteCommandVars` (fix) + single-quote residual (advisory) | codemod + check | **partition** GTR020 (§30, check D9) |
+| GTR021, GTR023–029, GTR033 | `TestsPresent` … (presence/shape) | `galaxy-tool-xml-check/.../checks.py` | check (flat advisory) |
 | GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks.py` | check (advisory, reserved no-op stub — D3) |
 | GTR033 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks.py` | check (advisory — D7) |

@@ -3,7 +3,7 @@
 Behaviour-preserving: lxml already exposes the entity-unescaped command text, so
 wrapping changes only the serialised bytes (entities become literal inside CDATA),
 not the value Galaxy runs. Mixed-content / already-wrapped / ``]]>``-bearing bodies
-are left for the advisory GTR022 check.
+are left for the advisory GTR018.2 check.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ def test_wraps_pure_text_command_and_detects_it() -> None:
     assert _command(module).text == "echo a && b"  # entity-unescaped by lxml
     changes = list(WrapCommandCdata().detect(module))
     assert len(changes) == 1
-    assert changes[0].code == "GTR018"
+    assert changes[0].code == "GTR018.1"
     assert "command" in changes[0].message
     assert b"CDATA" not in etree.tostring(module.document.root)  # detect is read-only
     WrapCommandCdata().apply(module)

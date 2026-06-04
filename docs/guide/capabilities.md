@@ -65,8 +65,8 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 
 | Capability | Codes | Status | Source |
 |---|---|---|---|
-| IUC best-practice checks (tests, CDATA, id charset, version, requirements, error handling, EDAM, help, description, version pinning) | GTR021–GTR030, GTR033 | ✅ Shipped | `strict` preset |
-| Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTR020, the residual stays advisory | GTR031 | ✅ Shipped | advisory; provable subset fixed (GTR020) |
+| IUC best-practice checks (tests, CDATA, id charset, version, requirements, error handling, EDAM, help, description, version pinning) | GTR021–GTR019.2, GTR033 | ✅ Shipped | `strict` preset |
+| Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTR020, the residual stays advisory | GTR020.2 | ✅ Shipped | advisory; provable subset fixed (GTR020) |
 | Lone-`&` vs `&&` join | GTR032 | 🔭 Roadmap | registry labels it "not yet implemented" |
 
 ### Surfaces & orchestration
@@ -100,6 +100,6 @@ that XML** through one rule set, reachable three ways — as a Python **library*
   disagreement is reported, not forced.
 - **GTR014/015/016**: deliberately conservative — they fix the shapes a static codemod
   can prove safe and leave the rest to detect/warn.
-- **GTR031**: ~73% of tools carry an unquoted shell-line `$var`, but only a minority are
+- **GTR020.2**: ~73% of tools carry an unquoted shell-line `$var`, but only a minority are
   provably safe to auto-quote, so it stays advisory (measure-backed, not a fixer).
 </details>

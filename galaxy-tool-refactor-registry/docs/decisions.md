@@ -349,3 +349,58 @@ distinct flat codes (overlapping, as before the rename).
 bash scripts/qa_gate.sh
 uv run galaxy-tool-refactor rules           # every code now GTR###
 ```
+
+## D10 (2026-06-04) — Partition sub-rules: a practice splits into a fixable `.1` + advisory `.2`
+
+### Decision
+
+A best-practice that splits into a **provably-fixable** part and an **advisory
+residual** is modelled as one **partition parent** code (e.g. `GTR020`) with two
+dotted sub-rules: `GTR020.1` (the fixable codemod) and `GTR020.2` (the advisory
+check). Three practices use this (PR B of the sub-rule work, building on the D9
+unified namespace):
+
+| Parent | `.1` fix (tier 2, in `iuc`) | `.2` advisory (tier 3.5, in `strict`) |
+|---|---|---|
+| GTR018 | `WrapCommandCdata` (pure-text `<command>`) | command-CDATA residual (mixed-content) |
+| GTR019 | `WrapHelpCdata` (pure-text `<help>`) | help-CDATA residual (mixed-content) |
+| GTR020 | `SingleQuoteCommandVars` (provable vars) | single-quote residual (non-provable vars) |
+
+### How it works
+
+- **`RuleMeta.parent`** (tier 0.5) carries the parent code on each sub-rule; the
+  parent is a *registry-level grouping*, not itself a rule handle.
+- **Grouping + selection-tree** (`registry.py`): `partition_groups()` derives
+  `parent → (children)` from `meta.parent`; `parent_codes()` joins `known_codes()`
+  (so a parent is selectable); `expand_codes()` maps a parent → its children.
+  `resolve.resolve_codes` expands the user's `--select` / `--ignore`, so
+  `--select GTR020` pulls the whole practice while `--ignore GTR020.2` drops only the
+  advisory. Presets need no special-casing — they derive from `meta.code`, so `iuc`
+  (canonical codemods) gets the `.1` children and `strict` (advisory checks) the `.2`.
+- **Display** (`display_code`): a finding renders under the **parent** code (both
+  halves read as one practice, "GTR020"), with the existing `(advisory)` suffix
+  distinguishing the residual. The structured `Violation.code` keeps the precise
+  child code.
+- **The real behaviour change — a *clean* partition.** Before, the advisory and the
+  fix *overlapped* (the advisory flagged everything, including what the fix handles).
+  Now each `.2` advisory's `detect` is **restricted to the complement** of its `.1`
+  fix, reusing the *same* shared tier-1 predicate
+  (`galaxy_tool_xml.cdata.cdata_wrappable` for CDATA, `command_vars.provably_quotable`
+  for quoting) so the two halves are disjoint + exhaustive by construction — no
+  drift. Net effect: `check` no longer double-reports the auto-fixable occurrences.
+  A soundness guard (`tests/test_partition.py`) pins it.
+
+### Why parent-as-grouping, not a parent rule
+
+A parent with its own `detect` would double-count (parent = union, children =
+partition). Making it a pure grouping keeps the children the single source of
+findings and lets the dotted code carry the only new identity.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-registry pytest \
+  galaxy-tool-refactor-registry/tests/test_partition.py
+uv run galaxy-tool-refactor check --preset strict tool.xml   # GTR020 fixable + advisory
+uv run galaxy-tool-refactor format --select GTR020 tool.xml  # whole practice's fix
+```

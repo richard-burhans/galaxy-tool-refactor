@@ -1777,7 +1777,7 @@ def _run_macro_profile_ownership(args: argparse.Namespace) -> None:
 
 # --- measurement: command-iuc-heuristics ----------------------------------------
 #
-# Sizes the two reserved advisory placeholders (check §D1): GTR031 (single-quote
+# Sizes the two reserved advisory placeholders (check §D1): GTR020.2 (single-quote
 # Cheetah variables in <command>) and GTR032 (join shell commands with `&&`, not
 # a lone `&`). Both would be CDATA-text heuristics, deferred precisely because
 # they risk firing as noise. This counts, across each unique tool's first
@@ -1798,7 +1798,7 @@ _LONE_AMP = re.compile(r"(?<!&)&(?!&)")
 class _CommandIucHeuristicsResult:
     n_unique_tools: int
     n_with_command: int
-    n_tools_unquoted_var: int  # GTR031 candidates: >=1 unquoted Cheetah var
+    n_tools_unquoted_var: int  # GTR020.2 candidates: >=1 unquoted Cheetah var
     n_unquoted_var_findings: int  # total unquoted-var occurrences
     n_tools_lone_amp: int  # GTR032 candidates: >=1 lone `&`
     n_lone_amp_findings: int  # total lone-`&` occurrences
@@ -1817,7 +1817,7 @@ def _count_unquoted_vars(text: str, /) -> int:
 def _measure_command_iuc_heuristics(
     *, corpus_root: Path
 ) -> _CommandIucHeuristicsResult:
-    """Count GTR031/GTR032 candidate findings across each tool's first command."""
+    """Count GTR020.2/GTR032 candidate findings across each tool's first command."""
     seen: set[str] = set()
     n_tools = n_with = 0
     tools_var = var_findings = tools_amp = amp_findings = 0
@@ -1861,12 +1861,12 @@ def _report_command_iuc_heuristics(result: _CommandIucHeuristicsResult) -> None:
     def pct(n: int) -> float:
         return 100 * n / with_cmd if with_cmd else 0.0
 
-    print("\n=== command-iuc-heuristics (GTR031/GTR032 sizing; heuristic) ===")
+    print("\n=== command-iuc-heuristics (GTR020.2/GTR032 sizing; heuristic) ===")
     print(
         f"Unique tools: {result.n_unique_tools}; with <command>: {with_cmd}"
     )
     print(
-        f"GTR031 unquoted Cheetah $var: {result.n_tools_unquoted_var} tools "
+        f"GTR020.2 unquoted Cheetah $var: {result.n_tools_unquoted_var} tools "
         f"({pct(result.n_tools_unquoted_var):.1f}%), "
         f"{result.n_unquoted_var_findings} findings"
     )
@@ -2013,18 +2013,18 @@ def _run_command_lone_amp(args: argparse.Namespace) -> None:
 
 # --- measurement: command-unquoted-var ------------------------------------------
 #
-# Sizes GTR031 ("single-quote Cheetah variables in <command>") honestly. The crude
+# Sizes GTR020.2 ("single-quote Cheetah variables in <command>") honestly. The crude
 # `command-iuc-heuristics` count (any `$var` not preceded by a single quote) fires
 # on 87% of tools — but that is dominated by `$var` in Cheetah *directives*
 # (`#if $x`, `#set $y = ...`), which are template logic, NOT shell arguments the
 # practice is about. This classifies every `$var` by where it sits: on a Cheetah
 # directive/comment line (`#…`), or — on a shell line, via a quote-state scan —
 # single-quoted (the IUC-correct form), double-quoted (a lesser concern), or fully
-# unquoted (the genuine candidate GTR031 would flag). The "unquoted on a shell
-# line" population is the real question: does a tokenizer-backed GTR031 have signal
+# unquoted (the genuine candidate GTR020.2 would flag). The "unquoted on a shell
+# line" population is the real question: does a tokenizer-backed GTR020.2 have signal
 # worth shipping, or is it noise like GTR032? This scan IS the core of the
 # read-only Cheetah/shell lexer such a check needs. Heuristic (no escape handling,
-# inline directives ignored); backs the GTR031 decision. Needs the corpus, not in
+# inline directives ignored); backs the GTR020.2 decision. Needs the corpus, not in
 # CI.
 
 _VAR_CLASSES = ("directive", "single_quoted", "double_quoted", "unquoted")
@@ -2072,12 +2072,12 @@ def _classify_command_vars(text: str, /) -> Counter[str]:
 class _UnquotedVarResult:
     n_unique_tools: int
     n_with_command: int
-    n_tools_unquoted: int  # >=1 fully-unquoted shell-line $var (the GTR031 target)
+    n_tools_unquoted: int  # >=1 fully-unquoted shell-line $var (the GTR020.2 target)
     per_class_occurrences: dict[str, int]
 
 
 def _measure_command_unquoted_var(*, corpus_root: Path) -> _UnquotedVarResult:
-    """Classify each tool's first-command ``$var`` to size the genuine GTR031 set."""
+    """Classify each tool's first-command ``$var`` to size the genuine GTR020.2 set."""
     seen: set[str] = set()
     n_tools = n_with = n_unquoted = 0
     per_class: Counter[str] = Counter()
@@ -2111,12 +2111,12 @@ def _measure_command_unquoted_var(*, corpus_root: Path) -> _UnquotedVarResult:
 def _report_command_unquoted_var(result: _UnquotedVarResult) -> None:
     with_cmd = result.n_with_command
     pct = 100 * result.n_tools_unquoted / with_cmd if with_cmd else 0.0
-    print("\n=== command-unquoted-var (GTR031 sizing; heuristic) ===")
+    print("\n=== command-unquoted-var (GTR020.2 sizing; heuristic) ===")
     print(
         f"Unique tools: {result.n_unique_tools}; with <command>: {with_cmd}"
     )
     print(
-        f"Tools with >=1 fully-unquoted shell-line $var (the GTR031 target): "
+        f"Tools with >=1 fully-unquoted shell-line $var (the GTR020.2 target): "
         f"{result.n_tools_unquoted} ({pct:.1f}%)"
     )
     print("$var occurrences by class:")
@@ -2132,21 +2132,21 @@ def _run_command_unquoted_var(args: argparse.Namespace) -> None:
 
 # --- measurement: iuc011-fixability ---------------------------------------------
 #
-# Sizes the provably-safe auto-fix population for GTR031 — the GTR020 codemod's
-# scope. Of every unquoted $var the GTR031 lexer reports, how many fall in the
+# Sizes the provably-safe auto-fix population for GTR020.2 — the GTR020 codemod's
+# scope. Of every unquoted $var the GTR020.2 lexer reports, how many fall in the
 # provably-quotable subset {safe, attr_safe, builtin_path} that single-quoting
 # cannot change for a tool that currently works (the classifier lives in tier 1:
 # `galaxy_tool_xml.command_vars`). Reports the Option-A floor (bare single-token
 # `safe` params) and the Option-B delta the path-built-in + space-free-attr
 # classes add, so the GTR020 scope decision is data-backed. Reuses the shipped
-# GTR031 lexer so the population is exactly what the check reports. Heuristic
+# GTR020.2 lexer so the population is exactly what the check reports. Heuristic
 # (root-name resolution against <inputs>, no full param-model walk). Needs the
 # corpus, not in CI.
 
 
 @dataclass
 class _Iuc011FixabilityResult:
-    n_tools_flagged: int  # tools with >=1 unquoted var (the GTR031 population)
+    n_tools_flagged: int  # tools with >=1 unquoted var (the GTR020.2 population)
     n_occurrences: int
     per_class: dict[str, int]
     n_tools_all_provable: int  # flagged tools whose every unquoted var is provable
@@ -2154,7 +2154,7 @@ class _Iuc011FixabilityResult:
 
 
 def _measure_iuc011_fixability(*, corpus_root: Path) -> _Iuc011FixabilityResult:
-    """Classify every GTR031 occurrence by whether single-quoting it is provable."""
+    """Classify every GTR020.2 occurrence by whether single-quoting it is provable."""
     from galaxy_tool_xml.command_text import unquoted_cheetah_vars
     from galaxy_tool_xml.command_vars import classify_var, input_param_info
 

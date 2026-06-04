@@ -1187,7 +1187,7 @@ def test_render_profile_ownership_page_smoke(
     assert "## Do shared files' importers agree on the target profile?" in page
 
 
-# --- command-iuc-heuristics (GTR031 / GTR032 sizing) ----------------------------
+# --- command-iuc-heuristics (GTR020.2 / GTR032 sizing) ----------------------------
 
 
 def test_count_unquoted_vars_quote_heuristic() -> None:
@@ -1303,7 +1303,7 @@ def test_classify_lone_amps_buckets() -> None:
 
 
 def test_classify_command_vars_buckets() -> None:
-    """The GTR031 classifier separates shell-arg $vars from Cheetah directives."""
+    """The GTR020.2 classifier separates shell-arg $vars from Cheetah directives."""
     classify = _classify_command_vars
     # A directive line's $vars are template logic, not shell args.
     assert classify("#if $cond\nrun") == {"directive": 1}

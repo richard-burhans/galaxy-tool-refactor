@@ -68,6 +68,12 @@ class Cursor:
         text = self._element.text
         return None if text is None else str(text)
 
+    @property
+    def element(self) -> etree._Element:
+        """The underlying lxml element — for tier-1 predicates that take an element
+        (e.g. ``galaxy_tool_xml.cdata.cdata_wrappable``)."""
+        return self._element
+
     def get_attribute(self, name: str, /) -> str | None:
         value = self._element.get(name)
         return None if value is None else str(value)
@@ -100,7 +106,7 @@ class Cursor:
 
         lxml exposes CDATA as plain ``.text`` with no marker, so this re-serialises
         (the tier-1 parser keeps CDATA, ``strip_cdata=False``, so it round-trips)
-        and inspects the body — mirroring the advisory tier's GTR022/GTR030
+        and inspects the body — mirroring the advisory tier's GTR018.2/GTR019.2
         predicate. Leading whitespace before the section still counts as wrapped.
         """
         serialised: str = etree.tostring(
@@ -131,7 +137,7 @@ class Cursor:
 
         With ``cdata=True`` the value is wrapped in a ``<![CDATA[…]]>`` section so
         shell operators (``&&``, ``<``, ``|``) stay literal — required when
-        rewriting a ``<command>`` body (which is CDATA by convention, GTR022).
+        rewriting a ``<command>`` body (which is CDATA by convention, GTR018.2).
         """
         self._element.text = etree.CDATA(value) if cdata else value
 

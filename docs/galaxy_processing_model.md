@@ -5,7 +5,7 @@ text-bearing sections of a tool XML — the **Cheetah-templated** sections
 (`<command>` and its siblings) at job-build time, and the **`<help>`** section at
 display time. This is the ground truth that the rationale and detection-soundness
 of any text-oriented rule must rest on — in particular the reserved advisory
-checks **GTR031** (single-quote Cheetah variables) and **GTR032** (`&&` vs lone
+checks **GTR020.2** (single-quote Cheetah variables) and **GTR032** (`&&` vs lone
 `&`); see [`iuc_best_practices.md`](iuc_best_practices.md) Bucket 4.
 
 It is reference, not a corpus-frequency decision, so there is no measurement
@@ -299,7 +299,7 @@ advisory-check candidate.
 
 | Finding | Consequence for our work |
 |---|---|
-| `<command>` vars resolve to **filesystem paths** that may contain spaces/special chars | Confirms the **GTR031** rationale (single-quoting `'$var'` guards word-splitting/globbing). But sound detection needs Cheetah-aware parsing of the CDATA — consistent with the prior ~87%-noise literal-heuristic measurement. Stance: measure-first, likely keep deferred. |
+| `<command>` vars resolve to **filesystem paths** that may contain spaces/special chars | Confirms the **GTR020.2** rationale (single-quoting `'$var'` guards word-splitting/globbing). But sound detection needs Cheetah-aware parsing of the CDATA — consistent with the prior ~87%-noise literal-heuristic measurement. Stance: measure-first, likely keep deferred. |
 | `<command>` is flattened to a **single shell line**, one `; `-joined segment in a larger `set -e` script | Confirms the **GTR032** rationale: a lone `&` truly backgrounds a sub-command and breaks sequencing (should be `&&`). The single-line, always-shell model makes this the cleaner first heuristic check. A `<command>` can't assume it is the only thing in the script. |
 | **Cheetah is not `<command>`-only** — `<configfile>`/`<configfiles>`, `<environment_variables>`, output `label`, `<change_format>`, output `<actions>`, dynamic `<options>`, entry-points, and `redirect_url_params` are all Cheetah-templated | The "don't reflow CDATA / preserve Cheetah" caution applies to **all** of these. A formatter/codemod touching any Cheetah-bearing text must treat it as Cheetah — `<configfile>` especially (it carries large CDATA bodies like `<command>`). |
 | `<version_command>` uses `string.Template` (`$__tool_directory__` only); expression/ecmascript use JS `do_eval` — **not Cheetah** | A rule must not apply Cheetah assumptions (or `$var` single-quoting heuristics) to `<version_command>` or expression tools — different engines, different escaping. |
