@@ -109,13 +109,16 @@ def test_is_idempotent() -> None:
 
 
 @requires_oracle
-def test_widens_assignment_rhs_residual() -> None:
-    # $opts is a free-form text param (not value-domain provable). In an assignment
-    # RHS the shell never word-splits it, so single-quoting is safe — the oracle
-    # widens here; the same param as a bare arg is left alone.
+def test_does_not_quote_assignment_rhs_residual() -> None:
+    # $opts is a free-form text param. An assignment RHS is a no-split context for a
+    # shell *expansion*, but Galaxy renders the Cheetah value as literal text and a
+    # literal `THREADS=foo bar` splits — so quoting is NOT behaviour-preserving. The
+    # oracle does not widen here; a non-provable text param is left untouched.
     module = _module(b"<command><![CDATA[THREADS=$opts\nrun $opts]]></command>")
+    assert list(SingleQuoteCommandVars().detect(module)) == []
+    before = etree.tostring(module.document.root)
     SingleQuoteCommandVars().apply(module)
-    assert _command_text(module.document.root) == "THREADS='$opts'\nrun $opts"
+    assert etree.tostring(module.document.root) == before
 
 
 @requires_oracle

@@ -1240,7 +1240,7 @@ galaxy_tool_xml_codemod.codemods.single_quote_command_vars:SingleQuoteCommandVar
   post-validate-failed, 0 crashed** — quoting is idempotent and validity-preserving
   on every tool, zero retained regressions.
 
-## 31. `SingleQuoteCommandVars` (GTR020.1) — widen via the shell boundary oracle
+## 31. `SingleQuoteCommandVars` (GTR020.1) — shell boundary oracle (widening reverted as unsound)
 
 **Date:** 2026-06-04. Phase-1 of the cheetah-lex + bashlex boundary-oracle work
 (`../../docs/upgrade_research/cheetah_bashlex_boundary_oracle.md`).
@@ -1254,13 +1254,18 @@ is unchanged and license-clean (§30 still describes that default).
 
 ### Decisions
 
-- **Widen, not just narrow (user, 2026-06-04).** A Phase-0 finding corrected the earlier
-  "standalone word" idea: single-quoting a *space-free* value is behaviour-preserving even
-  when the var is glued (`${ds}.bam`) or a redirect-file target (`> $ds`), so those must
-  **not** be vetoed (that would break §30's own fixtures). The oracle's real value is the
-  opposite — **widening**: a var in a no-word-splitting context (an assignment RHS,
-  `THREADS=$opts`) is safe to quote for *any* value, promoting part of the GTR020.2
-  advisory residual (free-form `text`, `multiple=` splats) to fixable.
+- **No false-veto of glued/redirect-file safe vars (Phase-0 KU-4 correction).**
+  Single-quoting a *space-free* value is behaviour-preserving even when the var is glued
+  (`${ds}.bam`) or a redirect-file target (`> $ds`), so those must **not** be vetoed (that
+  would break §30's own fixtures).
+- **No widening (corrected 2026-06-04 — reverted).** A briefly-shipped "widen no-split
+  contexts (assignment RHS `THREADS=$opts`) for any value" was **unsound** and reverted:
+  Galaxy renders a Cheetah `$x` to its value as *literal text*, so `VAR=foo bar` splits
+  (the bash no-split rule applies to shell *expansions*, not Cheetah literals) — quoting a
+  space-bearing value there changes behaviour. So GTR020.1's set is the value-domain rule
+  minus the dup narrowing; the oracle no longer promotes any GTR020.2 residual. Sound
+  widening needs adversarial-shape render verification (deferred). See tier-1
+  `docs/decisions.md` §17 + `../docs/upgrade_research/cheetah_bashlex_boundary_oracle.md` §KU-5.
 - **One genuine narrowing: fd-dup.** `2>&$fd` quoted flips a descriptor dup into a file
   redirect, so `DUP_TARGET` is never quoted even when value-domain-safe.
 - **The `EditCertifier` seam (`certify.py`).** The constructor takes
@@ -1269,17 +1274,18 @@ is unchanged and license-clean (§30 still describes that default).
   CT3 render certifier (`--certify=render`) as a pure addition — no refactor of the static
   path. A certifier's `should_quote` is signature-compatible with the static policy.
 - **Partition stays exact.** The GTR020.2 advisory check computes its residual from the
-  *same* `quote_is_behavior_preserving`, so widened/narrowed occurrences move between
-  fix and advisory together (check `docs/decisions.md` D10).
+  *same* `quote_is_behavior_preserving`, so any occurrence the policy narrows (fd-dup)
+  moves from fix to advisory in lockstep (check `docs/decisions.md` D10).
 
 ### Corpus sizing (combined, sha-deduped; needs the extra)
 
 `scripts.measure shell-oracle-quoting` over 6,670 pure-text `<command>`s (48,789 unquoted
-occurrences): the oracle **widens** GTR020.1 by **66 occurrences across 22 tools** (residual
-vars in no-split contexts — assignment RHS) and **narrows** it by **0** — no value-domain-safe
-var sits in an fd-dup position corpus-wide, so today's GTR020.1 was never unsafe in practice
-and the fd-dup veto is purely defensive. Modest but real; the larger coverage gain
-(`#if`-branch edits) needs the Phase-2 render path.
+occurrences): after the revert the oracle **widens 0** and **narrows 0** vs the value-domain
+rule. The pre-revert 66-occurrence / 22-tool widening was the unsound no-split case; the
+fd-dup narrowing has no value-domain-safe occurrence corpus-wide (so GTR020.1 was never
+unsafe in practice — the veto is defensive). Net: the oracle's current effect on GTR020.1 is
+nil beyond `provably_quotable`; the infrastructure + sound dup veto remain for a future
+render-verified widening.
 
 ### Reproduction
 

@@ -793,12 +793,19 @@ edit must preserve), a `quoting_context` classifier, and the composed policy
   reads the target's *syntactic context* from the AST: assignment RHS → `NO_SPLIT`;
   `>&`/`<&` dup target → `DUP_TARGET`; bare word / redirect-file target / inside `$(…)`
   → `SPLIT`; parse failure (`[[ … ]]`, `$(( … ))`) or not-found → `UNKNOWN`.
-- **`quote_is_behavior_preserving` = context ∘ value-domain.** `NO_SPLIT` → safe for any
-  value (*widens* the value-domain set — a free-form `text`/`multiple=` var in an
-  assignment RHS becomes fixable); `DUP_TARGET` → never (a *narrowing*: quoting a numeric
-  fd flips a dup into a file redirect; conservatively vetoes file-valued dups too);
-  `SPLIT`/`UNKNOWN` → defer to `provably_quotable`. Known tiny gap: a var used as a
-  literal fd-number prefix `$intvar>file` is `SPLIT` and may be quoted — requires
+- **`quote_is_behavior_preserving` = value-domain + a `DUP_TARGET` narrowing only.**
+  `DUP_TARGET` → never quote (quoting a numeric fd in `>&`/`<&` flips a dup into a file
+  redirect; conservatively vetoes file-valued dups too); `SPLIT` / `NO_SPLIT` / `UNKNOWN`
+  → defer to `provably_quotable`.
+- **No widening on `NO_SPLIT` (corrected 2026-06-04 — the original Phase-1 widening was
+  reverted as unsound).** `VAR=$x` is a no-split context for a shell *expansion*, but
+  Galaxy renders a Cheetah `$x` to its value as **literal text** before the shell runs, and
+  a literal `VAR=foo bar` *does* split (assignment + command `bar`) — so single-quoting a
+  space-bearing value there changes behaviour. The classifier still reports `NO_SPLIT`
+  (correct about *shell* structure) but the policy must not act on it; the prominent
+  docstring comment guards against re-adding the widening. Sound widening of Cheetah command
+  values needs adversarial-shape render verification (deferred). Known tiny gap: a var used
+  as a literal fd-number prefix `$intvar>file` is `SPLIT` and may be quoted — requires
   `$integer_param` immediately before `>`, essentially absent in real tools.
 
 ### Reproduction

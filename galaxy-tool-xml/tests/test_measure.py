@@ -1363,14 +1363,15 @@ def test_measure_iuc011_fixability_buckets_and_option_b(tmp_path: Path) -> None:
 @pytest.mark.skipif(
     not shell_oracle_available(), reason="needs the shell-oracle extra (bashlex)"
 )
-def test_measure_shell_oracle_quoting_widens_and_narrows(tmp_path: Path) -> None:
-    """The widening lever (assignment-RHS residual) and the fd-dup narrowing are
-    counted relative to the value-domain rule, so the corpus delta is reproducible."""
+def test_measure_shell_oracle_quoting_narrows_only(tmp_path: Path) -> None:
+    """The oracle does NOT widen (assignment-RHS is unsound for Cheetah-rendered
+    literals); its only sound delta vs the value-domain rule is the fd-dup narrowing."""
     repo = tmp_path / "owner" / "repo"
     repo.mkdir(parents=True)
-    # Widen: $opts is a free-form text param (not value-domain provable), but in an
-    # assignment RHS it never word-splits -> the oracle quotes it.
-    (repo / "widen.xml").write_text(
+    # NOT widened: $opts is a free-form text param in an assignment RHS. The shell-
+    # expansion no-split rule does not apply to a Cheetah-rendered literal, so the
+    # oracle leaves it to the value-domain rule (text -> not provable -> not quoted).
+    (repo / "no_widen.xml").write_text(
         '<tool id="w" name="W"><inputs><param name="opts" type="text"/></inputs>'
         "<command><![CDATA[THREADS=$opts]]></command></tool>",
         encoding="utf-8",
@@ -1384,7 +1385,7 @@ def test_measure_shell_oracle_quoting_widens_and_narrows(tmp_path: Path) -> None
     )
     result = _measure_shell_oracle_quoting(corpus_root=tmp_path)
     assert result.oracle_available is True
-    assert result.widened_occurrences == 1 and result.widened_tools == 1
+    assert result.widened_occurrences == 0 and result.widened_tools == 0
     assert result.narrowed_occurrences == 1 and result.narrowed_tools == 1
 
 

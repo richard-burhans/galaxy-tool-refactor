@@ -328,8 +328,8 @@ class SingleQuotedCheetah(CheckRule):
     dataset-label attr, ``$on_string``, a ``#set``/loop var, or (when the
     ``shell-oracle`` extra is present) an fd-dup target. The residual is computed with
     the **same** shared tier-1 policy ``quote_is_behavior_preserving`` the fixer uses
-    (value-domain ``provably_quotable``, plus the bashlex shell-context widen/narrow
-    when the extra is installed), so the fix/advisory split never drifts. A
+    (value-domain ``provably_quotable``, plus the bashlex fd-dup narrowing when the
+    extra is installed), so the fix/advisory split never drifts. A
     mixed-content ``<command>`` (which GTR020.1 skips wholesale) reports all its
     unquoted vars. Cheetah directive lines and already-quoted references are excluded
     by the read-only ``command_text`` lexer.

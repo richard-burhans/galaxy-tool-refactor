@@ -105,11 +105,13 @@ def _policy(body: str, *, inputs: bytes) -> list[tuple[str, bool]]:
     ]
 
 
-def test_policy_widens_assignment_rhs_for_residual_text() -> None:
-    # $opts is a free-form text param (NOT value-domain provable), but in an
-    # assignment RHS it never word-splits, so single-quoting it is safe.
+def test_policy_does_not_widen_assignment_rhs() -> None:
+    # $opts is a free-form text param. An assignment RHS is a no-split context for a
+    # shell *expansion*, but Galaxy renders the Cheetah value as literal text, and a
+    # literal `THREADS=foo bar` DOES split — so quoting is NOT behaviour-preserving and
+    # the policy must defer to the value-domain rule (text -> not provable -> False).
     inputs = b'<param name="opts" type="text"/>'
-    assert _policy("THREADS=$opts", inputs=inputs) == [("$opts", True)]
+    assert _policy("THREADS=$opts", inputs=inputs) == [("$opts", False)]
 
 
 def test_policy_keeps_value_domain_for_split_position() -> None:
