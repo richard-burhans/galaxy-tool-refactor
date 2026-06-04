@@ -1060,7 +1060,8 @@ galaxy_tool_xml_codemod.codemods.fix_interpreter:FixInterpreter`.
   (`test_script_name_in_leading_comment_is_not_mistargeted`).
 - **CDATA-preserving.** First codemod to rewrite `<command>` text; `Cursor.set_text` gains
   a `cdata=True` flag (`etree.CDATA`) so shell operators (`&&`, `<`) stay literal. An
-  originally-non-CDATA command gaining CDATA is an accepted, GTR022-aligned side effect.
+  originally-non-CDATA command gaining CDATA is an accepted side effect, aligned with
+  the `<command>` CDATA practice (GTR018).
 - **No file-exists gate in the codemod** (only in the measure's bucket-A refinement). The
   rewrite is faithful whether or not the script is co-located — Galaxy built the same
   `<tool_dir>/<token>` path regardless, failing identically if absent. Gating on the
@@ -1170,9 +1171,10 @@ one-off classification scan (mirrors the codemod's eligibility predicate).
   (`Cursor.child_node_count() == 0` — a mixed-content body can't be one CDATA
   section), is **not already wrapped** (`Cursor.is_cdata_wrapped()` — a serialise +
   `<![CDATA[` body check, the two read primitives added this pass), and contains no
-  `]]>` terminator (which cannot live inside a section). The advisory **GTR022 /
-  GTR030** checks are retained — they flag *any* non-CDATA body, so after `format`
-  they continue to cover the mixed-content residual these codemods skip.
+  `]]>` terminator (which cannot live inside a section). The advisory checks are
+  retained to cover the mixed-content residual these codemods skip — and were later
+  made the partition `.2` sub-rules **GTR018.2 / GTR019.2**, restricted to exactly
+  that residual via the shared tier-1 predicate (registry D10; check D9).
 - **Canonical, not upgrade.** Both are safe, idempotent, `profile=`-preserving and
   so join `CANONICAL_CODEMODS` (the `format` / `iuc` pipeline) after the structural
   reorders — content-level tidying, independent of child order. This grows the `iuc`
@@ -1184,7 +1186,7 @@ one-off classification scan (mirrors the codemod's eligibility predicate).
   are already CDATA-wrapped (5,982 command / 5,007 help in the raw scan) or
   mixed-content (12 command / 9 help; 0 carry a `]]>` terminator).
 
-## 30. `SingleQuoteCommandVars` (GTR020) — auto-quote the provable GTR031 subset
+## 30. `SingleQuoteCommandVars` (GTR020.1) — auto-quote the provable single-quote subset
 
 **Date:** 2026-06-03. Reproduced-by: `uv run --package galaxy-tool-xml-codemod
 pytest galaxy-tool-xml-codemod/tests/test_single_quote_command_vars.py`; the
@@ -1195,8 +1197,9 @@ galaxy_tool_xml_codemod.codemods.single_quote_command_vars:SingleQuoteCommandVar
 
 - **The practice (IUC #36).** Single-quote a Cheetah `$var` in `<command>` so it
   reaches the shell as one literal argument (no word-splitting / glob / injection).
-  The advisory `GTR031` check (`galaxy-tool-xml-check/docs/decisions.md` D5) reports
-  every unquoted occurrence; D6 deferred an auto-fix as "partial, wrong shape, never
+  The advisory check (later the `.2` residual sub-rule `GTR020.2`;
+  `galaxy-tool-xml-check/docs/decisions.md` D5/D9) reports the unquoted occurrences;
+  D6 deferred an auto-fix as "partial, wrong shape, never
   auto-run under `format`". This codemod is the **revisit** (check D8): it ships the
   fix for the subset where quoting is *provably* behaviour-preserving.
 - **Scope — the provable set only.** Quoting changes behaviour only when the value
@@ -1209,7 +1212,7 @@ galaxy_tool_xml_codemod.codemods.single_quote_command_vars:SingleQuoteCommandVar
   a space already breaks unquoted), so the quote is a strict no-op there. Excluded
   as not-provable: `text` / `multiple=` params, `$on_string` and `.name` /
   `.element_identifier` label attrs (run-varying dataset labels), `structured`,
-  `#set`/loop (`non_input`). GTR031 keeps flagging that residual.
+  `#set`/loop (`non_input`). The advisory `GTR020.2` keeps flagging that residual.
 - **Wider than D6's floor, and *why* it's still provable.** D6 sketched a
   "safe-class-only" fix (46.7%). Sizing the two extra classes
   (`scripts.measure iuc011-fixability`) showed `builtin_path` (1,119 occ) +

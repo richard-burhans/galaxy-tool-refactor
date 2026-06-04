@@ -60,10 +60,6 @@ _ALLOWLIST: dict[str, tuple[frozenset[str], str]] = {
         frozenset({"etree.tostring("}),
         "internal before/after compare to detect change (not output)",
     ),
-    "galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/cursor.py": (
-        frozenset({"etree.tostring("}),
-        "serialise one element to a str for read-only CDATA-wrap inspection",
-    ),
     "galaxy-tool-xml/src/galaxy_tool_xml/cdata.py": (
         frozenset({"etree.tostring("}),
         "serialise one element to a str for read-only CDATA detection",

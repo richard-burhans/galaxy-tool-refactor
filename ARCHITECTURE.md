@@ -129,6 +129,13 @@ schema, and expose a typed view — **without ever serialising**.
   `compiled_schema` map a tool's `profile=` to one of ~28 vendored per-release
   XSDs. The generated typed models live under `models/` (build-time xsdata
   codegen; gitignored, exempt from lint/type-check).
+- **Command-text analysis utilities** — `command_text.py` (read-only Cheetah/shell
+  `$var` lexer, with character spans), `command_vars.py` (quoting-safety classifier:
+  `provably_quotable`), `cdata.py` (`cdata_wrappable` / `needs_cdata` /
+  `is_cdata_wrapped`). Pure string/element predicates that emit no XML. They sit in
+  tier 1 so **both** the codemod fix sub-rules (tier 2) **and** the advisory check
+  residuals (tier 3.5) share one definition — the partition's soundness seam (xml
+  `docs/decisions.md` §16; registry D10).
 
 **Contract:** the lxml tree is the single representation; tier 1 emits no XML.
 *(xml `docs/decisions.md` §3 representation, §9 three-tier vision, §10 corpus
@@ -536,6 +543,9 @@ Each abstraction → its file → the decision record that justifies it.
 | `ToolDocument` / `MacroDocument` | `galaxy-tool-xml/src/.../document.py` | xml `docs/decisions.md` §3, §15 |
 | `load_tool` / `validate_tool` / `newest_valid_profile` | `galaxy-tool-xml/src/.../binding.py` | xml `docs/decisions.md` §1, §10 |
 | profile resolution | `galaxy-tool-xml/src/.../profiles.py` | xml `docs/decisions.md` §10 |
+| `unquoted_cheetah_vars` (command lexer) | `galaxy-tool-xml/src/.../command_text.py` | xml `docs/decisions.md` §16 |
+| `provably_quotable` (quoting-safety classifier) | `galaxy-tool-xml/src/.../command_vars.py` | xml `docs/decisions.md` §16 |
+| `cdata_wrappable` / `needs_cdata` / `is_cdata_wrapped` | `galaxy-tool-xml/src/.../cdata.py` | xml `docs/decisions.md` §16; registry D10 |
 | `CodemodCommand`, `Cursor`, `Change` | `galaxy-tool-xml-codemod/src/.../codemod.py`, `cursor.py`, `change.py` | codemod `docs/decisions.md` §6, §19 |
 | `CANONICAL_CODEMODS` / `AUTO_UPGRADE_CODEMODS` | `galaxy-tool-xml-codemod/src/.../canonical.py` | codemod `docs/decisions.md` §16 |
 | upgrade codemods | `galaxy-tool-xml-codemod/src/.../upgrades.py`, `codemods/upgrade_*.py` | codemod `docs/decisions.md` §11–14 |
