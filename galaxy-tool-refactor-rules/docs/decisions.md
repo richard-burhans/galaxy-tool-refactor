@@ -22,7 +22,7 @@ different execution contracts and are not unified.
 - **A documented trigger, now met.** `galaxy-tool-xml-fmt/docs/decisions.md` §D1
   §Layout said a shared rule package would be extracted "only when a second
   consumer materialises." Giving the codemod tier the same metadata vocabulary
-  (so the GTX rule registry spans both tiers) is that second consumer.
+  (so the GTR rule registry spans both tiers) is that second consumer.
 - **Tier independence is preserved, not weakened.** The standing constraint
   (fmt's library must not depend on codemod — §D10 there) is about not dragging
   the *structural framework* into cosmetic-only installs. A metadata-only
@@ -36,8 +36,8 @@ different execution contracts and are not unified.
 
 `RuleMeta` fields at the time of this extraction were the fmt original (`code`,
 `summary`, `since`, `until`, `cite`, `order`); `detect_only` was added later in
-§D2. The cross-tier GTX registry at the time spanned GTX001–GTX012 (3 fmt rules,
-9 codemods); it later grew GTX013 (codemod §17) and the IUC advisory codes
+§D2. The cross-tier GTR registry at the time spanned GTR001–GTR012 (3 fmt rules,
+9 codemods); it later grew GTR013 (codemod §17) and the advisory codes
 (tier 3.5, `galaxy-tool-xml-check`). Codes are globally unique across the tiers
 (asserted by a test in `galaxy-tool-xml-fmt`'s corpus-check suite, which can
 import both tiers).
@@ -82,9 +82,9 @@ on `RuleMeta` (e.g. `detect_only`) is deferred until detect-only rules arrive
 
 `RuleMeta` gains `applies_to: frozenset[str]` (default `frozenset({"tool"})`) —
 the document kinds a rule operates on, a subset of `{"tool", "macro"}`. A generic
-XML rule (canonical indentation GTX001, empty-element shorthand GTX004) declares
+XML rule (canonical indentation GTR001, empty-element shorthand GTR004) declares
 `{"tool", "macro"}`; a tool-structural rule (blank line between `<tool>` sections
-GTX003, attribute / element order, profile upgrades) keeps the default `{"tool"}`;
+GTR003, attribute / element order, profile upgrades) keeps the default `{"tool"}`;
 a future macro-library rule declares `{"macro"}`. Consumers run a rule against a
 document only when the document's kind is in this set (fmt's `rules_for_kind`,
 and later the registry/codemod tiers).

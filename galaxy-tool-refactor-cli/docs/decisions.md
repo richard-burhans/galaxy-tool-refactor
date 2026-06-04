@@ -76,7 +76,7 @@ detect/fix rule-split effort (PR1–5, merged in #15).
   `format` pipeline (`CANONICAL_CODEMODS` + cosmetic fmt), not `upgrade` — the
   upgrade codemods are opt-in/semantic and would flag most tools as "would
   upgrade," drowning the signal. A future `--upgrade` flag can extend coverage;
-  the detect-only IUC rules (PR4) will also feed this command.
+  the detect-only rules (PR4) will also feed this command.
 - **A separate, smaller engine — not fmt's `cli_support.run`.** That engine is
   built around rewrite + drift detection (`_process_file` reads, transforms,
   compares bytes, writes/diffs). `check` reuses only the report-safe public
@@ -97,14 +97,14 @@ uv run galaxy-tool-refactor format tool.xml
 uv run galaxy-tool-refactor check tool.xml   # exit 0, "clean"
 ```
 
-## D3 (2026-05-30) — `check` gains advisory IUC findings (PR4)
+## D3 (2026-05-30) — `check` gains advisory findings (PR4)
 
 ### Decision
 
 `check` now also runs the tier-3.5 advisory checks
-(`galaxy-tool-xml-check.detect_violations`) alongside the fixable GTX detect
+(`galaxy-tool-xml-check.detect_violations`) alongside the fixable GTR detect
 phases. The two finding classes are distinguished by `RuleMeta.detect_only`:
-fixable (GTX, what `format` would change) versus advisory (IUC best practices).
+fixable (what `format` would change) versus advisory (the IUC best-practice checks).
 Per-finding output marks advisory lines `(advisory)`; the summary splits the
 counts ("N fixable, M advisory in K file(s)"). `check` exits non-zero on any
 *fixable* finding or error; a new `--strict` flag also fails on advisory
@@ -112,7 +112,7 @@ findings.
 
 ### Rationale
 
-A GTX finding is definitive ("a codemod / `format` would change this"); an IUC
+A GTR finding is definitive ("a codemod / `format` would change this"); an IUC
 finding is a judgment call ("consider adding tests"). Failing CI on the latter
 by default would make advisory opinions hard gates — a canonical tool that
 merely lacks EDAM xrefs should stay green. Keeping both in one report (the user
@@ -137,7 +137,7 @@ preset/code is mapped to `click.BadParameter` at the boundary.
 
 ### What changed for users
 
-- **Default `check` no longer reports advisory IUC findings.** The default preset
+- **Default `check` no longer reports advisory findings.** The default preset
   is `iuc` (fixable rules only — what `format` changes); advisory checks are now
   **opt-in** via `--preset strict`. Under `strict`, advisory findings are shown
   and informational (exit 0) unless `--strict` is also given. This supersedes the
@@ -148,7 +148,7 @@ preset/code is mapped to `click.BadParameter` at the boundary.
   fixable rules change a file.
 - **`upgrade` does not accept `--preset`** (presets are a format/check concept);
   it rejects it with a clean message. `--select`/`--ignore` still adjust its
-  fixable rule set (e.g. `--ignore GTX006` to skip typo repair); the profile
+  fixable rule set (e.g. `--ignore GTR006` to skip typo repair); the profile
   upgrade itself always runs.
 
 ### Rationale
@@ -162,10 +162,10 @@ commands — the price is that bare `check` is now fixable-only; `--preset stric
 restores "show me everything." The default `format`/`check`/`upgrade` behaviour is
 otherwise unchanged (the registry refactor itself was byte-identical to the old
 inline `format` pipeline; registry D3). A *later* deliberate change does shift
-default-`format` bytes: GTX020 (`SingleQuoteCommandVars`) joined
+default-`format` bytes: GTR020 (`SingleQuoteCommandVars`) joined
 `CANONICAL_CODEMODS`, single-quoting the provably-single-valued `<command>` vars
 (codemod `docs/decisions.md` §30) — behaviour-preserving, but not byte-identical to
-the pre-GTX020 output.
+the pre-GTR020 output.
 
 ### Reproduction
 
@@ -173,7 +173,7 @@ the pre-GTX020 output.
 uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/
 uv run galaxy-tool-refactor presets
 uv run galaxy-tool-refactor check --preset strict tool.xml   # advisory shown, exit 0
-uv run galaxy-tool-refactor format --select GTX001 tool.xml  # indent only
+uv run galaxy-tool-refactor format --select GTR001 tool.xml  # indent only
 ```
 
 ## D5 (2026-05-30) — `format` / `check` also handle macro-library files
@@ -196,8 +196,8 @@ Macro files get **cosmetic rules only** (codemods are tool-only,
 `RuleMeta.applies_to={"tool"}`), so the macro transform bypasses the registry
 facade (which runs codemods + fmt) and calls `format_macro_document` directly.
 Rule **selection (`--preset`/`--select`/`--ignore`) governs the tool pipeline**;
-macro files always get the standard kind-applicable cosmetic rules (GTX001 /
-GTX004). A `--select GTX002` run, say, still cosmetically cleans macro files —
+macro files always get the standard kind-applicable cosmetic rules (GTR001 /
+GTR004). A `--select GTR002` run, say, still cosmetically cleans macro files —
 documented, accepted for v1.
 
 ### Rationale
@@ -221,7 +221,7 @@ documented, accepted for v1.
 ```sh
 uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/
 uv run galaxy-tool-refactor format path/to/macros.xml   # cosmetically formatted
-uv run galaxy-tool-refactor check  path/to/macros.xml   # reports GTX001/GTX004 drift
+uv run galaxy-tool-refactor check  path/to/macros.xml   # reports GTR001/GTR004 drift
 ```
 
 ## D6 (2026-05-30) — `upgrade` bumps imported `@PROFILE@` tokens (Phase 3b-2)
@@ -232,7 +232,7 @@ galaxy-tool-refactor-cli/tests/test_cli.py -k imported`.
 
 `upgrade` now upgrades a `profile="@PROFILE@"` whose token is defined in an
 *imported* macro file by bumping that token in place — the ~1,382-tool bulk the
-inline GTX007 path (§3a) does not reach.
+inline GTR007 path (§3a) does not reach.
 
 - **A whole-run phase, not a per-file transform.** The decision is run-relative
   (a shared macro file is edited once; the target must be unanimous across *all*

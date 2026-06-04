@@ -35,17 +35,17 @@ the CLI and the MCP server (`galaxy-tool-refactor-mcp`) sit on top of it.
   XML itself.
 - **One handle per code.** `RuleHandle` (`handle.py`) adapts each family's rule
   to a uniform `meta` / `family` / `fixable` / `detect` / `apply` shape; the
-  registry asserts the GTX/IUC code namespace is collision-free.
+  registry asserts the GTR code namespace is collision-free.
 - **Selectable ≠ all.** `registry()` is the selectable set (canonical codemods +
-  cosmetic fmt + advisory checks). The upgrade-only codemods — GTX007–GTX012
-  (validity-gated, internal to `UpgradeToLatest`) and GTX014–GTX016 (runtime-gated,
+  cosmetic fmt + advisory checks). The upgrade-only codemods — GTR007–GTR012
+  (validity-gated, internal to `UpgradeToLatest`) and GTR014–GTR016 (runtime-gated,
   applied by `upgrade`) — appear only in `all_handles()` /
   `list_rules(include_upgrade=True)`.
 - **Apply ordering reproduces `format`.** Codemods in `CANONICAL_CODEMODS` order,
   then cosmetic fmt in `meta.order`. The `iuc` preset reproduces the direct
   `CANONICAL_CODEMODS` + cosmetic pipeline (a regression test pins facade ==
-  pipeline). Note this tracks the *live* `CANONICAL_CODEMODS`: when GTX020 joined
-  it, default-`format` output shifted vs the pre-GTX020 historical bytes (codemod
+  pipeline). Note this tracks the *live* `CANONICAL_CODEMODS`: when GTR020 joined
+  it, default-`format` output shifted vs the pre-GTR020 historical bytes (codemod
   `docs/decisions.md` §30) — the facade-vs-pipeline pin still holds.
 - **Presets and rules are developer-defined.** No user-defined rules/presets.
 

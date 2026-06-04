@@ -1,4 +1,4 @@
-"""Render a cross-tier GTX rule glossary as GitHub-flavored markdown.
+"""Render a cross-tier GTR rule glossary as GitHub-flavored markdown.
 
 A pure, dependency-free helper: it turns ``(RuleMeta, tier)`` pairs into the
 rows of a ``| Rule | Tier | What it does |`` table, sorted by code. It emits the

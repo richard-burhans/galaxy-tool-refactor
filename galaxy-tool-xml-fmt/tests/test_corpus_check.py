@@ -72,7 +72,7 @@ def test_signature_includes_exception_type_and_deepest_frame() -> None:
 def _reference_table_codes() -> list[str]:
     """The rule codes listed in the generated reference table, in row order."""
     rows = corpus_check._fmt_format_rule_reference_table()
-    return [line.split("|")[1].strip() for line in rows if line.startswith("| GTX")]
+    return [line.split("|")[1].strip() for line in rows if line.startswith("| GTR")]
 
 
 def test_reference_table_covers_every_rule_across_both_tiers() -> None:
@@ -83,8 +83,8 @@ def test_reference_table_covers_every_rule_across_both_tiers() -> None:
     assert set(_reference_table_codes()) == expected
 
 
-def test_gtx_codes_are_globally_unique_across_tiers() -> None:
-    """A GTX code must identify exactly one rule across fmt + codemod."""
+def test_gtr_codes_are_globally_unique_across_tiers() -> None:
+    """A GTR code must identify exactly one rule across fmt + codemod."""
     codes = [cls.meta.code for cls in all_rules()]
     codes += [cls.meta.code for cls in coded_codemods()]
     assert len(codes) == len(set(codes))
@@ -101,25 +101,25 @@ def test_reference_table_sits_above_the_trigger_tables() -> None:
 def test_rule_stats_fmt_table_renders_a_row() -> None:
     """The per-rule isolation fmt table renders code + counts, sorted by code."""
     sweeps = [
-        corpus_check._FmtRuleSweep(code="GTX003", validated=10, touched=10, edits=42),
+        corpus_check._FmtRuleSweep(code="GTR003", validated=10, touched=10, edits=42),
         corpus_check._FmtRuleSweep(
-            code="GTX001", validated=10, touched=10, edits=99, non_idempotent=1
+            code="GTR001", validated=10, touched=10, edits=99, non_idempotent=1
         ),
     ]
     table = corpus_check._rule_format_fmt_table(sweeps)
-    codes = [line.split("|")[1].strip() for line in table if line.startswith("| GTX")]
-    assert codes == ["GTX001", "GTX003"]  # sorted by code
-    assert any("| GTX001 |" in line and "| 99 |" in line for line in table)
+    codes = [line.split("|")[1].strip() for line in table if line.startswith("| GTR")]
+    assert codes == ["GTR001", "GTR003"]  # sorted by code
+    assert any("| GTR001 |" in line and "| 99 |" in line for line in table)
 
 
 def test_rule_stats_page_has_reference_table_above_isolation_tables() -> None:
-    """The GTX glossary must precede both isolated-rule tables, covering all 12."""
+    """The GTR glossary must precede both isolated-rule tables."""
     lines = corpus_check._rule_stats_lines(
         profile="26.1",
         source="combined",
-        fmt_sweeps=[corpus_check._FmtRuleSweep(code="GTX001", validated=1)],
+        fmt_sweeps=[corpus_check._FmtRuleSweep(code="GTR001", validated=1)],
         codemod_rows=[
-            ("GTX002", "ReorderParamAttributes", corpus_check._CodemodSweepState())
+            ("GTR002", "ReorderParamAttributes", corpus_check._CodemodSweepState())
         ],
         upgrade_state=None,
     )
@@ -208,7 +208,7 @@ def test_stat_tables_use_comma_thousands_separators() -> None:
     assert "12 772" not in summary  # not space-separated, not bare
     sweeps = [
         corpus_check._FmtRuleSweep(
-            code="GTX001", validated=8608, touched=8608, edits=863912
+            code="GTR001", validated=8608, touched=8608, edits=863912
         )
     ]
     fmt_tbl = "\n".join(corpus_check._rule_format_fmt_table(sweeps))
@@ -226,24 +226,26 @@ _FLAT_TOOL = (
 
 
 def test_check_rule_registry_spans_three_tiers() -> None:
-    """The registry covers fmt + canonical codemods + advisory IUC checks."""
+    """The registry covers fmt + canonical codemods + advisory checks."""
     registry = corpus_check._check_rule_registry()
-    assert {"GTX001", "GTX003", "GTX004"} <= set(registry)  # fmt
-    assert {"GTX002", "GTX005", "GTX006", "GTX013"} <= set(registry)  # codemods
-    assert {f"IUC{n:03d}" for n in range(1, 13)} <= set(registry)  # advisory
-    assert registry["GTX002"].detect_only is False
-    assert registry["IUC001"].detect_only is True
-    assert registry["GTX002"].tier == "codemod"
-    assert registry["IUC001"].tier == "check"
+    assert {"GTR001", "GTR003", "GTR004"} <= set(registry)  # fmt
+    assert {"GTR002", "GTR005", "GTR006", "GTR013"} <= set(registry)  # codemods
+    assert {f"GTR{n:03d}" for n in range(21, 33)} <= set(registry)  # advisory checks
+    assert registry["GTR002"].detect_only is False
+    assert registry["GTR021"].detect_only is True
+    assert registry["GTR002"].tier == "codemod"
+    assert registry["GTR021"].tier == "check"
 
 
 def test_check_detect_reports_fixable_and_advisory() -> None:
-    """The unified detect yields both fixable (GTX) and advisory (IUC) findings."""
+    """The unified detect yields both fixable and advisory findings."""
     from galaxy_tool_xml.binding import load_tool
 
+    registry = corpus_check._check_rule_registry()
     codes = {v.code for v in corpus_check._check_detect(load_tool(_FLAT_TOOL))}
-    assert "GTX002" in codes  # fixable: param attribute order
-    assert any(code.startswith("IUC") for code in codes)  # advisory present
+    assert "GTR002" in codes  # fixable: param attribute order
+    # advisory present — identified by the rule's detect_only flag, not its prefix.
+    assert any(code in registry and registry[code].detect_only for code in codes)
 
 
 def test_check_process_path_tallies_per_code(tmp_path: Path) -> None:
@@ -256,10 +258,10 @@ def test_check_process_path_tallies_per_code(tmp_path: Path) -> None:
     assert state.flagged_tools == 1
     assert state.fixable_flagged_tools == 1
     assert state.advisory_flagged_tools == 1
-    assert state.registry["GTX002"].flagged == 1
-    assert state.registry["GTX002"].total == 1
-    # GTX006 (FixTypos) does not fire on a valid tool.
-    assert state.registry["GTX006"].flagged == 0
+    assert state.registry["GTR002"].flagged == 1
+    assert state.registry["GTR002"].total == 1
+    # GTR006 (FixTypos) does not fire on a valid tool.
+    assert state.registry["GTR006"].flagged == 0
 
 
 def test_check_process_path_skips_non_tool(tmp_path: Path) -> None:

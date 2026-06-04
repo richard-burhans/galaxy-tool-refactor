@@ -22,7 +22,7 @@ def test_known_codes_are_the_selectable_set() -> None:
     codes = known_codes()
     # canonical codemods are selectable (derived from the source-of-truth tuple)...
     assert {cls.meta.code for cls in CANONICAL_CODEMODS} <= codes
-    assert {"GTX001", "IUC001"} <= codes  # a cosmetic fmt rule + an advisory check
+    assert {"GTR001", "GTR021"} <= codes  # a cosmetic fmt rule + an advisory check
     # ...upgrade-only codemods are NOT selectable (derived: all_handles − selectable).
     upgrade_only = set(all_handles()) - codes
     assert upgrade_only and upgrade_only.isdisjoint(codes)
@@ -33,7 +33,7 @@ def test_upgrade_only_set_matches_the_codemod_catalog() -> None:
 
     Both sides are *derived* (no hardcoded list that can go stale), so a new
     codemod wrongly placed in ``CANONICAL_CODEMODS`` (and thus selectable) or one
-    omitted from the catalog would be caught — incl. the runtime-gated GTX014/015.
+    omitted from the catalog would be caught — incl. the runtime-gated GTR014/015.
     """
     from galaxy_tool_xml_codemod.canonical import CANONICAL_CODEMODS
     from galaxy_tool_xml_codemod.catalog import coded_codemods
@@ -44,12 +44,12 @@ def test_upgrade_only_set_matches_the_codemod_catalog() -> None:
     registry_upgrade_only = set(all_handles()) - set(known_codes())
     assert registry_upgrade_only == catalog_upgrade_only
     assert registry_upgrade_only.isdisjoint(registry())
-    assert {"GTX014", "GTX015"} <= registry_upgrade_only  # runtime-gated wiring guard
+    assert {"GTR014", "GTR015"} <= registry_upgrade_only  # runtime-gated wiring guard
 
 
 def test_by_code_returns_the_handle() -> None:
-    handle = by_code("GTX002")
-    assert handle.meta.code == "GTX002"
+    handle = by_code("GTR002")
+    assert handle.meta.code == "GTR002"
     assert handle.family == "codemod"
     assert handle.fixable is True
     assert handle.apply is not None
@@ -57,10 +57,10 @@ def test_by_code_returns_the_handle() -> None:
 
 def test_by_code_unknown_raises() -> None:
     with pytest.raises(UnknownRuleCode):
-        by_code("GTX999")
+        by_code("GTR999")
     # Upgrade-only codes are not selectable, so they are "unknown" to by_code —
     # incl. the runtime-gated pair.
-    for code in ("GTX012", "GTX014", "GTX015"):
+    for code in ("GTR012", "GTR014", "GTR015"):
         with pytest.raises(UnknownRuleCode):
             by_code(code)
 
@@ -92,6 +92,6 @@ def test_duplicate_code_raises() -> None:
     duplicate; this proves the guard that keeps it that way actually raises —
     feeding ``_build_index`` the same handle twice (so its ``meta.code`` collides).
     """
-    handle = by_code("GTX002")
-    with pytest.raises(ValueError, match="duplicate rule code 'GTX002'"):
+    handle = by_code("GTR002")
+    with pytest.raises(ValueError, match="duplicate rule code 'GTR002'"):
         _build_index([(handle, True), (handle, True)])

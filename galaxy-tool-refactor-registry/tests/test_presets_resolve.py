@@ -6,7 +6,7 @@ import pytest
 
 from galaxy_tool_refactor_registry.errors import UnknownPreset, UnknownRuleCode
 from galaxy_tool_refactor_registry.presets import DEFAULT_PRESET, presets
-from galaxy_tool_refactor_registry.registry import known_codes
+from galaxy_tool_refactor_registry.registry import advisory_codes, known_codes
 from galaxy_tool_refactor_registry.resolve import (
     resolve_codes,
     resolve_upgrade_codes,
@@ -20,14 +20,15 @@ def test_default_preset_is_iuc() -> None:
 
 def test_preset_contents() -> None:
     p = presets()
-    assert p["cosmetic"] == {"GTX001", "GTX003", "GTX004"}
+    assert p["cosmetic"] == {"GTR001", "GTR003", "GTR004"}
     assert p["iuc"] == {
-        "GTX001", "GTX002", "GTX003", "GTX004", "GTX005", "GTX006", "GTX013",
-        "GTX017", "GTX018", "GTX019", "GTX020",
+        "GTR001", "GTR002", "GTR003", "GTR004", "GTR005", "GTR006", "GTR013",
+        "GTR017", "GTR018", "GTR019", "GTR020",
     }
-    # strict = iuc + every advisory check.
+    # strict = iuc + every advisory check. Advisory-ness is a rule property
+    # (advisory_codes()), no longer inferable from a code prefix.
     assert p["iuc"] < p["strict"]
-    assert p["strict"] - p["iuc"] == {c for c in known_codes() if c.startswith("IUC")}
+    assert p["strict"] - p["iuc"] == advisory_codes()
 
 
 def test_every_preset_code_is_known() -> None:
@@ -46,13 +47,13 @@ def test_resolve_named_preset() -> None:
 
 def test_select_replaces_preset_then_ignore_subtracts() -> None:
     # --select replaces the preset's set (ruff-style), --ignore then subtracts.
-    assert resolve_codes(select=["GTX001", "GTX003"], ignore=["GTX003"]) == {"GTX001"}
+    assert resolve_codes(select=["GTR001", "GTR003"], ignore=["GTR003"]) == {"GTR001"}
     # An explicit preset is overridden by --select.
-    assert resolve_codes(preset="strict", select=["GTX001"]) == {"GTX001"}
+    assert resolve_codes(preset="strict", select=["GTR001"]) == {"GTR001"}
 
 
 def test_ignore_alone_subtracts_from_preset() -> None:
-    assert resolve_codes(ignore=["GTX006"]) == presets()["iuc"] - {"GTX006"}
+    assert resolve_codes(ignore=["GTR006"]) == presets()["iuc"] - {"GTR006"}
 
 
 def test_unknown_preset_raises() -> None:
@@ -62,14 +63,14 @@ def test_unknown_preset_raises() -> None:
 
 def test_unknown_code_raises() -> None:
     with pytest.raises(UnknownRuleCode):
-        resolve_codes(select=["GTX999"])
+        resolve_codes(select=["GTR999"])
     with pytest.raises(UnknownRuleCode):
-        resolve_codes(ignore=["GTX012"])  # upgrade-only: not selectable
+        resolve_codes(ignore=["GTR012"])  # upgrade-only: not selectable
 
 
 def test_upgrade_base_is_fixtypos_plus_cosmetic() -> None:
-    assert upgrade_base_codes() == {"GTX006", "GTX001", "GTX003", "GTX004"}
+    assert upgrade_base_codes() == {"GTR006", "GTR001", "GTR003", "GTR004"}
 
 
 def test_resolve_upgrade_ignore_drops_fixtypos() -> None:
-    assert resolve_upgrade_codes(ignore=["GTX006"]) == {"GTX001", "GTX003", "GTX004"}
+    assert resolve_upgrade_codes(ignore=["GTR006"]) == {"GTR001", "GTR003", "GTR004"}

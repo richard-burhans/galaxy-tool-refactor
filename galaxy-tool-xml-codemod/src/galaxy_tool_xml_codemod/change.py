@@ -28,7 +28,7 @@ class Change:
     """One structural mutation a codemod detected, with the thunk that applies it.
 
     Attributes:
-        code: The codemod's ``RuleMeta.code`` (e.g. ``"GTX002"``).
+        code: The codemod's ``RuleMeta.code`` (e.g. ``"GTR002"``).
         sourceline: 1-based source line of the affected element, or ``0``.
         xpath: Absolute xpath of the affected element.
         message: One-line human-readable description of the change.

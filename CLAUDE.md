@@ -11,7 +11,7 @@ galaxy-tool-refactor/
 ├── galaxy-tool-xml/          Tier 1 (parsing & validation)
 ├── galaxy-tool-xml-codemod/  Tier 2 (structure)
 ├── galaxy-tool-xml-fmt/      Tier 3 (formatting)
-├── galaxy-tool-xml-check/    Tier 3.5 (advisory detect-only IUC checks)
+├── galaxy-tool-xml-check/    Tier 3.5 (advisory detect-only checks)
 ├── galaxy-tool-refactor-registry/ Tier 3.6 (unified rule registry + presets; library-first facade)
 ├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + presets/rules + normalize-macros)
 ├── galaxy-tool-refactor-mcp/ Tier 4 (MCP server over the registry facade; thin FastMCP adapter)
@@ -95,7 +95,7 @@ uv run python -m scripts.corpus_check fmt [--source github|toolshed|combined] [-
 # Tier-2 invariants (one structural codemod at a time): sweep idempotence + post-codemod validity.
 uv run python -m scripts.corpus_check codemod <dotted.module>:<ClassName> [--repo NAME] [--limit N]
 
-# Per-rule isolation QA (every GTX rule alone, fmt + codemod): idempotence (+ post-validity
+# Per-rule isolation QA (every GTR rule alone, fmt + codemod): idempotence (+ post-validity
 # for codemods), retain failures, write docs/corpus_rule_stats.md.
 uv run python -m scripts.corpus_check rules [--source github|toolshed|combined] [--repo NAME] [--limit N]
 
@@ -124,17 +124,17 @@ uv run python -m scripts.measure macro-profile-tokens
 uv run python -m scripts.measure macro-profile-ownership
 
 # Decision-augmenting sizing sweeps (print-only; numbers folded into the
-# decisions docs they back). command-iuc-heuristics sizes the IUC011/IUC012
+# decisions docs they back). command-iuc-heuristics sizes the GTR031/GTR032
 # placeholders (check §D1); command-lone-amp classifies every lone `&` by class
-# (redirect/quoted/pipe/background/joining) to settle the IUC012 deferral with
+# (redirect/quoted/pipe/background/joining) to settle the GTR032 deferral with
 # data — the genuine `cmd1 & cmd2` anti-pattern is ~1 tool (check §D3);
-# command-unquoted-var sizes IUC011 honestly — excluding Cheetah directive lines +
+# command-unquoted-var sizes GTR031 honestly — excluding Cheetah directive lines +
 # tracking shell quotes, a genuinely-unquoted `$var` still fires on 73.2% of tools,
-# so IUC011 (unlike IUC012) has real signal (check §D4); iuc011-fixability then
+# so GTR031 (unlike GTR032) has real signal (check §D4); iuc011-fixability then
 # resolves each unquoted `$var` against <inputs> and splits it into provable-vs-not
 # classes — the provable subset {safe, attr_safe, builtin_path} (49.5% of
-# occurrences) is auto-fixed by GTX020 (codemod §30 / check §D8), while the
-# non-provable residual (33.6% #set/loop, plus text/multi/label) keeps IUC011
+# occurrences) is auto-fixed by GTR020 (codemod §30 / check §D8), while the
+# non-provable residual (33.6% #set/loop, plus text/multi/label) keeps GTR031
 # advisory; macro-fmt-idempotence backs fmt §D16:
 uv run python -m scripts.measure command-iuc-heuristics
 uv run python -m scripts.measure command-lone-amp
@@ -183,7 +183,7 @@ uv run python -m scripts.measure upgrade-profile-shift
 # not run in CI):
 uv run python -m scripts.measure upgrade-behavior-blocks
 
-# Sizing for the format="input" runtime-gated fix (GTX015, codemod decisions §24):
+# Sizing for the format="input" runtime-gated fix (GTR015, codemod decisions §24):
 # output <data format="input"> tools split by data-input cardinality (the single
 # top-level data input subset is auto-fixable), plus the format_source-guard and
 # crossing-gate skip counts (§24):
@@ -200,7 +200,7 @@ uv run python -m scripts.measure help-formats
 # docs/cheetah_command_stats.md (needs the corpus, so not run in CI):
 uv run python -m scripts.measure cheetah-command-complexity
 
-# Auto-fixable population for a 16_04_fix_interpreter codemod (GTX016): tools with a
+# Auto-fixable population for a 16_04_fix_interpreter codemod (GTR016): tools with a
 # deprecated <command interpreter=…> split into bucket A (rewritable) / A-missing / B
 # (leading-Cheetah) / C (non-standard interpreter), reusing the codemod's own
 # eligibility predicate. Backs docs/upgrade_research/16_04_fix_interpreter.md. Writes
@@ -248,11 +248,11 @@ Tiers, each independently installable:
 
 | Tier | Layer | Package | Owns |
 |---|---|---|---|
-| 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | `RuleMeta` descriptor + `render_rule_reference_table`. Dependency-free; shared by tiers 2 & 3 so the GTX registry spans both. |
+| 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | `RuleMeta` descriptor + `render_rule_reference_table`. Dependency-free; shared by tiers 2 & 3 so the GTR registry spans both. |
 | 1 | **parsing & validation** | `galaxy-tool-xml` | `load_tool` / `parse_tool` / `validate_tool`, typed xsdata views. **No serializer.** |
-| 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework + bundled structural codemods (each carries a `RuleMeta` GTX code; see `catalog.coded_codemods()`) + `CANONICAL_CODEMODS` contract. |
+| 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework + bundled structural codemods (each carries a `RuleMeta` GTR code; see `catalog.coded_codemods()`) + `CANONICAL_CODEMODS` contract. |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic rules (indent / blank line / empty-element shorthand) + the shared `cli_support` CLI engine. The only tier that serialises canonical output XML. |
-| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice checks (`IUC` codes, `RuleMeta.detect_only`); read-only LBYL queries over tier 1 yielding `Violation`. Depends only on tiers 1 + 0.5. |
+| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice checks (`GTR` codes, `RuleMeta.detect_only`); read-only LBYL queries over tier 1 yielding `Violation`. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | Unified, code-addressable `RuleHandle` over all three families + named presets (`cosmetic`/`iuc`/`strict`) + `run`/`upgrade`/`detect`. **Library-first** (no click/exit; structured I/O; introspectable). Depends on 0.5/1/2/3/3.5; lower tiers don't depend on it. |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `presets`, `rules`, `normalize-macros`. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the registry facade (a sibling of the CLI). A thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`list_presets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) remain future. |
@@ -267,15 +267,15 @@ commands:
 - `galaxy-tool-refactor format` — apply a preset's fixable rules (default `iuc` =
   `CANONICAL_CODEMODS` + cosmetic) then serialise. Safe, idempotent; never changes
   `profile=`. Advisory rules in a selection (`--preset strict`) are reported as
-  notes, never applied. (No longer byte-identical to the pre-GTX020 historical
-  output: GTX020 — `SingleQuoteCommandVars` — now also single-quotes the
+  notes, never applied. (No longer byte-identical to the pre-GTR020 historical
+  output: GTR020 — `SingleQuoteCommandVars` — now also single-quotes the
   *provably*-single-valued Cheetah vars in `<command>`, a behaviour-preserving fix;
   codemod `docs/decisions.md` §30.)
 - `galaxy-tool-refactor upgrade` — repair, then iterative profile upgrade, then
   format. Opt-in, semantic. No `--preset` (presets are a format/check concept);
   `--select`/`--ignore` adjust its fixable rule set.
 - `galaxy-tool-refactor check` — report-only over the selected rules' detect
-  phases. Fixable GTX findings exit non-zero; advisory IUC findings appear only
+  phases. Fixable findings exit non-zero; advisory findings appear only
   under `--preset strict` and are informational unless `--strict`.
 - `galaxy-tool-refactor presets` / `rules` — introspection of the baked-in
   presets and rules.
@@ -301,9 +301,9 @@ fmt-CLI-cosmetic-only reversal, and the `CANONICAL_CODEMODS` /
 `AUTO_UPGRADE_CODEMODS` split; and
 `galaxy-tool-refactor-rules/docs/decisions.md` §D1 (+ codemod §15,
 fmt §D11) for the shared `RuleMeta` extraction and the cross-tier
-GTX registry; and `docs/iuc_best_practices.md` (+ codemod §17) for the
+GTR registry; and `docs/iuc_best_practices.md` (+ codemod §17) for the
 IUC best-practices coverage map and the `<tool>` element-order codemod
-(GTX013); and `galaxy-tool-refactor-registry/docs/decisions.md` D1–D4
+(GTR013); and `galaxy-tool-refactor-registry/docs/decisions.md` D1–D4
 (+ cli `docs/decisions.md` D4, fmt §D15) for the rule-registry facade,
 presets, per-rule selection, and the move of orchestration below the CLI.
 For the per-profile upgrade map (what each profile bump requires, the

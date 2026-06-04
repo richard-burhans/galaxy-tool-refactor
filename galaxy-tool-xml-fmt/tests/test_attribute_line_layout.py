@@ -1,6 +1,6 @@
 """Regression tests for the attributes-on-one-line policy.
 
-There is no GTX rule for this — lxml's ``etree.tostring`` default
+There is no GTR rule for this — lxml's ``etree.tostring`` default
 already keeps all of an element's attributes on a single line, even
 when the source spread them across multiple lines or when the value
 contains literal whitespace (which it escapes as ``&#10;`` / ``&#9;``).

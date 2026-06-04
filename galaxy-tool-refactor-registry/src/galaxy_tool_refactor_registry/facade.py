@@ -222,7 +222,7 @@ def upgrade(
     document = _to_document(source)
     # Capture the runtime baseline AND which upgrade codes the tool trips BEFORE
     # any codemod rewrites ``profile=`` or mutates the features detectors inspect
-    # (GTX014/GTX015 fix the very things some detectors look for).
+    # (GTR014/GTR015 fix the very things some detectors look for).
     baseline = _semantic_baseline(document.profile)
     tripped = tripped_upgrade_codes(document)
     advisory = _detect_advisory(document, codes)
@@ -304,8 +304,8 @@ def list_presets() -> list[PresetInfo]:
 def list_rules(*, include_upgrade: bool = False) -> list[RuleInfo]:
     """Structured metadata for every rule, sorted by code.
 
-    With ``include_upgrade=True`` the upgrade-only codemods (GTX007–GTX012 plus the
-    runtime-gated GTX014–GTX015) are listed too; by default only the selectable
+    With ``include_upgrade=True`` the upgrade-only codemods (GTR007–GTR012 plus the
+    runtime-gated GTR014–GTR015) are listed too; by default only the selectable
     rules appear.
     """
     handles = all_handles() if include_upgrade else registry()

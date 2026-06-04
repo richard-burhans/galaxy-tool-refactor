@@ -5,7 +5,7 @@
 | **Code** | `16_04_fix_output_format` |
 | **Profile** | 16.04 |
 | **Level** | `must_fix` |
-| **Auto-fix today** | **GTX015** `FixOutputFormatInput` (partial) |
+| **Auto-fix today** | **GTR015** `FixOutputFormatInput` (partial) |
 | **Stuck tools** (must_fix-only) | **33** — tools where this code is the *first* must_fix blocker in the sequential profile walk (a subset of the 41 ambiguous; the rest stall earlier at 16.04 on `16_04_fix_interpreter`). See `../upgrade_behavior_block_stats.md` |
 | **Galaxy PR** | https://github.com/galaxyproject/galaxy/pull/1688 |
 
@@ -52,7 +52,7 @@ This requires **choosing which input** to inherit from — author intent in gene
 but **unambiguous when the tool has exactly one data input addressable by an
 unqualified name** (a single top-level `<param type="data">`).
 
-## What GTX015 already does
+## What GTR015 already does
 
 `codemods/fix_output_format_input.py` (`FixOutputFormatInput`, `RuntimeGatedFix`,
 `introduced_profile="16.04"`) auto-fixes exactly the unambiguous case:
@@ -65,8 +65,8 @@ covers ~109 of ~150 corpus tools with a `format="input"` output (size it via
 
 ## Mechanical-fix feasibility
 
-- **Already covered** for the sole-data-input case (GTX015).
-- GTX015 leaves **41** tools unfixed — the genuinely ambiguous cases (per
+- **Already covered** for the sole-data-input case (GTR015).
+- GTR015 leaves **41** tools unfixed — the genuinely ambiguous cases (per
   `scripts/measure.py output-format-input`): 38 with multiple data inputs (which
   one?), 2 with zero data inputs (nothing to inherit from), and 1 with a nested
   single data input (the unqualified name wouldn't resolve). These need author

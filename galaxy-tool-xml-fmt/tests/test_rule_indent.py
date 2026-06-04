@@ -1,4 +1,4 @@
-"""Tests for GTX001 canonical 4-space indentation."""
+"""Tests for GTR001 canonical 4-space indentation."""
 
 from __future__ import annotations
 

@@ -13,7 +13,7 @@ def test_registry_has_thirteen_checks_with_unique_codes() -> None:
     assert len(checks) == 13
     codes = [cls.meta.code for cls in checks]
     assert len(set(codes)) == 13
-    assert all(code.startswith("IUC") for code in codes)
+    assert all(code.startswith("GTR") for code in codes)
 
 
 def test_registry_is_sorted_by_code() -> None:

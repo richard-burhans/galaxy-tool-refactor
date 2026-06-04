@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
+from galaxy_tool_refactor_registry.registry import advisory_codes
 from galaxy_tool_xml.profiles import latest_profile
 
 from galaxy_tool_refactor_cli.cli import main
@@ -43,7 +44,7 @@ def test_format_reorders_param_attributes(tmp_path: Path) -> None:
     result = CliRunner().invoke(main, ["format", str(file)])
     assert result.exit_code == 0, result.output
     param = file.read_bytes().partition(b"<param")[2]
-    # structural codemod ran: IUC order name, type, value
+    # structural codemod ran: canonical order name, type, value
     assert param.index(b"name=") < param.index(b"type=") < param.index(b"value=")
 
 
@@ -114,7 +115,7 @@ def test_upgrade_keeps_latest_profile(tmp_path: Path) -> None:
 
 
 def test_upgrade_applies_runtime_gated_fix_at_reached_profile(tmp_path: Path) -> None:
-    """End-to-end: crossing 21.09 strips a whitespace from_work_dir (GTX014)."""
+    """End-to-end: crossing 21.09 strips a whitespace from_work_dir (GTR014)."""
     # Declares 20.09 (< 21.09), so the bump to latest CROSSES the 21.09 boundary.
     tool = (
         b'<tool id="m" name="M" version="1.0.0" profile="20.09">'
@@ -258,8 +259,8 @@ def test_check_reports_findings_and_exits_nonzero(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
     result = CliRunner().invoke(main, ["check", str(file)])
     assert result.exit_code == 1, result.output
-    # structural finding (param attr order) is reported with its GTX code
-    assert "GTX002" in result.output
+    # structural finding (param attr order) is reported with its GTR code
+    assert "GTR002" in result.output
     assert f"{file}:" in result.output
     assert "finding(s)" in result.output
 
@@ -272,22 +273,22 @@ def test_check_does_not_modify_the_file(tmp_path: Path) -> None:
 
 def test_check_formatted_file_has_no_fixable_findings(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
-    # Canonicalise first; the formatted file then has no *fixable* (GTX) findings,
-    # so check exits 0 even though advisory (IUC) suggestions remain.
+    # Canonicalise first; the formatted file then has no *fixable* findings,
+    # so check exits 0 even though advisory suggestions remain.
     assert CliRunner().invoke(main, ["format", str(file)]).exit_code == 0
     result = CliRunner().invoke(main, ["check", str(file)])
     assert result.exit_code == 0, result.output
-    assert "GTX" not in result.output  # nothing left to fix
+    assert "GTR" not in result.output  # no rule findings left to report
 
 
 def test_check_default_preset_omits_advisory(tmp_path: Path) -> None:
-    # Default preset is iuc (fixable only); advisory IUC checks are opt-in via
+    # Default preset is iuc (fixable only); advisory checks are opt-in via
     # --preset strict, so a canonical tool reports nothing under the default.
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
     CliRunner().invoke(main, ["format", str(file)])
     result = CliRunner().invoke(main, ["check", str(file)])
     assert result.exit_code == 0, result.output
-    assert "IUC" not in result.output
+    assert not any(code in result.output for code in advisory_codes())
 
 
 def test_check_strict_preset_shows_advisory_without_failing(tmp_path: Path) -> None:
@@ -296,7 +297,7 @@ def test_check_strict_preset_shows_advisory_without_failing(tmp_path: Path) -> N
     CliRunner().invoke(main, ["format", str(file)])
     result = CliRunner().invoke(main, ["check", "--preset", "strict", str(file)])
     assert result.exit_code == 0, result.output
-    assert "IUC" in result.output
+    assert any(code in result.output for code in advisory_codes())
     assert "(advisory)" in result.output
     assert "advisory finding(s)" in result.output
 
@@ -325,14 +326,14 @@ def test_check_skips_non_tool_non_macro_xml(tmp_path: Path) -> None:
 
 
 def test_check_reports_macro_file_cosmetic_drift(tmp_path: Path) -> None:
-    # A non-canonical macro file is reported (fixable GTX001) and exits non-zero.
+    # A non-canonical macro file is reported (fixable GTR001) and exits non-zero.
     file = _write(
         tmp_path / "macros.xml",
         b'<macros><token name="@TOOL_VERSION@">1.0</token></macros>',
     )
     result = CliRunner().invoke(main, ["check", str(file)])
     assert result.exit_code == 1, result.output
-    assert "GTX001" in result.output
+    assert "GTR001" in result.output
 
 
 def test_check_clean_macro_file_passes(tmp_path: Path) -> None:
@@ -372,11 +373,11 @@ def test_format_cosmetic_preset_does_not_reorder_params(tmp_path: Path) -> None:
 def test_format_ignore_drops_a_rule(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
     result = CliRunner().invoke(
-        main, ["format", "--ignore", "GTX002", str(file)]
+        main, ["format", "--ignore", "GTR002", str(file)]
     )
     assert result.exit_code == 0, result.output
     param = file.read_bytes().partition(b"<param")[2]
-    # GTX002 (param reorder) ignored, so source order is preserved.
+    # GTR002 (param reorder) ignored, so source order is preserved.
     assert param.index(b"value=") < param.index(b"type=") < param.index(b"name=")
 
 
@@ -389,9 +390,9 @@ def test_format_strict_preset_emits_advisory_notes(tmp_path: Path) -> None:
 
 def test_unknown_code_is_clean_error(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
-    result = CliRunner().invoke(main, ["format", "--select", "GTX999", str(file)])
+    result = CliRunner().invoke(main, ["format", "--select", "GTR999", str(file)])
     assert result.exit_code != 0
-    assert "GTX999" in result.output
+    assert "GTR999" in result.output
     assert "Traceback" not in result.output
 
 
@@ -420,11 +421,11 @@ def test_presets_subcommand_lists_presets() -> None:
 def test_rules_subcommand_lists_rules() -> None:
     result = CliRunner().invoke(main, ["rules"])
     assert result.exit_code == 0, result.output
-    assert "GTX002" in result.output
-    assert "IUC001" in result.output
-    assert "GTX012" not in result.output  # upgrade-only excluded by default
+    assert "GTR002" in result.output
+    assert "GTR021" in result.output
+    assert "GTR012" not in result.output  # upgrade-only excluded by default
     with_upgrade = CliRunner().invoke(main, ["rules", "--include-upgrade"])
-    assert "GTX012" in with_upgrade.output
+    assert "GTR012" in with_upgrade.output
 
 
 # --- normalize-macros (Phase 2a: macro-library format/ftype normalization) ---------

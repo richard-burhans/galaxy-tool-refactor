@@ -4,8 +4,8 @@ silently leave a stat page stale.
 
 The repo regenerates several stat artifacts from corpus sweeps, each owned by a
 *different* ``scripts/corpus_check.py`` subcommand. Nothing forced the regen, so
-pages drifted: **GTX014–GTX017 silently lagged out of the rule + format pages for
-four PRs** (both stuck at the GTX013 sweep) because the maintainer had to remember
+pages drifted: **GTR014–GTR017 silently lagged out of the rule + format pages for
+four PRs** (both stuck at the GTR013 sweep) because the maintainer had to remember
 to re-run two separate slow sweeps.
 
 This is the dependency-tracking the plan calls for. A manifest maps each page to its
@@ -87,7 +87,7 @@ class StatArtifact:
 # Mirrors what each generator in scripts/corpus_check.py iterates:
 #   check  -> all_rules() + CANONICAL_CODEMODS + all_checks()  (_check_rule_registry)
 #   rules  -> all_rules() + coded_codemods()                   (per-rule isolation)
-#   fmt    -> all_rules() + coded_codemods()                   (the GTX glossary)
+#   fmt    -> all_rules() + coded_codemods()                   (the GTR glossary)
 STAT_ARTIFACTS: tuple[StatArtifact, ...] = (
     StatArtifact(
         path="docs/corpus_check_stats.md",
@@ -133,25 +133,25 @@ def stale_summaries(
 
 def test_missing_codes_flags_a_planted_gap() -> None:
     """The code checker: a missing code is flagged, a present one isn't, and a
-    longer code (GTX0011) does not satisfy a shorter one (GTX001)."""
-    pair = frozenset({"GTX001", "GTX999"})
-    assert missing_codes("only GTX001 here", expected=pair) == {"GTX999"}
-    assert missing_codes("GTX001 and GTX999", expected=pair) == set()
-    assert missing_codes("see GTX0011", expected=frozenset({"GTX001"})) == {"GTX001"}
+    longer code (GTX0011) does not satisfy a shorter one (GTR001)."""
+    pair = frozenset({"GTR001", "GTR999"})
+    assert missing_codes("only GTR001 here", expected=pair) == {"GTR999"}
+    assert missing_codes("GTR001 and GTR999", expected=pair) == set()
+    assert missing_codes("see GTX0011", expected=frozenset({"GTR001"})) == {"GTR001"}
 
 
 def test_stale_summaries_flags_reworded_and_applies_backticks() -> None:
     """The summary checker: a summary whose text isn't in the page is flagged; an
     XML token must match its backticked rendered form, not the raw ``<tag>``."""
-    page = "| GTX001 | fmt | Wrap a `<command>` body. |"
+    page = "| GTR001 | fmt | Wrap a `<command>` body. |"
     # Current summary present (after backticking the token) -> not stale.
     assert stale_summaries(
-        page, expected=frozenset({("GTX001", "Wrap a <command> body.")})
+        page, expected=frozenset({("GTR001", "Wrap a <command> body.")})
     ) == set()
     # A reworded summary is no longer in the page -> flagged.
     assert stale_summaries(
-        page, expected=frozenset({("GTX001", "Reworded text.")})
-    ) == {"GTX001"}
+        page, expected=frozenset({("GTR001", "Reworded text.")})
+    ) == {"GTR001"}
     # The raw (un-backticked) form would not match the rendered cell.
     assert _rendered_summary("Wrap a <command> body.") == "Wrap a `<command>` body."
 

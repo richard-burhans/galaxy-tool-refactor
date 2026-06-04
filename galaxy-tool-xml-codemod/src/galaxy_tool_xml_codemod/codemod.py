@@ -65,7 +65,7 @@ def _detect_method_name(tag: str) -> str:
 class CodemodCommand:
     """Base class for structural-refactor codemods.
 
-    Every bundled codemod carries a ``meta: ClassVar[RuleMeta]`` GTX descriptor
+    Every bundled codemod carries a ``meta: ClassVar[RuleMeta]`` GTR descriptor
     (shared with the formatter tier via ``galaxy-tool-refactor-rules``) so the
     two tiers expose one uniform rule registry. The enumerated set of coded
     codemods is ``catalog.coded_codemods()``.

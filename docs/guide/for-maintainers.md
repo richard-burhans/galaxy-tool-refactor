@@ -45,12 +45,12 @@ it can prove safe. **It does not blindly preserve behaviour** — read
 
 ```text
 $ galaxy-tool-refactor check --preset strict tools/qualimap/qualimap_macros.xml
-tools/qualimap/qualimap_macros.xml:3   GTX001  Canonical 4-space indentation; no tabs.
+tools/qualimap/qualimap_macros.xml:3   GTR001  Canonical 4-space indentation; no tabs.
 …
 4 fixable finding(s) in 1 file(s).
 ```
 
-Fixable (GTX) findings are what `format` would fix and **fail CI** (non-zero exit).
+Fixable (GTR) findings are what `format` would fix and **fail CI** (non-zero exit).
 Advisory (IUC) findings — missing tests, no version pins, no error handling — are
 **informational** signals for a reviewer, not hard failures (unless you pass `--strict`).
 

@@ -1,8 +1,8 @@
-"""Tests for ``WrapHelpCdata`` (GTX019) — wrap a pure-text <help> in CDATA.
+"""Tests for ``WrapHelpCdata`` (GTR019) — wrap a pure-text <help> in CDATA.
 
 Behaviour-preserving: lxml exposes the entity-unescaped help text, so wrapping
 changes only the serialised bytes, not the reStructuredText Galaxy renders.
-Mixed-content / already-wrapped / ``]]>``-bearing bodies are left for IUC010.
+Mixed-content / already-wrapped / ``]]>``-bearing bodies are left for GTR030.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ def test_wraps_pure_text_help_and_detects_it() -> None:
     assert _help(module).text == "See <http://x> for info"  # entity-unescaped
     changes = list(WrapHelpCdata().detect(module))
     assert len(changes) == 1
-    assert changes[0].code == "GTX019"
+    assert changes[0].code == "GTR019"
     assert "help" in changes[0].message
     WrapHelpCdata().apply(module)
     serialized = etree.tostring(module.document.root)

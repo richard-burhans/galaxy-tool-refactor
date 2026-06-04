@@ -39,24 +39,24 @@ contracts in ``canonical.py``:
   ``ReorderParamAttributes`` → ``ReorderToolAttributes`` →
   ``ReorderToolChildren`` → ``WrapCommandCdata`` → ``WrapHelpCdata`` →
   ``SingleQuoteCommandVars`` (the safe canonical/format pipeline;
-  ``ReorderToolChildren`` = GTX013, IUC #52 element order, validity-safe because
+  ``ReorderToolChildren`` = GTR013, IUC #52 element order, validity-safe because
   ``<tool>`` is ``xs:all``; ``WrapCommandCdata`` / ``WrapHelpCdata`` =
-  GTX018/GTX019, IUC #34/#42, wrap a pure-text ``<command>``/``<help>`` body in
+  GTR018/GTR019, IUC #34/#42, wrap a pure-text ``<command>``/``<help>`` body in
   CDATA — behaviour-preserving, ``docs/decisions.md`` §29;
-  ``SingleQuoteCommandVars`` = GTX020, IUC #36, single-quote the *provably*-
+  ``SingleQuoteCommandVars`` = GTR020, IUC #36, single-quote the *provably*-
   single-valued Cheetah vars in ``<command>`` — behaviour-preserving but the first
-  canonical codemod to shift default-``format`` bytes vs the pre-GTX020 output,
+  canonical codemod to shift default-``format`` bytes vs the pre-GTR020 output,
   ``docs/decisions.md`` §30).
 - ``AUTO_UPGRADE_CODEMODS`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
   ``UpgradeToLatest`` (the opt-in profile-upgrade pipeline).
 
-``FixTypos``, ``NormalizeBooleanValues`` (GTX017 — boolean-case repair, the
+``FixTypos``, ``NormalizeBooleanValues`` (GTR017 — boolean-case repair, the
 ``True``/``False`` → ``true``/``false`` fix ``FixTypos`` cannot reach), and
 ``UpgradeToLatest`` (which loops ``UpdateProfile`` + single-step ``upgrade_vN``
 codemods from ``upgrades.py``) are validation-driven and override ``apply``. The upgrade registry is grown
 empirically from ``corpus_check codemod`` discovery sweeps; see
 ``docs/decisions.md`` §11–14, §16 for the canonical/upgrade split, and
-§17–18 for the element-order codemod (GTX013) + the `codemod` sweep's
+§17–18 for the element-order codemod (GTR013) + the `codemod` sweep's
 `--source combined` default.
 
 **Tier independence:** this package does not depend on fmt. The

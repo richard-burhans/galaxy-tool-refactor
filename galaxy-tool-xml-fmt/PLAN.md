@@ -3,9 +3,9 @@
 ## Status
 
 **M0–M4 are done; the CLI has shipped (M2).** Three cosmetic rules
-remain in this package (GTX001 indent, GTX003 blank line,
-GTX004 empty-element shorthand); the former structural rules GTX002
-(`<param>` attribute order) and GTX005 (`<tool>` attribute order) have
+remain in this package (GTR001 indent, GTR003 blank line,
+GTR004 empty-element shorthand); the former structural rules GTR002
+(`<param>` attribute order) and GTR005 (`<tool>` attribute order) have
 moved to `galaxy-tool-xml-codemod` as `ReorderParamAttributes` and
 `ReorderToolAttributes`. This package — library **and** CLI — is now
 cosmetic-only; the former `[canonical]` extra was removed and all
@@ -17,7 +17,7 @@ The corpus sweep now covers the combined corpus (github + toolshed,
 sha256-deduplicated), gated on validity under any vendored profile (fmt
 `docs/decisions.md` §D13): 9,358 unique `<tool>` documents, of which 8,608
 validate under at least one profile and were format-checked — 100% idempotent,
-0 crashes. The per-rule isolation sweep finds every GTX rule (fmt + codemod)
+0 crashes. The per-rule isolation sweep finds every GTR rule (fmt + codemod)
 clean over the same corpus. See `../docs/corpus_format_stats.md` and
 `../docs/corpus_rule_stats.md`.
 
@@ -43,13 +43,13 @@ of the output must be a no-op (idempotence).
 
 Cosmetic rules in this package:
 
-- Indentation (canonical: 4 spaces, no tabs — GTX001)
+- Indentation (canonical: 4 spaces, no tabs — GTR001)
 - Attribute quoting (canonical: double quotes — locked by lxml + tests, D7)
 - Empty-element shorthand (canonical: `<foo/>` over `<foo></foo>` when
-  the content model permits — GTX004)
+  the content model permits — GTR004)
 - Trailing / inner whitespace on dense leaves
 - Blank-line policy (canonical: one blank between top-level sections —
-  GTX003)
+  GTR003)
 - One-line layout for all attributes regardless of source layout
   (locked by lxml + tests, D8)
 
@@ -62,9 +62,9 @@ since §D12). They live in tier 2 and are run by the tier-4 app
 package originally owned:
 
 - `<param>` attribute order (canonical: IUC order — `ReorderParamAttributes`,
-  was GTX002 in this package)
+  was GTR002 in this package)
 - `<tool>` attribute order (canonical: id, name, version, profile,
-  alphabetical — `ReorderToolAttributes`, was GTX005)
+  alphabetical — `ReorderToolAttributes`, was GTR005)
 
 See `galaxy-tool-xml-codemod/docs/decisions.md` §11–14 for the others.
 
@@ -93,7 +93,7 @@ job (`galaxy-tool-refactor format` / `upgrade`). See `docs/decisions.md`
 
 ### M3 — Attribute / element ordering rules → moved to codemod tier
 
-Originally landed here as GTX002 (`<param>`) and GTX005 (`<tool>`);
+Originally landed here as GTR002 (`<param>`) and GTR005 (`<tool>`);
 2026-05-28 they were relocated to `galaxy-tool-xml-codemod` as
 `ReorderParamAttributes` and `ReorderToolAttributes`. Open questions
 about which other elements deserve canonicalisation (`<output>`,
@@ -110,7 +110,7 @@ stats and the latest sweep numbers live in `docs/corpus_format_stats.md`.
 
 ## Open questions
 
-- **Tool-XML-specific rules beyond GTX001–005.** Galaxy idioms a
+- **Tool-XML-specific rules beyond GTR001–005.** Galaxy idioms a
   generic formatter wouldn't know about — Cheetah blocks inside
   `<command>`, formatting around `<expand>` / `<macro>`. Each
   deserves a dedicated rule; track in `docs/decisions.md` as

@@ -31,30 +31,30 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 
 | Capability | Code | Status | Source |
 |---|---|---|---|
-| Canonical indentation / blank-line / empty-element formatting | GTX001, GTX003, GTX004 | ✅ Shipped | `cosmetic` preset |
-| Reorder `<param>` / root `<tool>` attributes to IUC convention | GTX002, GTX005 | ✅ Shipped | `iuc` preset |
-| Reorder `<tool>` child elements to IUC convention | GTX013 | ✅ Shipped | `iuc` preset |
-| Repair near-miss typos so an invalid tool validates | GTX006 | ✅ Shipped | `iuc` preset |
-| Normalize Python-style booleans (`True`→`true`) to `xs:boolean` | GTX017 | ✅ Shipped | `iuc` preset |
-| Wrap pure-text `<command>` / `<help>` in CDATA | GTX018, GTX019 | ✅ Shipped | `iuc` preset |
-| Single-quote the *provably*-single-valued Cheetah `$var`s in `<command>` | GTX020 | ✅ Shipped | `iuc` preset |
+| Canonical indentation / blank-line / empty-element formatting | GTR001, GTR003, GTR004 | ✅ Shipped | `cosmetic` preset |
+| Reorder `<param>` / root `<tool>` attributes to IUC convention | GTR002, GTR005 | ✅ Shipped | `iuc` preset |
+| Reorder `<tool>` child elements to IUC convention | GTR013 | ✅ Shipped | `iuc` preset |
+| Repair near-miss typos so an invalid tool validates | GTR006 | ✅ Shipped | `iuc` preset |
+| Normalize Python-style booleans (`True`→`true`) to `xs:boolean` | GTR017 | ✅ Shipped | `iuc` preset |
+| Wrap pure-text `<command>` / `<help>` in CDATA | GTR018, GTR019 | ✅ Shipped | `iuc` preset |
+| Single-quote the *provably*-single-valued Cheetah `$var`s in `<command>` | GTR020 | ✅ Shipped | `iuc` preset |
 
 ### Upgrade (profile bump + repair, opt-in & semantic)
 
 | Capability | Code | Status | Source |
 |---|---|---|---|
 | Upgrade a tool to the newest profile it can structurally reach | — | 🟡 Partial | `upgrade` command |
-| Bump an inline `@PROFILE@` macro token | GTX007 | ✅ Shipped | upgrade rule set |
+| Bump an inline `@PROFILE@` macro token | GTR007 | ✅ Shipped | upgrade rule set |
 | Bump an *imported* `@PROFILE@` token (only on importer consensus) | — | 🟡 Partial | `macro_profile` (registry) |
-| Runtime-gated repairs (`format_source` guard, `format="input"`, `interpreter=`) | GTX014, GTX015, GTX016 | 🟡 Partial | upgrade rule set |
+| Runtime-gated repairs (`format_source` guard, `format="input"`, `interpreter=`) | GTR014, GTR015, GTR016 | 🟡 Partial | upgrade rule set |
 | Normalize literal `format`/`ftype` in *imported* macro files (opt-in `normalize-macros`) | — | ✅ Shipped | `macro_datatype` (registry); 15 tools unstuck (`docs/macro_format_residual_stats.md`) |
 
 > 🟡 **The soundness boundary (read `soundness.md`).** `upgrade` guarantees the result
 > is **structurally valid** at the new profile — it does **not** guarantee behaviour is
 > preserved in general. Behaviour-affecting changes are only applied where per-tool
 > detection proves them safe; otherwise they are reported, not made (`upgrade` surfaces a
-> `behavior_preserving` flag — `true`/`false`/`null` — so callers can gate on it). GTX016 (interpreter)
-> auto-fixes only the clean "bucket A" shape; GTX015 only the single top-level data input.
+> `behavior_preserving` flag — `true`/`false`/`null` — so callers can gate on it). GTR016 (interpreter)
+> auto-fixes only the clean "bucket A" shape; GTR015 only the single top-level data input.
 > Imported-macro write-back now covers the `@PROFILE@` token (by name, on importer
 > consensus) **and** literal `format`/`ftype` normalization (the opt-in `normalize-macros`);
 > both work by *locating the construct in its source file*. General provenance-based
@@ -65,9 +65,9 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 
 | Capability | Codes | Status | Source |
 |---|---|---|---|
-| IUC best-practice checks (tests, CDATA, id charset, version, requirements, error handling, EDAM, help, description, version pinning) | IUC001–010, IUC013 | ✅ Shipped | `strict` preset |
-| Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTX020, the residual stays advisory | IUC011 | ✅ Shipped | advisory; provable subset fixed (GTX020) |
-| Lone-`&` vs `&&` join | IUC012 | 🔭 Roadmap | registry labels it "not yet implemented" |
+| IUC best-practice checks (tests, CDATA, id charset, version, requirements, error handling, EDAM, help, description, version pinning) | GTR021–GTR030, GTR033 | ✅ Shipped | `strict` preset |
+| Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTR020, the residual stays advisory | GTR031 | ✅ Shipped | advisory; provable subset fixed (GTR020) |
+| Lone-`&` vs `&&` join | GTR032 | 🔭 Roadmap | registry labels it "not yet implemented" |
 
 ### Surfaces & orchestration
 
@@ -98,8 +98,8 @@ that XML** through one rule set, reachable three ways — as a Python **library*
   provable cases (`soundness.md`).
 - **imported `@PROFILE@`**: edited in place only when all importers agree the target;
   disagreement is reported, not forced.
-- **GTX014/015/016**: deliberately conservative — they fix the shapes a static codemod
+- **GTR014/015/016**: deliberately conservative — they fix the shapes a static codemod
   can prove safe and leave the rest to detect/warn.
-- **IUC011**: ~73% of tools carry an unquoted shell-line `$var`, but only a minority are
+- **GTR031**: ~73% of tools carry an unquoted shell-line `$var`, but only a minority are
   provably safe to auto-quote, so it stays advisory (measure-backed, not a fixer).
 </details>

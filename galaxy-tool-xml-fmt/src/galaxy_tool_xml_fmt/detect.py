@@ -2,8 +2,8 @@
 
 ``detect_tool_document`` is the non-mutating counterpart to
 ``format_tool_document``. The fmt rules emit overlapping, *unconditional*
-whitespace rewrites (GTX001 and GTX003 both target top-level-child tails, with
-GTX003 winning by order), so an individual ``Edit`` "changing the tree" does not
+whitespace rewrites (GTR001 and GTR003 both target top-level-child tails, with
+GTR003 winning by order), so an individual ``Edit`` "changing the tree" does not
 mean the document deviates from canonical form — the intermediate change may be
 reverted by a later rule. The only faithful signal is the **net** effect of the
 whole pipeline.
@@ -92,7 +92,7 @@ def _detect_over_tree(
     """
     work = copy.deepcopy(original)
     ordered_rules = sorted(rule_classes, key=lambda cls: cls.meta.order)
-    # Include Comment / PI nodes, not just elements: GTX001 and GTX003 rewrite the
+    # Include Comment / PI nodes, not just elements: GTR001 and GTR003 rewrite the
     # *tail* of every child of an element, comments included (a blank line after a
     # top-level comment is a real format change), so omitting them would let
     # detect miss changes the pipeline makes.

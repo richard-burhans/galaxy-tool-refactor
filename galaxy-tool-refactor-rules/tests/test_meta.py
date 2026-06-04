@@ -10,13 +10,13 @@ from galaxy_tool_refactor_rules.meta import RuleMeta
 
 
 def test_rule_meta_is_frozen() -> None:
-    meta = RuleMeta(code="GTX001", summary="Do a thing.", since="0.1.0")
+    meta = RuleMeta(code="GTR001", summary="Do a thing.", since="0.1.0")
     with pytest.raises(dataclasses.FrozenInstanceError):
-        meta.code = "GTX999"  # type: ignore[misc]
+        meta.code = "GTR999"  # type: ignore[misc]
 
 
 def test_rule_meta_defaults() -> None:
-    meta = RuleMeta(code="GTX001", summary="Do a thing.", since="0.1.0")
+    meta = RuleMeta(code="GTR001", summary="Do a thing.", since="0.1.0")
     assert meta.until is None
     assert meta.cite is None
     assert meta.order == 100
@@ -26,7 +26,7 @@ def test_rule_meta_defaults() -> None:
 
 def test_rule_meta_applies_to_can_widen_to_macro() -> None:
     meta = RuleMeta(
-        code="GTX001",
+        code="GTR001",
         summary="Generic XML rule.",
         since="0.1.0",
         applies_to=frozenset({"tool", "macro"}),
@@ -36,7 +36,7 @@ def test_rule_meta_applies_to_can_widen_to_macro() -> None:
 
 def test_rule_meta_carries_supplied_values() -> None:
     meta = RuleMeta(
-        code="IUC001",
+        code="GTR021",
         summary="Do a thing.",
         since="0.1.0",
         until="0.4.0",

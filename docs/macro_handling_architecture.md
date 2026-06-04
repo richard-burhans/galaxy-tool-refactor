@@ -127,7 +127,7 @@ or polish). Severities are the *corrected* post-verification values.
 macro file receives … `upgrade` does not cosmetically reformat macro files."* But
 `macro_profile.apply_profile_token_plans` (`macro_profile.py:175-177`) does
 `token.text = …` then `macro_file.write_bytes(format_macro_document(document))` — which runs
-the cosmetic rules (GTX001/GTX004) over the **whole** file. So the file *is* reformatted;
+the cosmetic rules (GTR001/GTR004) over the **whole** file. So the file *is* reformatted;
 the bump is *not* the only edit. The behaviour is intentional and safe (fmt is the only
 serializer; macro cosmetic formatting is idempotent) and the **registry** tier documents it
 correctly (registry D5); only the **CLI** docstring + `cli/docs/decisions.md` D5/D6 assert

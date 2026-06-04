@@ -30,7 +30,7 @@ class Upgrade25_1(CodemodCommand):
     """Upgrade a tool stuck at profile 25.1 toward 26.0 (drop ``<trackster_conf>``)."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTX011",
+        code="GTR011",
         summary=(
             "Upgrade a tool stuck at profile 25.1 toward 26.0"
             " (drop <trackster_conf>)."

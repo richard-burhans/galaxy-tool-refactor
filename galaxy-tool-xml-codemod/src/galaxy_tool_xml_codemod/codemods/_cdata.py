@@ -10,7 +10,7 @@ entity-unescaped text, so only the serialised bytes change (entities become lite
 inside CDATA), not the value Galaxy ultimately runs or renders.
 
 Mixed-content bodies (text interleaved with child elements or comments) and
-already-wrapped bodies are left untouched; the advisory IUC002/IUC010 checks remain
+already-wrapped bodies are left untouched; the advisory GTR022/GTR030 checks remain
 to flag the rare residual these codemods deliberately skip.
 """
 

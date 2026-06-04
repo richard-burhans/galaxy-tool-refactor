@@ -100,7 +100,7 @@ class Cursor:
 
         lxml exposes CDATA as plain ``.text`` with no marker, so this re-serialises
         (the tier-1 parser keeps CDATA, ``strip_cdata=False``, so it round-trips)
-        and inspects the body — mirroring the advisory tier's IUC002/IUC010
+        and inspects the body — mirroring the advisory tier's GTR022/GTR030
         predicate. Leading whitespace before the section still counts as wrapped.
         """
         serialised: str = etree.tostring(
@@ -131,7 +131,7 @@ class Cursor:
 
         With ``cdata=True`` the value is wrapped in a ``<![CDATA[…]]>`` section so
         shell operators (``&&``, ``<``, ``|``) stay literal — required when
-        rewriting a ``<command>`` body (which is CDATA by convention, IUC002).
+        rewriting a ``<command>`` body (which is CDATA by convention, GTR022).
         """
         self._element.text = etree.CDATA(value) if cdata else value
 

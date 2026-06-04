@@ -1,7 +1,7 @@
 # Interpreter-rewrite bucket statistics
 
 Sizes the auto-fixable population for a `16_04_fix_interpreter` codemod
-(GTX016; see `upgrade_research/16_04_fix_interpreter.md`). Tools carrying a
+(GTR016; see `upgrade_research/16_04_fix_interpreter.md`). Tools carrying a
 deprecated `<command interpreter=…>` are split by whether the codemod can
 mechanically rewrite them to `interpreter '$__tool_directory__/script'`.
 Buckets are computed by the codemod's own eligibility predicate

@@ -1,4 +1,4 @@
-"""Tests for the ``ReorderToolChildren`` codemod (GTX013, IUC element order)."""
+"""Tests for the ``ReorderToolChildren`` codemod (GTR013, IUC element order)."""
 
 from __future__ import annotations
 
@@ -93,7 +93,7 @@ def test_tool_attributes_are_not_touched() -> None:
 
 
 def test_detect_yields_located_change_for_scrambled_children() -> None:
-    """``detect`` reports a GTX013 change at the root, without mutating."""
+    """``detect`` reports a GTR013 change at the root, without mutating."""
     xml = b"""<tool id="t" name="n" version="1" profile="24.0">
         <help>h</help>
         <command>c</command>
@@ -101,7 +101,7 @@ def test_detect_yields_located_change_for_scrambled_children() -> None:
     module = parse_module(xml)
     changes = list(ReorderToolChildren().detect(module))
     assert len(changes) == 1
-    assert changes[0].code == "GTX013"
+    assert changes[0].code == "GTR013"
     assert changes[0].xpath == "/tool"
     # detect is non-mutating: children stay in their original order.
     assert [str(c.tag) for c in module.document.root if isinstance(c.tag, str)] == [

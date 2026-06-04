@@ -27,10 +27,10 @@ tool still validates. Validity is a sound oracle for **structural** changes. It 
   change is safe for *that* tool. Where it can't, it **reports** the issue instead of
   silently changing behaviour.
 - The runtime-gated repairs are deliberately conservative:
-  - **GTX016 (`interpreter=`)** rewrites only the clean "bucket A" shape (a single
+  - **GTR016 (`interpreter=`)** rewrites only the clean "bucket A" shape (a single
     leading literal script token); other shapes are left to detect/warn.
-  - **GTX015 (`format="input"`)** fixes only the single-top-level-data-input case.
-  - **GTX014** guards `format_source`.
+  - **GTR015 (`format="input"`)** fixes only the single-top-level-data-input case.
+  - **GTR014** guards `format_source`.
 - **Imported-macro write-back** is *locate-in-source* (the construct is found in its
   defining file), not provenance-driven. Two consumers exist: the `@PROFILE@` token
   (addressed by name, only when every importer agrees on the target profile) and literal

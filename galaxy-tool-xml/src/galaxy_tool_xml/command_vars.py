@@ -9,7 +9,7 @@ command Galaxy runs. This module resolves each ``unquoted_cheetah_vars`` referen
 against the tool's ``<inputs>`` and buckets it, so two callers can share one notion
 of "provably quotable":
 
-- the **GTX020 codemod** (tier 2) auto-quotes exactly the provable subset
+- the **GTR020 codemod** (tier 2) auto-quotes exactly the provable subset
   (``provably_quotable``);
 - ``scripts.measure iuc011-fixability`` sizes that subset across the corpus.
 
@@ -173,7 +173,7 @@ def provably_quotable(
 
     True only for the ``{safe, attr_safe, builtin_path}`` classes — references
     whose value can never contain whitespace for a tool that currently works. The
-    GTX020 codemod auto-quotes exactly this subset.
+    GTR020 codemod auto-quotes exactly this subset.
     """
     return classify_var(var_name, kinds, structural) in _PROVABLE_CLASSES
 

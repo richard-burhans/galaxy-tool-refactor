@@ -1,4 +1,4 @@
-"""Codemod: strip surrounding whitespace from ``<data from_work_dir>`` (GTX014).
+"""Codemod: strip surrounding whitespace from ``<data from_work_dir>`` (GTR014).
 
 From profile 21.09 Galaxy quotes ``from_work_dir`` output filenames, so leading or
 trailing whitespace in the attribute becomes a literal part of the path (Galaxy's
@@ -32,7 +32,7 @@ class FixFromWorkDirWhitespace(RuntimeGatedFix):
     """Strip surrounding whitespace from every ``<data from_work_dir>`` value."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTX014",
+        code="GTR014",
         summary=(
             "Strip surrounding whitespace from <data from_work_dir>"
             " (literal at profile >= 21.09)."

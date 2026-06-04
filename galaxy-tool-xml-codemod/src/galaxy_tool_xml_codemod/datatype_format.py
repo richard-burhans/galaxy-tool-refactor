@@ -6,7 +6,7 @@ datatypes) to lowercase, comma-separated, whitespace-free tokens. Normalization
 lowercases each comma-separated token, strips its whitespace, and drops empties.
 
 This is pure and element-level (no I/O, no ``Cursor`` framework), so it is shared by
-two callers: ``Upgrade24_1`` (GTX010, the tool's own tree) and the imported-macro-file
+two callers: ``Upgrade24_1`` (GTR010, the tool's own tree) and the imported-macro-file
 normalization pass (tier 3.6). The macro pass passes ``skip_tokens=True`` to leave a
 ``@TOKEN@`` placeholder (e.g. ``format="@FORMAT@"``) untouched — lowercasing a token
 reference would break it, and a macro's literal there is a placeholder, not a datatype.

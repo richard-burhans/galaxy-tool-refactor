@@ -3,7 +3,7 @@
 Both a tier-3 formatter rule (``galaxy_tool_xml_fmt.rules.Rule``) and a tier-2
 codemod (``galaxy_tool_xml_codemod.codemod.CodemodCommand``) carry a
 ``meta: ClassVar[RuleMeta]`` so the two tiers expose one uniform vocabulary for
-the GTX rule registry. The descriptor is pure data — it deliberately knows
+the GTR rule registry. The descriptor is pure data — it deliberately knows
 nothing about lxml, edits, or the cursor walk, which keeps this package
 dependency-free and the tiers independent.
 
@@ -23,7 +23,7 @@ class RuleMeta:
     """Metadata descriptor for a refactor rule (a fmt rule or a codemod).
 
     Attributes:
-        code: Short unique rule identifier (e.g. ``"GTX001"``).
+        code: Short unique rule identifier (e.g. ``"GTR001"``).
         summary: One-line human-readable description.
         since: Version in which this rule was introduced.
         until: Version in which this rule was removed, or ``None`` if active.

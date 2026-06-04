@@ -1,6 +1,6 @@
 """Regression tests for the always-double-quote-attributes policy.
 
-There is no GTX rule for this — lxml's ``etree.tostring`` default
+There is no GTR rule for this — lxml's ``etree.tostring`` default
 already always uses double quotes for attribute values, escaping any
 embedded ``"`` as ``&quot;``. These tests lock that behaviour in so a
 future lxml change can't silently drift our output away from the

@@ -23,7 +23,7 @@ def test_coarse_detect_yields_one_root_change_when_apply_would_change() -> None:
     module = parse_module(_TYPO)
     changes = list(FixTypos().detect(module))
     assert len(changes) == 1
-    assert changes[0].code == "GTX006"
+    assert changes[0].code == "GTR006"
     assert changes[0].xpath == "/tool"
     # Coarse detect is non-mutating: the typo survives until apply runs.
     assert next(module.document.root.iter("param")).get("typ") == "text"
@@ -56,6 +56,6 @@ def test_update_profile_coarse_detect_reports_a_missing_profile() -> None:
     module = parse_module(no_profile)
     changes = list(UpdateProfile().detect(module))
     assert len(changes) == 1
-    assert changes[0].code == "GTX007"
+    assert changes[0].code == "GTR007"
     # Non-mutating until applied.
     assert module.document.root.get("profile") is None

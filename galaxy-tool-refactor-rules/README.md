@@ -16,7 +16,7 @@ a small, dependency-free "tier 0.5" package consumed by both higher tiers:
 It provides:
 
 - **`galaxy_tool_refactor_rules.meta.RuleMeta`** — a frozen dataclass describing
-  one GTX/IUC rule (`code`, `summary`, `since`, `until`, `cite`, `order`,
+  one GTR rule (`code`, `summary`, `since`, `until`, `cite`, `order`,
   `detect_only`, `applies_to`). A tier-3 formatter `Rule`, a tier-2
   `CodemodCommand`, and a tier-3.5 `CheckRule` each carry a
   `meta: ClassVar[RuleMeta]`, so the tiers share one registry vocabulary.

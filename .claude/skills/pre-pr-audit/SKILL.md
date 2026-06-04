@@ -96,7 +96,7 @@ Sweep for things the change silently invalidated:
   `galaxy-tool-refactor-registry/tests/test_stat_artifact_coverage.py` (run in the
   gate): if you added a rule, it fails naming each stale `docs/*_stats.md` page and
   the exact regen command. Trust it over eyeballing — but note it guards *coverage*
-  (no rule silently absent), not the corpus *numbers*; the three GTX pages are
+  (no rule silently absent), not the corpus *numbers*; the three GTR pages are
   owned by three different sweeps (`check`/`rules`/`fmt`), so a rule change usually
   means regenerating all three (registry `docs/decisions.md` D6).
 - **Numbers cited in `docs/upgrade_research/` prose are guarded** by

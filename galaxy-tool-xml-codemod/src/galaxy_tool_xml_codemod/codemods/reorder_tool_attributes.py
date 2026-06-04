@@ -1,6 +1,6 @@
 """Codemod: rewrite the root ``<tool>``'s attributes to the documented prefix order.
 
-Port of the fmt package's GTX005 rule. Order per the Galaxy schema
+Port of the fmt package's GTR005 rule. Order per the Galaxy schema
 documentation: ``id``, ``name``, ``version``, ``profile``, then any
 remaining attributes alphabetical. The XSD itself imposes no display
 order — the prefix comes from convention in the docs.
@@ -30,7 +30,7 @@ class ReorderToolAttributes(CodemodCommand):
     """Reorder the root ``<tool>`` element's attributes to the documented prefix."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTX005",
+        code="GTR005",
         summary=(
             "Reorder the root <tool> element's attributes to the documented"
             " prefix."

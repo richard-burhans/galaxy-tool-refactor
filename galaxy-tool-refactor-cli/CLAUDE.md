@@ -26,8 +26,8 @@ longer imports the codemod / check tiers directly. It exposes the
 
 - `format` — apply a preset's fixable rules then cosmetic formatting. Default
   preset `iuc` = `CANONICAL_CODEMODS` (repair + attribute / element order + the
-  CDATA wraps + GTX020 command-var single-quoting) + cosmetic. Safe, idempotent,
-  never changes `profile=`. (GTX020 shifts default-`format` bytes vs the pre-GTX020
+  CDATA wraps + GTR020 command-var single-quoting) + cosmetic. Safe, idempotent,
+  never changes `profile=`. (GTR020 shifts default-`format` bytes vs the pre-GTR020
   historical output — behaviour-preserving; codemod `docs/decisions.md` §30.)
   Advisory rules in a selection are reported as notes, never applied. Also
   cosmetically formats macro-library files (`<macros>` root) — kind-applicable
@@ -36,10 +36,10 @@ longer imports the codemod / check tiers directly. It exposes the
   Opt-in and semantic. No `--preset`; `--select`/`--ignore` adjust its rule set.
   Also bumps an imported `@PROFILE@` token in place when every profile-using
   importer in the run agrees on the target, else reports+skips (cli §D6); the
-  inline-token case is GTX007's job.
+  inline-token case is GTR007's job.
 - `check` — report-only linter (mutates nothing) over the selected rules' detect
   phases: `file:line  CODE  message` per finding. Default (`iuc`) reports only
-  *fixable* GTX findings; `--preset strict` adds the *advisory* IUC checks (marked
+  *fixable* GTR findings; `--preset strict` adds the *advisory* checks (marked
   `(advisory)`). Fixable findings exit non-zero; advisory are informational unless
   `--strict`. Macro files are checked for cosmetic (fixable) drift too.
 - `presets` / `rules` — introspection of the baked-in presets and rules.

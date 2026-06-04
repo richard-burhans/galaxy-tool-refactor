@@ -201,25 +201,25 @@ upgrade-codes-applicability`; pinnability is in
 | 18.01 → 18.05 | additive | no tool-facing decl change | none documented | 0 | none | — |
 | 18.05 → 18.09 | additive | `+data_style`, `tags` | `18_09_consider_python_environment` (consider): data-manager tools run without Galaxy's virtualenv (the fully-qualified-reference rule is **18.01**'s `structured_like`, not here) | 0 | none | — |
 | 18.09 → 19.01 | additive | `+has_h5_attribute`/`has_h5_keys` assertions | `<stdio>` checks prepend to preset checks (schema docs; not an upgrade code) | 0 | none | — |
-| **19.01 → 19.05** | **restrict** | output element restructure (`Output*` groups); **`name` required on output `<data>`** | default Python 2.7 → 3.5 (schema docs; not an upgrade code) | **9** | **auto** | **GTX008** |
+| **19.01 → 19.05** | **restrict** | output element restructure (`Output*` groups); **`name` required on output `<data>`** | default Python 2.7 → 3.5 (schema docs; not an upgrade code) | **9** | **auto** | **GTR008** |
 | 19.05 → 19.09 | additive | `+entry_points`/`port`/`url`, `xrefs`, `has_n_lines` | none documented | 0 | none | — |
 | 19.09 → 20.01 | additive | `+assert_command_version`, `has_size` | none documented | 0 | none | — |
 | 20.01 → 20.05 | additive | `+delta_frac`, `sort_by` | `20_05_consider_inputs_as_json_changes` (consider): unselected optional select/data_column → JSON `null` (not `"None"`); multiples → lists | 0 | none | — |
 | 20.05 → 20.09 | additive | `+file_sources`, `recurse`/`sort_by`/`filename` | `20_09_consider_set_e` (consider): `set -e`, restore via `strict="false"`; `20_09_consider_output_collection_order` (consider): collection-element sort order significant in tests | 0 | none | — |
 | 20.09 → 21.01 | additive | `+creator`/`person`/`organization` (schema.org `Thing`) | none documented | 0 | none | — |
 | 21.01 → 21.05 | additive | `+meta_file_key` | none documented | 0 | none | — |
-| 21.05 → 21.09 | additive* | `+required_files`/`include`/`exclude`; (one tool strands here — `has_size/@delta_frac` tool-bug) | `21_09_fix_from_work_dir_whitespace` (must_fix → auto-fixed by **GTX014**): `from_work_dir` whitespace becomes literal; `21_09_consider_python_environment` (consider): `data_source` tools lose Galaxy's venv | 1 (tool-bug) | needs-thought | — |
+| 21.05 → 21.09 | additive* | `+required_files`/`include`/`exclude`; (one tool strands here — `has_size/@delta_frac` tool-bug) | `21_09_fix_from_work_dir_whitespace` (must_fix → auto-fixed by **GTR014**): `from_work_dir` whitespace becomes literal; `21_09_consider_python_environment` (consider): `data_source` tools lose Galaxy's venv | 1 (tool-bug) | needs-thought | — |
 | 21.09 → 22.01 | additive | test-assertion expansion (`TestAssertions*` groups, `xml_element`, …) | none documented | 1 (tool-bug) | needs-thought | — |
 | 22.01 → 22.05 | additive | `+resource`; job `action` reorg | none documented | 0 | none | — |
 | 22.05 → 23.0 | additive | `+sep`, `reverse_sort_order` | `23_0_consider_optional_text` (consider): inferred-optional text params template as `None` (was `""`) | 0 | none | — |
 | 23.0 → 23.1 | additive | `+has_json_property_with_*` assertions | none documented | 0 | none | — |
 | 23.1 → 23.2 | additive | `+collection`/`element`/`default` (in test output context) | none documented | 0 | none | — |
 | 23.2 → 24.0 | additive | `+macro`/`param`/`request_body`/`request_headers` (HTTP data source) | `24_0_consider_python_environment` (consider): `data_source_async` loses Galaxy's venv; `24_0_request_cleaning` (consider): undeclared request params dropped | 0 | none | — |
-| **24.0 → 24.1** | **restrict** | `<filter>` no longer allowed in a `<collection>`'s child `<data>`; discover-datasets attrs moved to `OutputDiscoverDatasetsCommon` | none documented | **1** | **auto** | **GTX009** |
-| **24.1 → 24.2** | **restrict** | `format`/`ftype` gain a `pattern` facet (`FormatList`/`Format`, lowercase tokens); `TestAssertion` group consolidated | `24_2_fix_test_case_validation` (must_fix): stricter `<test>` validation — `data_column` params require a valid `data_ref` | **39** (residual; was 53) | **partial** | **GTX010** |
+| **24.0 → 24.1** | **restrict** | `<filter>` no longer allowed in a `<collection>`'s child `<data>`; discover-datasets attrs moved to `OutputDiscoverDatasetsCommon` | none documented | **1** | **auto** | **GTR009** |
+| **24.1 → 24.2** | **restrict** | `format`/`ftype` gain a `pattern` facet (`FormatList`/`Format`, lowercase tokens); `TestAssertion` group consolidated | `24_2_fix_test_case_validation` (must_fix): stricter `<test>` validation — `data_column` params require a valid `data_ref` | **39** (residual; was 53) | **partial** | **GTR010** |
 | 24.2 → 25.0 | additive | `+fields`/`icon`, data-table `src`/`table_name` | none documented | 0 | none | — |
 | 25.0 → 25.1 | additive | `+credentials`/`secret`/`variable` | tool credentials via `<credentials>`, not user prefs (schema docs; not an upgrade code) | 0 | none | — |
-| **25.1 → 26.0** | **restrict** | `<trackster_conf>` dropped; `<action>` + `name`/`output_name` attrs removed; `+min`/`max` | none documented | **5** | **auto** (trackster) | **GTX011** |
+| **25.1 → 26.0** | **restrict** | `<trackster_conf>` dropped; `<action>` + `name`/`output_name` attrs removed; `+min`/`max` | none documented | **5** | **auto** (trackster) | **GTR011** |
 | 26.0 → 26.1 | additive | `+credentials`/`secret`/`variable` (top-level) | none documented | 0 | none (latest) | — |
 
 \* "additive*" = the diff shows a relocation/rename rather than a true removal; no
@@ -241,7 +241,7 @@ sweep before treating any such row as breaking.
 
 ## Detailed notes — the breaking transitions
 
-### 19.01 → 19.05 — `name` required on output `<data>` (GTX008)
+### 19.01 → 19.05 — `name` required on output `<data>` (GTR008)
 **Delta:** 19.05 restructured the output groups and made `name` **required** on
 output `<data>`. **Stuck:** 9 tools (all `ucsb-phylogenetics/ucsb_phylogenetics`),
 bare `<data from_work_dir="…"/>` with no `name`. **Auto rationale:** the 9 stuck
@@ -251,7 +251,7 @@ behaviour-neutral. This is a *synthesis* (placeholder identity), not recovery of
 author intent — a judgement call on a one-repo signal. **Semantic check:** TBD —
 confirm no 19.02–19.05 runtime default change interacts with unnamed outputs.
 
-### 24.0 → 24.1 — `<filter>` forbidden inside a collection's `<data>` (GTX009)
+### 24.0 → 24.1 — `<filter>` forbidden inside a collection's `<data>` (GTR009)
 **Delta:** a collection element now admits only `actions`/`change_format`; a
 top-level output `<data><filter>` is still fine. **Stuck:** 1 (`phac-nml/kat_filter`),
 whose paired collection's two `<data>` carried the *same* filter. **Auto
@@ -263,7 +263,7 @@ discover-datasets attributes (`directory`/`ext`/`pattern`/`recurse`/`sort_by`/
 `visible`) were moved into a shared group; confirm via sweep that no tool strands
 on that move (none observed).
 
-### 24.1 → 24.2 — `format`/`ftype` pattern facet (GTX010) — **partial**
+### 24.1 → 24.2 — `format`/`ftype` pattern facet (GTR010) — **partial**
 **Delta:** `format` (and `ftype`) gained a `pattern` facet: `FormatList`
 (`<param>`, comma-separated `[a-z0-9._-]` tokens) / `Format` (`<data>`, one such
 token). **Stuck:** 53 → 39 residual after the codemod. **Auto rationale:**
@@ -276,13 +276,13 @@ the per-tool codemod can't reach (cross-file normalisation — see
 (`?`, `plain text`, `$var`); ~9 single-token-context comma-lists with no basis to
 pick one datatype. These are reported, not guessed.
 
-### 25.1 → 26.0 — `<trackster_conf>` dropped (GTX011)
+### 25.1 → 26.0 — `<trackster_conf>` dropped (GTR011)
 **Delta:** the obsolete top-level `<trackster_conf>` (Trackster viz config) is
 removed in 26.0; the diff also shows `<action>` and `name`/`output_name` attributes
 removed and `min`/`max` added. **Stuck:** 5. **Auto rationale (trackster):** the
 element is obsolete with no replacement, so removal is the only path and is
 behaviour-neutral (Trackster is gone). **Resolved:** the 2026-06-01 combined sweep
-strands no tool on the `<action>` / `name` / `output_name` removals — GTX011's
+strands no tool on the `<action>` / `name` / `output_name` removals — GTR011's
 `<trackster_conf>`-only scope advances all 5 stuck tools to latest, so no extra
 case to scope here.
 

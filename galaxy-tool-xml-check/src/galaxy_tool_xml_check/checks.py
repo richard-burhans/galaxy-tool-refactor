@@ -1,9 +1,9 @@
-"""The concrete advisory IUC checks (IUC001–IUC012).
+"""The concrete advisory checks (GTR021–GTR032).
 
 Each check is a small LBYL query over the parsed ``ToolDocument`` and yields a
 ``Violation`` located on the offending element. All are ``detect_only`` — they
 report, they never fix. The two ``<command>``-CDATA-text heuristics (single-quote
-Cheetah, ``&&`` vs lone ``&``) are reserved placeholders (``IUC011`` / ``IUC012``)
+Cheetah, ``&&`` vs lone ``&``) are reserved placeholders (``GTR031`` / ``GTR032``)
 whose ``detect`` is a no-op stub, pending tuning to avoid noise; see
 ``../../docs/iuc_best_practices.md``.
 """
@@ -84,10 +84,10 @@ def _is_pep440(value: str, /) -> bool:
 
 
 class TestsPresent(CheckRule):
-    """IUC001 — the tool should ship at least one functional ``<test>``."""
+    """GTR021 — the tool should ship at least one functional ``<test>``."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="IUC001",
+        code="GTR021",
         summary="Tool should ship at least one functional <test>.",
         since="0.0.1",
         cite=_IUC,
@@ -104,10 +104,10 @@ class TestsPresent(CheckRule):
 
 
 class CommandCdata(CheckRule):
-    """IUC002 — the ``<command>`` body should be wrapped in CDATA."""
+    """GTR022 — the ``<command>`` body should be wrapped in CDATA."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="IUC002",
+        code="GTR022",
         summary="<command> body should be wrapped in CDATA.",
         since="0.0.1",
         cite=_IUC,
@@ -127,10 +127,10 @@ class CommandCdata(CheckRule):
 
 
 class IdCharset(CheckRule):
-    """IUC003 — the tool ``id`` should use the recommended charset."""
+    """GTR023 — the tool ``id`` should use the recommended charset."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="IUC003",
+        code="GTR023",
         summary="Tool id should use lowercase letters, digits, and '_.+-'.",
         since="0.0.1",
         cite=_IUC,
@@ -151,10 +151,10 @@ class IdCharset(CheckRule):
 
 
 class VersionFormat(CheckRule):
-    """IUC004 — the tool ``version`` should be PEP 440 or a ``@...@`` macro."""
+    """GTR024 — the tool ``version`` should be PEP 440 or a ``@...@`` macro."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="IUC004",
+        code="GTR024",
         summary="Tool version should be PEP 440 or a @...@ version macro.",
         since="0.0.1",
         cite=_IUC,
@@ -176,10 +176,10 @@ class VersionFormat(CheckRule):
 
 
 class RequirementsPresent(CheckRule):
-    """IUC005 — the tool should declare ``<requirements>``."""
+    """GTR025 — the tool should declare ``<requirements>``."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="IUC005",
+        code="GTR025",
         summary="Tool should declare <requirements>.",
         since="0.0.1",
         cite=_IUC,
@@ -196,10 +196,10 @@ class RequirementsPresent(CheckRule):
 
 
 class ErrorHandling(CheckRule):
-    """IUC006 — the tool should declare error handling."""
+    """GTR026 — the tool should declare error handling."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="IUC006",
+        code="GTR026",
         summary="Tool should declare error handling (detect_errors or <stdio>).",
         since="0.0.1",
         cite=_IUC,
@@ -221,10 +221,10 @@ class ErrorHandling(CheckRule):
 
 
 class EdamXrefs(CheckRule):
-    """IUC007 — the tool should declare EDAM topics/operations or ``<xrefs>``."""
+    """GTR027 — the tool should declare EDAM topics/operations or ``<xrefs>``."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="IUC007",
+        code="GTR027",
         summary="Tool should declare EDAM topics/operations or <xrefs>.",
         since="0.0.1",
         cite=_IUC,
@@ -246,10 +246,10 @@ class EdamXrefs(CheckRule):
 
 
 class HelpPresent(CheckRule):
-    """IUC008 — the tool should provide non-empty ``<help>``."""
+    """GTR028 — the tool should provide non-empty ``<help>``."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="IUC008",
+        code="GTR028",
         summary="Tool should provide non-empty <help>.",
         since="0.0.1",
         cite=_IUC,
@@ -269,10 +269,10 @@ class HelpPresent(CheckRule):
 
 
 class DescriptionPresent(CheckRule):
-    """IUC009 — the tool should provide a non-empty ``<description>``."""
+    """GTR029 — the tool should provide a non-empty ``<description>``."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="IUC009",
+        code="GTR029",
         summary="Tool should provide a non-empty <description>.",
         since="0.0.1",
         cite=_IUC,
@@ -292,10 +292,10 @@ class DescriptionPresent(CheckRule):
 
 
 class HelpCdata(CheckRule):
-    """IUC010 — the ``<help>`` body should be wrapped in CDATA."""
+    """GTR030 — the ``<help>`` body should be wrapped in CDATA."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="IUC010",
+        code="GTR030",
         summary="<help> body should be wrapped in CDATA.",
         since="0.0.1",
         cite=_IUC,
@@ -315,7 +315,7 @@ class HelpCdata(CheckRule):
 
 
 class SingleQuotedCheetah(CheckRule):
-    """IUC011 — single-quote Cheetah variables in ``<command>``.
+    """GTR031 — single-quote Cheetah variables in ``<command>``.
 
     Reports one finding per fully-unquoted shell-line Cheetah ``$var`` (the
     word-splitting/injection hazard the practice guards against). Cheetah directive
@@ -325,7 +325,7 @@ class SingleQuotedCheetah(CheckRule):
     """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="IUC011",
+        code="GTR031",
         summary="Single-quote Cheetah variables in <command>.",
         since="0.0.1",
         cite=_IUC,
@@ -352,7 +352,7 @@ class SingleQuotedCheetah(CheckRule):
 
 
 class CommandAndJoining(CheckRule):
-    """IUC012 — join shell commands with ``&&`` not a lone ``&`` (placeholder).
+    """GTR032 — join shell commands with ``&&`` not a lone ``&`` (placeholder).
 
     Reserved IUC code; ``detect`` is a no-op — now on a **data-backed** basis
     (``docs/decisions.md`` D3, ``scripts.measure command-lone-amp``): of the 431
@@ -363,7 +363,7 @@ class CommandAndJoining(CheckRule):
     """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="IUC012",
+        code="GTR032",
         summary="Join shell commands with && not a lone & (not yet implemented).",
         since="0.0.1",
         cite=_IUC,
@@ -375,7 +375,7 @@ class CommandAndJoining(CheckRule):
 
 
 class RequirementVersionPinned(CheckRule):
-    """IUC013 — package ``<requirement>``\\ s should pin a version.
+    """GTR033 — package ``<requirement>``\\ s should pin a version.
 
     A conda/``package`` requirement without a ``version`` is not reproducible — a
     later environment solve can pick a different release. Other requirement kinds
@@ -385,7 +385,7 @@ class RequirementVersionPinned(CheckRule):
     """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="IUC013",
+        code="GTR033",
         summary="Package <requirement>s should pin a version.",
         since="0.0.1",
         cite=_IUC,

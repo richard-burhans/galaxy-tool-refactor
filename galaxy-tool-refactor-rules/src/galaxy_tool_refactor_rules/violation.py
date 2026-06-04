@@ -25,7 +25,7 @@ class Violation:
     """A single detected rule occurrence in a tool XML document.
 
     Attributes:
-        code: The rule's identifier (e.g. ``"GTX002"``); matches ``RuleMeta.code``.
+        code: The rule's identifier (e.g. ``"GTR002"``); matches ``RuleMeta.code``.
         sourceline: 1-based line of the offending element, or ``0`` when the
             element was synthesised and has no source position.
         xpath: Absolute xpath to the offending element (e.g.

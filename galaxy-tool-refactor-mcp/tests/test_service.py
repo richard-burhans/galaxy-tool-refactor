@@ -9,7 +9,7 @@ from galaxy_tool_xml.profiles import latest_profile
 
 from galaxy_tool_refactor_mcp import service
 
-# A tool with out-of-order <param> attributes (value, type, name) — GTX002
+# A tool with out-of-order <param> attributes (value, type, name) — GTR002
 # reorders them, so `format` changes it and `check` reports a fixable finding.
 _MESSY = (
     '<tool id="m" name="M" version="1.0.0" profile="24.0">'
@@ -30,7 +30,7 @@ def test_format_tool_returns_canonical_xml() -> None:
     result = service.format_tool(_MESSY)
     formatted = result["formatted"]
     assert isinstance(formatted, str)
-    # GTX002 reordered the param attributes to name, type, value.
+    # GTR002 reordered the param attributes to name, type, value.
     param = formatted.partition("<param")[2]
     assert param.index("name=") < param.index("type=") < param.index("value=")
     assert isinstance(result["advisory"], list)
@@ -44,7 +44,7 @@ def test_format_tool_unknown_preset_raises() -> None:
 
 def test_format_tool_unknown_select_code_raises() -> None:
     with pytest.raises(UnknownRuleCode):
-        service.format_tool(_MESSY, select=["GTX999"])
+        service.format_tool(_MESSY, select=["GTR999"])
 
 
 def test_check_tool_reports_violations() -> None:
@@ -52,7 +52,7 @@ def test_check_tool_reports_violations() -> None:
     violations = result["violations"]
     assert isinstance(violations, list)
     codes = {v["code"] for v in violations}  # type: ignore[index]
-    assert "GTX002" in codes  # the out-of-order param attributes
+    assert "GTR002" in codes  # the out-of-order param attributes
     assert isinstance(result["advisory_codes"], list)
 
 
@@ -60,9 +60,10 @@ def test_check_tool_strict_marks_advisory() -> None:
     result = service.check_tool(_MESSY, preset="strict")
     advisory_codes = result["advisory_codes"]
     assert isinstance(advisory_codes, list)
-    # Strict adds the IUC advisory family; an IUC finding is marked advisory.
-    iuc = [v for v in result["violations"] if v["code"].startswith("IUC")]  # type: ignore[index]
-    assert iuc and all(v["advisory"] for v in iuc)  # type: ignore[index]
+    # Strict adds the advisory checks; an advisory finding is marked advisory
+    # (a per-violation flag, not a code prefix).
+    advisory = [v for v in result["violations"] if v["advisory"]]  # type: ignore[index]
+    assert advisory
 
 
 def test_upgrade_tool_bumps_profile() -> None:
@@ -86,8 +87,7 @@ def test_list_presets_includes_default() -> None:
 def test_list_rules_has_codes_and_families() -> None:
     rules = service.list_rules()
     codes = {r["code"] for r in rules}
-    assert any(c.startswith("GTX") for c in codes)
-    assert any(c.startswith("IUC") for c in codes)
+    assert all(c.startswith("GTR") for c in codes)  # unified namespace
     families = {r["family"] for r in rules}
     assert {"codemod", "fmt", "check"} <= families
 

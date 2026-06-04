@@ -1,4 +1,4 @@
-"""The ``CheckRule`` ABC for advisory (detect-only) IUC checks.
+"""The ``CheckRule`` ABC for advisory (detect-only) checks.
 
 A check is the read-only analogue of a fmt rule / codemod: it carries a
 ``RuleMeta`` (with ``detect_only=True`` and a unique ``IUC`` code) and a
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 class CheckRule(ABC):
-    """Abstract base class for an advisory, detect-only IUC check."""
+    """Abstract base class for an advisory, detect-only check."""
 
     meta: ClassVar[RuleMeta]
 

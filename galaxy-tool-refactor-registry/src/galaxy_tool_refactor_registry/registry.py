@@ -1,16 +1,18 @@
 """The unified, code-addressable rule registry across all three families.
 
 ``registry()`` is the **selectable** set — the codemod canonical rules, the fmt
-cosmetic rules, and the advisory IUC checks — keyed by ``RuleMeta.code``. The
-upgrade-only codemods (GTX007–GTX012 validity-gated; GTX014–GTX016 runtime-gated)
+cosmetic rules, and the advisory checks — keyed by ``RuleMeta.code``. The
+upgrade-only codemods (GTR007–GTR012 validity-gated; GTR014–GTR016 runtime-gated)
 are not selectable; they are kept in the internal index purely so the
-duplicate-code guard sees the whole GTX namespace and so
+duplicate-code guard sees the whole GTR namespace and so
 ``list_rules(include_upgrade=True)`` can enumerate them.
 
-The GTX/IUC code namespace is collision-free by construction (fmt 001/003/004;
-canonical codemods 002/005/006/013/017; upgrade codemods 007–012; runtime-gated
-fixes 014–016; checks IUC001–012), and ``_index`` asserts it — a future rule that reuses
-a code fails loudly here rather than silently shadowing another.
+Every rule carries a single ``GTR###`` code; fixability is a rule property
+(``RuleHandle.fixable``), not a prefix (registry ``docs/decisions.md`` D9). The
+namespace is collision-free by construction (fmt GTR001/003/004; canonical codemods
+GTR002/005/006/013/017/018/019/020; upgrade codemods GTR007–012; runtime-gated fixes
+GTR014–016; advisory checks GTR021–033), and ``_index`` asserts it — a future rule
+that reuses a code fails loudly here rather than silently shadowing another.
 """
 
 from __future__ import annotations

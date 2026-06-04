@@ -13,16 +13,16 @@ this framework's automation. Every practice falls into one of four buckets:
 
 [iuc]: https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html
 
-The GTX rule registry (`galaxy-tool-refactor-rules`) spans the fmt and codemod
+The GTR rule registry (`galaxy-tool-refactor-rules`) spans the fmt and codemod
 tiers; see each tier's `docs/decisions.md` for per-rule rationale.
 
 ## Bucket 1 — fmt-only (cosmetic): DONE
 
 | IUC practice | Rule | Where |
 |---|---|---|
-| 4-space indentation | GTX001 | fmt `rule_indent` |
-| Blank line between `<tool>` children | GTX003 | fmt `rule_blank_line` |
-| Empty elements use self-closing shorthand | GTX004 | fmt `rule_empty_element` |
+| 4-space indentation | GTR001 | fmt `rule_indent` |
+| Blank line between `<tool>` children | GTR003 | fmt `rule_blank_line` |
+| Empty elements use self-closing shorthand | GTR004 | fmt `rule_empty_element` |
 | Attribute values double-quoted | — | fmt serializer (decision D7) |
 | Attributes on one line | — | fmt serializer (decision D8) |
 
@@ -35,9 +35,9 @@ rewrite (fmt decisions §D3).
 
 | IUC practice | Rule | Where |
 |---|---|---|
-| `<param>` attribute order | GTX002 | codemod `reorder_param_attributes` |
-| `<tool>` attribute order (`id, name, version, profile`) | GTX005 | codemod `reorder_tool_attributes` |
-| **`<tool>` child-element order** (#52) | **GTX013** | **codemod `reorder_tool_children` (new)** |
+| `<param>` attribute order | GTR002 | codemod `reorder_param_attributes` |
+| `<tool>` attribute order (`id, name, version, profile`) | GTR005 | codemod `reorder_tool_attributes` |
+| **`<tool>` child-element order** (#52) | **GTR013** | **codemod `reorder_tool_children` (new)** |
 
 **Why element-order is a safe codemod.** The Galaxy schema's `<tool>` content
 model is **`xs:all`** (order-free), not `xs:sequence` — verified against
@@ -63,12 +63,12 @@ elements past a comment could silently re-associate it with the wrong element.
 The `reorder_children` primitive skips (no-op) in that case rather than risk
 corruption (codemod decisions §17).
 
-## Bucket 3 — combination (structural/content): DONE (GTX018/GTX019)
+## Bucket 3 — combination (structural/content): DONE (GTR018/GTR019)
 
 | IUC practice | Code | Status |
 |---|---|---|
-| `<command>` started/finished with CDATA (#34) | GTX018 | **done** (`WrapCommandCdata`) |
-| `<help>` started/finished with CDATA (#42) | GTX019 | **done** (`WrapHelpCdata`) |
+| `<command>` started/finished with CDATA (#34) | GTR018 | **done** (`WrapCommandCdata`) |
+| `<help>` started/finished with CDATA (#42) | GTR019 | **done** (`WrapHelpCdata`) |
 
 CDATA-wrapping touches element **content**, not whitespace, so it was deferred at
 first for content-change risk (fmt decisions §D3). It is now a **canonical
@@ -81,9 +81,9 @@ terminator). A corpus sweep confirms idempotence + post-apply validity with zero
 regressions (2,772 `<command>` / 3,247 `<help>` modified, 0 non-idempotent, 0
 post-validate-failed). See codemod `docs/decisions.md` §29.
 
-The advisory **IUC002 / IUC010** checks (Bucket 4 below) are retained, not
+The advisory **GTR022 / GTR030** checks (Bucket 4 below) are retained, not
 superseded: they flag *any* non-CDATA `<command>` / `<help>`, so after `format`
-applies GTX018/GTX019 they continue to cover the rare mixed-content residual the
+applies GTR018/GTR019 they continue to cover the rare mixed-content residual the
 codemods deliberately skip.
 
 ## Bucket 4 — another way (~40 content/semantic practices): advisory only
@@ -101,57 +101,57 @@ params.
 
 The mechanically-detectable subset is now a **read-only `check` (lint) that
 reports, never mutates**: the `galaxy-tool-xml-check` package (tier 3.5). Each
-check carries an `IUC` code in the shared tier-0.5 registry (parallel to GTX),
+check carries an `GTR` code in the shared tier-0.5 registry (parallel to GTR),
 is `RuleMeta.detect_only=True`, and is an LBYL query over tier-1's
 `ToolDocument`. They surface via the report-only `galaxy-tool-refactor check`
 subcommand: `file:line  CODE  message`, marked `(advisory)`. Advisory findings
-are **informational** — `check` exits non-zero only on *fixable* (GTX) findings;
+are **informational** — `check` exits non-zero only on *fixable* (GTR) findings;
 `--strict` also fails on advisory. (See `galaxy-tool-xml-check/docs/decisions.md`
 D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 
-| IUC check | Code | Status |
+| check | Code | Status |
 |---|---|---|
-| `<tests>` present | IUC001 | done |
-| `<command>` wrapped in CDATA | IUC002 | done (now also fixable — GTX018) |
-| tool `id` charset (#10–12) | IUC003 | done |
-| `version` PEP 440 or `@…@` macro | IUC004 | done |
-| `<requirements>` present | IUC005 | done |
-| error handling (`detect_errors`/`<stdio>`) | IUC006 | done |
-| EDAM topics/operations or `<xrefs>` | IUC007 | done |
-| non-empty `<help>` | IUC008 | done |
-| non-empty `<description>` | IUC009 | done |
-| `<help>` wrapped in CDATA | IUC010 | done (now also fixable — GTX019) |
-| single-quoted Cheetah variables (#36) | IUC011 | **done** (read-only command lexer; the *provable* subset is now also fixable — GTX020; see below) |
-| `&&` vs a lone `&` (#39) | IUC012 | **placeholder** (deferred — data-backed, ~dead) |
-| package `<requirement>`s pin a version | IUC013 | **done** (275 tools / 661 findings; check D7) |
+| `<tests>` present | GTR021 | done |
+| `<command>` wrapped in CDATA | GTR022 | done (now also fixable — GTR018) |
+| tool `id` charset (#10–12) | GTR023 | done |
+| `version` PEP 440 or `@…@` macro | GTR024 | done |
+| `<requirements>` present | GTR025 | done |
+| error handling (`detect_errors`/`<stdio>`) | GTR026 | done |
+| EDAM topics/operations or `<xrefs>` | GTR027 | done |
+| non-empty `<help>` | GTR028 | done |
+| non-empty `<description>` | GTR029 | done |
+| `<help>` wrapped in CDATA | GTR030 | done (now also fixable — GTR019) |
+| single-quoted Cheetah variables (#36) | GTR031 | **done** (read-only command lexer; the *provable* subset is now also fixable — GTR020; see below) |
+| `&&` vs a lone `&` (#39) | GTR032 | **placeholder** (deferred — data-backed, ~dead) |
+| package `<requirement>`s pin a version | GTR033 | **done** (275 tools / 661 findings; check D7) |
 
-The two `<command>`-CDATA-text heuristics (IUC011/IUC012) are **reserved
+The two `<command>`-CDATA-text heuristics (GTR031/GTR032) are **reserved
 placeholders** — registered codes, no-op `detect` — pending tuning to avoid
 noise (distinguishing an unquoted Cheetah `$var` or a command-joining `&` from
-legitimate shell text inside CDATA is heuristic). For IUC012 this is now settled
+legitimate shell text inside CDATA is heuristic). For GTR032 this is now settled
 with data (`galaxy-tool-xml-check/docs/decisions.md` D3, `scripts.measure
 command-lone-amp`): of the 431 tools the crude lone-`&` heuristic flags, the
 genuine `cmd1 & cmd2` anti-pattern appears in **1** — the rest are redirections
 (`2>&1`), quoted `&` literals (sed/awk), and `|&` pipes. A precise check needs
-the M5 shell lexer, not a regex, and would flag ~1 tool, so IUC012 stays
-deferred. **IUC011 is the opposite and now ships** (`docs/decisions.md` D4 +
+the M5 shell lexer, not a regex, and would flag ~1 tool, so GTR032 stays
+deferred. **GTR031 is the opposite and now ships** (`docs/decisions.md` D4 +
 **D5**): excluding Cheetah directive lines and tracking shell quotes (across
 newlines), a genuinely-unquoted `$var` fires on **73.2%** of tools — real signal,
-on par with shipped advisories (IUC005 57.3%, IUC007 89.6%). It is implemented as
+on par with shipped advisories (GTR025 57.3%, GTR027 89.6%). It is implemented as
 a **read-only command-text lexer** (`galaxy-tool-xml/.../command_text.py`, tier 1
 — the detection-only slice of the codemod tier's deferred M5, needing none of the
 matcher language / mutation cursors / provenance), reporting **one finding per
 unquoted occurrence**. The *provably*-single-valued subset of those occurrences is
-now **auto-fixed** by GTX020 (`SingleQuoteCommandVars`, a tier-2 codemod in the
+now **auto-fixed** by GTR020 (`SingleQuoteCommandVars`, a tier-2 codemod in the
 `format`/`iuc` pipeline) — bare single-token params, `$__…__` path built-ins, and
 space-free attrs, whose value can never word-split for a working tool (49.5% of
 occurrences; `scripts.measure iuc011-fixability`, codemod `docs/decisions.md` §30).
 The lexer moved to tier 1 so both the check (3.5) and the codemod (2) share it.
-IUC011 keeps flagging the non-provable residual (free-form `text`, `multiple=`
+GTR031 keeps flagging the non-provable residual (free-form `text`, `multiple=`
 splats, `$on_string`, label attrs, `#set`/loop vars). For *why* the command text is shell at all (Cheetah →
 whitespace-flatten → `#!/bin/sh` + `set -e`), which grounds both heuristics, see
 [`galaxy_processing_model.md`](galaxy_processing_model.md). "Profile recency" is
-omitted: it overlaps GTX007 / the `upgrade` command.
+omitted: it overlaps GTR007 / the `upgrade` command.
 
 **Not promising for the human-judgment remainder.** "tests are *meaningful*",
 "help is *useful* prose", "names are *descriptive*", "the requirement exists on

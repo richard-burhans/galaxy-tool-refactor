@@ -5,7 +5,7 @@
 > the "Open questions" section is the live worklist.
 >
 > **Update (2026-06):** the easiest corner — use-case (1), known-literal injection —
-> has since shipped as **GTX016 `FixInterpreter`**, and the CDATA-preservation contract
+> has since shipped as **GTR016 `FixInterpreter`**, and the CDATA-preservation contract
 > in the section below is now implemented (`Cursor.set_text` / `Cursor.is_cdata_wrapped`).
 > The harder use-cases (2)–(4) remain open research.
 >
@@ -145,7 +145,7 @@ relevant checks are regex-based. Our own `_count_unquoted_vars` is explicitly la
   token). It works precisely when the target token is identifiable from structure
   (e.g. the literal first token of a directive-free command). The interpreter note's
   "bucket A vs B/C/D" split *is* the leading-`#if`/non-literal-first-token problem in
-  miniature. Approach D, guarded hard, fits. **(Now shipped: GTX016 `FixInterpreter`
+  miniature. Approach D, guarded hard, fits. **(Now shipped: GTR016 `FixInterpreter`
   does exactly this — Approach-D-style structural locating, a positional splice, and a
   CDATA-preserving `set_text`.)**
 - **(2) Detect references to a named param — MOSTLY FEASIBLE (read-only).** Regex
@@ -243,10 +243,10 @@ don't carry CDATA):
 
 | Tag | Cheetah-templated? | CDATA-conventional? |
 |---|---|---|
-| `<command>` | yes (`evaluation.py:767`) | yes (IUC002) |
+| `<command>` | yes (`evaluation.py:767`) | yes (GTR022) |
 | inline `<configfile>` | yes (`evaluation.py:952`) | yes |
 | `<environment_variable>` | yes unless `inject=…` (`evaluation.py:851`) | sometimes |
-| `<help>` | **no** (RST/markdown, not templated) | yes (IUC010) |
+| `<help>` | **no** (RST/markdown, not templated) | yes (GTR030) |
 | `<token>` | **no** (expanded textually *before* Cheetah) | sometimes |
 | `<yield>` | n/a | no (always empty) |
 
@@ -255,7 +255,7 @@ lxml-*decoded* command text (`lib/galaxy/tool_util/parser/xml.py:261-263`:
 `return … command_el.text`), so `<![CDATA[a && b]]>` and the entity-escaped
 `a &amp;&amp; b` yield the **identical** string `a && b` to Cheetah/Galaxy. So losing
 CDATA does **not** change what the tool runs — it just produces an ugly,
-IUC002-violating, non-idempotent diff (and re-escapes shell `&&`/`<`).
+GTR022-violating, non-idempotent diff (and re-escapes shell `&&`/`<`).
 
 **lxml facts (probed):** parsing with `strip_cdata=False` (tier-1
 `binding.py:128`) preserves CDATA; assigning a plain `str` to `.text` **destroys the
@@ -275,10 +275,10 @@ touches CDATA *content*, and `test_regressions.py`'s byte-idempotence sweep guar
 (`cursor.py:125`) takes a keyword-only `cdata: bool = False` (→ `etree.CDATA` when set),
 and `Cursor.is_cdata_wrapped()` (`cursor.py:98`) re-serialises to detect the original
 framing. Callers: the `@PROFILE@` `<token>` rewrite (`update_profile.py:99`, plain
-bare-version text), `FixInterpreter` (GTX016, `fix_interpreter.py:57`, `cdata=True`),
+bare-version text), `FixInterpreter` (GTR016, `fix_interpreter.py:57`, `cdata=True`),
 and the shared CDATA-wrap helper behind `WrapCommandCdata`/`WrapHelpCdata`
-(GTX018/GTX019, `_cdata.py:35,44`). Rewriting a `<command>`/`<configfile>` body — once
-genuinely new surface — is now exercised by GTX016.
+(GTR018/GTR019, `_cdata.py:35,44`). Rewriting a `<command>`/`<configfile>` body — once
+genuinely new surface — is now exercised by GTR016.
 
 **Contract for content-rewriting codemods (shipped):** *preserve the original framing*.
 The detect phase records the framing via `Cursor.is_cdata_wrapped()` (re-serialises and
@@ -287,8 +287,8 @@ tests for a leading `<![CDATA[`); the mutate thunk calls
 and a plain `str` otherwise (which lxml re-escapes to match the element's original
 escaped framing). This is faithful **both** ways — CDATA stays CDATA, escaped stays
 escaped, both decode to the same string — so it never regresses the diff.
-`16_04_fix_interpreter` (GTX016) was the first consumer (`fix_interpreter.py:57`,
-`cdata=True`); `WrapCommandCdata`/`WrapHelpCdata` (GTX018/GTX019, codemod
+`16_04_fix_interpreter` (GTR016) was the first consumer (`fix_interpreter.py:57`,
+`cdata=True`); `WrapCommandCdata`/`WrapHelpCdata` (GTR018/GTR019, codemod
 `docs/decisions.md` §29) followed, with the shared logic in `codemods/_cdata.py`.
 
 ## Open questions (live worklist)

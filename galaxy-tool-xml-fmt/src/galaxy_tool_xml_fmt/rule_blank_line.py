@@ -1,11 +1,11 @@
-"""GTX003: one blank line between top-level <tool> children.
+"""GTR003: one blank line between top-level <tool> children.
 
 Editorial rule from ``PLAN.md``: "one blank between sibling top-level
 sections, no blank inside dense leaf sequences." Only the top-level
 children of ``<tool>`` are affected; nested elements retain the
-single-newline indentation supplied by GTX001.
+single-newline indentation supplied by GTR001.
 
-Depends on GTX001 having set canonical indentation first (registration
+Depends on GTR001 having set canonical indentation first (registration
 order in ``format`` is the ordering). ``safe_set_tail`` will only write
 when the existing tail is whitespace-only, so this rule cannot trample
 non-whitespace content.
@@ -30,7 +30,7 @@ _BLANK_TAIL = "\n\n    "
 
 class BlankLineBetweenSections(Rule):
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTX003",
+        code="GTR003",
         summary="One blank line between top-level children of <tool>.",
         since="0.0.1",
         order=90,

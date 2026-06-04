@@ -11,7 +11,7 @@ its per-tool detector fires (`upgrade_codes_applicable`); auto-fixability is
 judged exactly by applying the mapped codemod and re-detecting.
 
 Only two behaviour codes are auto-fixable: `21_09_fix_from_work_dir_whitespace`
-(GTX014, full) and `16_04_fix_output_format` (GTX015, only a sole-top-level
+(GTR014, full) and `16_04_fix_output_format` (GTR015, only a sole-top-level
 data-input tool). The structural `upgrade_vN` codemods fix *validity*, not
 behaviour, so they never clear a blocker here.
 
