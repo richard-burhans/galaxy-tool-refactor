@@ -124,6 +124,7 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 | single-quoted Cheetah variables (#36) | GTR020.2 | **done** (read-only command lexer; the *provable* subset is now also fixable — GTR020.1; see below) |
 | `&&` vs a lone `&` (#39) | GTR032 | **placeholder** (deferred — data-backed, ~dead) |
 | package `<requirement>`s pin a version | GTR033 | **done** (275 tools / 661 findings; check D7) |
+| unused input `<param>` (general lint, not IUC) | GTR034 | **done** (conservative reference scan; check D11) |
 
 The two `<command>`-CDATA-text heuristics (GTR020.2/GTR032) are **reserved
 placeholders** — registered codes, no-op `detect` — pending tuning to avoid

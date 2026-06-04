@@ -845,6 +845,18 @@ param refactors). `cheetah_references(text)` returns `CheetahRef`s (name, identi
 - **`segments` not just root.** A reference's identifier segments (`${adv.x}` → `(adv, x)`)
   let a consumer match a parameter name as the *leaf* of a `$cond.sub` access, not only the
   root — needed for find-references on a conditional sub-param.
+- **`referenced_identifiers(root)` (added for GTR034 unused-param).** The set of every
+  identifier that could name a param: the union of all `tool_cheetah_references` segments
+  **and** the identifier tokens of every attribute value, *skipping the `name` attr of
+  `<param>` definitions* (so a param isn't "used" by its own declaration). The
+  attribute-token scan generically subsumes **every** by-name param cross-reference Galaxy
+  has — `data_ref`, `format_source`, `metadata_source`, `change_format @input`, dynamic
+  `<options>` `from_dataset` / `filter @ref`, output `<collection>` `structured_like` /
+  `collection_type_source`, output-action `option @name` / `filter @ref`, … — because they
+  are **all attributes** (there is no positional or free-text param linking in Galaxy tool
+  XML), so no per-attribute allowlist is needed. Conservative (over-counts: a coincidental
+  `format="fastq"` token only protects a like-named param). The check tier (3.5) consumes
+  this on the macro-expanded tree; see check `docs/decisions.md` D11.
 
 ### Reproduction
 

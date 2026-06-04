@@ -441,3 +441,52 @@ This tier still does not depend on the codemod tier: the shared predicate lives 
 ```sh
 uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py
 ```
+
+## D11 (2026-06-04) — GTR034: unused `<param>` advisory
+
+### Decision
+
+A new detect-only advisory, `UnusedParam` (GTR034): flag an `<inputs>` `<param name="X">`
+whose name is referenced **nowhere** the tool could use it. The first *consumer-of-a-lint*
+in the M5 read-only param work (`../../docs/upgrade_research/cheetah_section_editing.md`),
+chosen before the rename mutator so the reference-completeness + macro-expansion handling is
+built and validated read-only (a mistake here is a cheap advisory false-positive, not a
+broken tool).
+
+**Sound by conservative over-counting.** A param is flagged only if its name token appears
+in the empty intersection of *every* reference channel. The reference set is the shared
+tier-1 `cheetah_refs.referenced_identifiers` = all Cheetah `$X`/`$cond.X` reference segments
+∪ the identifier tokens of every attribute value (skipping a param's own `name`). The key
+finding that makes this sound *and* allowlist-free: **every** by-name param cross-reference
+Galaxy supports (`data_ref`, `format_source`, `metadata_source`, `change_format @input`,
+dynamic-options `from_dataset` / `filter @ref`, output `<collection>` `structured_like` /
+`collection_type_source` / `default_identifier_source`, output-action `option @name` /
+`filter @ref`, …) is carried in an **attribute** — there is no positional or free-text param
+linking — so the generic attribute-token scan subsumes them all. Over-counting only ever
+*protects* a param from being flagged (the safe direction).
+
+**Handling the false-positive sources.** References are read from the **macro-expanded**
+tree (so a param used only inside an `<expand>`/imported-macro body is seen); if expansion
+fails the check **bails** (reports nothing). Excluded from candidates: a `<conditional>`
+**selector** `<param>` (structurally used by its `<when>` branches even without a `$cond.sel`
+use) and macro-supplied params (only author-written `<param>`s in the raw tree are
+candidates). A param mentioned only in `<tests>` is treated as used (its test `<param @name>`
+token counts) — the conservative choice.
+
+**Philosophy.** Unlike the other advisories this is not a literal IUC practice but a general
+code-quality lint (an unused param is dead wiring); the detect-only check tier accommodates
+it. It is advisory (Bucket 4) — informational unless `--strict`.
+
+**Corpus sizing** (`scripts.corpus_check check`, combined): GTR034 flags **189 tools / 467
+findings** (2.0%). A first *incomplete* scan (only `$`-refs + attribute values) flagged
+248/1003 but had false positives — e.g. a boolean used solely in an output `<filter>` Python
+expression (`<filter>store_ext</filter>`, a bare-name reference in element text); scanning
+**all element text** (not just `$`-refs) dropped those to the sound 189/467. Spot-checked
+flagged params show only their own definition mention (truly orphaned).
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k gtr034
+uv run python -m scripts.corpus_check check   # regenerates docs/corpus_check_stats.md
+```

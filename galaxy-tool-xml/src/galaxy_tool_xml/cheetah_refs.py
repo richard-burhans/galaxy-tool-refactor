@@ -182,3 +182,46 @@ def tool_cheetah_references(root: etree._Element, /) -> list[CheetahRef]:
         )
 
     return refs
+
+
+# An identifier token inside an attribute value (a datatype, a cross-ref target, a
+# param name). Must start with a letter/underscore so version numbers like ``1.0.0``
+# contribute nothing.
+_IDENT = re.compile(r"[A-Za-z_]\w*")
+
+
+def _has_inputs_ancestor(element: etree._Element, /) -> bool:
+    """Whether *element* sits anywhere under an ``<inputs>`` (a param definition)."""
+    return any(ancestor.tag == "inputs" for ancestor in element.iterancestors())
+
+
+def referenced_identifiers(root: etree._Element, /) -> set[str]:
+    """Every identifier that could name a parameter, anywhere in *root*.
+
+    The set of identifier tokens drawn from **all element text** and **all attribute
+    values**, skipping the ``name`` attr of ``<param>`` definitions (a ``<param>`` under
+    ``<inputs>``) so a param isn't counted as used by its own declaration.
+
+    Scanning all text (not just ``$var``) is what makes this sound: it captures a
+    Cheetah ``$param``, a dotted ``${cond.sub}`` (both segments), and a **bare-name**
+    reference in element text — an output ``<filter>`` Python expression
+    (``<filter>store_ext</filter>``) or a ``<configfile>`` body. Scanning all attribute
+    values subsumes every by-name param cross-reference generically (``data_ref``,
+    ``format_source``, ``change_format @input``, options ``filter @ref``, …) — they are
+    all attributes, so no allowlist. Conservative: a coincidental token (a
+    ``format="fastq"``, a word in ``<help>``) only *protects* a like-named param. GTR034
+    uses this set.
+    """
+    identifiers: set[str] = set()
+    for text in root.itertext():
+        identifiers.update(_IDENT.findall(text))
+    for element in root.iter():
+        attrib = getattr(element, "attrib", None)
+        if attrib is None:
+            continue  # comment / processing-instruction node
+        skip_name = element.tag == "param" and _has_inputs_ancestor(element)
+        for attr_name, value in attrib.items():
+            if skip_name and attr_name == "name":
+                continue
+            identifiers.update(_IDENT.findall(value))
+    return identifiers
