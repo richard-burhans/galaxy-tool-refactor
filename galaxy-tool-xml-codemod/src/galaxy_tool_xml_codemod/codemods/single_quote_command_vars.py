@@ -9,13 +9,13 @@ shared tier-1 policy ``galaxy_tool_xml.shell_oracle.quote_is_behavior_preserving
   contain whitespace — the ``{safe, attr_safe, builtin_path}`` classes
   (``command_vars``): a bare ``$param`` of a single-token type, a ``$param.ext`` / path
   attribute, or a ``$__…__`` Galaxy path built-in;
-- **shell-context** (when the optional ``galaxy-tool-xml[shell-oracle]`` extra is
-  installed): the bashlex classifier additionally *widens* to any reference in a
-  no-word-splitting context (an assignment RHS ``THREADS=$opts`` is safe to quote even
-  for a free-form ``text`` param) and *narrows* away fd-dup targets (``2>&$fd``, where
-  quoting a numeric fd flips a duplication into a file redirect). Without the extra the
-  policy is exactly the value-domain rule, so the default ``format`` output is unchanged
-  and license-clean (bashlex is GPL v3+).
+- **shell-context narrowing** (when the optional ``galaxy-tool-xml[shell-oracle]`` extra
+  is installed): the bashlex classifier additionally *narrows* away fd-dup targets
+  (``2>&$fd``, where quoting a numeric fd flips a duplication into a file redirect).
+  It does **not** widen — an earlier assignment-RHS widening was reverted as unsound
+  (Galaxy renders the Cheetah value as literal text, so ``VAR=$x`` splits; tier-1
+  ``docs/decisions.md`` §17). Without the extra the policy is exactly the value-domain
+  rule, so default ``format`` output is unchanged and license-clean.
 
 Free-form ``text`` params in a splitting position, ``multiple=`` splats, label attrs
 (``$input.name``), ``$on_string`` and ``#set``/loop vars in splitting positions are

@@ -66,7 +66,9 @@ class QuotingContext(Enum):
     """The shell context an expansion occupies, w.r.t. single-quoting safety."""
 
     SPLIT = "split"  # bare command word / redirect-file target -> bash word-splits it
-    NO_SPLIT = "no_split"  # assignment RHS -> no word-splitting; safe for any value
+    NO_SPLIT = "no_split"  # assignment RHS: no-split for a shell *expansion* — but NOT
+    # for a Cheetah-rendered literal (those split), so the policy does NOT widen on it
+    # (see quote_is_behavior_preserving).
     DUP_TARGET = "dup_target"  # >&/<& fd-dup target -> quoting flips dup<->file
     UNKNOWN = "unknown"  # not located / unparseable -> caller falls back
 
@@ -293,14 +295,22 @@ def quote_is_behavior_preserving(
 
     Composes the bashlex structural classifier with the value-domain
     ``provably_quotable`` rule — the GTR020.1 fixer and the GTR020.2 advisory check both
-    call this so the fix/advisory partition stays exact:
+    call this so the fix/advisory partition stays exact. The only shell-context
+    adjustment on top of the value-domain rule is a **narrowing**:
 
-    - ``NO_SPLIT`` (assignment RHS): safe for **any** value — *widens* the value-domain
-      set (a ``text``/``multi`` residual var that never word-splits here is fixable);
-    - ``DUP_TARGET`` (``>&``/``<&``): never auto-quoted — *narrows* the value-domain set
-      (quoting a numeric fd flips dup→file). Conservative: vetoes the rare file-valued
+    - ``DUP_TARGET`` (``>&``/``<&``): never auto-quoted — quoting a numeric fd flips a
+      descriptor dup into a file redirect. Conservative: vetoes the rare file-valued
       dup targets too;
-    - ``SPLIT`` / ``UNKNOWN``: defer to ``provably_quotable`` (today's behaviour).
+    - ``SPLIT`` / ``NO_SPLIT`` / ``UNKNOWN``: defer to ``provably_quotable``.
+
+    **No widening on ``NO_SPLIT``.** Although ``VAR=$x`` is a no-word-splitting context
+    for a shell *expansion*, Galaxy renders a Cheetah ``$x`` to its value as **literal
+    text** before the shell runs, and a literal ``VAR=foo bar`` *does* split (assignment
+    + command ``bar``) — so single-quoting a space-bearing value there changes
+    behaviour. The classifier still reports ``NO_SPLIT`` (it is correct about the
+    *shell* structure), but the quoting policy must not act on it. (Sound widening of
+    Cheetah-rendered command values needs adversarial-shape render verification —
+    deferred research.)
 
     Without the ``shell-oracle`` extra it is exactly ``provably_quotable`` — the
     license-clean default.
@@ -310,8 +320,6 @@ def quote_is_behavior_preserving(
     context = quoting_context(_pseudo_render(body, occurrence=occurrence), _TARGET)
     if context is QuotingContext.DUP_TARGET:
         return False
-    if context is QuotingContext.NO_SPLIT:
-        return True
     return provably_quotable(occurrence.name, kinds, structural)
 
 

@@ -135,9 +135,10 @@ uv run python -m scripts.measure macro-profile-ownership
 # classes — the provable subset {safe, attr_safe, builtin_path} (49.5% of
 # occurrences) is auto-fixed by GTR020.1 (codemod §30 / check §D8), while the
 # non-provable residual (33.6% #set/loop, plus text/multi/label) keeps GTR020.2
-# advisory; shell-oracle-quoting sizes the Phase-1 bashlex-oracle delta on GTR020.1
-# vs the pure value-domain rule — WIDENED (no-split contexts, e.g. assignment RHS,
-# now fixable for any value) vs NARROWED (fd-dup targets), needs the
+# advisory; shell-oracle-quoting sizes the bashlex-oracle delta on GTR020.1 vs the
+# pure value-domain rule — now WIDENED 0 (the no-split/assignment-RHS widening was
+# reverted as unsound: Cheetah renders values as literal text, so VAR=$x splits) /
+# NARROWED 0 (no value-domain-safe fd-dup target corpus-wide); needs the
 # galaxy-tool-xml[shell-oracle] extra (tier-1 §17, codemod §31);
 # macro-fmt-idempotence backs fmt §D16:
 uv run python -m scripts.measure command-iuc-heuristics

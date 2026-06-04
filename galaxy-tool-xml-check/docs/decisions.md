@@ -424,12 +424,14 @@ uv run --package galaxy-tool-refactor-registry pytest \
 
 GTR020.2 (`SingleQuotedCheetah`) now computes its residual from the shared tier-1 policy
 `galaxy_tool_xml.shell_oracle.quote_is_behavior_preserving` rather than `provably_quotable`
-directly — the same predicate GTR020.1 fixes by (codemod `docs/decisions.md` §31). So when
-the optional `galaxy-tool-xml[shell-oracle]` extra is present, the occurrences GTR020.1
-*widens* (a `text`/`multiple=` var in an assignment RHS) drop out of the advisory, and the
-ones it *narrows* (fd-dup targets) appear in it — the fix/advisory partition stays exact by
-construction. Without the extra the policy is exactly `provably_quotable`, so this is
-identical to the prior behaviour (D8). A mixed-content `<command>` — which GTR020.1 skips
+directly — the same predicate GTR020.1 fixes by (codemod `docs/decisions.md` §31). The
+partition stays exact by construction: an occurrence is advisory iff the fixer won't quote
+it. When the optional `galaxy-tool-xml[shell-oracle]` extra is present, the only delta vs
+`provably_quotable` is the fd-dup *narrowing* — a value-domain-safe `2>&$fd` target the fixer
+declines, which then appears in the advisory. (The no-split *widening* described in an earlier
+draft of this entry was reverted as unsound — Galaxy renders Cheetah vars to literal text, so
+`VAR=$x` splits; tier-1 `docs/decisions.md` §17.) Without the extra the policy is exactly
+`provably_quotable`, identical to D8. A mixed-content `<command>` — which GTR020.1 skips
 wholesale — reports **all** its unquoted vars, since the fixer touches none of them.
 
 This tier still does not depend on the codemod tier: the shared predicate lives in tier 1.

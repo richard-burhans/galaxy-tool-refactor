@@ -219,6 +219,19 @@ word". The only genuine structural hazard for a space-free value is the **fd-dup
 
 ### KU-5 — widening: where the oracle genuinely *adds* coverage (2026-06-04)
 
+> **CORRECTED 2026-06-04 (PR-reverted) — the no-split widening below is UNSOUND.** The
+> table's "assignment RHS → yes, any value (WIDEN)" row applies bash's no-split rule for a
+> shell *expansion* (`VAR=$shellvar`). But Galaxy renders a Cheetah `$x` to its value as
+> **literal text** *before* the shell runs, so the realized script is `VAR=foo bar`
+> (literal), which **does** split (`['VAR=foo','bar']`) — quoting `VAR='$x'` therefore
+> changes behaviour for a space-bearing value. The shipped Phase-1 widening was reverted:
+> `quote_is_behavior_preserving` now treats `NO_SPLIT` like `SPLIT` (defer to the
+> value-domain rule); only the `DUP_TARGET` narrowing remains. The classifier still reports
+> `NO_SPLIT` (it is correct about *shell* structure) but the quoting policy must not act on
+> it. Sound widening of Cheetah-rendered command values needs adversarial-value-shape render
+> verification and is deferred research (the would-be Phase 2 render gate is what surfaced
+> this). The original (wrong) reasoning is kept below for the record.
+
 Because the common positions are already safe, the value of the oracle is **widening** —
 promoting part of the GTR020.2 advisory residual to provably-fixable. The lever is bash's
 **word-splitting rules**: an expansion in a **no-split context** is safe to single-quote
@@ -252,11 +265,14 @@ absent in real tools.
 (no-split contexts) plus a narrow, near-zero-incidence safety narrowing (fd-dup). The
 common "glued / redirect-file" cases are already safe and must **not** be vetoed.
 
-**Corpus sizing (shipped Phase-1, `scripts.measure shell-oracle-quoting`, sha-deduped):**
-over 6,670 pure-text `<command>`s / 48,789 unquoted occurrences, the oracle **widens** by
-**66 occurrences across 22 tools** and **narrows** by **0** (no value-domain-safe var is an
-fd-dup target corpus-wide — today's GTR020.1 was never unsafe in practice; the veto is
-defensive). Modest but real; the larger coverage gain (`#if`-branch edits) awaits Phase 2.
+**Corpus sizing (`scripts.measure shell-oracle-quoting`, sha-deduped, after the revert):**
+over 6,670 pure-text `<command>`s / 48,789 unquoted occurrences, the oracle now **widens 0**
+and **narrows 0** — the 66/22 widening reported pre-revert was the unsound no-split case
+above, and the fd-dup narrowing has no value-domain-safe occurrence corpus-wide. Net: the
+shell oracle's *current* effect on GTR020.1 is nil beyond the value-domain rule (the
+infrastructure + the sound dup veto remain for future render-verified widening). The honest
+takeaway: sound widening of Cheetah command values is scarce and needs the deferred render
+path; Phase 1's headline widening did not survive scrutiny.
 
 ## 6. Reproducible spike probes
 
@@ -415,12 +431,13 @@ tool 2>&1 1>file                    -> [(2, '>&', '&1'), (1, '>', 'file')]
   **Consequence:** the Phase-1 oracle changes GTR020.1 output **only when the
   `[shell-oracle]` extra is installed**; without it the fixer is exactly today's
   dependency-free `provably_quotable` (graceful degradation) — license-clean and reproducible.
-  When present, per the §KU-4 correction + widening (user chose to pull widening into Phase 1,
-  2026-06-04), the gate is **no longer "strictly narrowing"**: it both **widens** (no-split
-  contexts — assignment RHS — become fixable for any value) and **narrows** (fd-dup targets).
-  The earlier "strictly-narrowing, rejects-non-standalone-words" framing was based on the
-  *discarded* KU-4 predicate and is superseded. The CT3 Phase-2 `--certify=render` mode
-  remains a separate, strictly-narrowing safety gate behind its own `[verify]` extra.
+  When present, the oracle's only sound effect on top of the value-domain rule is the
+  **fd-dup narrowing** (0 corpus incidence). The no-split **widening** shipped briefly in
+  Phase 1 was **reverted as unsound** (§KU-5 correction: Cheetah renders values as literal
+  text, so `VAR=$x` splits) — so the oracle does not currently widen. A future render-verified
+  widening (the deferred Phase 2/3 `--certify=render` path, behind a `[verify]` CT3 extra) is
+  the only sound way to widen Cheetah command values; it surfaced this very bug while being
+  designed.
 - (Phase 2) How often does conditional opacity / py2-only Cheetah block B1/B3 on real
   tools? (a render-success measure over the corpus).
 - (Phase 2) Does `--certify=render` earn its keep — how much GTR020.2 residual does the CT3
