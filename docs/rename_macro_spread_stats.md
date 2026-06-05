@@ -4,18 +4,18 @@ Reproduced by `uv run python -m scripts.measure rename-macro-spread` (needs the 
 
 - Tools with renameable input definitions: **8888**
 - Rename attempts (one per definition): **71935**
-  - tool-only (no macro touched): **65691** (91.3%)
-  - spills into a macro: **1101** (1.5%)
-    - every touched macro **sole-owned** (v1 applies with `--repo-root`): **918** (1.3%)
-    - some touched macro **shared** (v1 skips + reports): **183** (0.3%)
-  - bailed: **5143**
+  - tool-only (no macro touched): **67940** (94.4%)
+  - spills into a macro: **1243** (1.7%)
+    - every touched macro **sole-owned** (v1 applies with `--repo-root`): **1039** (1.4%)
+    - some touched macro **shared** (v1 skips + reports): **204** (0.3%)
+  - bailed: **2752**
 
-**Silent-break-today: 1101** (1.5% of attempts) — renames the *old* single-file path reported as success while leaving a `$old` reference dangling in an imported macro. This is the correctness bug the bundle rename fixes.
+**Silent-break-today: 1243** (1.7% of attempts) — renames the *old* single-file path reported as success while leaving a `$old` reference dangling in an imported macro. This is the correctness bug the bundle rename fixes.
 
 Bundle bail reasons:
 
 - `shadowed`: 212
 - `mixed-content`: 359
 - `lexer-bail`: 373
-- `filter-bare-ref`: 4159
-- `cross-ref-residual`: 40
+- `filter-bare-ref`: 1763
+- `cross-ref-residual`: 45

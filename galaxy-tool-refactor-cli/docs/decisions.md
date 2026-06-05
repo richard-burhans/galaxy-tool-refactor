@@ -332,8 +332,8 @@ per-file lines. OLD/NEW are validated as identifiers at the CLI boundary.
 
 It runs its own file loop (like `find-references` / `check`) rather than fmt's
 `cli_support.run`: rename's per-file bail-with-reason outcome does not map onto that
-engine's format-drift model. Corpus coverage (the `rename-coverage` measure): 93.1% of
-input definitions rename cleanly; see `galaxy-tool-xml/docs/decisions.md` §20.
+engine's format-drift model. Corpus coverage (the `rename-coverage` measure): 96.3% of
+input definitions rename cleanly; see `galaxy-tool-xml/docs/decisions.md` §20, §22.
 
 ### Reproduction
 

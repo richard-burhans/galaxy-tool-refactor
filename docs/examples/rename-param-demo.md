@@ -117,6 +117,45 @@ comment, or an escaped `\$input_bam` — those are not live references. It also 
 **not** touch `<help>` text, because help is rendered documentation (RST/Markdown),
 not a Cheetah-templated section.
 
+## Following the parameter into an output `<filter>`
+
+An output `<filter>` is a **Python expression**, so it names a parameter by *bare* word —
+`output_format == "ppm"`, not `$output_format`. That used to make a rename **bail**: the
+engine couldn't prove a bare-name rewrite safe without a Python tokeniser. It now uses one.
+
+Take the real IUC tool [`pdfimages`](https://github.com/galaxyproject/tools-iuc/tree/main/tools/pdfimages):
+`output_format` is a `<select>` parameter used in the command, the `<tests>`, **and three
+output `<filter>`s**:
+
+```xml
+<param name="output_format" type="select" label="Select desired image format">…</param>
+<outputs>
+  <collection name="ppm_output_collection"  …><filter>output_format == "ppm"</filter>…</collection>
+  <collection name="png_output_collection"  …><filter>output_format == "-png"</filter>…</collection>
+  <collection name="tiff_output_collection" …><filter>output_format == "-tiff"</filter>…</collection>
+</outputs>
+```
+
+Renaming `output_format` → `image_format` rewrites all of it in one shot — including the
+three filters:
+
+```console
+$ galaxy-tool-refactor rename-param output_format image_format pdfimages.xml
+renamed pdfimages.xml: 9 site(s) across 1 file(s)
+renamed 1 tool(s); skipped 0
+```
+
+```diff
+-            <filter>output_format == "ppm"</filter>
++            <filter>image_format == "ppm"</filter>
+```
+
+The rewrite is **token-precise**: it renames the bare `NAME` `output_format` but leaves the
+string literal `"ppm"` and any attribute access untouched. It still bails on the genuinely
+ambiguous case — `old` appearing as a `cond['old']` string key, indistinguishable from a
+literal value. Corpus-wide, closing this lifted clean rename coverage **93.1% → 96.3%**
+(the `rename-coverage` measure).
+
 ## Following the parameter into imported macro files
 
 Real tools rarely keep everything in one file. A parameter is defined in the tool but
@@ -165,7 +204,7 @@ whole rename and report which other tools import it — so a shared macro is nev
 in a way that breaks a different tool. To rename it everywhere anyway, add
 `--across-importers`: it renames the parameter across **every** importer of the shared
 macro in one lockstep edit, but only if they all agree (any importer that can't rename it
-safely makes the whole group bail). Corpus-wide, **1.5%** of parameter renames reach into
+safely makes the whole group bail). Corpus-wide, **1.7%** of parameter renames reach into
 an imported macro this way — every one a tool the old single-file rename silently broke
 (`docs/rename_macro_spread_stats.md`).
 
@@ -174,9 +213,10 @@ an imported macro this way — every one a tool the old single-file rename silen
 If `rename-param` cannot prove *every* occurrence is safe to rewrite, it changes the
 file **not at all** and tells you why — so you never get a half-renamed, broken tool.
 It skips (rather than risk a wrong edit) when, for example, a `#set` local variable
-shadows the name, or an output `<filter>` references the parameter by bare Python name
-(`genome == 'hg19'` rather than `$genome`). Across the public Galaxy tool corpus,
-**93.1%** of parameter definitions rename cleanly this way.
+shadows the name, a section mixes Cheetah text with child elements, or an output
+`<filter>` references the parameter only as an ambiguous string key (`cond['name']`,
+indistinguishable from a literal value). Across the public Galaxy tool corpus,
+**96.3%** of parameter definitions rename cleanly this way.
 
 ---
 

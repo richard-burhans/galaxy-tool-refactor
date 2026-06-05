@@ -268,14 +268,45 @@ def test_environment_variable_reference() -> None:
     assert root.find(".//environment_variable").text == "$new/path"
 
 
-def test_filter_bare_reference_bails() -> None:
+def test_filter_bare_name_is_renamed() -> None:
+    # An output <filter> is a Python expression; a top-level param is a bare NAME, now
+    # rewritten via the tokeniser (the string literal 'x' is left alone).
     root = _root(
-        "<tool><command>run $old</command>"
+        "<tool><inputs><param name='old'/></inputs><command>run $old</command>"
         "<outputs><data name='o'><filter>old == 'x'</filter></data></outputs></tool>"
     )
     outcome = rename_param(root, old="old", new="new")
+    assert not outcome.bailed
+    assert root.find(".//filter").text == "new == 'x'"
+    assert _no_live_old(root, "old")
+
+
+def test_filter_string_key_subparam_bails() -> None:
+    # `old` appears only as a string literal (a possible cond['old'] dict key),
+    # indistinguishable from a coincidental value, so the rename bails conservatively.
+    root = _root(
+        "<tool><inputs><conditional name='cond'><param name='old'/></conditional>"
+        "</inputs><command>run $cond.old</command>"
+        "<outputs><data name='o'><filter>cond['old']</filter></data></outputs></tool>"
+    )
+    before = etree.tostring(root)
+    outcome = rename_param(root, old="old", new="new")
     assert outcome.bailed
     assert outcome.reason == "filter-bare-ref"
+    assert etree.tostring(root) == before  # unchanged
+
+
+def test_filter_attribute_access_not_renamed() -> None:
+    # `old` only as an attribute (x.old) is not a top-level param reference: no edit, no
+    # bail (the param itself is referenced in the command, which IS renamed).
+    root = _root(
+        "<tool><inputs><param name='old'/></inputs><command>run $old</command>"
+        "<outputs><data name='o'><filter>obj.old</filter></data></outputs></tool>"
+    )
+    outcome = rename_param(root, old="old", new="new")
+    assert not outcome.bailed
+    assert root.find(".//filter").text == "obj.old"  # attribute untouched
+    assert root.find("command").text == "run $new"
 
 
 def test_outcome_is_dataclass() -> None:
@@ -398,6 +429,9 @@ _PLAN_SUCCESS = [
     # Newline/whitespace before the CDATA opener (very common formatting).
     "<tool><inputs><param name='old'/></inputs>"
     "<command>\n    <![CDATA[run $old -o out]]>\n</command></tool>",
+    # Output <filter> bare-name reference (Python expr) — tokeniser-precise rewrite.
+    "<tool><inputs><param name='old'/></inputs><command>run $old</command>"
+    "<outputs><data name='o'><filter>old==1</filter></data></outputs></tool>",
 ]
 
 
@@ -455,8 +489,10 @@ def test_plan_minimal_diff_leaves_other_bytes_untouched() -> None:
         ("<tool><inputs><param name='old'/></inputs><command>run $old</command>"
          "<outputs><data name='o' some_future_ref='old'/></outputs></tool>",
          "old", "new", "cross-ref-residual"),
-        ("<tool><command>run $old</command>"
-         "<outputs><data name='o'><filter>old == 'x'</filter></data></outputs></tool>",
+        # `old` only as a string-literal dict key — the ambiguous filter bail.
+        ("<tool><inputs><conditional name='cond'><param name='old'/></conditional>"
+         "</inputs><command>run $cond.old</command>"
+         "<outputs><data name='o'><filter>cond['old']</filter></data></outputs></tool>",
          "old", "new", "filter-bare-ref"),
     ],
 )
