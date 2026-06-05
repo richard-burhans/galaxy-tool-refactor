@@ -67,14 +67,23 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 |---|---|---|---|
 | IUC best-practice checks (tests, CDATA, id charset, version, requirements, error handling, EDAM, help, description, version pinning) | GTR021–GTR019.2, GTR033 | ✅ Shipped | `strict` preset |
 | Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTR020, the residual stays advisory | GTR020.2 | ✅ Shipped | advisory; provable subset fixed (GTR020) |
+| Input `<param>` never referenced anywhere the tool uses it | GTR034 | ✅ Shipped | `strict` preset; 189/467 tools (`docs/corpus_check_stats.md`) |
 | Lone-`&` vs `&&` join | GTR032 | 🔭 Roadmap | registry labels it "not yet implemented" |
+
+### Inspect & refactor parameters (queries, not rules)
+
+| Capability | Status | Source |
+|---|---|---|
+| Find every Cheetah `$param` reference across a tool's templated sections | ✅ Shipped | `find-references` (`galaxy_tool_xml.cheetah_refs`) |
+| Rename a parameter across the definition, every reference, by-name cross-ref attributes, and `<tests>` mirrors — atomically (rewrite all or skip with a reason) | ✅ Shipped | `rename-param`; 93.1% of corpus definitions rename cleanly (`galaxy_tool_xml.cheetah_rename`) |
+| Minimal-diff offset rename for editors (LSP `WorkspaceEdit`) | 🟡 Partial | `rename_param_plan` (Tier-B API) shipped — 96.8% parity, 0 mismatches; editor binding is a draft PR (see Roadmap) |
 
 ### Surfaces & orchestration
 
 | Capability | Status | Source |
 |---|---|---|
 | Code-addressable rule registry + presets (`cosmetic`/`iuc`/`strict`) + `--select`/`--ignore` | ✅ Shipped | `galaxy-tool-refactor-registry` |
-| CLI: `format` / `upgrade` / `check` / `presets` / `rules` / `normalize-macros` | ✅ Shipped | `galaxy-tool-refactor` |
+| CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `presets` / `rules` / `normalize-macros` | ✅ Shipped | `galaxy-tool-refactor` |
 | MCP server for agents: `format_tool` / `upgrade_tool` / `check_tool` / `list_presets` / `list_rules` | ✅ Shipped | `galaxy-tool-refactor-mcp` (vision Goal 1) |
 | Corpus evidence base: 9,358 unique tools, standing measurements | ✅ Shipped | `docs/*_stats.md`, `scripts/measure.py` |
 
@@ -84,6 +93,9 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 - **Streamlining / partial automation of IUC PR review** — the per-tool engine exists
   today (`check`/`format`/`upgrade`); the *review-workflow integration* does not.
 - **Agent-authored rules** — agents contributing new codemods/checks (MCP vision Goal 2).
+- **Editor "Rename Symbol" via `galaxy-language-server`** — the foundational Tier-B offset
+  API (`rename_param_plan`) shipped; the galaxyls binding is an open *draft* PR
+  (galaxyproject/galaxy-language-server#331), gated on publishing `galaxy-tool-xml` to PyPI.
 - **General macro-expansion provenance** — a side-table mapping each expanded node to its
   source file, to edit *arbitrary* macro-supplied content. The literal-`format`/`ftype`
   slice (Phase 2a) shipped via locate-in-source (`normalize-macros`); the general layer is

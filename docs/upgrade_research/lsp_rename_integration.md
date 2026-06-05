@@ -152,8 +152,10 @@ not a re-think.
    tree as `rename_param`) and the `rename-coverage` corpus parity check (same apply/bail
    verdict — 96.8%, 0 mismatches; the remaining 3.2% soundly decline as `locator-failed` on
    exotic anchoring). The load-bearing piece, with the engine.
-2. **galaxyls PR** — deps, `prepareRename` + `rename` features, offset→`Range`
-   conversion, bail→diagnostic. Upstreamed to galaxyls.
+2. **galaxyls PR (in progress)** — deps, `prepareRename` + `rename` + `references`
+   features, offset→`Range` conversion, bail→diagnostic. Open as a *draft* PR
+   (galaxyproject/galaxy-language-server#331); not yet merged (gated on publishing
+   `galaxy-tool-xml` to PyPI).
 3. **(Optional) Tier A** as an interim if an editor demo is wanted before step 1 lands.
 4. **(Future) cross-file** rename via the macro import graph.
 

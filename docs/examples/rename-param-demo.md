@@ -132,3 +132,10 @@ shadows the name, or an output `<filter>` references the parameter by bare Pytho
 member of the "edit the code inside Cheetah sections" family. See
 `galaxy-tool-xml/docs/decisions.md` §20 and the roadmap in
 `docs/upgrade_research/cheetah_section_editing.md` (M5.3).*
+
+*The CLI shown here rewrites the tree and reserialises through fmt. The same engine
+also exposes a Tier-B offset API (`rename_param_plan`) that returns minimal
+`(start, end, replacement)` edits over the original source — 96.8% corpus parity with
+this CLI, 0 mismatches — for an editor "Rename Symbol" without reflowing the file. An
+LSP binding over it is an open draft PR (galaxyproject/galaxy-language-server#331); see
+`docs/upgrade_research/lsp_rename_integration.md`.*
