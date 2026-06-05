@@ -956,6 +956,62 @@ attribute-Cheetah (output `label`, dynamic `<options>`, `<entry_point>`,
   serialises through fmt. Corpus: of 72,247 input definitions across 8,928 tools, **93.1%
   rename cleanly** (290,170 sites); the largest residual bail is `filter-bare-ref` (5.6%).
 
+### Tier-B offset API (`rename_param_plan`) — minimal diffs for the editor
+
+**Date:** 2026-06-05. Step 1 of `../../docs/upgrade_research/lsp_rename_integration.md`:
+bring rename into [galaxy-language-server](https://github.com/galaxyproject/galaxy-language-server)
+as a real "Rename Symbol". An editor rename must touch **only** the renamed tokens, not
+reflow the document — which `rename_param` + the fmt serializer would (the facade's
+`RenameParamResult.formatted` reserialises the whole tree). So tier 1 grows a
+TextEdit-oriented rendering alongside the tree mutator:
+`rename_param_plan(source, *, old, new) -> RenamePlan`, a tuple of disjoint,
+document-ordered `RenameEdit(start, end, replacement)` spans into the **original** source.
+
+- **One planner, two renderings.** `rename_param` and `rename_param_plan` share
+  `_plan_rename` (which sites, which bails) and differ only in how the plan is applied —
+  tree mutation vs. resolving each site to source offsets. The two can never disagree on
+  scope or bail reason; the existing §20 bail taxonomy is reused verbatim.
+- **Raw-source locators (the new code), self-checked.** `_segment_edits` already gives
+  spans *within* a section's decoded text; resolving them to the raw document needs three
+  new pieces — a start-tag locator (`_start_tag_open`/`_start_tag_close`), an attribute-
+  value locator (`_attr_value_base`), and the text-body walker below. These use a focused
+  raw-source scan (option (a) of the LSP design note — chosen over coupling to galaxyls's
+  `XmlAttribute` model so the engine stays editor-agnostic, reusable for a future CLI
+  `--diff`). Every resolved span is verified against the source and the final edits checked
+  disjoint, so a mis-anchored span bails (`locator-failed`) rather than corrupting the file.
+- **Decoded→raw body walker, not a flat offset.** A `.text` offset equals a raw-source
+  offset only for an entity-free, single-CDATA, no-leading-whitespace body — which is *not*
+  the common case (many `<command>` bodies are plain text with `&amp;&amp;` for shell `&&`,
+  or `<command>\n<![CDATA[…`). So `_text_body_offset_map` walks the raw body from just past
+  the start tag, consuming `<![CDATA[` / `]]>` markers (content verbatim) and decoding
+  entity references outside a section, and relocates each decoded span to the source. Only
+  an entity it cannot decode (a non-predefined named entity, which DTD-less XML would not
+  have parsed anyway) bails `entity-content`.
+- **`sourceline` is the start tag's *closing* line.** lxml reports `sourceline` as the line
+  of a start tag's `>`, which for a multi-line tag (`<param name="x"\n  type="data"/>`) is
+  *later* than the opening `<`. `_start_tag_open` therefore anchors on the `<tag` whose
+  start tag *closes* on `sourceline` (with a document-order ordinal for ties) — a flat
+  forward-scan from that line grabbed the *next* element and renamed the wrong param.
+- **Whole-source bails.** A non-recoverable source bails `parse-error`; non-UTF-8 `bytes`
+  bail `encoding` (the LSP path passes an already-decoded `str`, so this is bytes-only).
+- **Offsets are character offsets into the decoded `str`** (bytes decoded UTF-8), the unit
+  an LSP server converts to a `Range` via its `position_at_offset`. The LSP path passes the
+  editor's already-decoded `str`; the `bytes` convenience only supports UTF-8.
+
+**Coverage (sized by `rename-coverage`, which now also checks Tier-B parity).** Across the
+72,247 corpus rename attempts the offset path reaches the **same verdict as the tree
+mutator for 96.8%** with **0 genuine mismatches** (the shared planner guarantees parity;
+the sweep asserts it). The remaining 3.2% are *sound declines*, not edits gone wrong:
+`locator-failed` 3.2% (exotic anchoring the raw scan can't reconcile — e.g. a literal
+`<tag` inside a comment / CDATA / help example that shifts the document-order ordinal) and
+`encoding` 0.0%. The two big early gaps were closed during sizing: entity/CDATA skew (the
+body walker, which also covers attribute values) and multi-line start tags (the
+`sourceline`-is-the-close-line fix) took parity 71.3% → 87.5% → 96.8%. An editor can fall
+back to a whole-document `TextEdit` (the design note's Tier A) for the declined cases.
+
+The galaxyls binding (deps, `prepareRename` / `rename`, offset→`Range`, bail→diagnostic)
+is the separate step 2 of the design note, upstreamed there — not in this repo.
+
 ### Reproduction
 
 ```sh

@@ -784,6 +784,20 @@ def test_measure_rename_coverage_classifies(tmp_path: Path) -> None:
         "<command>#set $s = 1\nrun $s</command></tool>",
         encoding="utf-8",
     )
+    # A param whose body carries XML entities (&amp;) and a CDATA section with leading
+    # whitespace: the body walker relocates the span, so BOTH paths apply (agree).
+    (repo / "entity.xml").write_text(
+        "<tool><inputs><param name='e'/></inputs>"
+        "<command>\n  <![CDATA[echo a &amp;&amp; run $e]]></command></tool>",
+        encoding="utf-8",
+    )
+    # A Latin-1 (non-UTF-8) tool: the tree mutator parses + applies, but the offset
+    # path's bytes convenience bails `encoding` — a sound stricter bail (no mismatch).
+    (repo / "latin1.xml").write_bytes(
+        "<?xml version='1.0' encoding='ISO-8859-1'?>"
+        "<tool><inputs><param name='p' label='café'/></inputs>"
+        "<command>run $p</command></tool>".encode("latin-1")
+    )
     # No <inputs> -> skipped entirely.
     (repo / "noinputs.xml").write_text(
         "<tool><command>run</command></tool>", encoding="utf-8"
@@ -791,12 +805,18 @@ def test_measure_rename_coverage_classifies(tmp_path: Path) -> None:
 
     result = _measure_rename_coverage(corpus_root=tmp_path)
     assert result.cdm_available is True
-    assert result.n_tools == 2  # clean + shadow (noinputs skipped)
-    assert result.n_attempts == 3  # a, b, s
-    assert result.n_success == 2  # a, b
-    assert result.n_sites == 4  # $a + def a, $b + def b
+    assert result.n_tools == 4  # clean + shadow + entity + latin1 (noinputs skipped)
+    assert result.n_attempts == 5  # a, b, s, e, p
+    assert result.n_success == 4  # a, b, e, p (tree mutator)
+    assert result.n_sites == 8  # ($a,def a), ($b,def b), ($e,def e), ($p,def p)
     assert result.bail_counts.get("shadowed") == 1
-    assert result.n_tools_all_clean == 1  # only clean.xml
+    assert result.n_tools_all_clean == 3  # clean + entity + latin1 (all tree-clean)
+    # Tier-B parity: a, b, s, e agree (e via the body walker); p is the stricter
+    # offset-only bail (non-UTF-8 bytes); 0 mismatch.
+    assert result.n_plan_agree == 4
+    assert result.n_plan_stricter == 1
+    assert result.plan_stricter_counts.get("encoding") == 1
+    assert result.n_plan_mismatch == 0
 
 
 # --- interpreter-bucket-split ---------------------------------------------------

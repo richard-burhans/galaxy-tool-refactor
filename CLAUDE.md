@@ -217,7 +217,9 @@ uv run python -m scripts.measure cheetah-cdm-coverage
 # Coverage of the first Cheetah MUTATOR (M5.3): attempt to rename every input definition
 # of every tool via the shipped tier-1 cheetah_rename.rename_param, tallying clean apply
 # vs each atomic bail (shadowed / mixed-content / lexer-bail / filter-bare-ref /
-# cross-ref-residual). Sized + tuned the cross-ref model: 93.1% apply cleanly. Needs the
+# cross-ref-residual). Sized + tuned the cross-ref model: 93.1% apply cleanly. Also checks
+# Tier-B parity: rename_param_plan (offset-returning) must reach the same verdict as the
+# tree mutator (96.8% same-verdict, 0 mismatches; the rest soundly decline). Needs the
 # corpus AND the cheetah-cdm extra (CT3), print-only, not run in CI. Backs
 # galaxy-tool-xml/docs/decisions.md §20:
 uv run python -m scripts.measure rename-coverage
