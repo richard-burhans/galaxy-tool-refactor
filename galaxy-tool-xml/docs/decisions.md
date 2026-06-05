@@ -946,15 +946,17 @@ attribute-Cheetah (output `label`, dynamic `<options>`, `<entry_point>`,
   references params by name) plus a few real cross-ref attributes (`when@input`,
   `filter@ref`, `from_dataset`, `split_inputs`), with the rest coincidental literals
   (`label`/`value`/`type`/`format`/…). Modelling the references and exempting the literals
-  (`_LITERAL_ATTRS`) took clean coverage **51.5% → 93.1%** and the residual bail to 0.1%.
+  (`_LITERAL_ATTRS`) took clean coverage **51.5% → 93.1%** and the residual cross-ref bail
+  to 0.1% (the later `<filter>` rewrite, §22, took clean coverage on to **96.3%**).
 - **Completeness net, denylist-guarded.** After rewriting, a non-literal attribute still
   equal to `old` trips `cross-ref-residual` — catching an unmodelled by-name reference so
   rename bails rather than ship a dangling tool, while the `_LITERAL_ATTRS` denylist keeps
   a coincidental `label="old"` from a false bail.
 - **No serialization here.** Tier 1 mutates the lxml tree (the source of truth); the
   facade deep-copies before calling (so a bail never mutates the caller's tree) and
-  serialises through fmt. Corpus: of 72,247 input definitions across 8,928 tools, **93.1%
-  rename cleanly** (290,170 sites); the largest residual bail is `filter-bare-ref` (5.6%).
+  serialises through fmt. Corpus: of 72,247 input definitions across 8,928 tools, **96.3%
+  rename cleanly** (322,859 sites); the residual bails are `filter-bare-ref` (2.4%, §22),
+  `lexer-bail`/`mixed-content` (0.5% each), `shadowed` (0.3%), `cross-ref-residual` (0.1%).
 
 ### Tier-B offset API (`rename_param_plan`) — minimal diffs for the editor
 
@@ -1034,10 +1036,10 @@ definition and **reported success while leaving the macro references dangling** 
 silent broken-tool bug, not merely missing coverage. Renaming
 `protein_alignment` across the bundle rewrites **9 sites across 3 files**.
 
-Corpus-wide (`rename-macro-spread`): of 71,935 input-definition renames, **1,101 (1.5%)
-spill into an imported macro — every one a silent break today**; 918 (83%) touch only
-sole-owned macros (v1 auto-applies with `--repo-root`), 183 touch a shared macro (v1
-skips + reports). 91.3% are tool-internal (unaffected).
+Corpus-wide (`rename-macro-spread`): of 71,935 input-definition renames, **1,243 (1.7%)
+spill into an imported macro — every one a silent break today**; 1,039 (84%) touch only
+sole-owned macros (v1 auto-applies with `--repo-root`), 204 touch a shared macro (v1
+skips + reports). 94.4% are tool-internal (unaffected).
 
 ### Decisions
 
@@ -1070,4 +1072,45 @@ skips + reports). 91.3% are tool-internal (unaffected).
 ```sh
 uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_bundle.py
 uv run python -m scripts.measure rename-macro-spread   # spill % + silent-break count
+```
+
+## 22. Output `<filter>` rename — a tokeniser-precise rewrite
+
+**Date:** 2026-06-05. Extends §20: rename a parameter referenced inside an output
+`<filter>`, which §20 conservatively bailed (`filter-bare-ref`).
+
+A Galaxy output `<filter>` is a **Python expression** over the input values
+(`<filter>genome == 'hg19'</filter>`), so a top-level parameter is referenced by **bare
+name**, not `$genome`. §20's first cut bailed whenever `old` appeared as a bare-ish token
+in any filter — the single largest residual bail (~5.6% of corpus rename attempts), and a
+*conservative over-bail* (it fired even when `old` only appeared inside a string literal).
+
+### Decisions
+
+- **`tokenize`, not `ast`/libCST.** The rename engine is offset-based (both the tree
+  mutator and the offset/`WorkspaceEdit` path consume `(start, end)` spans over the
+  original source). `tokenize` yields exactly that — every token with its precise
+  `(row, col)` — and the discrimination needed here is token-level, not semantic: rewrite
+  a bare `NAME` token equal to `old`, leave `STRING` tokens (`'old'`, dict keys, values)
+  and attribute accesses (`x.old`, a `NAME` after `OP('.')`) alone. A CST library would
+  add a heavyweight dependency and push toward regenerate-the-whole-expression, fighting
+  the minimal-diff model; `tokenize` (+ `ast.literal_eval` for one string-equality check)
+  is stdlib and offset-native.
+- **Bail-on-doubt, narrowed.** `_filter_name_spans` returns the `NAME`-token spans plus an
+  *ambiguous* flag, set when `old` also occurs as a **string literal** — a possible
+  `cond['old']` sub-parameter dict-key that cannot be told from a coincidental value. The
+  rename still bails `filter-bare-ref` then, and when a filter body won't tokenise at all
+  (falling back to the conservative `_has_bare_reference` check). So the bail survives only
+  for the genuinely-ambiguous residual.
+- **Result.** Clean rename coverage **93.1% → 96.3%** (`rename-coverage`); `filter-bare-ref`
+  dropped from the largest bail to a 2.4% residual. The offset path keeps full parity
+  (0 mismatches), so the editor/`WorkspaceEdit` rename gains filters too. Showcase:
+  `tools-iuc/pdfimages` (`output_format` → 9 sites incl. 3 `<filter>`s), previously
+  un-renamable.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_cheetah_rename.py -k filter
+uv run python -m scripts.measure rename-coverage
 ```

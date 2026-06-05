@@ -122,19 +122,18 @@ sanitizer constraints to prove more params space-free (cheap static widening of 
   (`rename_param`) + the facade `rename_param` op + the `rename-param OLD NEW PATHS` CLI
   (the mutating sibling of `find-references`, **not** a rule). Atomic per file: rewrites
   every live `$old` (command/configfile via the faithful lexer, attribute-Cheetah,
-  by-name cross-reference attributes, `<tests>` mirrors) plus the definition, or bails
-  unchanged. Sized + tuned by the `rename-coverage` sweep: **93.1%** of input definitions
-  rename cleanly (the coarse-net first cut was 51.5% — modelling `<tests>` + the real
-  cross-ref attrs and exempting coincidental literals closed the gap). Tier-1
-  `docs/decisions.md` §20, cli §D9.
-  - **Known limitation / future work — `filter-bare-ref` (5.6% of attempts).** An output
-    `<filter>` is a **Python** expression that names a param by *bare* word
-    (`genome == 'hg19'`), not `$genome`. Rewriting a bare name safely needs a Python
-    tokenizer (to skip string literals / attribute accesses / unrelated identifiers), so
-    rename currently **bails** when `old` appears as a bare token in any `<filter>` body
-    rather than risk a wrong edit. This is the single largest residual bail; closing it
-    (a small `ast`/`tokenize`-based rewrite of `<filter>` bodies, with the same
-    bail-on-doubt posture) is the obvious next coverage win for rename.
+  by-name cross-reference attributes, `<tests>` mirrors, **and output `<filter>` Python
+  expressions**) plus the definition, or bails unchanged. Sized + tuned by the
+  `rename-coverage` sweep: **96.3%** of input definitions rename cleanly (the coarse-net
+  first cut was 51.5% — modelling `<tests>` + the real cross-ref attrs and exempting
+  coincidental literals took it to 93.1%, then the `<filter>` rewrite below to 96.3%).
+  Tier-1 `docs/decisions.md` §20 + §22, cli §D9.
+  - **Output `<filter>` references — CLOSED (2026-06-05, §22).** An output `<filter>` is a
+    **Python** expression that names a param by *bare* word (`genome == 'hg19'`), not
+    `$genome`. A `tokenize`-based rewrite renames each bare `NAME` token, leaving string
+    literals / attribute accesses alone, and bails only on the genuinely ambiguous case
+    (`old` as a `cond['old']` string-key). This was the single largest residual bail
+    (~5.6% of attempts); it is now a 2.4% residual of those ambiguous cases.
   - **Editor integration (design).** Exposing rename as an in-editor *Rename Symbol*
     refactor through the galaxy-language-server is planned in `lsp_rename_integration.md`
     (the main new piece is a TextEdit/offset-returning rename API in tier 1). A worked

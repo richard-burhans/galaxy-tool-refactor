@@ -23,7 +23,7 @@ through `#if` directives and dotted `$p.metadata.x` accesses, output labels, by-
 cross-reference attributes, and `<tests>` mirrors — that **refuses to touch** a
 `$p` inside `#raw` / `##` / `\$p` / `<help>` prose, and is **atomic** (rewrites
 everything or nothing). The CLI `rename-param` already proves it at corpus scale
-(93.1% of definitions rename cleanly). The same engine behind an LSP `rename` request
+(96.3% of definitions rename cleanly). The same engine behind an LSP `rename` request
 is a compelling, very visual demo.
 
 ## What galaxyls already has (and what it lacks)

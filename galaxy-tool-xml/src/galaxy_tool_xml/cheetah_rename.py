@@ -19,11 +19,12 @@ with a reason, leaving the tree unmutated) when it cannot prove the rewrite safe
   Cheetah text across nodes, which the section lexer cannot span;
 - ``lexer-bail`` — CT3 cannot faithfully parse a body that references ``old`` (the
   ``cheetah_cdm`` extra is absent, or the body is one of the ~0.4% it can't compile);
-- ``filter-bare-ref`` — an output ``<filter>`` references ``old`` by **bare** name (a
-  Python expression, not ``$old``), which a safe rewrite would need a Python tokenizer.
-  This is the single largest residual bail (~5.6% of corpus rename attempts); closing
-  it with an ``ast``/``tokenize``-based ``<filter>`` rewrite is tracked as the next
-  coverage win in ``../../docs/upgrade_research/cheetah_section_editing.md`` (M5.3);
+- ``filter-bare-ref`` — an output ``<filter>`` (a Python expression) references ``old``
+  in a way a tokeniser-precise rewrite cannot prove safe: the body will not tokenise
+  (with a bare reference present), or ``old`` also appears as a **string literal** (a
+  possible ``cond['old']`` sub-parameter key indistinguishable from a coincidental
+  value). A bare ``NAME`` reference (``genome == 'hg19'``) *is* now rewritten via
+  ``tokenize`` — once the single largest bail (~5.6%), now a ~2.4% ambiguous residual;
 - ``cross-ref-residual`` — after rewriting, some attribute value still equals ``old``
   (a by-name cross-reference this version does not model), so a reference would dangle;
 - ``not-found`` / ``invalid-name`` / ``no-op`` — nothing named ``old`` occurs, ``new``
@@ -65,8 +66,11 @@ diverge on which sites to touch or when to bail:
 
 from __future__ import annotations
 
+import ast
 import bisect
+import io
 import re
+import tokenize
 from collections.abc import Iterator
 from dataclasses import dataclass
 
@@ -222,6 +226,51 @@ def _has_bare_reference(text: str, name: str, /) -> bool:
     standalone ``name`` token (an output ``<filter>`` Python reference) matches.
     """
     return re.search(rf"(?<![\w$.]){re.escape(name)}(?![\w])", text) is not None
+
+
+def _string_literal_eq(token_text: str, value: str, /) -> bool:
+    """Whether a Python ``STRING`` token's value equals *value* (``'old'`` → ``old``).
+
+    Used to spot ``old`` as a dict-key string (``cond['old']``). A non-literal token (an
+    f-string) is treated as not-equal — it cannot be a plain key.
+    """
+    try:
+        return bool(ast.literal_eval(token_text) == value)
+    except (ValueError, SyntaxError):
+        return False
+
+
+def _filter_name_spans(
+    text: str, old: str, /
+) -> tuple[list[tuple[int, int]], bool] | None:
+    """Spans of each *old* parameter reference in a Python ``<filter>`` expression.
+
+    A Galaxy output ``<filter>`` is a Python expression over the input values, so a
+    top-level parameter is referenced by **bare name** (``genome == 'hg19'``), not
+    ``$genome``. Tokenise the body and return the spans of every ``NAME`` token equal to
+    *old* that is a genuine reference, excluding an attribute access (``x.old``) and
+    string literals. The second tuple element is ``True`` when *old* also occurs as a
+    **string literal** (a possible ``cond['old']`` sub-parameter key, indistinct from a
+    coincidental value, so the caller bails ``filter-bare-ref``). Returns ``None`` when
+    the body will not tokenise (the caller falls back to ``_has_bare_reference``).
+    """
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError, ValueError):
+        return None
+    line_starts = _line_starts(text)
+    spans: list[tuple[int, int]] = []
+    ambiguous = False
+    after_dot = False
+    for token in tokens:
+        if token.type == tokenize.NAME and token.string == old and not after_dot:
+            start = line_starts[token.start[0] - 1] + token.start[1]
+            end = line_starts[token.end[0] - 1] + token.end[1]
+            spans.append((start, end))
+        elif token.type == tokenize.STRING and _string_literal_eq(token.string, old):
+            ambiguous = True
+        after_dot = token.type == tokenize.OP and token.string == "."
+    return spans, ambiguous
 
 
 def local_binding_names(spans: list[CheetahSpan], /) -> set[str]:
@@ -426,12 +475,23 @@ def _plan_rename(
         if spans:
             edits.append(_LogicalEdit(env_element, None, tuple(spans), False))
 
-    # Output filters reference params by bare Python name — unsafe to rewrite here.
+    # Output filters are Python expressions: a top-level parameter is referenced by bare
+    # name (``genome == 'hg19'``). Rewrite each NAME token via the tokeniser (string
+    # literals / ``x.old`` attributes left alone), bailing only when the body will not
+    # tokenise (with a bare reference) or ``old`` also appears as a string literal (an
+    # ambiguous ``cond['old']`` sub-parameter key indistinguishable from a value).
     for filter_element in root.iter("filter"):
         text = filter_element.text or ""
-        if _has_bare_reference(text, old):
+        if old not in text:
+            continue
+        result = _filter_name_spans(text, old)
+        if result is None:
+            if _has_bare_reference(text, old):
+                return [], "filter-bare-ref"
+            continue
+        spans, ambiguous = result
+        if ambiguous:
             return [], "filter-bare-ref"
-        spans = _segment_edits(text, 0, old)
         if spans:
             edits.append(_LogicalEdit(filter_element, None, tuple(spans), False))
 

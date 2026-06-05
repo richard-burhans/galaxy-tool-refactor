@@ -217,7 +217,8 @@ uv run python -m scripts.measure cheetah-cdm-coverage
 # Coverage of the first Cheetah MUTATOR (M5.3): attempt to rename every input definition
 # of every tool via the shipped tier-1 cheetah_rename.rename_param, tallying clean apply
 # vs each atomic bail (shadowed / mixed-content / lexer-bail / filter-bare-ref /
-# cross-ref-residual). Sized + tuned the cross-ref model: 93.1% apply cleanly. Also checks
+# cross-ref-residual). 96.3% apply cleanly (the tokenize-based <filter> rewrite, §22, took
+# it from 93.1%; filter-bare-ref is now a 2.4% residual of ambiguous cases). Also checks
 # Tier-B parity: rename_param_plan (offset-returning) must reach the same verdict as the
 # tree mutator (96.8% same-verdict, 0 mismatches; the rest soundly decline). Needs the
 # corpus AND the cheetah-cdm extra (CT3), print-only, not run in CI. Backs
@@ -226,7 +227,7 @@ uv run python -m scripts.measure rename-coverage
 
 # Cross-file rename sizing (tool bundle + sole-owned gate): rename every input definition
 # across the tool AND its imported macros; classify tool-only / spills-to-macro (sole-owned
-# vs shared) / bailed, plus the silent-break-today count (the bug the bundle fixes: 1.5% of
+# vs shared) / bailed, plus the silent-break-today count (the bug the bundle fixes: 1.7% of
 # renames). Reuses the shipped build_importer_map / rename_param_in_bundle. Writes
 # docs/rename_macro_spread_stats.md. Needs the corpus + cheetah-cdm extra; not in CI. Backs
 # galaxy-tool-xml/docs/decisions.md §21:
@@ -319,7 +320,7 @@ commands:
   proves a touched macro is sole-owned before editing it (a shared macro is skipped +
   reported, or — with `--across-importers` — renamed across every importer in lockstep
   when they all agree). Fixes a silent bug: a param referenced only in an imported macro
-  is no longer left dangling (1.5% of corpus renames; `scripts.measure
+  is no longer left dangling (1.7% of corpus renames; `scripts.measure
   rename-macro-spread`). First Cheetah mutator (M5.3); tier-1 `cheetah_rename` §20 +
   `bundle` §21, cli `docs/decisions.md` §D9/§D10/§D11, registry D14.
 - `galaxy-tool-refactor presets` / `rules` — introspection of the baked-in
