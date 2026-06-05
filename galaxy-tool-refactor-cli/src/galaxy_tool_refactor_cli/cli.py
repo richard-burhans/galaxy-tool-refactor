@@ -50,15 +50,18 @@ Selection (``--preset`` / ``--select`` / ``--ignore``) is shared by ``format``,
 from __future__ import annotations
 
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 import click
 from galaxy_tool_refactor_registry import facade
 from galaxy_tool_refactor_registry.bundle_rename import (
     BundleRenameResult,
+    ConsensusRenameResult,
     build_importer_map,
     find_references_in_bundle,
     rename_param_bundle,
+    rename_param_consensus,
 )
 from galaxy_tool_refactor_registry.errors import UnknownPreset, UnknownRuleCode
 from galaxy_tool_refactor_registry.macro_datatype import normalize_macro_files
@@ -121,6 +124,15 @@ _BACKUP_OPTION = click.option(
     "--backup",
     is_flag=True,
     help="Before overwriting a file, copy its current content to <file>.bak.",
+)
+_ACROSS_IMPORTERS_OPTION = click.option(
+    "--across-importers",
+    is_flag=True,
+    help=(
+        "When a rename reaches a macro shared by other tools, rename the parameter "
+        "across all of its importers in lockstep (only if they all agree). Needs "
+        "--repo-root."
+    ),
 )
 _STRICT_OPTION = click.option(
     "--strict",
@@ -580,11 +592,93 @@ def _report_rename_skip(
     click.echo(f"skip {target}: {result.reason}")
 
 
+def _report_consensus_skip(
+    result: ConsensusRenameResult, target: Path, *, quiet: bool
+) -> None:
+    """Print an informative skip line for a non-applied consensus rename."""
+    if result.reason == "not-found" or quiet:
+        return
+    if result.reason == "no-consensus":
+        click.echo(
+            f"skip {target}: cannot rename '{result.old}' across importers — "
+            "these tools cannot rename it safely:"
+        )
+        for tool, reason in result.dissenting:
+            click.echo(f"    {tool}: {reason}")
+        return
+    if result.reason == "macro-ownership-unprovable":
+        click.echo(
+            f"skip {target}: a shared macro is not covered by --repo-root; "
+            "point --repo-root at the repository that holds every importer"
+        )
+        return
+    click.echo(f"skip {target}: {result.reason}")
+
+
+def _run_consensus_rename(
+    paths: tuple[Path, ...],
+    *,
+    old: str,
+    new: str,
+    importers: Mapping[Path, frozenset[Path]],
+    check: bool,
+    backup: bool,
+    quiet: bool,
+) -> tuple[int, int, int, int]:
+    """Run the lockstep across-importers rename.
+
+    Returns the ``(renamed, would_change, skipped, errored)`` counts.
+    """
+    processed: set[Path] = set()
+    renamed = would_change = skipped = errored = 0
+    for target in iter_targets(paths):
+        try:
+            original = target.read_bytes()
+        except OSError as error:
+            click.echo(f"error: cannot read {target}: {error}", err=True)
+            errored += 1
+            continue
+        if not is_tool_root(original):
+            skipped += 1
+            continue
+        if target.resolve() in processed:
+            continue  # already rewritten as part of an earlier consensus group
+        try:
+            result = rename_param_consensus(
+                target, old=old, new=new, importers=importers,
+                write=not check, backup=backup,
+            )
+        except ToolXmlSyntaxError as error:
+            click.echo(f"error: {target}: malformed XML: {error}", err=True)
+            errored += 1
+            continue
+        processed.add(target.resolve())
+        processed.update(result.tools)
+        if not result.changed:
+            _report_consensus_skip(result, target, quiet=quiet)
+            skipped += 1
+            continue
+        sites = sum(edit.renamed for edit in result.edits)
+        summary = (
+            f"{len(result.tools)} tool(s), {len(result.edits)} file(s), {sites} site(s)"
+        )
+        if check:
+            would_change += 1
+            if not quiet:
+                click.echo(f"would rename across importers from {target}: {summary}")
+        else:
+            renamed += 1
+            if not quiet:
+                click.echo(f"renamed across importers from {target}: {summary}")
+    return renamed, would_change, skipped, errored
+
+
 @main.command(name="rename-param")
 @click.argument("old")
 @click.argument("new")
 @_PATH_ARGUMENT
 @_REPO_ROOT_OPTION
+@_ACROSS_IMPORTERS_OPTION
 @_CHECK_OPTION
 @_BACKUP_OPTION
 @_QUIET_OPTION
@@ -593,6 +687,7 @@ def rename_param_command(
     new: str,
     paths: tuple[Path, ...],
     repo_root: Path | None,
+    across_importers: bool,
     check: bool,
     backup: bool,
     quiet: bool,
@@ -610,13 +705,29 @@ def rename_param_command(
     local shadows OLD, a section is mixed-content, or an output ``<filter>`` references
     OLD by bare Python name). Editing an imported macro
     requires ``--repo-root`` to prove the macro is **sole-owned** (imported by no other
-    tool); a macro **shared** with another tool is reported and the rename is skipped
-    (renaming in lockstep across importers is not yet supported). PATHS may be files or
+    tool); a macro **shared** with another tool is reported and the rename is skipped —
+    unless ``--across-importers`` is given, which renames OLD across *every* importer of
+    the shared macro in lockstep (only when they all agree). PATHS may be files or
     directories; non-tool XML is skipped. ``--check`` previews without writing and exits
     non-zero if any file would change.
     """
     if not old.isidentifier() or not new.isidentifier():
         raise click.BadParameter("OLD and NEW must be valid identifiers")
+    if across_importers:
+        if repo_root is None:
+            raise click.BadParameter(
+                "--across-importers requires --repo-root to find every importer",
+                param_hint="--across-importers",
+            )
+        renamed, would_change, skipped, errored = _run_consensus_rename(
+            paths, old=old, new=new, importers=build_importer_map(repo_root),
+            check=check, backup=backup, quiet=quiet,
+        )
+        if not quiet:
+            done = would_change if check else renamed
+            verb = "would rename" if check else "renamed"
+            click.echo(f"{verb} {done} consensus group(s); skipped {skipped}")
+        sys.exit(1 if errored or (check and would_change) else 0)
     importers = build_importer_map(repo_root) if repo_root is not None else None
     renamed = would_change = skipped = errored = 0
     for target in iter_targets(paths):

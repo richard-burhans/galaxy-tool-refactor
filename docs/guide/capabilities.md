@@ -77,6 +77,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Find every Cheetah `$param` reference across a tool **and its imported macro files** | ✅ Shipped | `find-references` (`galaxy_tool_xml.cheetah_refs` + the tool bundle) |
 | Rename a parameter across the definition, every reference, by-name cross-ref attributes, and `<tests>` mirrors — **across a tool and its imported macro files**, atomically (rewrite all or skip with a reason) | ✅ Shipped | `rename-param`; 93.1% of definitions rename cleanly, and 1.5% reach into an imported macro the old single-file path silently left dangling (`galaxy_tool_xml.cheetah_rename` + `bundle`; `docs/rename_macro_spread_stats.md`) |
 | Gate a cross-file rename that touches a macro **shared** by other tools (edit only when sole-owned within `--repo-root`, else skip + report) | ✅ Shipped | `rename-param --repo-root` (`galaxy_tool_refactor_registry.bundle_rename`) |
+| Rename a parameter across **every importer** of a shared macro in lockstep (consensus — only when they all agree) | ✅ Shipped | `rename-param --across-importers` (`rename_param_consensus`) |
 | Minimal-diff offset rename for editors (LSP `WorkspaceEdit`) | 🟡 Partial | `rename_param_plan` (Tier-B API) shipped — 96.8% parity, 0 mismatches; editor binding is a draft PR (see Roadmap) |
 
 ### Surfaces & orchestration

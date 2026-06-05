@@ -312,14 +312,16 @@ commands:
 - `galaxy-tool-refactor find-references NAME PATHS` — read-only query (not a rule):
   every Cheetah `$NAME` reference site across a tool **and its imported macro files**
   (cli `docs/decisions.md` §D8/§D10; tier-1 Cheetah reference model §18).
-- `galaxy-tool-refactor rename-param OLD NEW PATHS [--repo-root DIR]` — the mutating
-  sibling of `find-references`: rename a parameter across every Cheetah section, by-name
-  cross-ref attribute, and `<tests>` mirror, plus the definition — across the tool
-  **and its imported macros** (the bundle), atomically. `--repo-root` proves a touched
-  macro is sole-owned before editing it (a shared macro is skipped + reported). Fixes a
-  silent bug: a param referenced only in an imported macro is no longer left dangling
-  (1.5% of corpus renames; `scripts.measure rename-macro-spread`). First Cheetah mutator
-  (M5.3); tier-1 `cheetah_rename` §20 + `bundle` §21, cli `docs/decisions.md` §D9/§D10.
+- `galaxy-tool-refactor rename-param OLD NEW PATHS [--repo-root DIR] [--across-importers]`
+  — the mutating sibling of `find-references`: rename a parameter across every Cheetah
+  section, by-name cross-ref attribute, and `<tests>` mirror, plus the definition —
+  across the tool **and its imported macros** (the bundle), atomically. `--repo-root`
+  proves a touched macro is sole-owned before editing it (a shared macro is skipped +
+  reported, or — with `--across-importers` — renamed across every importer in lockstep
+  when they all agree). Fixes a silent bug: a param referenced only in an imported macro
+  is no longer left dangling (1.5% of corpus renames; `scripts.measure
+  rename-macro-spread`). First Cheetah mutator (M5.3); tier-1 `cheetah_rename` §20 +
+  `bundle` §21, cli `docs/decisions.md` §D9/§D10/§D11, registry D14.
 - `galaxy-tool-refactor presets` / `rules` — introspection of the baked-in
   presets and rules.
 - `galaxy-tool-refactor normalize-macros` — opt-in, repo-scoped: lowercase literal

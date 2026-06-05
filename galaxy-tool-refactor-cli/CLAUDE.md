@@ -50,9 +50,10 @@ longer imports the codemod / check tiers directly. It exposes the
   parameter OLD→NEW across every Cheetah section, by-name cross-ref attribute, and
   `<tests>` mirror, plus the definition — across the tool **and its imported macros**
   (the bundle), atomically. `--repo-root` proves a touched macro is sole-owned (a
-  shared macro is skipped + reported); `--check` previews; `--backup` keeps `.bak`s.
-  First Cheetah mutator (M5.3) over `cheetah_rename` / `bundle_rename`; see
-  `docs/decisions.md` §D9, §D10.
+  shared macro is skipped + reported, or — with `--across-importers` — renamed across
+  every importer in lockstep when they all agree); `--check` previews; `--backup` keeps
+  `.bak`s. First Cheetah mutator (M5.3) over `cheetah_rename` / `bundle_rename`; see
+  `docs/decisions.md` §D9, §D10, §D11.
 - `presets` / `rules` — introspection of the baked-in presets and rules.
 - `normalize-macros` — opt-in, repo-scoped pass that lowercases literal
   `format`/`ftype` in `<macros>`-root files (the macro-library analog of 24.2

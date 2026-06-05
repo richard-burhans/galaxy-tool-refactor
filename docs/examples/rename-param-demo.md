@@ -162,9 +162,11 @@ Nine sites: the `<param>` definition in `pal2nal.xml`, the two `$protein_alignme
 references in `macros.xml`, and six `<test>` name-mirrors in `tests.xml`. If
 `macros.xml` were **shared** by another tool, `rename-param` would instead skip the
 whole rename and report which other tools import it — so a shared macro is never edited
-in a way that breaks a different tool. (Renaming all importers together is a planned
-follow-up.) Corpus-wide, **1.5%** of parameter renames reach into an imported macro
-this way — every one a tool the old single-file rename silently broke
+in a way that breaks a different tool. To rename it everywhere anyway, add
+`--across-importers`: it renames the parameter across **every** importer of the shared
+macro in one lockstep edit, but only if they all agree (any importer that can't rename it
+safely makes the whole group bail). Corpus-wide, **1.5%** of parameter renames reach into
+an imported macro this way — every one a tool the old single-file rename silently broke
 (`docs/rename_macro_spread_stats.md`).
 
 ## Atomic, or nothing

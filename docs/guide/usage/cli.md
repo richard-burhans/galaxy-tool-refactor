@@ -27,7 +27,8 @@ find-references  Report every Cheetah $var reference to a parameter across a too
 rename-param     Rename a parameter OLD->NEW across every Cheetah section, cross-ref attribute,
                  and <tests> mirror, plus the definition — across a tool AND its imported
                  macros, atomically. --repo-root proves a touched macro is sole-owned before
-                 editing it (a shared macro is skipped + reported); --check previews.
+                 editing it (a shared macro is skipped + reported, or renamed across all its
+                 importers in lockstep with --across-importers); --check previews.
 presets          List the available presets and the rule codes each one selects.
 rules            List the baked-in rules: code, family, fixable/advisory, presets.
 normalize-macros Lowercase literal format/ftype in <macros>-root files (opt-in, repo-scoped).
