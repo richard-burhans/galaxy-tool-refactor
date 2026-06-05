@@ -1,10 +1,13 @@
 # Bringing `rename-param` to the editor — galaxy-language-server integration design
 
-> **Status: design note (2026-06-05). Step 1 (the Tier-B API) is now shipped** —
-> `galaxy_tool_xml.cheetah_rename.rename_param_plan` returns minimal `RenameEdit` offsets
-> (96.8% corpus parity with the tree mutator, 0 mismatches); see
-> `galaxy-tool-xml/docs/decisions.md` §20 "Tier-B offset API". Steps 2–4 (the galaxyls
-> binding, optional Tier A, cross-file) remain. A grounded plan for exposing the
+> **Status: design note (2026-06-05). Steps 1–2 + cross-file are shipped** —
+> the Tier-B API (`galaxy_tool_xml.cheetah_rename.rename_param_plan`, 96.8% corpus parity,
+> 0 mismatches; `galaxy-tool-xml/docs/decisions.md` §20) **and** the galaxyls binding,
+> including **cross-file** rename across imported macro files (upstream PR
+> galaxyproject/galaxy-language-server#331, head `richard-burhans:feat/rename-param`). The
+> one remaining gap is the **shared-macro gate** in the editor — see
+> [Known limitation](#known-limitation--no-shared-macro-gate-in-the-editor-future-work)
+> below. A grounded plan for exposing the
 > M5.3 parameter-rename capability (`galaxy_tool_xml.cheetah_rename`, shipped in
 > `galaxy-tool-xml/docs/decisions.md` §20) as an **in-editor refactor** through the
 > [galaxy-language-server](https://github.com/galaxyproject/galaxy-language-server)
@@ -152,12 +155,15 @@ not a re-think.
    tree as `rename_param`) and the `rename-coverage` corpus parity check (same apply/bail
    verdict — 96.8%, 0 mismatches; the remaining 3.2% soundly decline as `locator-failed` on
    exotic anchoring). The load-bearing piece, with the engine.
-2. **galaxyls PR (in progress)** — deps, `prepareRename` + `rename` + `references`
-   features, offset→`Range` conversion, bail→diagnostic. Open as a *draft* PR
-   (galaxyproject/galaxy-language-server#331); not yet merged (gated on publishing
-   `galaxy-tool-xml` to PyPI).
-3. **(Optional) Tier A** as an interim if an editor demo is wanted before step 1 lands.
-4. **(Future) cross-file** rename via the macro import graph.
+2. **galaxyls PR** — ✅ **shipped (open, CI green).** Deps, `prepareRename` + `rename` +
+   `references` features, offset→`Range` conversion, bail→diagnostic
+   (galaxyproject/galaxy-language-server#331; gated only on publishing `galaxy-tool-xml`
+   to PyPI to flip the dev pin to a version spec).
+3. **(Optional) Tier A** as an interim if an editor demo is wanted — not needed; Tier B
+   shipped.
+4. **cross-file** rename via the macro import graph — ✅ **shipped** (the binding resolves
+   `imported_macro_paths` and emits a multi-file `WorkspaceEdit`), **except** the
+   shared-macro gate — see below.
 
 ## Open questions
 
@@ -170,6 +176,52 @@ not a re-think.
 - **`references` too?** `textDocument/references` (find-all-references in the editor) is
   a near-free win once `find_references` is wired — same offset machinery, read-only.
   Likely worth bundling with the rename PR.
+
+## Known limitation — no shared-macro gate in the editor (future work)
+
+The shipped galaxyls cross-file rename (#331) rewrites an imported macro **whenever the
+open tool references the parameter through it**, with no check on whether *other* tools
+also import that macro. For a **sole-owned** macro this is exactly right. For a **shared**
+macro it is incomplete: the rename updates the open tool and the macro, but the macro's
+*other* importers still define the old name — each would need the same rename, and they do
+not appear in the `WorkspaceEdit` the user reviews. So an editor rename of a parameter
+whose reference lives in a shared macro can leave sibling tools inconsistent.
+
+This is the editor counterpart of the CLI's shared-macro gate, which the CLI **does**
+enforce (`galaxy-tool-refactor-registry.bundle_rename`, registry `docs/decisions.md`
+D12–D14):
+
+- `rename-param --repo-root` skips a shared macro (sole-owned only), failing closed when
+  the repo root does not cover it (D13);
+- `rename-param --across-importers` renames every importer in lockstep when they all agree
+  (the consensus path, D14).
+
+**Why it is not in the editor yet.** The gate needs the *reverse* import map — which other
+tools import a given macro — which is a workspace-wide question. The CLI builds it with
+`build_importer_map(repo_root)`. That logic lives in the **registry tier**, which the
+galaxyls binding deliberately does **not** depend on (it depends only on `galaxy-tool-xml`,
+the parsing engine, to keep galaxyls' published metadata free of a heavyweight dep).
+
+**Two ways to close it, if we choose to:**
+
+1. **Lightweight in-binding scan.** Walk the LSP `workspace` root for tool files and resolve
+   each one's `imported_macro_paths` (already available from `galaxy-tool-xml`) to build the
+   reverse map in the binding — no new dependency, but it duplicates a slice of
+   `build_importer_map`, and a workspace-wide walk on every rename has a latency cost worth
+   caching/invalidating on file change.
+2. **Depend on the registry.** Make `galaxy-tool-refactor-registry` an optional engine the
+   same way `galaxy-tool-xml` is, and call `rename_param_bundle` / `rename_param_consensus`
+   directly — full parity with the CLI (sole-owned skip + consensus), at the cost of a
+   second optional dependency and adapting the registry's path/bytes I/O to LSP
+   document/URI + offset edits (the registry returns serialized bytes, not minimal offset
+   edits, so a minimal-`WorkspaceEdit` path would still need the per-file `rename_param_plan`).
+
+Either way, the editor would also want to *surface* a shared-macro rename (e.g. a warning,
+or a "rename across N importers?" prompt) rather than silently widen the edit. Until then,
+the binding documents the caveat (in its module docstring and the galaxyls changelog), and
+the **CLI is the safe path for shared macros**. No corpus sizing has been done for how often
+an editor rename would hit a shared macro specifically (the CLI's `rename-macro-spread`
+measure sizes the tool-driven case: 0.3% of corpus renames touch a shared macro).
 
 ## Provenance
 
