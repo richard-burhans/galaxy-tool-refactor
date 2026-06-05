@@ -4750,7 +4750,10 @@ def _run_cheetah_cdm_coverage(args: argparse.Namespace) -> None:
 # of every corpus tool via the shipped tier-1 `cheetah_rename.rename_param`, and tally
 # how the atomic rename resolves — clean rewrite vs each bail reason (shadowed / mixed-
 # content / lexer-bail / filter-bare-ref / cross-ref-residual). Answers "how often does
-# a comprehensive+atomic rename actually apply, and what blocks it." Needs the corpus
+# a comprehensive+atomic rename actually apply, and what blocks it." Also checks Tier-B
+# parity: the offset-returning `rename_param_plan` must reach the same verdict as the tree
+# mutator (same apply / same bail reason), except where the stricter offset path soundly
+# bails (entity-content / locator-failed); genuine mismatches must be 0. Needs the corpus
 # AND the cheetah-cdm extra (CT3); print-only, not run in CI; the pure tally is pinned
 # by a synthetic-fixture unit test. Backs galaxy-tool-xml/docs/decisions.md §20.
 
@@ -4777,6 +4780,11 @@ class _RenameCoverageResult:
     n_sites: int  # total reference/definition sites rewritten across successes
     bail_counts: dict[str, int]  # bail reason -> attempts
     n_tools_all_clean: int  # tools where every input definition renamed cleanly
+    # Tier-B offset-path (`rename_param_plan`) parity vs the tree mutator.
+    n_plan_agree: int  # offset path reached the SAME verdict (apply, or same bail reason)
+    n_plan_stricter: int  # tree applied but offset path soundly bailed (entity / locator)
+    n_plan_mismatch: int  # genuine divergence (MUST be 0 — the two share one planner)
+    plan_stricter_counts: dict[str, int]  # the offset-only bail reason -> attempts
 
 
 def _measure_rename_coverage(*, corpus_root: Path) -> _RenameCoverageResult:
@@ -4784,11 +4792,17 @@ def _measure_rename_coverage(*, corpus_root: Path) -> _RenameCoverageResult:
     import copy
 
     from galaxy_tool_xml.cheetah_cdm import cheetah_cdm_available
-    from galaxy_tool_xml.cheetah_rename import rename_param
+    from galaxy_tool_xml.cheetah_rename import rename_param, rename_param_plan
 
+    # Offset-only bails the stricter Tier-B path may add when the tree mutator applied.
+    plan_only_bails = frozenset(
+        {"entity-content", "locator-failed", "parse-error", "encoding"}
+    )
     seen: set[str] = set()
     n_tools = n_attempts = n_success = n_sites = n_all_clean = 0
+    n_plan_agree = n_plan_stricter = n_plan_mismatch = 0
     bail_counts: Counter[str] = Counter()
+    plan_stricter_counts: Counter[str] = Counter()
     for path in _iter_corpus_tool_xmls(corpus_root):
         if not path.is_file():
             continue
@@ -4809,10 +4823,13 @@ def _measure_rename_coverage(*, corpus_root: Path) -> _RenameCoverageResult:
                 names.append(name)
         if not names:
             continue
+        source = path.read_bytes()
         n_tools += 1
         all_clean = True
         for name in names:
-            outcome = rename_param(copy.deepcopy(root), old=name, new=f"{name}_gtr0")
+            new = f"{name}_gtr0"
+            outcome = rename_param(copy.deepcopy(root), old=name, new=new)
+            plan = rename_param_plan(source, old=name, new=new)
             n_attempts += 1
             if outcome.bailed:
                 bail_counts[outcome.reason or "unknown"] += 1
@@ -4820,6 +4837,18 @@ def _measure_rename_coverage(*, corpus_root: Path) -> _RenameCoverageResult:
             else:
                 n_success += 1
                 n_sites += outcome.renamed
+            # Parity classification. A plan bail with a plan-only reason is always a
+            # sound decline (the offset path refuses rather than mis-edit), whether or not
+            # the tree mutator applied. Otherwise the two must agree exactly: both apply,
+            # or both bail the same shared reason. Anything else is a real divergence —
+            # the shared planner makes that a bug, so it must be 0.
+            if plan.reason in plan_only_bails:
+                n_plan_stricter += 1
+                plan_stricter_counts[plan.reason or "unknown"] += 1
+            elif plan.bailed == outcome.bailed and plan.reason == outcome.reason:
+                n_plan_agree += 1
+            else:
+                n_plan_mismatch += 1
         if all_clean:
             n_all_clean += 1
     return _RenameCoverageResult(
@@ -4830,6 +4859,10 @@ def _measure_rename_coverage(*, corpus_root: Path) -> _RenameCoverageResult:
         n_sites=n_sites,
         bail_counts=dict(bail_counts),
         n_tools_all_clean=n_all_clean,
+        n_plan_agree=n_plan_agree,
+        n_plan_stricter=n_plan_stricter,
+        n_plan_mismatch=n_plan_mismatch,
+        plan_stricter_counts=dict(plan_stricter_counts),
     )
 
 
@@ -4859,6 +4892,19 @@ def _report_rename_coverage(result: _RenameCoverageResult) -> None:
         f"Tools where EVERY definition renames cleanly: {result.n_tools_all_clean} "
         f"({pct(result.n_tools_all_clean, result.n_tools)})"
     )
+    print("Tier-B offset path (rename_param_plan) parity vs the tree mutator:")
+    print(
+        f"  same verdict:   {result.n_plan_agree} "
+        f"({pct(result.n_plan_agree, result.n_attempts)})"
+    )
+    print(
+        f"  offset stricter:{result.n_plan_stricter} "
+        f"({pct(result.n_plan_stricter, result.n_attempts)})  "
+        "— tree applied, offsets soundly bailed"
+    )
+    for reason, count in sorted(result.plan_stricter_counts.items()):
+        print(f"      {reason:18} {count:6d} ({pct(count, result.n_attempts)})")
+    print(f"  MISMATCH:       {result.n_plan_mismatch}  (must be 0)")
 
 
 def _run_rename_coverage(args: argparse.Namespace) -> None:

@@ -57,6 +57,8 @@ from galaxy_tool_xml.document import ToolDocument, MacroDocument
 from galaxy_tool_xml.macros import MacroError, imported_macro_paths, token_definitions, TokenDefinition, expanded_detection_root
 from galaxy_tool_xml.corrections import suggest_corrections, Correction
 from galaxy_tool_xml.boolean_values import suggest_boolean_normalizations, normalize_boolean_token, BooleanNormalization
+from galaxy_tool_xml.cheetah_refs import tool_cheetah_references, CheetahRef
+from galaxy_tool_xml.cheetah_rename import rename_param, rename_param_plan, RenameOutcome, RenameEdit, RenamePlan
 from galaxy_tool_xml.profiles import available_profiles, latest_profile, UnknownProfileError
 from galaxy_tool_xml.models.registry import model_module, tool_class
 from galaxy_tool_xml.models.any_tool import AnyTool
@@ -69,8 +71,12 @@ faithfully preserving CDATA, comments, and attribute order. `binding.py` parses
 and validates; `profiles.py` resolves the per-release vendored XSD; `macros.py`
 handles Galaxy macros (the sole `galaxy-util` adapter); `corrections.py` suggests
 near-miss typo fixes; `boolean_values.py` reports schema-boolean attribute value
-normalizations (`True` → `true`); `models/` holds an xsdata-generated read-only typed model
-for every vendored schema version, reached via `ToolDocument.model()`.
+normalizations (`True` → `true`); `cheetah_refs.py` / `cheetah_rename.py` find and
+rename a parameter across a tool's Cheetah sections (the latter renders the rename
+either as a tree mutation, `rename_param`, or as minimal source offsets,
+`rename_param_plan`, for editor / LSP use); `models/` holds an xsdata-generated
+read-only typed model for every vendored schema version, reached via
+`ToolDocument.model()`.
 
 ## License
 

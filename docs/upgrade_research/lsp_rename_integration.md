@@ -1,6 +1,10 @@
 # Bringing `rename-param` to the editor — galaxy-language-server integration design
 
-> **Status: design note (2026-06-05). No code yet.** A grounded plan for exposing the
+> **Status: design note (2026-06-05). Step 1 (the Tier-B API) is now shipped** —
+> `galaxy_tool_xml.cheetah_rename.rename_param_plan` returns minimal `RenameEdit` offsets
+> (96.8% corpus parity with the tree mutator, 0 mismatches); see
+> `galaxy-tool-xml/docs/decisions.md` §20 "Tier-B offset API". Steps 2–4 (the galaxyls
+> binding, optional Tier A, cross-file) remain. A grounded plan for exposing the
 > M5.3 parameter-rename capability (`galaxy_tool_xml.cheetah_rename`, shipped in
 > `galaxy-tool-xml/docs/decisions.md` §20) as an **in-editor refactor** through the
 > [galaxy-language-server](https://github.com/galaxyproject/galaxy-language-server)
@@ -141,11 +145,13 @@ not a re-think.
 
 ## Sequencing
 
-1. **Tier-B API in this repo** — `rename_param_plan` returning `RenameEdit`s, with the
-   attribute-span locator. Pin with unit tests (offsets round-trip: applying the plan to
-   the source reproduces today's `rename_param` output) and a corpus equivalence check
-   (`rename-coverage` parity: same bail/apply verdict, plan now also offset-correct). This
-   is the load-bearing piece and belongs with the rest of the engine.
+1. **Tier-B API in this repo** — ✅ **shipped.** `rename_param_plan` returns `RenameEdit`s
+   via raw-source locators + a decoded→raw walker (CDATA / entity aware, for both text
+   bodies and attribute values) and a `sourceline`-aware start-tag anchor (multi-line
+   tags). Pinned by unit tests (offsets round-trip: applying the plan re-parses to the same
+   tree as `rename_param`) and the `rename-coverage` corpus parity check (same apply/bail
+   verdict — 96.8%, 0 mismatches; the remaining 3.2% soundly decline as `locator-failed` on
+   exotic anchoring). The load-bearing piece, with the engine.
 2. **galaxyls PR** — deps, `prepareRename` + `rename` features, offset→`Range`
    conversion, bail→diagnostic. Upstreamed to galaxyls.
 3. **(Optional) Tier A** as an interim if an editor demo is wanted before step 1 lands.
