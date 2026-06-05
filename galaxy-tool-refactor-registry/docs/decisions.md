@@ -460,8 +460,8 @@ where `macro_profile.py` puts the `@PROFILE@` consensus — tier 1 has no concep
   written; **shared** (any other importer) → the whole rename is *skipped and reported*
   (`reason="shared-macro"` + the blast radius), and the tool is **not** written either,
   so it is never left half-renamed referencing a name the shared macro still emits as
-  `$old`. Renaming all importers in lockstep (consensus, à la `macro_profile`) is a
-  documented fast-follow; this refuses rather than guess.
+  `$old`. Renaming all importers in lockstep (consensus, à la `macro_profile`) is the
+  opt-in `rename_param_consensus` path (D14); this default refuses rather than guess.
 - **`--repo-root` is the soundness keystone.** A rename that must edit a macro but was
   given **no importer map** bails `macro-edit-needs-repo-root` rather than guess — an
   under-counted importer set would silently authorise a shared write that breaks a tool
@@ -511,4 +511,38 @@ under the given `--repo-root`).
 ```sh
 uv run --package galaxy-tool-refactor-registry pytest \
   galaxy-tool-refactor-registry/tests/test_bundle_rename.py -k unprovable
+```
+
+## D14 (2026-06-05) — Consensus rename across shared-macro importers
+
+### Decision
+
+The fast-follow promised in D12: `rename_param_consensus` renames a parameter across a
+macro shared by several tools by editing **all** of its importers in lockstep, rather
+than skipping the shared macro. Opt-in (CLI `--across-importers`); the default stays the
+conservative sole-owned gate.
+
+- **Group = fixed-point closure.** Starting from the seed tool, the group grows by "edits
+  a macro that other tools import": each tool's bundle rename is computed, and every
+  importer of every macro it edits is pulled in, transitively. So a chain of shared
+  macros is fully covered — no tool that would be affected is left out.
+- **Consensus = unanimity.** The rename applies only if **every** group tool either
+  renames cleanly or simply does not use the parameter (`not-found` — e.g. it imports the
+  shared macro but expands a different fragment). A single importer that references the
+  parameter but cannot rewrite it safely makes the whole group `no-consensus`
+  (the dissenters are reported); nothing is written. This mirrors `macro_profile`'s
+  "agree iff all importers agree" exactly, one tier up.
+- **Each file written once.** The shared macro is edited identically by every importer's
+  bundle rename; the deduped result writes it (and each tool whose own tree changed) a
+  single time. A co-importer that only references the parameter through the shared macro
+  contributes that macro, not its own (unchanged) file.
+- **Same soundness rails as D12/D13.** An edited macro absent from the importer map →
+  `macro-ownership-unprovable` (the repo root does not cover it); `--repo-root` is
+  required (the CLI rejects `--across-importers` without it).
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-registry pytest \
+  galaxy-tool-refactor-registry/tests/test_bundle_rename.py -k consensus
 ```

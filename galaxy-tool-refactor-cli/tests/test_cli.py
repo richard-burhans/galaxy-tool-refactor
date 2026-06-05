@@ -620,6 +620,73 @@ def test_rename_repo_root_not_covering_tool_skips(tmp_path: Path) -> None:
     assert b"protein_alignment" in tool.read_bytes()  # not applied
 
 
+def _shared_importers(tmp_path: Path, b_body: bytes | None = None) -> tuple[Path, Path]:
+    """Two tools importing a shared macro that references `$old`; return (a, b)."""
+    _write(
+        tmp_path / "shared.xml",
+        b"<macros><xml name='command'>"
+        b"<command><![CDATA[run '$old']]></command></xml></macros>",
+    )
+    common = (
+        b"<macros><import>shared.xml</import></macros>"
+        b"<inputs><param name='old' type='data'/></inputs>"
+        b"<expand macro='command'/></tool>"
+    )
+    tool_a = _write(
+        tmp_path / "a.xml",
+        b"<tool id='a' name='A' version='1.0.0' profile='21.09'>" + common,
+    )
+    tool_b = _write(
+        tmp_path / "b.xml",
+        b_body or (b"<tool id='b' name='B' version='1.0.0' profile='21.09'>" + common),
+    )
+    return tool_a, tool_b
+
+
+def test_rename_across_importers_renames_the_group(tmp_path: Path) -> None:
+    tool_a, tool_b = _shared_importers(tmp_path)
+    result = CliRunner().invoke(
+        main,
+        ["rename-param", "old", "new", "--repo-root", str(tmp_path),
+         "--across-importers", str(tool_a)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "renamed across importers" in result.output
+    assert b'name="new"' in tool_a.read_bytes()
+    assert b'name="new"' in tool_b.read_bytes()  # the co-importer renamed in lockstep
+    macro_text = (tmp_path / "shared.xml").read_text(encoding="utf-8")
+    assert "$new" in macro_text and "$old" not in macro_text
+
+
+def test_across_importers_requires_repo_root(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _REFS_TOOL_BYTES)
+    result = CliRunner().invoke(
+        main, ["rename-param", "input", "x", "--across-importers", str(file)]
+    )
+    assert result.exit_code != 0
+    assert "repo-root" in result.output
+
+
+def test_across_importers_dissent_skips_the_group(tmp_path: Path) -> None:
+    # tool_b shadows the param in its own command -> no consensus -> nothing written.
+    b_body = (
+        b"<tool id='b' name='B' version='1.0.0' profile='21.09'>"
+        b"<macros><import>shared.xml</import></macros>"
+        b"<inputs><param name='old' type='data'/></inputs>"
+        b"<command>#set $old = 1\nrun $old</command></tool>"
+    )
+    tool_a, _tool_b = _shared_importers(tmp_path, b_body=b_body)
+    result = CliRunner().invoke(
+        main,
+        ["rename-param", "old", "new", "--repo-root", str(tmp_path),
+         "--across-importers", str(tool_a)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "cannot rename" in result.output
+    assert "b.xml" in result.output and "shadowed" in result.output  # names dissenter
+    assert b"old" in tool_a.read_bytes()  # the agreeing tool is not written either
+
+
 # --- --backup -------------------------------------------------------------------
 
 

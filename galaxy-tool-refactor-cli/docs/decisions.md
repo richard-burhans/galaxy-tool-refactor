@@ -376,3 +376,28 @@ tool while the macro reference was left dangling.
 uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/test_cli.py -k "rename or find_references or backup"
 uv run galaxy-tool-refactor rename-param old new path/to/tool.xml --repo-root path/to/repo --backup
 ```
+
+## D11 (2026-06-05) — `rename-param --across-importers` (consensus rename)
+
+### Decision
+
+`rename-param` gains `--across-importers` (requires `--repo-root`): when a rename reaches
+a macro shared by other tools, instead of skipping it (the D10 default), rename the
+parameter across **every** importer of that shared macro in lockstep, editing the shared
+macro once. Wraps the registry `rename_param_consensus` (registry D14).
+
+- The run de-duplicates: once a tool is rewritten as part of a consensus group, it is not
+  reprocessed when `iter_targets` reaches it again.
+- A group where any importer cannot rename the parameter safely is reported (`cannot
+  rename … across importers`, naming each dissenter and its reason) and **nothing** is
+  written — not even the tools that agreed (atomic across the group).
+- Without `--across-importers`, a shared macro is still skipped-and-reported (D10); the
+  flag is the explicit opt-in to the wider, multi-tool edit.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-cli pytest \
+  galaxy-tool-refactor-cli/tests/test_cli.py -k across_importers
+uv run galaxy-tool-refactor rename-param old new tools/ --repo-root . --across-importers
+```

@@ -32,12 +32,15 @@ tool still validates. Validity is a sound oracle for **structural** changes. It 
   - **GTR015 (`format="input"`)** fixes only the single-top-level-data-input case.
   - **GTR014** guards `format_source`.
 - **Imported-macro write-back** is *locate-in-source* (the construct is found in its
-  defining file), not provenance-driven. Two consumers exist: the `@PROFILE@` token
-  (addressed by name, only when every importer agrees on the target profile) and literal
+  defining file), not provenance-driven. Three consumers exist: the `@PROFILE@` token
+  (addressed by name, only when every importer agrees on the target profile); literal
   `format`/`ftype` normalization (the opt-in `normalize-macros`, validity-safe so no
-  consensus gate). There is **no** general mechanism to edit *arbitrary* macro-defined
-  content yet — sizing that residual found **0** further tools, so the provenance layer
-  stays deferred (`docs/macro_handling_architecture.md`).
+  consensus gate); and **cross-file parameter rename** (`rename-param` rewrites a
+  `$param` reference found in an imported macro, gated by sole-ownership within a
+  `--repo-root`, or by importer consensus with `--across-importers`). There is **no**
+  general mechanism to edit *arbitrary* macro-defined content yet — sizing that residual
+  found **0** further tools, so the provenance layer stays deferred
+  (`docs/macro_handling_architecture.md`).
 
 ## You can see the verdict
 

@@ -38,8 +38,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from galaxy_tool_xml.bundle import load_bundle, rename_param_in_bundle
+from galaxy_tool_xml.binding import ToolXmlSyntaxError
+from galaxy_tool_xml.bundle import (
+    BundleRenameOutcome,
+    ToolBundle,
+    load_bundle,
+    rename_param_in_bundle,
+)
 from galaxy_tool_xml.cheetah_refs import tool_cheetah_references
+from galaxy_tool_xml.cheetah_rename import is_identifier
 from galaxy_tool_xml.macros import imported_macro_paths
 from galaxy_tool_xml_fmt.cli_support import is_tool_root, make_backup
 from galaxy_tool_xml_fmt.format import (
@@ -305,4 +312,138 @@ def find_references_in_bundle(
         )
     return BundleFindReferencesResult(
         tool=tool.resolve(), name=name, references=tuple(references)
+    )
+
+
+@dataclass(frozen=True)
+class ConsensusRenameResult:
+    """Outcome of a rename across every importer of a shared macro, in lockstep.
+
+    ``changed`` is True only when the whole consensus group agreed and was rewritten.
+    On a skip ``reason`` says why: a name-gate reason (``invalid-name`` / ``no-op``),
+    ``not-found`` (no tool in the group defines the parameter), ``unparseable-macro``,
+    ``macro-ownership-unprovable`` (a macro the group edits is absent from the importer
+    map — the repo root does not cover it), or ``no-consensus`` (at least one importer
+    cannot rename the parameter safely — see ``dissenting``).
+    """
+
+    seed: Path
+    old: str
+    new: str
+    changed: bool
+    reason: str | None = None
+    edits: tuple[BundleMemberEdit, ...] = ()
+    tools: tuple[Path, ...] = ()
+    dissenting: tuple[tuple[Path, str], ...] = ()
+
+
+def _member_renamed(outcome: BundleRenameOutcome, source_path: Path | None, /) -> int:
+    """How many sites a member at *source_path* rewrote in *outcome*."""
+    return next(
+        (m.renamed for m in outcome.members if m.source_path == source_path), 0
+    )
+
+
+def rename_param_consensus(
+    seed: Path,
+    /,
+    *,
+    old: str,
+    new: str,
+    importers: Mapping[Path, frozenset[Path]],
+    write: bool = False,
+    backup: bool = False,
+) -> ConsensusRenameResult:
+    """Rename *old* to *new* across *seed* and every co-importer of any shared macro.
+
+    The opt-in counterpart to ``rename_param_bundle``'s sole-owned gate: instead of
+    *skipping* a shared macro, rename the parameter across **all** of its importers in
+    lockstep, editing the shared macro once. The consensus group is the fixed-point
+    closure of *seed* under "imports a macro this rename edits" (so a chain of shared
+    macros is fully covered). The rename applies only when **every** group tool agrees —
+    each either renames cleanly or simply does not use the parameter (``not-found``); a
+    single importer that references it but cannot be rewritten safely makes the whole
+    group ``no-consensus`` (reported in ``dissenting``), and nothing is written. Each
+    file (tool or macro) is written once; *importers* must cover every edited macro.
+    """
+    seed = seed.resolve()
+    if not is_identifier(old) or not is_identifier(new):
+        return ConsensusRenameResult(
+            seed, old, new, changed=False, reason="invalid-name"
+        )
+    if old == new:
+        return ConsensusRenameResult(seed, old, new, changed=False, reason="no-op")
+
+    group: dict[Path, tuple[ToolBundle, BundleRenameOutcome]] = {}
+    dissenting: list[tuple[Path, str]] = []
+    frontier: list[Path] = [seed]
+    while frontier:
+        tool = frontier.pop().resolve()
+        if tool in group:
+            continue
+        try:  # third-party parse boundary: a malformed tool cannot join the group
+            bundle = load_bundle(tool)
+        except ToolXmlSyntaxError:
+            dissenting.append((tool, "syntax-error"))
+            continue
+        if bundle.unparseable:
+            return ConsensusRenameResult(
+                seed, old, new, changed=False, reason="unparseable-macro"
+            )
+        outcome = rename_param_in_bundle(bundle, old=old, new=new)
+        group[tool] = (bundle, outcome)
+        if outcome.bailed:
+            if outcome.reason != "not-found":
+                dissenting.append((tool, outcome.reason or "unknown"))
+            continue
+        for macro in outcome.edited_macros:
+            if macro not in importers:
+                return ConsensusRenameResult(
+                    seed, old, new, changed=False, reason="macro-ownership-unprovable"
+                )
+            frontier.extend(importers[macro])
+
+    if dissenting:
+        return ConsensusRenameResult(
+            seed, old, new, changed=False, reason="no-consensus",
+            dissenting=tuple(sorted(dissenting)),
+        )
+
+    edits_by_path: dict[Path, BundleMemberEdit] = {}
+    renamed_tools: list[Path] = []
+    for tool, (bundle, outcome) in group.items():
+        if outcome.bailed:  # a co-importer that does not use the parameter — leave it
+            continue
+        # Only rewrite a tool whose OWN tree changed; a co-importer whose sole edits are
+        # in a shared macro contributes that macro (deduped below), not its own file.
+        tool_renamed = _member_renamed(outcome, bundle.tool.source_path)
+        if tool_renamed > 0:
+            renamed_tools.append(tool)
+            edits_by_path[tool] = BundleMemberEdit(
+                path=tool,
+                kind="tool",
+                renamed=tool_renamed,
+                formatted=format_tool_document_subset(bundle.tool, rule_classes=()),
+            )
+        edited = set(outcome.edited_macros)
+        for macro_doc in bundle.macros:
+            path = macro_doc.source_path
+            if path is not None and path in edited and path not in edits_by_path:
+                edits_by_path[path] = BundleMemberEdit(
+                    path=path,
+                    kind="macro",
+                    renamed=_member_renamed(outcome, path),
+                    formatted=format_macro_document(macro_doc),
+                )
+    if not edits_by_path:
+        return ConsensusRenameResult(seed, old, new, changed=False, reason="not-found")
+    if write:
+        for edit in edits_by_path.values():
+            if backup:
+                make_backup(edit.path)
+            edit.path.write_bytes(edit.formatted)
+    return ConsensusRenameResult(
+        seed, old, new, changed=True,
+        edits=tuple(edits_by_path.values()),
+        tools=tuple(sorted(renamed_tools)),
     )

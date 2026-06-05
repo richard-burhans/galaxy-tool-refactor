@@ -498,7 +498,9 @@ break.
    (`macro_profile.py`) and **cross-file `rename-param`** — renaming a parameter across a
    tool and its imported macros (tier-1 `bundle.py` §3; registry `bundle_rename.py`
    gate). Both gate a *shared* macro (imported by >1 tool): `@PROFILE@` by importer
-   consensus, rename by sole-ownership within a `--repo-root` (skip-and-report otherwise).
+   consensus, rename by sole-ownership within a `--repo-root` (skip-and-report otherwise,
+   or — opt-in — rename across every importer in lockstep via `rename_param_consensus`,
+   registry D14).
 
 ---
 

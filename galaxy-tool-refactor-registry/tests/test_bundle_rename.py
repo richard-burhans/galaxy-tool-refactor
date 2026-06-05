@@ -19,6 +19,7 @@ from galaxy_tool_refactor_registry.bundle_rename import (  # noqa: E402
     build_importer_map,
     find_references_in_bundle,
     rename_param_bundle,
+    rename_param_consensus,
 )
 
 
@@ -201,6 +202,108 @@ def test_write_false_returns_bytes_without_touching_disk(tmp_path: Path) -> None
     macro_edits = [edit for edit in result.edits if edit.kind == "macro"]
     assert any(b"$aln" in edit.formatted for edit in macro_edits)
     assert (tmp_path / "macros.xml").read_text(encoding="utf-8") == before  # untouched
+
+
+# --- bundle find-references -----------------------------------------------------
+
+
+# --- consensus rename across shared-macro importers -----------------------------
+
+
+def test_consensus_renames_all_importers(tmp_path: Path) -> None:
+    tool_a, tool_b = _shared_macro_tools(tmp_path)
+    importers = build_importer_map(tmp_path)
+    result = rename_param_consensus(
+        tool_a, old="old", new="new", importers=importers, write=True
+    )
+    assert result.changed
+    # The shared macro AND both importing tools are rewritten, each once.
+    assert {edit.path for edit in result.edits} == {
+        tool_a.resolve(),
+        tool_b.resolve(),
+        (tmp_path / "shared.xml").resolve(),
+    }
+    assert set(result.tools) == {tool_a.resolve(), tool_b.resolve()}
+    assert "$new" in (tmp_path / "shared.xml").read_text(encoding="utf-8")
+    assert 'name="new"' in tool_a.read_text(encoding="utf-8")
+    assert 'name="new"' in tool_b.read_text(encoding="utf-8")
+
+
+def test_consensus_dissent_skips_the_whole_group(tmp_path: Path) -> None:
+    # tool_b references the param in its OWN command but a #set local shadows it, so it
+    # cannot rename cleanly -> the whole consensus group is refused, nothing is written.
+    _write(
+        tmp_path,
+        "shared.xml",
+        "<macros><xml name='command'>"
+        "<command><![CDATA[run '$old']]></command></xml></macros>",
+    )
+    tool_a = _write(
+        tmp_path,
+        "a.xml",
+        "<tool id='a'><macros><import>shared.xml</import></macros>"
+        "<inputs><param name='old' type='data'/></inputs>"
+        "<expand macro='command'/></tool>",
+    )
+    tool_b = _write(
+        tmp_path,
+        "b.xml",
+        "<tool id='b'><macros><import>shared.xml</import></macros>"
+        "<inputs><param name='old' type='data'/></inputs>"
+        "<command>#set $old = 1\nrun $old</command></tool>",
+    )
+    importers = build_importer_map(tmp_path)
+    before = tool_a.read_bytes()
+    result = rename_param_consensus(
+        tool_a, old="old", new="new", importers=importers, write=True
+    )
+    assert not result.changed
+    assert result.reason == "no-consensus"
+    assert (tool_b.resolve(), "shadowed") in result.dissenting
+    assert tool_a.read_bytes() == before  # nothing written, not even the agreeing tool
+
+
+def test_consensus_co_importer_not_using_param_is_left_alone(tmp_path: Path) -> None:
+    # tool_c imports the shared macro but expands a DIFFERENT fragment and never uses
+    # the param -> it is in the group but its own file is not rewritten.
+    _write(
+        tmp_path,
+        "shared.xml",
+        "<macros>"
+        "<xml name='command'><command><![CDATA[run '$old']]></command></xml>"
+        "<xml name='other'><command><![CDATA[noop]]></command></xml>"
+        "</macros>",
+    )
+    tool_a = _write(
+        tmp_path,
+        "a.xml",
+        "<tool id='a'><macros><import>shared.xml</import></macros>"
+        "<inputs><param name='old' type='data'/></inputs>"
+        "<expand macro='command'/></tool>",
+    )
+    tool_c = _write(
+        tmp_path,
+        "c.xml",
+        "<tool id='c'><macros><import>shared.xml</import></macros>"
+        "<expand macro='other'/></tool>",
+    )
+    importers = build_importer_map(tmp_path)
+    result = rename_param_consensus(
+        tool_a, old="old", new="new", importers=importers, write=True
+    )
+    assert result.changed
+    assert tool_c.resolve() not in result.tools  # c never used the param
+    assert "$new" in (tmp_path / "shared.xml").read_text(encoding="utf-8")
+
+
+def test_consensus_not_found(tmp_path: Path) -> None:
+    tool = _sole_owned_tool(tmp_path)
+    importers = build_importer_map(tmp_path)
+    result = rename_param_consensus(
+        tool, old="absent", new="new", importers=importers
+    )
+    assert not result.changed
+    assert result.reason == "not-found"
 
 
 # --- bundle find-references -----------------------------------------------------
