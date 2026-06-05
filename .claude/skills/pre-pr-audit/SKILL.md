@@ -81,6 +81,12 @@ Sweep for things the change silently invalidated:
 - **Tier tables / package counts** — "eight packages", the tier matrix in each
   `CLAUDE.md` + `ARCHITECTURE.md`.
 - **Command lists** — `corpus_check` subcommands, `measure.py` slugs, CLI commands.
+- **User-facing doc suite** — when the change adds/renames a command or a user-visible
+  capability, update `docs/guide/` (the `capabilities.md` Shipped/Partial/Roadmap matrix,
+  `usage/cli.md` command count+list, `leverage.md` status tags) and any `docs/examples/`
+  showcase it touches. (The full periodic sweep across guide / examples / research / stats /
+  measurements is the `/architecture-audit` deep-doc-freshness step; do the change-scoped
+  slice here.)
 - **CI coverage** — `.github/workflows/ci.yml` has drifted before (silently dropped
   the check tier); confirm every package + script path is still exercised.
 - Draft/aux artifacts (e.g. a gitignored abstract draft) that quote now-stale facts.

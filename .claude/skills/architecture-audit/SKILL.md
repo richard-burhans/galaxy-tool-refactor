@@ -88,6 +88,39 @@ Phase-1 baseline, across these **seven dimensions**:
 7. **Doc / code agreement** — including whether the `ARCHITECTURE.md` you just wrote
    matches reality. **Any place the code forced a hedge in your doc is a finding.**
 
+### Documentation-suite freshness (standard sweep)
+
+Dimension 7 is not just `ARCHITECTURE.md` / `decisions.md` — **always sweep the whole
+user-facing documentation suite** against what shipped since the last audit. This is the
+part most likely to silently rot. For each category, open the files and check every
+present-tense claim / count / status marker / number against the code:
+
+- **Guide** (`docs/guide/`) — the audience explainers and especially the
+  **Shipped / Partial / Roadmap capability matrix** (`capabilities.md`) and the
+  leverage/ecosystem map (`leverage.md`): does every shipped capability have a row at the
+  right status? Is a now-shipped (or now-in-progress) item still tagged Roadmap/"not
+  built"? Are CLI command counts/lists current? (`usage/cli.md`.)
+- **Examples** (`docs/examples/`) — do the showcased commands, outputs, and numbers still
+  match? Should a demo point at a newer sibling capability?
+- **Research** (`docs/upgrade_research/`) — roadmap/spike **status markers**
+  (planned / deferred / shipped) and cited percentages: anything that shipped but is still
+  "future", or a number that moved, is a finding.
+- **Stats** (`docs/*_stats.md`) — confirm the **stat-freshness guard test** is green
+  (it pins *rule coverage* + *summary currency*, run in `qa_gate.sh`), then spot-check that
+  a newly-added rule actually appears with a real corpus number.
+- **Measurements** — `scripts/measure.py` registered slugs ↔ the `CLAUDE.md` measure list
+  must agree (no undocumented slug, no documented-but-removed slug; new behaviour like a
+  parity check is described).
+
+**Known false-positive traps (don't re-flag):** corpus-`check`-backed stats pages
+(`corpus_stats`, `combined`, `toolshed`, `corpus_format`, `corpus_check`, `corpus_rule`)
+are documented under CLAUDE.md's **`corpus_check`** section, not the measure list — a
+scan of only the measure list will wrongly call them "undocumented". Manually-regenerated
+measure-backed stats pages carry **no "Generated on" header** by convention — that is not
+drift, and you must **never fabricate a date or a corpus number** to fix it (regenerate
+with the corpus, or leave it). Numbers in stats/research prose may only be changed by
+re-running the standing measurement, never hand-edited.
+
 ### Conventions
 
 - **Severity:** High = a violated invariant or correctness hazard; Medium = a latent
