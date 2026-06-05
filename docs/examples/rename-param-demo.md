@@ -56,13 +56,13 @@ seqstats.xml:17  [output_data_label:stats_out]  ${input_bam.name}
 
 ```console
 $ galaxy-tool-refactor rename-param input_bam aligned_reads seqstats.xml
-renamed seqstats.xml: 6 site(s)
+renamed seqstats.xml: 6 site(s) across 1 file(s)
 renamed 1 tool(s); skipped 0
 ```
 
 (Six sites: the three `$`-references, the output label, the `<param>` definition,
 and the `<test>` reference. Use `--check` first for a dry-run preview that writes
-nothing.)
+nothing, or `--backup` to keep a `seqstats.xml.bak` copy.)
 
 ## 3. The result
 
@@ -117,6 +117,56 @@ comment, or an escaped `\$input_bam` — those are not live references. It also 
 **not** touch `<help>` text, because help is rendered documentation (RST/Markdown),
 not a Cheetah-templated section.
 
+## Following the parameter into imported macro files
+
+Real tools rarely keep everything in one file. A parameter is defined in the tool but
+*referenced* inside an imported macro — so a single-file rename would rename the
+definition and **silently leave the macro reference dangling**, breaking the tool.
+`rename-param` follows the parameter across the whole **bundle** (the tool and every
+macro it `<import>`s).
+
+Take the real IUC tool [`pal2nal`](https://github.com/galaxyproject/tools-iuc/tree/main/tools/pal2nal):
+`pal2nal.xml` *defines* `<param name="protein_alignment">` but its `<command>` is just
+`<expand macro="command"/>` — the `$protein_alignment` references live in
+`macros.xml`, and six more name-mirrors live in `tests.xml`:
+
+```console
+$ galaxy-tool-refactor find-references protein_alignment pal2nal.xml
+pal2nal/macros.xml:12  [command]  $protein_alignment
+pal2nal/macros.xml:24  [command]  $protein_alignment
+2 reference(s) to 'protein_alignment' across 1 tool(s)
+```
+
+Because the references reach an imported macro, the rename needs to prove that macro
+is **sole-owned** (not shared with another tool that would break). Without a repo to
+check against, it refuses rather than guess:
+
+```console
+$ galaxy-tool-refactor rename-param protein_alignment aligned_protein pal2nal.xml
+skip pal2nal.xml: 'protein_alignment' is referenced in an imported macro; rerun with
+  --repo-root DIR to prove the macro is sole-owned
+renamed 0 tool(s); skipped 1
+```
+
+Point `--repo-root` at the repo, and — since `macros.xml` / `tests.xml` are imported
+only by `pal2nal` — the rename applies across all three files at once:
+
+```console
+$ galaxy-tool-refactor rename-param protein_alignment aligned_protein \
+    --repo-root path/to/tools-iuc pal2nal.xml
+renamed pal2nal.xml: 9 site(s) across 3 file(s)
+renamed 1 tool(s); skipped 0
+```
+
+Nine sites: the `<param>` definition in `pal2nal.xml`, the two `$protein_alignment`
+references in `macros.xml`, and six `<test>` name-mirrors in `tests.xml`. If
+`macros.xml` were **shared** by another tool, `rename-param` would instead skip the
+whole rename and report which other tools import it — so a shared macro is never edited
+in a way that breaks a different tool. (Renaming all importers together is a planned
+follow-up.) Corpus-wide, **1.5%** of parameter renames reach into an imported macro
+this way — every one a tool the old single-file rename silently broke
+(`docs/rename_macro_spread_stats.md`).
+
 ## Atomic, or nothing
 
 If `rename-param` cannot prove *every* occurrence is safe to rewrite, it changes the
@@ -130,7 +180,9 @@ shadows the name, or an output `<filter>` references the parameter by bare Pytho
 
 *`rename-param` is the mutating sibling of `find-references`, and the first
 member of the "edit the code inside Cheetah sections" family. See
-`galaxy-tool-xml/docs/decisions.md` §20 and the roadmap in
+`galaxy-tool-xml/docs/decisions.md` §20 (the single-tool mutator) and §21 (the
+cross-file **bundle** rename), the sole-owned macro gate in
+`galaxy-tool-refactor-registry/docs/decisions.md` D12, and the roadmap in
 `docs/upgrade_research/cheetah_section_editing.md` (M5.3).*
 
 *The CLI shown here rewrites the tree and reserialises through fmt. The same engine

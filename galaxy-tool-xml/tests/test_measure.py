@@ -41,6 +41,7 @@ from scripts.measure import (
     _measure_output_format_input,
     _measure_param_types,
     _measure_rename_coverage,
+    _measure_rename_macro_spread,
     _measure_semantic_upgrade_boundaries,
     _measure_shell_oracle_quoting,
     _measure_upgrade_behavior_blocks,
@@ -817,6 +818,53 @@ def test_measure_rename_coverage_classifies(tmp_path: Path) -> None:
     assert result.n_plan_stricter == 1
     assert result.plan_stricter_counts.get("encoding") == 1
     assert result.n_plan_mismatch == 0
+
+
+def test_measure_rename_macro_spread_classifies(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # pal2nal shape: param defined in the tool, referenced only in a SOLE-OWNED macro.
+    (repo / "sole_macros.xml").write_text(
+        "<macros><xml name='command'>"
+        "<command><![CDATA[run '$pa']]></command></xml></macros>",
+        encoding="utf-8",
+    )
+    (repo / "pal.xml").write_text(
+        "<tool id='pal'><macros><import>sole_macros.xml</import></macros>"
+        "<inputs><param name='pa' type='data'/></inputs>"
+        "<expand macro='command'/></tool>",
+        encoding="utf-8",
+    )
+    # Tool-only: param defined and referenced in the tool itself.
+    (repo / "internal.xml").write_text(
+        "<tool id='int'><inputs><param name='x'/></inputs>"
+        "<command>run $x</command></tool>",
+        encoding="utf-8",
+    )
+    # Shared macro: imported by a.xml AND b.xml, each renaming 'sp' would touch it.
+    (repo / "shared.xml").write_text(
+        "<macros><xml name='command'>"
+        "<command><![CDATA[run '$sp']]></command></xml></macros>",
+        encoding="utf-8",
+    )
+    for tool_id in ("a", "b"):
+        (repo / f"{tool_id}.xml").write_text(
+            f"<tool id='{tool_id}'><macros><import>shared.xml</import></macros>"
+            "<inputs><param name='sp' type='data'/></inputs>"
+            "<expand macro='command'/></tool>",
+            encoding="utf-8",
+        )
+
+    result = _measure_rename_macro_spread(corpus_root=tmp_path)
+    assert result.cdm_available is True
+    assert result.n_tools == 4  # pal + internal + a + b
+    assert result.n_attempts == 4  # pa, x, sp(a), sp(b)
+    assert result.n_tool_only == 1  # x
+    assert result.n_spills_sole == 1  # pa -> sole_macros.xml
+    assert result.n_spills_shared == 2  # sp from a and from b -> shared.xml
+    # Every spill here is over a tool that DEFINES the param, so the old single-file
+    # rename would have "succeeded" while dangling the macro ref: all 3 silent breaks.
+    assert result.n_silent_break_today == 3
 
 
 # --- interpreter-bucket-split ---------------------------------------------------

@@ -224,6 +224,14 @@ uv run python -m scripts.measure cheetah-cdm-coverage
 # galaxy-tool-xml/docs/decisions.md §20:
 uv run python -m scripts.measure rename-coverage
 
+# Cross-file rename sizing (tool bundle + sole-owned gate): rename every input definition
+# across the tool AND its imported macros; classify tool-only / spills-to-macro (sole-owned
+# vs shared) / bailed, plus the silent-break-today count (the bug the bundle fixes: 1.5% of
+# renames). Reuses the shipped build_importer_map / rename_param_in_bundle. Writes
+# docs/rename_macro_spread_stats.md. Needs the corpus + cheetah-cdm extra; not in CI. Backs
+# galaxy-tool-xml/docs/decisions.md §21:
+uv run python -m scripts.measure rename-macro-spread
+
 # Auto-fixable population for a 16_04_fix_interpreter codemod (GTR016): tools with a
 # deprecated <command interpreter=…> split into bucket A (rewritable) / A-missing / B
 # (leading-Cheetah) / C (non-standard interpreter), reusing the codemod's own
@@ -302,13 +310,16 @@ commands:
   phases. Fixable findings exit non-zero; advisory findings appear only
   under `--preset strict` and are informational unless `--strict`.
 - `galaxy-tool-refactor find-references NAME PATHS` — read-only query (not a rule):
-  every Cheetah `$NAME` reference site across a tool's templated sections (cli
-  `docs/decisions.md` §D8; tier-1 Cheetah reference model §18).
-- `galaxy-tool-refactor rename-param OLD NEW PATHS` — the mutating sibling of
-  `find-references`: rename a parameter across every Cheetah section, by-name cross-ref
-  attribute, and `<tests>` mirror, plus the definition. Atomic per file (`--check`
-  previews); 93.1% corpus coverage. The first Cheetah mutator (M5.3); tier-1
-  `cheetah_rename` §20, cli `docs/decisions.md` §D9.
+  every Cheetah `$NAME` reference site across a tool **and its imported macro files**
+  (cli `docs/decisions.md` §D8/§D10; tier-1 Cheetah reference model §18).
+- `galaxy-tool-refactor rename-param OLD NEW PATHS [--repo-root DIR]` — the mutating
+  sibling of `find-references`: rename a parameter across every Cheetah section, by-name
+  cross-ref attribute, and `<tests>` mirror, plus the definition — across the tool
+  **and its imported macros** (the bundle), atomically. `--repo-root` proves a touched
+  macro is sole-owned before editing it (a shared macro is skipped + reported). Fixes a
+  silent bug: a param referenced only in an imported macro is no longer left dangling
+  (1.5% of corpus renames; `scripts.measure rename-macro-spread`). First Cheetah mutator
+  (M5.3); tier-1 `cheetah_rename` §20 + `bundle` §21, cli `docs/decisions.md` §D9/§D10.
 - `galaxy-tool-refactor presets` / `rules` — introspection of the baked-in
   presets and rules.
 - `galaxy-tool-refactor normalize-macros` — opt-in, repo-scoped: lowercase literal

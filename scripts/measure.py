@@ -4912,6 +4912,170 @@ def _run_rename_coverage(args: argparse.Namespace) -> None:
     _report_rename_coverage(result)
 
 
+# --- measurement: rename-macro-spread -------------------------------------------
+#
+# Sizes the cross-file rename feature (tool bundle + sole-owned gate). For every
+# input definition of every tool, rename it across the tool AND its imported macro
+# files and classify the outcome: tool-only (no macro touched), spills-to-macro
+# (>=1 macro rewritten — split sole-owned vs shared by the transitive importer map),
+# or bailed (by reason). The headline ``silent-break-today`` count is the bug the
+# feature fixes: renames the *old* single-file path reported as success while leaving
+# a ``$old`` reference dangling in an imported macro. Reuses the SHIPPED
+# build_importer_map / rename_param_in_bundle so the measure can't drift from the
+# code. Writes docs/rename_macro_spread_stats.md. Needs the corpus + the cheetah-cdm
+# extra; not run in CI. Backs galaxy-tool-xml/docs/decisions.md §21.
+
+
+@dataclass
+class _RenameMacroSpreadResult:
+    """How often a param rename reaches into an imported macro, and the gate split."""
+
+    cdm_available: bool
+    n_tools: int  # tools with >=1 renameable input definition
+    n_attempts: int  # (tool, name) rename attempts across the bundle
+    n_tool_only: int  # applied, no macro file touched
+    n_spills_sole: int  # applied, every touched macro is sole-owned (v1 applies)
+    n_spills_shared: int  # applied, >=1 touched macro is shared (v1 skips)
+    n_silent_break_today: int  # spills where the old single-file rename "succeeded"
+    bail_counts: dict[str, int]  # bundle bail reason -> attempts
+
+
+def _measure_rename_macro_spread(*, corpus_root: Path) -> _RenameMacroSpreadResult:
+    """Rename every input definition across its bundle; classify the spread + gate."""
+    import copy
+
+    from galaxy_tool_xml.binding import ToolXmlSyntaxError
+    from galaxy_tool_xml.bundle import load_bundle, rename_param_in_bundle
+    from galaxy_tool_xml.cheetah_cdm import cheetah_cdm_available
+
+    from galaxy_tool_refactor_registry.bundle_rename import build_importer_map
+
+    importers = build_importer_map(corpus_root)
+    seen: set[str] = set()
+    n_tools = n_attempts = n_tool_only = 0
+    n_spills_sole = n_spills_shared = n_silent_break = 0
+    bail_counts: Counter[str] = Counter()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None or root.tag != "tool":
+            continue
+        inputs = root.find("inputs")
+        if inputs is None:
+            continue
+        names: list[str] = []
+        for element in inputs.iter():
+            name = element.get("name") if element.tag in _RENAME_DEFINITION_TAGS else None
+            if name and name.isidentifier() and name not in names:
+                names.append(name)
+        if not names:
+            continue
+        try:
+            bundle = load_bundle(path)
+        except ToolXmlSyntaxError:
+            continue
+        tool_resolved = path.resolve()
+        n_tools += 1
+        for name in names:
+            outcome = rename_param_in_bundle(
+                copy.deepcopy(bundle), old=name, new=f"{name}_gtr0"
+            )
+            n_attempts += 1
+            if outcome.bailed:
+                bail_counts[outcome.reason or "unknown"] += 1
+                continue
+            if not outcome.edited_macros:
+                n_tool_only += 1
+                continue
+            any_shared = any(
+                importers.get(macro, frozenset({tool_resolved})) - {tool_resolved}
+                for macro in outcome.edited_macros
+            )
+            if any_shared:
+                n_spills_shared += 1
+            else:
+                n_spills_sole += 1
+            tool_member = outcome.members[0]
+            if not tool_member.bailed and tool_member.renamed > 0:
+                n_silent_break += 1
+    return _RenameMacroSpreadResult(
+        cdm_available=cheetah_cdm_available(),
+        n_tools=n_tools,
+        n_attempts=n_attempts,
+        n_tool_only=n_tool_only,
+        n_spills_sole=n_spills_sole,
+        n_spills_shared=n_spills_shared,
+        n_silent_break_today=n_silent_break,
+        bail_counts=dict(bail_counts),
+    )
+
+
+def _render_rename_macro_spread_page(result: _RenameMacroSpreadResult) -> str:
+    """Render docs/rename_macro_spread_stats.md from the measured result."""
+
+    def pct(n: int, of: int) -> str:
+        return f"{100 * n / of:.1f}%" if of else "0.0%"
+
+    a = result.n_attempts
+    spills = result.n_spills_sole + result.n_spills_shared
+    lines = [
+        "# Cross-file rename: macro spread + sole-owned gate",
+        "",
+        "Reproduced by `uv run python -m scripts.measure rename-macro-spread` "
+        "(needs the corpus + the `galaxy-tool-xml[cheetah-cdm]` extra).",
+        "",
+        f"- Tools with renameable input definitions: **{result.n_tools}**",
+        f"- Rename attempts (one per definition): **{a}**",
+        f"  - tool-only (no macro touched): **{result.n_tool_only}** "
+        f"({pct(result.n_tool_only, a)})",
+        f"  - spills into a macro: **{spills}** ({pct(spills, a)})",
+        f"    - every touched macro **sole-owned** (v1 applies with `--repo-root`): "
+        f"**{result.n_spills_sole}** ({pct(result.n_spills_sole, a)})",
+        f"    - some touched macro **shared** (v1 skips + reports): "
+        f"**{result.n_spills_shared}** ({pct(result.n_spills_shared, a)})",
+        f"  - bailed: **{a - result.n_tool_only - spills}**",
+        "",
+        f"**Silent-break-today: {result.n_silent_break_today}** "
+        f"({pct(result.n_silent_break_today, a)} of attempts) — renames the *old* "
+        "single-file path reported as success while leaving a `$old` reference "
+        "dangling in an imported macro. This is the correctness bug the bundle "
+        "rename fixes.",
+        "",
+        "Bundle bail reasons:",
+        "",
+    ]
+    lines.extend(
+        f"- `{reason}`: {result.bail_counts.get(reason, 0)}"
+        for reason in (*_RENAME_BAIL_REASONS, "unparseable-macro")
+        if result.bail_counts.get(reason)
+    )
+    return "\n".join(lines)
+
+
+def _report_rename_macro_spread(result: _RenameMacroSpreadResult) -> None:
+    print("\n=== rename-macro-spread (cross-file rename: spread + gate) ===")
+    if not result.cdm_available:
+        print("  cheetah-cdm extra (CT3) not installed — install galaxy-tool-xml[cheetah-cdm].")
+        return
+    print(_render_rename_macro_spread_page(result))
+
+
+def _run_rename_macro_spread(args: argparse.Namespace) -> None:
+    result = _measure_rename_macro_spread(corpus_root=args.corpus_root)
+    _report_rename_macro_spread(result)
+    if not args.all and result.cdm_available:
+        out_path = _repo_root() / "docs" / "rename_macro_spread_stats.md"
+        out_path.write_text(
+            _render_rename_macro_spread_page(result) + "\n", encoding="utf-8"
+        )
+        print(f"\nwrote {_display_path(out_path)}")
+
+
 # --- measurement: interpreter-bucket-split --------------------------------------
 #
 # Sizes the auto-fixable population for a `16_04_fix_interpreter` codemod (GTR016;
@@ -5781,6 +5945,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "cheetah-command-complexity": _run_cheetah_command_complexity,
     "cheetah-cdm-coverage": _run_cheetah_cdm_coverage,
     "rename-coverage": _run_rename_coverage,
+    "rename-macro-spread": _run_rename_macro_spread,
     "interpreter-bucket-split": _run_interpreter_buckets,
     "output-format-input": _run_output_format_input,
     "help-formats": _run_help_formats,

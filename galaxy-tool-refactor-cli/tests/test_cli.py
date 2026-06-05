@@ -519,3 +519,119 @@ def test_rename_param_rejects_invalid_name(tmp_path: Path) -> None:
     result = CliRunner().invoke(main, ["rename-param", "input", "not valid", str(file)])
     assert result.exit_code != 0
     assert "identifier" in result.output
+
+
+# --- cross-file (bundle) rename + find-references --------------------------------
+
+
+def _pal2nal_bundle(directory: Path) -> Path:
+    """A tool whose param reference lives only in a sole-owned imported macro."""
+    _write(
+        directory / "macros.xml",
+        b"<macros><xml name='command'>"
+        b"<command><![CDATA[pal2nal '$protein_alignment']]></command></xml></macros>",
+    )
+    return _write(
+        directory / "pal2nal.xml",
+        b"<tool id='pal2nal' name='P' version='1.0.0' profile='21.09'>"
+        b"<macros><import>macros.xml</import></macros>"
+        b"<inputs><param name='protein_alignment' type='data'/></inputs>"
+        b"<expand macro='command'/></tool>",
+    )
+
+
+def test_find_references_spans_imported_macro(tmp_path: Path) -> None:
+    tool = _pal2nal_bundle(tmp_path)
+    result = CliRunner().invoke(
+        main, ["find-references", "protein_alignment", str(tool)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "macros.xml" in result.output  # the reference is reported in the macro file
+    assert "$protein_alignment" in result.output
+    assert "1 reference(s) to 'protein_alignment'" in result.output
+
+
+def test_rename_into_macro_without_repo_root_skips(tmp_path: Path) -> None:
+    tool = _pal2nal_bundle(tmp_path)
+    result = CliRunner().invoke(
+        main, ["rename-param", "protein_alignment", "aln", str(tool)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "--repo-root" in result.output  # tells the user how to proceed
+    assert b"protein_alignment" in tool.read_bytes()  # nothing written
+
+
+def test_rename_into_sole_owned_macro_with_repo_root(tmp_path: Path) -> None:
+    tool = _pal2nal_bundle(tmp_path)
+    result = CliRunner().invoke(
+        main,
+        ["rename-param", "protein_alignment", "aln", "--repo-root", str(tmp_path),
+         str(tool)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "across 2 file(s)" in result.output
+    macro_text = (tmp_path / "macros.xml").read_text(encoding="utf-8")
+    assert "$aln" in macro_text and "$protein_alignment" not in macro_text
+    assert "name=\"aln\"" in tool.read_text(encoding="utf-8")
+
+
+def test_rename_into_shared_macro_is_reported(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "shared.xml",
+        b"<macros><xml name='command'>"
+        b"<command><![CDATA[run '$old']]></command></xml></macros>",
+    )
+    common = (
+        b"<macros><import>shared.xml</import></macros>"
+        b"<inputs><param name='old' type='data'/></inputs>"
+        b"<expand macro='command'/></tool>"
+    )
+    tool_a = _write(
+        tmp_path / "a.xml",
+        b"<tool id='a' name='A' version='1.0.0' profile='21.09'>" + common,
+    )
+    _write(
+        tmp_path / "b.xml",
+        b"<tool id='b' name='B' version='1.0.0' profile='21.09'>" + common,
+    )
+    result = CliRunner().invoke(
+        main,
+        ["rename-param", "old", "new", "--repo-root", str(tmp_path), str(tool_a)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "shared" in result.output
+    assert "b.xml" in result.output  # the other importer is named
+    assert b"old" in tool_a.read_bytes()  # not applied
+
+
+# --- --backup -------------------------------------------------------------------
+
+
+def test_format_backup_writes_bak(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _REFS_TOOL_BYTES)
+    result = CliRunner().invoke(main, ["format", "--backup", str(file)])
+    assert result.exit_code == 0, result.output
+    backup = tmp_path / "tool.xml.bak"
+    assert backup.read_bytes() == _REFS_TOOL_BYTES  # the pristine original is preserved
+    assert file.read_bytes() != _REFS_TOOL_BYTES  # the real file was reformatted
+
+
+def test_rename_backup_covers_every_written_member(tmp_path: Path) -> None:
+    tool = _pal2nal_bundle(tmp_path)
+    macro_before = (tmp_path / "macros.xml").read_bytes()
+    tool_before = tool.read_bytes()
+    result = CliRunner().invoke(
+        main,
+        ["rename-param", "protein_alignment", "aln", "--repo-root", str(tmp_path),
+         "--backup", str(tool)],
+    )
+    assert result.exit_code == 0, result.output
+    # Both written members got a .bak holding their pre-rename content.
+    assert (tmp_path / "macros.xml.bak").read_bytes() == macro_before
+    assert (tmp_path / "pal2nal.xml.bak").read_bytes() == tool_before
+
+
+def test_check_makes_no_backup(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _REFS_TOOL_BYTES)
+    CliRunner().invoke(main, ["format", "--check", "--backup", str(file)])
+    assert not (tmp_path / "tool.xml.bak").exists()  # --check writes nothing

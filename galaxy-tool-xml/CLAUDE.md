@@ -45,7 +45,10 @@ resolves a tool's `profile` to one of the ~28 vendored per-release XSDs.
 `macros.py` handles Galaxy macros and is the sole `galaxy-util` adapter; it also
 exposes read-only macro-file resolution (`imported_macro_paths`) and
 token-definition lookup (`token_definitions` / `TokenDefinition`) over a tool and
-its imported macro files.
+its imported macro files. `bundle.py` builds a `ToolBundle` (a tool + its
+transitively-imported macro documents) via `load_bundle` and renames a parameter
+across the whole bundle (`rename_param_in_bundle`) — the cross-file extension of
+`cheetah_rename` (decisions §21).
 `corrections.py` suggests near-miss typo fixes. `models/` holds an
 xsdata-generated read-only typed model per vendored schema version, generated at
 build time by `_codegen.py` and reached via `ToolDocument.model()`;

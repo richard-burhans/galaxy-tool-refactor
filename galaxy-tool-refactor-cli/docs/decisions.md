@@ -341,3 +341,38 @@ input definitions rename cleanly; see `galaxy-tool-xml/docs/decisions.md` §20.
 uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/test_cli.py -k rename
 uv run galaxy-tool-refactor rename-param old_name new_name path/to/tool.xml
 ```
+
+## D10 (2026-06-05) — `rename-param` / `find-references` go cross-file; `--backup`
+
+### Decision
+
+`rename-param` and `find-references` now operate over a tool **and its imported macro
+files** (the bundle — `galaxy-tool-xml/docs/decisions.md` §21, registry D12), fixing a
+silent bug: a param referenced only in an imported macro was previously renamed in the
+tool while the macro reference was left dangling.
+
+- **`find-references`** scans the tool plus every imported macro
+  (`find_references_in_bundle`), printing `file:line [section] $ref` against the member's
+  own file; occurrences are de-duplicated so a macro shared by several scanned tools is
+  reported once. Read-only, no new flags.
+- **`rename-param --repo-root DIR`.** A rename whose edits all land in the tool needs no
+  repo context and applies as before. When the rename must edit an imported macro, the
+  CLI builds the transitive importer map over `--repo-root` and the registry gate applies
+  only if the macro is **sole-owned**; a **shared** macro is reported (with its other
+  importers) and the rename is skipped. A macro edit with **no** `--repo-root` is skipped
+  with a message telling the user to supply one — never guessed. **Behaviour change:** a
+  rename that today "succeeds" while spilling into a macro now either applies (sole-owned +
+  `--repo-root`) or skips — it never silently breaks a macro.
+- The registry does the writing (multiple members: tool + sole-owned macros), so the CLI
+  no longer writes rename output itself (the cli.py serialiser-allowlist entry was retired).
+- **`--backup`** (on `format` / `upgrade` / `rename-param` / `normalize-macros`) copies
+  each file to `<file>.bak` before overwriting it (fmt's `cli_support.make_backup`), gated
+  by `write` so `--check` never makes backups. A belt-and-suspenders net beside `--check` /
+  `--diff` / git, more useful now that one `rename-param` run can write several files.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/test_cli.py -k "rename or find_references or backup"
+uv run galaxy-tool-refactor rename-param old new path/to/tool.xml --repo-root path/to/repo --backup
+```

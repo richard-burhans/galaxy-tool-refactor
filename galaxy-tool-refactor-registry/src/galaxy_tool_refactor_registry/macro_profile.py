@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING
 from galaxy_tool_xml.binding import load_macros, newest_valid_profile
 from galaxy_tool_xml.macros import token_definitions
 from galaxy_tool_xml.profiles import is_newer_profile
+from galaxy_tool_xml_fmt.cli_support import make_backup
 from galaxy_tool_xml_fmt.format import format_macro_document
 
 if TYPE_CHECKING:
@@ -147,15 +148,16 @@ class MacroProfileResult:
 
 
 def apply_profile_token_plans(
-    plans: Iterable[ProfileTokenPlan], /, *, write: bool
+    plans: Iterable[ProfileTokenPlan], /, *, write: bool, backup: bool = False
 ) -> MacroProfileResult:
     """Bump each agreed macro file's profile token; report no-consensus skips.
 
     For an agreeing plan whose token is stale (older than the agreed target), the
     ``<token>`` text is rewritten to the target and — when *write* is true — the
-    macro file is reserialised through ``format_macro_document`` and written back.
-    Bump-up-only: a token already at (or newer than) the target is a no-op. A
-    non-agreeing plan is recorded as a skip and never written.
+    macro file is reserialised through ``format_macro_document`` and written back
+    (copied to ``<file>.bak`` first when *backup*). Bump-up-only: a token already at
+    (or newer than) the target is a no-op. A non-agreeing plan is recorded as a skip
+    and never written.
     """
     edits: list[MacroTokenEdit] = []
     skips: list[MacroTokenSkip] = []
@@ -174,6 +176,8 @@ def apply_profile_token_plans(
             continue  # already current, or token ahead of validity — no-op
         if write:
             token.text = plan.target
+            if backup:
+                make_backup(plan.macro_file)
             plan.macro_file.write_bytes(format_macro_document(document))
         edits.append(
             MacroTokenEdit(

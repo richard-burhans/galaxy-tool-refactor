@@ -156,6 +156,15 @@ schema, and expose a typed view — **without ever serialising**.
     editor / LSP `WorkspaceEdit` — no reflow; 96.8% corpus parity with the tree
     mutator, 0 mismatches (xml §20). Still **no serializer**: the tree rendering
     mutates in place, the offset rendering returns spans; the caller serialises.
+    `rename_param` reads its mode (tool vs `<macros>`) from the root tag, so it renames
+    inside a macro file too.
+  - `bundle.py` — `ToolBundle` (a tool + its transitively-imported `MacroDocument`s,
+    each with `source_path`) + `load_bundle(path)`, and `rename_param_in_bundle` — the
+    **cross-file** rename: renames a parameter across the tool and its macros atomically
+    (the silent-bug fix for a param referenced only in an imported macro — the real
+    `pal2nal` case, 9 sites across 3 files). Pure mutation + per-member outcome with a
+    `not-found` carve-out; the *shared-macro* safety lives one tier up in the registry
+    gate (xml §21).
 
 **Contract:** the lxml tree is the single representation; tier 1 emits no XML.
 *(xml `docs/decisions.md` §3 representation, §9 three-tier vision, §10 corpus
@@ -482,9 +491,14 @@ break.
 7. **Shared selection model.** `--preset` / `--select` / `--ignore` work
    identically across `format` / `upgrade` / `check` (upgrade rejects `--preset`),
    resolved once in `resolve.py`.
-8. **Macro handling is cosmetic-only in v1** — except the consensus imported
-   `@PROFILE@` token bump in `macro_profile.py`. Macro files have no codemods (the
-   codemods are `applies_to={"tool"}`).
+8. **Macro handling is cosmetic-only in v1, with two content exceptions.** Macro
+   files have no codemods (the codemods are `applies_to={"tool"}`), but two operations
+   edit *content* in an imported macro file by locating the construct in its own source
+   ("locate-in-source", not expansion): the consensus imported `@PROFILE@` token bump
+   (`macro_profile.py`) and **cross-file `rename-param`** — renaming a parameter across a
+   tool and its imported macros (tier-1 `bundle.py` §3; registry `bundle_rename.py`
+   gate). Both gate a *shared* macro (imported by >1 tool): `@PROFILE@` by importer
+   consensus, rename by sole-ownership within a `--repo-root` (skip-and-report otherwise).
 
 ---
 

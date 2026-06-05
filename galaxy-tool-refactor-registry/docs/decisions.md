@@ -440,3 +440,47 @@ Two invariants it upholds:
 uv run --package galaxy-tool-refactor-registry pytest \
   galaxy-tool-refactor-registry/tests/test_facade.py -k rename
 ```
+
+## D12 (2026-06-05) — Cross-file rename: the sole-owned shared-macro gate
+
+### Decision
+
+`bundle_rename.py` adds the repo-aware tier above the tier-1 bundle rename
+(`galaxy-tool-xml/docs/decisions.md` §21): it decides whether a macro a rename would
+edit is *safe* to write, and is the home for the cross-tool orchestration (exactly
+where `macro_profile.py` puts the `@PROFILE@` consensus — tier 1 has no concept of
+"the other tools in the repo").
+
+- **`build_importer_map(repo_root) -> {macro: frozenset[tool]}`** walks the repo for
+  `<tool>` roots and inverts each one's **transitive** `imported_macro_paths`. Keyed on
+  transitive (not direct) imports, so a macro shared only through a deeper chain is not
+  mis-counted as sole-owned.
+- **Sole-owned gate (v1).** `rename_param_bundle` loads the bundle, renames across it,
+  then classifies each macro the rename touched: sole-owned (importers `== {tool}`) →
+  written; **shared** (any other importer) → the whole rename is *skipped and reported*
+  (`reason="shared-macro"` + the blast radius), and the tool is **not** written either,
+  so it is never left half-renamed referencing a name the shared macro still emits as
+  `$old`. Renaming all importers in lockstep (consensus, à la `macro_profile`) is a
+  documented fast-follow; this refuses rather than guess.
+- **`--repo-root` is the soundness keystone.** A rename that must edit a macro but was
+  given **no importer map** bails `macro-edit-needs-repo-root` rather than guess — an
+  under-counted importer set would silently authorise a shared write that breaks a tool
+  outside the scanned set (the highest-severity risk in the design). A *pure tool-internal*
+  rename (no macro touched) needs no map. Ownership is framed as "sole-owned within the
+  repo root the map was built over."
+- **An unparseable imported macro bails the rename** (`unparseable-macro`): a macro we
+  cannot read might reference `old`, so renaming the tool would risk a dangling reference.
+- **Read-only `find_references_in_bundle`** scans the tool **and** each imported macro
+  (no gate — it never writes), attributing each occurrence to its own file.
+
+`--backup` (a `make_backup` copy to `<file>.bak` before each overwrite, in fmt's
+`cli_support`) threads through the registry write sites (`rename_param_bundle`,
+`normalize_macro_files`, `apply_profile_token_plans`), gated by `write`.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-registry pytest \
+  galaxy-tool-refactor-registry/tests/test_bundle_rename.py
+uv run python -m scripts.measure rename-macro-spread
+```

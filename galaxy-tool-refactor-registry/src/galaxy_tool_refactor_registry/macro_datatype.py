@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 
 from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_macros
 from galaxy_tool_xml_codemod.datatype_format import normalize_datatype_attributes
+from galaxy_tool_xml_fmt.cli_support import make_backup
 from galaxy_tool_xml_fmt.format import format_macro_document
 
 if TYPE_CHECKING:
@@ -66,18 +67,18 @@ class MacroDatatypeResult:
 
 
 def normalize_macro_files(
-    paths: Iterable[Path], /, *, write: bool
+    paths: Iterable[Path], /, *, write: bool, backup: bool = False
 ) -> MacroDatatypeResult:
     """Lowercase literal ``format`` / ``ftype`` in each macro file; report the edits.
 
     Each path is loaded as a ``MacroDocument``, every element's ``format`` / ``ftype``
     normalized (``skip_tokens=True`` — placeholders are left alone), and — when *write*
     is true and something changed — the file is reserialised through
-    ``format_macro_document`` and written back. Idempotent: a file already lowercase is
-    a no-op. Paths are de-duplicated (a shared macro file is edited once). A file that
-    fails to load (malformed / unsupported version) is skipped and recorded in
-    ``unparseable`` rather than aborting the batch — parsing is the one boundary with
-    no LBYL form.
+    ``format_macro_document`` and written back (copied to ``<file>.bak`` first when
+    *backup*). Idempotent: a file already lowercase is a no-op. Paths are de-duplicated
+    (a shared macro file is edited once). A file that fails to load (malformed /
+    unsupported version) is skipped and recorded in ``unparseable`` rather than aborting
+    the batch — parsing is the one boundary with no LBYL form.
     """
     edits: list[MacroDatatypeEdit] = []
     unparseable: list[Path] = []
@@ -100,6 +101,8 @@ def normalize_macro_files(
         if not elements_changed:
             continue
         if write:
+            if backup:
+                make_backup(path)
             path.write_bytes(format_macro_document(document))
         edits.append(
             MacroDatatypeEdit(macro_file=path, elements_changed=elements_changed)

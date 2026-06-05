@@ -110,8 +110,15 @@ def tool_cheetah_references(root: etree._Element, /) -> list[CheetahRef]:
     """
     refs: list[CheetahRef] = []
 
-    command = root.find("command")
-    if command is not None:
+    # On a ``<tool>`` root the ``<command>`` is the single top-level child; on a
+    # ``<macros>`` library file the command fragments nest under ``<xml name="…">``,
+    # so both are reached by descendant scan (configfile/option/filter already iter).
+    if root.tag == "macros":
+        commands = list(root.iter("command"))
+    else:
+        one = root.find("command")
+        commands = [one] if one is not None else []
+    for command in commands:
         _scan(
             refs,
             "".join(command.itertext()),
