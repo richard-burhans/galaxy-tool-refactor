@@ -40,6 +40,7 @@ from scripts.measure import (
     _measure_macro_topology,
     _measure_output_format_input,
     _measure_param_types,
+    _measure_rename_coverage,
     _measure_semantic_upgrade_boundaries,
     _measure_shell_oracle_quoting,
     _measure_upgrade_behavior_blocks,
@@ -760,6 +761,42 @@ def test_measure_cheetah_cdm_coverage_counts(tmp_path: Path) -> None:
     assert result.n_with_directive == 1  # locals.xml (#for/#end)
     assert result.n_with_locals == 1  # locals.xml (#for)
     assert result.n_placeholders == 2  # $f (loop body) + $input
+
+
+# --- rename-coverage ------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not cheetah_cdm_available(), reason="requires the cheetah-cdm extra (CT3)"
+)
+def test_measure_rename_coverage_classifies(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # Two cleanly-renameable params (a + b): four sites (the def + $ref of each).
+    (repo / "clean.xml").write_text(
+        "<tool><inputs><param name='a'/><param name='b'/></inputs>"
+        "<command>run $a $b</command></tool>",
+        encoding="utf-8",
+    )
+    # One param shadowed by a #set local -> bail.
+    (repo / "shadow.xml").write_text(
+        "<tool><inputs><param name='s'/></inputs>"
+        "<command>#set $s = 1\nrun $s</command></tool>",
+        encoding="utf-8",
+    )
+    # No <inputs> -> skipped entirely.
+    (repo / "noinputs.xml").write_text(
+        "<tool><command>run</command></tool>", encoding="utf-8"
+    )
+
+    result = _measure_rename_coverage(corpus_root=tmp_path)
+    assert result.cdm_available is True
+    assert result.n_tools == 2  # clean + shadow (noinputs skipped)
+    assert result.n_attempts == 3  # a, b, s
+    assert result.n_success == 2  # a, b
+    assert result.n_sites == 4  # $a + def a, $b + def b
+    assert result.bail_counts.get("shadowed") == 1
+    assert result.n_tools_all_clean == 1  # only clean.xml
 
 
 # --- interpreter-bucket-split ---------------------------------------------------

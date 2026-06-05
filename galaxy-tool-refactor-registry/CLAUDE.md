@@ -80,7 +80,9 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
 - `resolve.py` — `resolve_codes` / `resolve_upgrade_codes` (ignore ▸ select ▸
   preset; select replaces).
 - `apply.py` — `apply_selection` (phase-ordered apply).
-- `facade.py` — `run` / `upgrade` / `detect` / `find_references` / `list_presets` / `list_rules`.
+- `facade.py` — `run` / `upgrade` / `detect` / `find_references` / `rename_param`
+  (the mutating sibling of `find_references`; deep-copies + serialises on success, see
+  `docs/decisions.md` D11) / `list_presets` / `list_rules`.
 - `macro_profile.py` — Phase-3b imported-`@PROFILE@` upgrade: `profile_token_site`
   (one tool → defining file + target), the pure `plan_from_sites` (per-file
   importer agreement), and `apply_profile_token_plans` (bump the agreed files'

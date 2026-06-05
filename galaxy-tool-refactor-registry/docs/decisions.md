@@ -409,3 +409,34 @@ uv run --package galaxy-tool-refactor-registry pytest \
 uv run galaxy-tool-refactor check --preset strict tool.xml   # GTR020 fixable + advisory
 uv run galaxy-tool-refactor format --select GTR020 tool.xml  # whole practice's fix
 ```
+
+## D11 (2026-06-05) — `rename_param`: a mutating facade op (not a rule)
+
+### Decision
+
+The facade gains `rename_param(source, *, old, new, write_path=None) -> RenameParamResult`
+— the mutating sibling of `find_references`, the user-facing operation behind the CLI
+`rename-param` (cli `docs/decisions.md` §D9). It wraps the tier-1 `cheetah_rename`
+primitive (the first Cheetah mutator; `galaxy-tool-xml/docs/decisions.md` §20).
+
+Like `find_references` it is an **operation, not a rule**: a parameter rename is
+user-parameterised, so it carries no GTR code, no preset membership, and no
+`--select`/`--ignore` path — it never enters the `run`/`detect` rule pipeline.
+
+Two invariants it upholds:
+
+- **The facade owns the transaction.** It deep-copies the document's tree, runs the
+  tier-1 rename on the copy, and serialises (through fmt — the only serializer — with no
+  cosmetic rules, so only the renamed tokens differ) **only on success**. A bail returns
+  `changed=False` + a reason and never touches `source`. This is why the tier-1 primitive
+  may mutate-then-bail freely: the caller's tree is a throwaway copy.
+- **Atomic.** Either every live reference + the definition is rewritten, or nothing is
+  (see §20 for the bail taxonomy). `RenameParamResult` carries `changed` / `renamed`
+  (site count) / `reason` / `formatted`.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-registry pytest \
+  galaxy-tool-refactor-registry/tests/test_facade.py -k rename
+```

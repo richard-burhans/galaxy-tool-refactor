@@ -351,3 +351,46 @@ def test_find_references_segment_of_qualified_access() -> None:
 
 def test_find_references_no_matches_is_empty() -> None:
     assert facade.find_references(_REFS_TOOL, name="absent").occurrences == ()
+
+
+def test_rename_param_rewrites_all_sites() -> None:
+    result = facade.rename_param(_REFS_TOOL, old="input", new="sample")
+    assert result.changed
+    assert result.renamed >= 2  # $input in command + $input.name in label
+    assert result.formatted is not None
+    text = result.formatted.decode("utf-8")
+    assert "$sample" in text and "$input" not in text
+    assert "<![CDATA[" in text  # the command's CDATA wrapper is preserved
+    # find-references over the result confirms the invariant.
+    assert facade.find_references(result.formatted, name="input").occurrences == ()
+    assert facade.find_references(result.formatted, name="sample").occurrences
+
+
+def test_rename_param_not_found_bails() -> None:
+    result = facade.rename_param(_REFS_TOOL, old="absent", new="x")
+    assert not result.changed
+    assert result.reason == "not-found"
+    assert result.formatted is None
+
+
+def test_rename_param_does_not_mutate_source_on_bail() -> None:
+    document = load_tool(_REFS_TOOL)
+    before = to_bytes(document.tree)
+    # A shadowing #set makes this bail; the source document must be untouched.
+    shadow_tool = (
+        b'<tool id="m" name="M" version="1.0.0" profile="21.09">'
+        b"<command><![CDATA[#set $input = 1\ntool $input]]></command></tool>"
+    )
+    result = facade.rename_param(load_tool(shadow_tool), old="input", new="sample")
+    assert not result.changed
+    assert result.reason == "shadowed"
+    assert to_bytes(document.tree) == before
+
+
+def test_rename_param_writes_when_path_given(tmp_path: Path) -> None:
+    target = tmp_path / "tool.xml"
+    result = facade.rename_param(
+        _REFS_TOOL, old="input", new="sample", write_path=target
+    )
+    assert result.changed
+    assert target.read_bytes() == result.formatted

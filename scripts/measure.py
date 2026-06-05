@@ -4743,6 +4743,129 @@ def _run_cheetah_cdm_coverage(args: argparse.Namespace) -> None:
     _report_cheetah_cdm_coverage(result)
 
 
+# --- measurement: rename-coverage -----------------------------------------------
+#
+# Blast-radius / coverage sizing for the first Cheetah MUTATOR (M5.3): attempt to
+# rename EVERY input definition (`<param>`/`<conditional>`/`<repeat>`/`<section>` name)
+# of every corpus tool via the shipped tier-1 `cheetah_rename.rename_param`, and tally
+# how the atomic rename resolves — clean rewrite vs each bail reason (shadowed / mixed-
+# content / lexer-bail / filter-bare-ref / cross-ref-residual). Answers "how often does
+# a comprehensive+atomic rename actually apply, and what blocks it." Needs the corpus
+# AND the cheetah-cdm extra (CT3); print-only, not run in CI; the pure tally is pinned
+# by a synthetic-fixture unit test. Backs galaxy-tool-xml/docs/decisions.md §20.
+
+_RENAME_DEFINITION_TAGS = frozenset({"param", "conditional", "repeat", "section"})
+# The bail reasons cheetah_rename.rename_param can return, in display order.
+_RENAME_BAIL_REASONS = (
+    "shadowed",
+    "mixed-content",
+    "lexer-bail",
+    "filter-bare-ref",
+    "cross-ref-residual",
+    "not-found",
+)
+
+
+@dataclass
+class _RenameCoverageResult:
+    """Outcome distribution of renaming every input definition across the corpus."""
+
+    cdm_available: bool
+    n_tools: int  # tools with >=1 renameable input definition
+    n_attempts: int  # (tool, name) rename attempts
+    n_success: int  # rename applied (every live ref + definition rewritten)
+    n_sites: int  # total reference/definition sites rewritten across successes
+    bail_counts: dict[str, int]  # bail reason -> attempts
+    n_tools_all_clean: int  # tools where every input definition renamed cleanly
+
+
+def _measure_rename_coverage(*, corpus_root: Path) -> _RenameCoverageResult:
+    """Rename every input definition of every tool; tally success vs each bail reason."""
+    import copy
+
+    from galaxy_tool_xml.cheetah_cdm import cheetah_cdm_available
+    from galaxy_tool_xml.cheetah_rename import rename_param
+
+    seen: set[str] = set()
+    n_tools = n_attempts = n_success = n_sites = n_all_clean = 0
+    bail_counts: Counter[str] = Counter()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        inputs = root.find("inputs")
+        if inputs is None:
+            continue
+        names: list[str] = []
+        for element in inputs.iter():
+            name = element.get("name") if element.tag in _RENAME_DEFINITION_TAGS else None
+            if name and name.isidentifier() and name not in names:
+                names.append(name)
+        if not names:
+            continue
+        n_tools += 1
+        all_clean = True
+        for name in names:
+            outcome = rename_param(copy.deepcopy(root), old=name, new=f"{name}_gtr0")
+            n_attempts += 1
+            if outcome.bailed:
+                bail_counts[outcome.reason or "unknown"] += 1
+                all_clean = False
+            else:
+                n_success += 1
+                n_sites += outcome.renamed
+        if all_clean:
+            n_all_clean += 1
+    return _RenameCoverageResult(
+        cdm_available=cheetah_cdm_available(),
+        n_tools=n_tools,
+        n_attempts=n_attempts,
+        n_success=n_success,
+        n_sites=n_sites,
+        bail_counts=dict(bail_counts),
+        n_tools_all_clean=n_all_clean,
+    )
+
+
+def _report_rename_coverage(result: _RenameCoverageResult) -> None:
+    print("\n=== rename-coverage (first Cheetah mutator: outcome distribution) ===")
+    if not result.cdm_available:
+        print("  cheetah-cdm extra (CT3) not installed — install galaxy-tool-xml[cheetah-cdm].")
+        return
+
+    def pct(n: int, of: int) -> str:
+        return f"{100 * n / of:.1f}%" if of else "0.0%"
+
+    print(f"Tools with renameable input definitions: {result.n_tools}")
+    print(f"Rename attempts (one per definition):    {result.n_attempts}")
+    print(
+        f"  applied:  {result.n_success} "
+        f"({pct(result.n_success, result.n_attempts)})  "
+        f"— {result.n_sites} sites rewritten"
+    )
+    bailed = result.n_attempts - result.n_success
+    print(f"  bailed:   {bailed} ({pct(bailed, result.n_attempts)})")
+    for reason in _RENAME_BAIL_REASONS:
+        count = result.bail_counts.get(reason, 0)
+        if count:
+            print(f"      {reason:18} {count:6d} ({pct(count, result.n_attempts)})")
+    print(
+        f"Tools where EVERY definition renames cleanly: {result.n_tools_all_clean} "
+        f"({pct(result.n_tools_all_clean, result.n_tools)})"
+    )
+
+
+def _run_rename_coverage(args: argparse.Namespace) -> None:
+    result = _measure_rename_coverage(corpus_root=args.corpus_root)
+    _report_rename_coverage(result)
+
+
 # --- measurement: interpreter-bucket-split --------------------------------------
 #
 # Sizes the auto-fixable population for a `16_04_fix_interpreter` codemod (GTR016;
@@ -5611,6 +5734,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "command-language": _run_command_language,
     "cheetah-command-complexity": _run_cheetah_command_complexity,
     "cheetah-cdm-coverage": _run_cheetah_cdm_coverage,
+    "rename-coverage": _run_rename_coverage,
     "interpreter-bucket-split": _run_interpreter_buckets,
     "output-format-input": _run_output_format_input,
     "help-formats": _run_help_formats,

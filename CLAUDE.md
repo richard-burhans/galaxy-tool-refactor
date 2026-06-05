@@ -13,7 +13,7 @@ galaxy-tool-refactor/
 ├── galaxy-tool-xml-fmt/      Tier 3 (formatting)
 ├── galaxy-tool-xml-check/    Tier 3.5 (advisory detect-only checks)
 ├── galaxy-tool-refactor-registry/ Tier 3.6 (unified rule registry + presets; library-first facade)
-├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + find-references + presets/rules + normalize-macros)
+├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + find-references + rename-param + presets/rules + normalize-macros)
 ├── galaxy-tool-refactor-mcp/ Tier 4 (MCP server over the registry facade; thin FastMCP adapter)
 ├── scripts/                  Shared maintainer scripts (not installed)
 │   ├── corpus_check.py         validate | fmt | codemod | rules | check subcommands
@@ -214,6 +214,14 @@ uv run python -m scripts.measure cheetah-command-complexity
 # not run in CI. Backs galaxy-tool-xml/docs/decisions.md §19:
 uv run python -m scripts.measure cheetah-cdm-coverage
 
+# Coverage of the first Cheetah MUTATOR (M5.3): attempt to rename every input definition
+# of every tool via the shipped tier-1 cheetah_rename.rename_param, tallying clean apply
+# vs each atomic bail (shadowed / mixed-content / lexer-bail / filter-bare-ref /
+# cross-ref-residual). Sized + tuned the cross-ref model: 93.1% apply cleanly. Needs the
+# corpus AND the cheetah-cdm extra (CT3), print-only, not run in CI. Backs
+# galaxy-tool-xml/docs/decisions.md §20:
+uv run python -m scripts.measure rename-coverage
+
 # Auto-fixable population for a 16_04_fix_interpreter codemod (GTR016): tools with a
 # deprecated <command interpreter=…> split into bucket A (rewritable) / A-missing / B
 # (leading-Cheetah) / C (non-standard interpreter), reusing the codemod's own
@@ -268,14 +276,14 @@ Tiers, each independently installable:
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic rules (indent / blank line / empty-element shorthand) + the shared `cli_support` CLI engine. The only tier that serialises canonical output XML. |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice checks (`GTR` codes, `RuleMeta.detect_only`); read-only LBYL queries over tier 1 yielding `Violation`. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | Unified, code-addressable `RuleHandle` over all three families + named presets (`cosmetic`/`iuc`/`strict`) + `run`/`upgrade`/`detect`. **Library-first** (no click/exit; structured I/O; introspectable). Depends on 0.5/1/2/3/3.5; lower tiers don't depend on it. |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `find-references`, `presets`, `rules`, `normalize-macros`. |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `find-references`, `rename-param`, `presets`, `rules`, `normalize-macros`. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the registry facade (a sibling of the CLI). A thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`list_presets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) remain future. |
 
 **Orchestration lives in the registry facade (tier 3.6); the CLI is a thin
 front-end.** Each lower tier is consumable standalone; the facade composes them
 into one code-addressable rule set with presets and a library-first
 `run`/`upgrade`/`detect` API. The CLI (`galaxy-tool-refactor-cli`) depends on the
-facade (plus fmt's `cli_support` engine and tier-1 parsing) and owns six
+facade (plus fmt's `cli_support` engine and tier-1 parsing) and owns eight
 commands:
 
 - `galaxy-tool-refactor format` — apply a preset's fixable rules (default `iuc` =
@@ -291,6 +299,14 @@ commands:
 - `galaxy-tool-refactor check` — report-only over the selected rules' detect
   phases. Fixable findings exit non-zero; advisory findings appear only
   under `--preset strict` and are informational unless `--strict`.
+- `galaxy-tool-refactor find-references NAME PATHS` — read-only query (not a rule):
+  every Cheetah `$NAME` reference site across a tool's templated sections (cli
+  `docs/decisions.md` §D8; tier-1 Cheetah reference model §18).
+- `galaxy-tool-refactor rename-param OLD NEW PATHS` — the mutating sibling of
+  `find-references`: rename a parameter across every Cheetah section, by-name cross-ref
+  attribute, and `<tests>` mirror, plus the definition. Atomic per file (`--check`
+  previews); 93.1% corpus coverage. The first Cheetah mutator (M5.3); tier-1
+  `cheetah_rename` §20, cli `docs/decisions.md` §D9.
 - `galaxy-tool-refactor presets` / `rules` — introspection of the baked-in
   presets and rules.
 - `galaxy-tool-refactor normalize-macros` — opt-in, repo-scoped: lowercase literal

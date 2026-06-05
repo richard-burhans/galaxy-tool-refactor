@@ -117,3 +117,29 @@ class FindReferencesResult:
 
     name: str
     occurrences: tuple[ParamOccurrence, ...] = ()
+
+
+@dataclass(frozen=True)
+class RenameParamResult:
+    """The outcome of ``rename_param`` (the mutating sibling of ``find_references``).
+
+    Rename is atomic: either every live reference plus the definition is rewritten
+    (``changed``), or nothing is and ``reason`` explains why it bailed.
+
+    Attributes:
+        old: The parameter name renamed from.
+        new: The parameter name renamed to.
+        changed: Whether the rename was applied.
+        renamed: How many sites were rewritten (``0`` on a bail).
+        reason: The bail reason (``shadowed`` / ``mixed-content`` / ``lexer-bail`` /
+            ``filter-bare-ref`` / ``cross-ref-residual`` / ``not-found`` /
+            ``invalid-name`` / ``no-op``), or ``None`` when ``changed``.
+        formatted: The serialised XML bytes after rename, or ``None`` on a bail.
+    """
+
+    old: str
+    new: str
+    changed: bool
+    renamed: int = 0
+    reason: str | None = None
+    formatted: bytes | None = None

@@ -19,11 +19,13 @@ profile upgrade and additionally applies the fixable rules in the selection.
 
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from galaxy_tool_xml.binding import Source, load_tool, newest_valid_profile
 from galaxy_tool_xml.cheetah_refs import tool_cheetah_references
+from galaxy_tool_xml.cheetah_rename import rename_param as _rename_in_tree
 from galaxy_tool_xml.document import ToolDocument
 from galaxy_tool_xml_check.detect import sort_violations
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
@@ -36,6 +38,7 @@ from galaxy_tool_xml_codemod.profile_semantics import (
 from galaxy_tool_xml_codemod.runtime_fixes import runtime_fixes_for
 from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 from galaxy_tool_xml_fmt.detect import detect_tool_document_subset
+from galaxy_tool_xml_fmt.format import format_tool_document_subset
 
 from galaxy_tool_refactor_registry.adapters import fmt_rule_by_code
 from galaxy_tool_refactor_registry.apply import apply_selection
@@ -52,6 +55,7 @@ from galaxy_tool_refactor_registry.results import (
     FormatResult,
     ParamOccurrence,
     PresetInfo,
+    RenameParamResult,
     RuleInfo,
     UpgradeResult,
     render_advisory_note,
@@ -152,6 +156,42 @@ def find_references(
         if name in ref.segments
     )
     return FindReferencesResult(name=name, occurrences=occurrences)
+
+
+def rename_param(
+    source: Source | ToolDocument,
+    /,
+    *,
+    old: str,
+    new: str,
+    write_path: Path | None = None,
+) -> RenameParamResult:
+    """Rename parameter *old* to *new* across the tool's Cheetah sections, atomically.
+
+    The mutating sibling of ``find_references``: rewrites every live ``$old`` reference
+    (``<command>`` / ``<configfile>`` via the faithful lexer, attribute-Cheetah, by-name
+    cross-reference attributes) plus the definition, or changes nothing and reports why
+    it bailed (see ``galaxy_tool_xml.cheetah_rename``). The work runs on a deep copy, so
+    a bail never mutates *source*; on success the serialised bytes are returned (and
+    written to *write_path* if given). Serialisation goes through fmt — the only
+    serializer — with no cosmetic rules, so only the renamed tokens (and lxml's
+    attribute-quote normalisation) differ.
+    """
+    document = _to_document(source)
+    working = copy.deepcopy(document.tree)
+    outcome = _rename_in_tree(working.getroot(), old=old, new=new)
+    if outcome.bailed:
+        return RenameParamResult(old=old, new=new, changed=False, reason=outcome.reason)
+    formatted = format_tool_document_subset(ToolDocument(working), rule_classes=())
+    if write_path is not None:
+        write_path.write_bytes(formatted)
+    return RenameParamResult(
+        old=old,
+        new=new,
+        changed=True,
+        renamed=outcome.renamed,
+        formatted=formatted,
+    )
 
 
 def _upgrade_summary(steps: tuple[str, ...], missing: str | None) -> str | None:

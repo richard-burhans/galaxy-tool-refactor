@@ -910,3 +910,55 @@ exactly as Cheetah would — the fidelity a *mutator* needs and the regex cannot
 uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_cheetah_cdm.py
 uv run python -m scripts.measure cheetah-cdm-coverage   # corpus parity + scope sizing
 ```
+
+## 20. Parameter rename (`cheetah_rename`) — the first Cheetah mutator
+
+**Date:** 2026-06-05. M5.3 of the Cheetah-section-editing roadmap
+(`../../docs/upgrade_research/cheetah_section_editing.md`) — the mutating sibling of the
+`cheetah_refs` reference model (§18), the first consumer of the faithful lexer (§19).
+
+`cheetah_rename.rename_param(root, *, old, new)` rewrites every reference to a parameter
+`old` so it reads `new`: `$old` in `<command>` / inline `<configfile>` (via `cheetah_cdm`,
+so a `$old` inside `#raw` / `##` / an escaped `\$old` is left alone), `$old` in
+attribute-Cheetah (output `label`, dynamic `<options>`, `<entry_point>`,
+`<environment_variable>`, `data_source`), the by-name cross-reference attributes, the
+`<tests>` elements that mirror the input tree, and the definition itself. Returns a
+`RenameOutcome` (renamed-site count, or a bail reason).
+
+### Decisions
+
+- **Rename is atomic.** A half-applied rename (definition renamed, a reference left
+  dangling) is a broken tool, so it rewrites *every* live occurrence or changes nothing.
+  It bails — `shadowed` (a `#set`/`#for`/`#def` local shadows `old`), `mixed-content` (a
+  body whose Cheetah text is split by child elements), `lexer-bail` (CT3 can't parse a
+  body referencing `old`), `filter-bare-ref` (an output `<filter>` names `old` by bare
+  Python word), `cross-ref-residual` (a non-literal attribute still equals `old` after
+  rewriting — a by-name reference this version does not model), or `not-found` /
+  `invalid-name` / `no-op`.
+- **Faithful lexer for bodies, regex for the simple sites.** `<command>` / `<configfile>`
+  go through `cheetah_cdm` (the `#raw`/comment fidelity a mutator needs); the short
+  single-expression sites (attribute-Cheetah, env vars) use the segment regex directly —
+  they carry no `#raw`/comments. Both rewrite only the matching identifier *segment*
+  (`$cond.old` → `$cond.new`), so a different name (`$old_other`) is never touched.
+- **The cross-reference model is explicit, and was sized by the corpus.** The first cut
+  bailed 41.7% of renames on a coarse "any attribute still equals `old`" net. The
+  `rename-coverage` sweep showed that residual was dominated by `<tests>` mirrors (a test
+  references params by name) plus a few real cross-ref attributes (`when@input`,
+  `filter@ref`, `from_dataset`, `split_inputs`), with the rest coincidental literals
+  (`label`/`value`/`type`/`format`/…). Modelling the references and exempting the literals
+  (`_LITERAL_ATTRS`) took clean coverage **51.5% → 93.1%** and the residual bail to 0.1%.
+- **Completeness net, denylist-guarded.** After rewriting, a non-literal attribute still
+  equal to `old` trips `cross-ref-residual` — catching an unmodelled by-name reference so
+  rename bails rather than ship a dangling tool, while the `_LITERAL_ATTRS` denylist keeps
+  a coincidental `label="old"` from a false bail.
+- **No serialization here.** Tier 1 mutates the lxml tree (the source of truth); the
+  facade deep-copies before calling (so a bail never mutates the caller's tree) and
+  serialises through fmt. Corpus: of 72,247 input definitions across 8,928 tools, **93.1%
+  rename cleanly** (290,170 sites); the largest residual bail is `filter-bare-ref` (5.6%).
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_cheetah_rename.py
+uv run python -m scripts.measure rename-coverage   # outcome distribution over the corpus
+```

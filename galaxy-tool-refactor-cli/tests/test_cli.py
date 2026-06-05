@@ -481,3 +481,41 @@ def test_find_references_absent_name_is_zero(tmp_path: Path) -> None:
     result = CliRunner().invoke(main, ["find-references", "absent", str(file)])
     assert result.exit_code == 0, result.output
     assert "0 reference(s) to 'absent'" in result.output
+
+
+def test_rename_param_rewrites_and_writes(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _REFS_TOOL_BYTES)
+    result = CliRunner().invoke(main, ["rename-param", "input", "sample", str(file)])
+    assert result.exit_code == 0, result.output
+    assert "renamed" in result.output
+    written = file.read_bytes()
+    assert b"$sample" in written and b"$input" not in written
+
+
+def test_rename_param_check_does_not_write(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _REFS_TOOL_BYTES)
+    result = CliRunner().invoke(
+        main, ["rename-param", "input", "sample", "--check", str(file)]
+    )
+    assert result.exit_code == 1  # --check exits non-zero when a file would change
+    assert "would rename" in result.output
+    assert file.read_bytes() == _REFS_TOOL_BYTES  # unchanged
+
+
+def test_rename_param_skips_with_reason(tmp_path: Path) -> None:
+    shadow = (
+        b'<tool id="m" name="M" version="1.0.0" profile="21.09">'
+        b"<command><![CDATA[#set $input = 1\ntool $input]]></command></tool>"
+    )
+    file = _write(tmp_path / "tool.xml", shadow)
+    result = CliRunner().invoke(main, ["rename-param", "input", "sample", str(file)])
+    assert result.exit_code == 0, result.output
+    assert "skip" in result.output and "shadowed" in result.output
+    assert file.read_bytes() == shadow  # unchanged
+
+
+def test_rename_param_rejects_invalid_name(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _REFS_TOOL_BYTES)
+    result = CliRunner().invoke(main, ["rename-param", "input", "not valid", str(file)])
+    assert result.exit_code != 0
+    assert "identifier" in result.output
