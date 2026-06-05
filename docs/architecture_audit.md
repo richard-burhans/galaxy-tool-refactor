@@ -61,12 +61,12 @@ signatures, dataclass fields, and §18/19/20 cross-references all match the code
   `test_measure.py::test_measure_rename_coverage_classifies` (engine-present and engine-absent
   paths), so the invariant is guarded in CI; the corpus sweep only scales it up.
 
-**Proposals (not applied):**
-- `[proposal]` Add a dedicated unit test for the `locator-failed` plan-only bail
-  (`parse-error` / `encoding` / `entity-content` are already pinned in `test_cheetah_rename.py`
-  / the `_raw_offset_map` helper test); Low value (it declines soundly and is covered
-  indirectly). An `element.tail`-on-bail immutability test was considered and dropped — the
-  mutator never rewrites `tail`, so there is no real gap.
+**Low — fixed (test coverage):**
+- `[fixed]` Added a dedicated unit test for the `locator-failed` plan-only bail
+  (`test_raw_offset_map_locator_failed`: char mismatch, raw-runs-out, and literal-`<`
+  cases), joining the already-pinned `parse-error` / `encoding` / `entity-content` cases.
+  An `element.tail`-on-bail immutability test was considered and dropped — the mutator never
+  rewrites `tail`, so there is no real gap.
 
 ## Re-audit 2026-06-04 — post GTR-namespace unify + partition sub-rules (PRs #86–#88) + full escalation
 

@@ -448,6 +448,17 @@ def test_raw_offset_map_helper() -> None:
     assert _raw_offset_map("<c>&nbsp;</c>", 3, "\xa0") == "entity-content"
 
 
+def test_raw_offset_map_locator_failed() -> None:
+    # The locator-failed bail: the raw body cannot be reconciled with the decoded text
+    # (a mis-anchored start tag / unexpected content), so a span cannot be placed.
+    # A character mismatch.
+    assert _raw_offset_map("<c>abc</c>", 3, "aXc") == "locator-failed"
+    # Raw runs out before the decoded text is fully consumed.
+    assert _raw_offset_map("<c>ab", 3, "abcdef") == "locator-failed"
+    # A literal '<' (the closing tag) reached before the decoded text is consumed.
+    assert _raw_offset_map("<c>ab</c>", 3, "abcd") == "locator-failed"
+
+
 def test_plan_attribute_value_with_entities() -> None:
     # An attribute value with an entity (&amp;): the same walker relocates the $old span
     # past the entity, so the attr-Cheetah rename applies (no flat-check bail).
