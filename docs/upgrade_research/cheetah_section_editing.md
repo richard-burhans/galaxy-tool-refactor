@@ -135,6 +135,10 @@ sanitizer constraints to prove more params space-free (cheap static widening of 
     rather than risk a wrong edit. This is the single largest residual bail; closing it
     (a small `ast`/`tokenize`-based rewrite of `<filter>` bodies, with the same
     bail-on-doubt posture) is the obvious next coverage win for rename.
+  - **Editor integration (design).** Exposing rename as an in-editor *Rename Symbol*
+    refactor through the galaxy-language-server is planned in `lsp_rename_integration.md`
+    (the main new piece is a TextEdit/offset-returning rename API in tier 1). A worked
+    CLI showcase lives in `../examples/rename-param-demo.md`.
 - **M5.4 — shell-structure fixes via ② provenance-render.** Scoped to the render-clean +
   back-mappable subset (~⅓ whole-tool, more per-occurrence); behind the `[verify]` extra;
   bails loudly; each corpus-swept like every codemod. First targets: the deferred GTR032

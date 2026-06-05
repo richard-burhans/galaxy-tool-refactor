@@ -1,0 +1,173 @@
+# Bringing `rename-param` to the editor — galaxy-language-server integration design
+
+> **Status: design note (2026-06-05). No code yet.** A grounded plan for exposing the
+> M5.3 parameter-rename capability (`galaxy_tool_xml.cheetah_rename`, shipped in
+> `galaxy-tool-xml/docs/decisions.md` §20) as an **in-editor refactor** through the
+> [galaxy-language-server](https://github.com/galaxyproject/galaxy-language-server)
+> (galaxyls) — i.e. "right-click a `<param>`, *Rename Symbol*, watch every `$param`
+> reference update." All galaxyls citations are against the cloned tree at commit
+> `725e48e` (read locally, per the clone-over-websearch standing practice).
+
+## The opportunity
+
+We have, in `galaxy-tool-xml`, the hard part of an editor rename that no XML editor
+has: a *semantically correct* notion of where a Galaxy parameter is referenced —
+through `#if` directives and dotted `$p.metadata.x` accesses, output labels, by-name
+cross-reference attributes, and `<tests>` mirrors — that **refuses to touch** a
+`$p` inside `#raw` / `##` / `\$p` / `<help>` prose, and is **atomic** (rewrites
+everything or nothing). The CLI `rename-param` already proves it at corpus scale
+(93.1% of definitions rename cleanly). The same engine behind an LSP `rename` request
+is a compelling, very visual demo.
+
+## What galaxyls already has (and what it lacks)
+
+galaxyls is a **pygls** server (Python ≥3.10) whose deps —
+`lxml`, `anytree`, `galaxy-tool-util==26` (`server/requirements.txt`) — *align*
+with `galaxy-tool-xml` (lxml-based, Python ≥3.10, `galaxy-util>=24,<27`): no
+version conflict, same XML stack.
+
+Already present:
+
+- **An XML document model with position lookup.** `XmlDocument.get_node_at(offset)`
+  (`server/galaxyls/services/xml/document.py`) maps a cursor offset to the deepest
+  `XmlElement` / `XmlAttribute`; `XmlAttribute` carries its source position, and the
+  document exposes `offset_at_position` / element→`Range` helpers. This is the
+  offset↔`Position` machinery a rename needs, and we do **not** have it.
+- **`TextEdit` / `WorkspaceEdit` plumbing.** The formatter
+  (`services/format.py`) returns a whole-document `TextEdit`; the macro-extract
+  refactor (`services/tools/refactor.py`) returns a multi-file
+  `WorkspaceEdit(changes={uri: [TextEdit, …]})`. The patterns for both
+  whole-document and minimal edits already exist.
+- **Parameter awareness — but only for *insertion*.** `ParamReferencesProvider`
+  (`services/references.py`) builds `$param` / `${cond.param}` strings from
+  `<param name>` for the *Insert Param Reference* command. There is **no** "find all
+  references" and **no** rename.
+
+Not present (confirmed against `server/galaxyls/server.py` @ `725e48e`): the server
+registers completion, hover, **formatting**, definition, document-link, **code-action**
+(only `RefactorExtract`), and document-symbol — but **no `textDocument/rename`,
+`textDocument/prepareRename`, or `textDocument/references`.**
+
+**Conclusion:** galaxyls owns the *editor mechanics* (offsets, ranges, `WorkspaceEdit`,
+document sync); `galaxy-tool-xml` owns the *semantics* (faithful Cheetah lexing, the
+real-reference model, the atomic bail logic). The integration is gluing the two — and
+the only nontrivial new code is on our side.
+
+## Two integration tiers
+
+### Tier A — whole-document rename (fast, coarse)
+
+The minimum viable path, almost entirely on galaxyls's side:
+
+1. Add `galaxy-tool-xml[cheetah-cdm]` to galaxyls deps.
+2. Register `textDocument/prepareRename` + `textDocument/rename`.
+3. On `rename`: read the document text, call our `facade.rename_param(text, old=…,
+   new=…)`, and return **one whole-document `TextEdit`** with the serialised result
+   (galaxyls's formatter already returns exactly this shape).
+
+Pros: a day of work, no new API in our repo. Cons: our facade serialises through fmt
+(the only serializer), so the edit **reformats the whole file** (attribute-quote
+normalisation, an added XML declaration). Acceptable for a project that already runs
+our formatter; jarring as a standalone "rename one symbol" gesture (a clean rename
+should not reflow the document).
+
+### Tier B — minimal-diff rename (the right LSP feel; the real work, on our side)
+
+An editor rename should touch **only the renamed tokens**. That needs `rename` to
+yield a set of precise `(offset, length, replacement)` edits over the *original*
+source, not a reserialised tree. So the core deliverable is a **TextEdit-oriented
+rename API in tier 1**, alongside today's tree-mutating one:
+
+```python
+# galaxy_tool_xml/cheetah_rename.py (new, sketch)
+@dataclass(frozen=True)
+class RenameEdit:
+    start: int          # character offset into the original document
+    end: int            # exclusive
+    replacement: str    # the new identifier (just the segment, e.g. "aligned_reads")
+
+@dataclass(frozen=True)
+class RenamePlan:
+    edits: tuple[RenameEdit, ...]   # disjoint, document-ordered; empty on a bail
+    renamed: int
+    bailed: bool
+    reason: str | None
+
+def rename_param_plan(source: bytes | str, *, old: str, new: str) -> RenamePlan: ...
+```
+
+galaxyls then converts each `RenameEdit` offset to a `Range` (it has
+`position_at_offset`) and emits a minimal `WorkspaceEdit` — only the renamed tokens
+change, every byte else is preserved.
+
+**What's new vs. today's primitive.** The current `rename_param` already computes exact
+offsets for the **text sections** (`_segment_edits` returns absolute spans inside
+`<command>` / `<configfile>` / attribute-Cheetah values). What it does *not* yet expose
+is the **raw source offset of attribute edits** — `name="old"`, `data_ref="old"`,
+`label="…"`, the `<tests>` mirrors — because those are applied as lxml tree mutations,
+and lxml gives an element's line but not an attribute value's column/offset. Closing
+that is the bulk of Tier B:
+
+- **Section-text edits** — already offset-precise; just translate section-local offsets
+  to whole-document offsets (add the section element's start offset).
+- **Attribute-value edits** — locate the value's source span. Two options: (a) a focused
+  raw-text scan (find the element's start tag, then `attr\s*=\s*("|')` + the value), or
+  (b) accept galaxyls's `XmlAttribute` position model as the locator and have our API
+  return *logical* attribute edits (`element-path`, `attr`, `new-value`) that galaxyls
+  resolves to offsets. (a) keeps the engine self-contained and editor-agnostic
+  (good for the CLI `--diff` too); (b) is less code but couples us to galaxyls's model.
+  Lean (a).
+
+The atomic bail logic, the literal-attribute denylist, the `<tests>`/cross-ref model —
+all reused unchanged. Tier B is "return the plan as offsets" + "locate attribute spans,"
+not a re-think.
+
+## Shared glue (either tier)
+
+- **`prepareRename`** — accept the request only when the token under the cursor resolves
+  to a real parameter: reuse `find_references` / `cheetah_refs` to confirm the
+  `$param` / `<param name>` under the offset is a live reference, and **reject** a
+  cursor inside `#raw` / a `##` comment / a `${SHELL_VAR}` / `<help>` text. This is the
+  "is this renameable?" gate the faithful lexer already answers.
+- **Bail UX** — when our rename bails (`shadowed`, `filter-bare-ref`, `mixed-content`,
+  `cross-ref-residual`), return an LSP error/empty result with a human reason
+  ("Can't safely rename `genome`: it is referenced by bare name in an output filter")
+  rather than a silent no-op. The bail taxonomy (§20) maps directly to messages.
+- **Scope = tool-local (v1).** Our rename operates on one tool tree and bails if a live
+  reference resolves only inside an imported macro file. A cross-file rename (a param
+  surfaced through a macro, or a `@TOKEN@`) needs the macro import graph and a
+  multi-file `WorkspaceEdit`; galaxyls already does multi-file edits for macro-extract,
+  so this is a natural — but separate — follow-on.
+
+## Sequencing
+
+1. **Tier-B API in this repo** — `rename_param_plan` returning `RenameEdit`s, with the
+   attribute-span locator. Pin with unit tests (offsets round-trip: applying the plan to
+   the source reproduces today's `rename_param` output) and a corpus equivalence check
+   (`rename-coverage` parity: same bail/apply verdict, plan now also offset-correct). This
+   is the load-bearing piece and belongs with the rest of the engine.
+2. **galaxyls PR** — deps, `prepareRename` + `rename` features, offset→`Range`
+   conversion, bail→diagnostic. Upstreamed to galaxyls.
+3. **(Optional) Tier A** as an interim if an editor demo is wanted before step 1 lands.
+4. **(Future) cross-file** rename via the macro import graph.
+
+## Open questions
+
+- **Upstream vs. fork.** Is the goal a PR to galaxyls, or a downstream extension? A PR
+  means galaxyls takes a `galaxy-tool-xml` dependency — worth confirming the maintainers
+  want that coupling vs. galaxyls growing its own (weaker) rename.
+- **Formatting policy for Tier A.** If the interim whole-document path ships, does the
+  project want the rename to also canonicalise (it will), or must it stay minimal (then
+  skip Tier A and wait for Tier B)?
+- **`references` too?** `textDocument/references` (find-all-references in the editor) is
+  a near-free win once `find_references` is wired — same offset machinery, read-only.
+  Likely worth bundling with the rename PR.
+
+## Provenance
+
+galaxyls facts read from the local clone at
+`https://github.com/galaxyproject/galaxy-language-server` @ `725e48e`
+(`server/galaxyls/server.py`, `services/xml/document.py`, `services/references.py`,
+`services/format.py`, `services/tools/refactor.py`, `server/requirements.txt`). The
+rename engine is `galaxy_tool_xml.cheetah_rename` (`../galaxy-tool-xml/docs/decisions.md`
+§20); the roadmap home is `cheetah_section_editing.md` (M5.3).
