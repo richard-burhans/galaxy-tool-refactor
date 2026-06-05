@@ -42,6 +42,10 @@ _ALLOWLIST: dict[str, tuple[frozenset[str], str]] = {
         frozenset({".write_bytes("}),
         "writes fmt-produced canonical bytes when a write_path is given",
     ),
+    "galaxy-tool-refactor-cli/src/galaxy_tool_refactor_cli/cli.py": (
+        frozenset({".write_bytes("}),
+        "rename-param writes fmt-produced bytes from facade.rename_param to disk",
+    ),
     (
         "galaxy-tool-refactor-registry/src/galaxy_tool_refactor_registry/"
         "macro_profile.py"

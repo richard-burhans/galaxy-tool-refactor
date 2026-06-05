@@ -312,3 +312,32 @@ first mutator (rename). A query (not a rule) needs no preset, registry handle, o
 uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/test_cli.py -k find_references
 uv run galaxy-tool-refactor find-references input path/to/tool.xml
 ```
+
+## D9 (2026-06-05) — `rename-param`: the mutating sibling of `find-references`
+
+### Decision
+
+An eighth subcommand, `rename-param OLD NEW PATHS…`, renames a parameter across each
+tool, wrapping the facade `rename_param` over the tier-1 `cheetah_rename` primitive (the
+first Cheetah **mutator**, M5.3; `galaxy-tool-xml/docs/decisions.md` §20). Like
+`find-references` it is **not a rule** (no `--preset`/`--select`, no GTR code) — a rename
+is a user-parameterised refactoring operation, not a baked-in fix that `format`/`upgrade`
+applies. It rewrites every live `$OLD` reference (command/configfile via the faithful CDM
+lexer, attribute-Cheetah, by-name cross-reference attributes, `<tests>` mirrors) plus the
+definition, **atomically per file**: a tool changes only if every occurrence is provably
+safe, else it is skipped with the bail reason (`shadowed` / `mixed-content` /
+`lexer-bail` / `filter-bare-ref` / `cross-ref-residual`). `--check` previews and exits
+non-zero if any file would change (matching `format --check`); `--quiet` suppresses
+per-file lines. OLD/NEW are validated as identifiers at the CLI boundary.
+
+It runs its own file loop (like `find-references` / `check`) rather than fmt's
+`cli_support.run`: rename's per-file bail-with-reason outcome does not map onto that
+engine's format-drift model. Corpus coverage (the `rename-coverage` measure): 93.1% of
+input definitions rename cleanly; see `galaxy-tool-xml/docs/decisions.md` §20.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/test_cli.py -k rename
+uv run galaxy-tool-refactor rename-param old_name new_name path/to/tool.xml
+```

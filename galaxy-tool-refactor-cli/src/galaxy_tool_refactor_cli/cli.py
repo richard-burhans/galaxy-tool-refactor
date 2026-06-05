@@ -1,12 +1,13 @@
 """The ``galaxy-tool-refactor`` command-line interface.
 
-Seven subcommands. ``format`` and ``upgrade`` share fmt's file-walking /
+Eight subcommands. ``format`` and ``upgrade`` share fmt's file-walking /
 drift-detection engine (``galaxy_tool_xml_fmt.cli_support``) and differ only in
 which rules run before serialisation; ``check`` is a report-only linter that
 mutates nothing; ``find-references`` is a read-only query for a parameter's Cheetah
-``$var`` reference sites; ``rules`` / ``presets`` print the available baked-in rules
-and presets; ``normalize-macros`` is a separate, opt-in pass over macro-library files.
-All rule orchestration is delegated to the tier-3.6 registry facade
+``$var`` reference sites and ``rename-param`` is its mutating sibling (rename a
+parameter across those sites); ``rules`` / ``presets`` print the available baked-in
+rules and presets; ``normalize-macros`` is a separate, opt-in pass over macro-library
+files. All rule orchestration is delegated to the tier-3.6 registry facade
 (``galaxy_tool_refactor_registry``); this module only does CLI plumbing.
 
 - ``format`` — apply a preset's (or a ``--select``/``--ignore`` selection's)
@@ -28,6 +29,11 @@ All rule orchestration is delegated to the tier-3.6 registry facade
   (``file:line  [section]  $ref``) across a tool's templated sections. Mutates nothing,
   not a rule (no selection); the first read-only consumer of the Cheetah reference model
   (``galaxy_tool_xml.cheetah_refs``). See ``docs/decisions.md`` §D8.
+- ``rename-param`` — the mutating sibling of ``find-references``: rename a parameter
+  OLD to NEW across every Cheetah section, by-name cross-reference attribute, and
+  ``<tests>`` mirror, plus the definition. Atomic per file (rewrites everything or skips
+  with a reason); ``--check`` previews. Built on the faithful CDM lexer (M5.3); see
+  ``docs/decisions.md`` §D9.
 - ``rules`` / ``presets`` — introspection: the baked-in rules and the presets.
 - ``normalize-macros`` — opt-in, repo-scoped: lowercase literal ``format`` /
   ``ftype`` in ``<macros>``-root files (the macro-library analog of the 24.2
@@ -507,6 +513,80 @@ def find_references_command(
     if not quiet:
         click.echo(f"{total} reference(s) to '{name}' across {scanned} tool(s)")
     sys.exit(1 if errored else 0)
+
+
+@main.command(name="rename-param")
+@click.argument("old")
+@click.argument("new")
+@_PATH_ARGUMENT
+@_CHECK_OPTION
+@_QUIET_OPTION
+def rename_param_command(
+    old: str, new: str, paths: tuple[Path, ...], check: bool, quiet: bool
+) -> None:
+    """Rename parameter OLD to NEW across the tools' Cheetah sections.
+
+    The mutating sibling of ``find-references``. Rewrites every live ``$OLD`` reference
+    (``<command>`` / inline ``<configfile>`` via the faithful lexer, attribute-Cheetah,
+    by-name cross-reference attributes, and the ``<tests>`` mirrors) plus the
+    definition.
+
+    Rename is **atomic per file**: a tool is rewritten only if every occurrence can be
+    proven safe, otherwise it is skipped with a reason (e.g. a ``#set`` local shadows
+    OLD, a section is mixed-content, or an output ``<filter>`` references OLD by bare
+    Python name). PATHS may be files or directories; non-tool XML is skipped.
+    ``--check`` previews without writing and exits non-zero if any file would change.
+    """
+    if not old.isidentifier() or not new.isidentifier():
+        raise click.BadParameter("OLD and NEW must be valid identifiers")
+    renamed = would_change = skipped = errored = 0
+    for target in iter_targets(paths):
+        try:
+            original = target.read_bytes()
+        except OSError as error:
+            click.echo(f"error: cannot read {target}: {error}", err=True)
+            errored += 1
+            continue
+        if not is_tool_root(original):
+            skipped += 1
+            continue
+        try:
+            document = load_tool(original)
+        except ToolXmlSyntaxError as error:
+            click.echo(f"error: {target}: malformed XML: {error}", err=True)
+            errored += 1
+            continue
+        if document.root.tag != "tool":
+            skipped += 1
+            continue
+        result = facade.rename_param(document, old=old, new=new)
+        if not result.changed:
+            # "not-found" is the common, quiet case (the tool has no such param); any
+            # other reason is an informative skip (the rename could not be proven safe).
+            if result.reason != "not-found" and not quiet:
+                click.echo(f"skip {target}: {result.reason}")
+            skipped += 1
+            continue
+        if check:
+            would_change += 1
+            if not quiet:
+                click.echo(f"would rename {target}: {result.renamed} site(s)")
+            continue
+        assert result.formatted is not None
+        try:
+            target.write_bytes(result.formatted)
+        except OSError as error:
+            click.echo(f"error: cannot write {target}: {error}", err=True)
+            errored += 1
+            continue
+        renamed += 1
+        if not quiet:
+            click.echo(f"renamed {target}: {result.renamed} site(s)")
+    if not quiet:
+        done = would_change if check else renamed
+        verb = "would rename" if check else "renamed"
+        click.echo(f"{verb} {done} tool(s); skipped {skipped}")
+    sys.exit(1 if errored or (check and would_change) else 0)
 
 
 @main.command(name="presets")

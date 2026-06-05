@@ -1,8 +1,9 @@
 # Editing code inside Cheetah sections — feasibility spike + roadmap (M5)
 
-> **Status: spike COMPLETE (2026-06-04); M5.1 lexer SHIPPED (2026-06-05,
-> `galaxy_tool_xml.cheetah_cdm`); M5.2 read-only consumers SHIPPED (#95, #96).** This is
-> the data-backed verdict + sequenced roadmap for the long-deferred **M5** capability:
+> **Status: spike COMPLETE (2026-06-04); M5.1 lexer + M5.2 read-only consumers + M5.3
+> rename all SHIPPED (2026-06-04/05). Next: M5.3's `filter-bare-ref` gap (see below), then
+> M5.4 shell-structure.** This is the data-backed verdict + sequenced roadmap for the
+> long-deferred **M5** capability:
 > mechanically refactoring the code *inside* a tool's `<command>` / inline `<configfile>`
 > (the Cheetah-templated sections). Companion: `cheetah_bashlex_boundary_oracle.md` (the
 > bashlex boundary oracle + the GTR020.1 quoting story + the no-split-widening revert).
@@ -117,8 +118,23 @@ sanitizer constraints to prove more params space-free (cheap static widening of 
   false-positive sources (refs inside imported macros / `<expand>`, `data_ref`/attribute
   cross-refs, intentionally-unused params) + a GTR-code/stat-regen; design its false-positive
   handling (macro-expanded-tree scan, attribute cross-refs) before shipping it.
-- **M5.3 — rename codemod.** CDM + scope; rewrites placeholder spans + configfile +
-  `<param name>`; bails on the ~23% shadowing cases.
+- **M5.3 — rename a parameter. SHIPPED (2026-06-05).** `galaxy_tool_xml.cheetah_rename`
+  (`rename_param`) + the facade `rename_param` op + the `rename-param OLD NEW PATHS` CLI
+  (the mutating sibling of `find-references`, **not** a rule). Atomic per file: rewrites
+  every live `$old` (command/configfile via the faithful lexer, attribute-Cheetah,
+  by-name cross-reference attributes, `<tests>` mirrors) plus the definition, or bails
+  unchanged. Sized + tuned by the `rename-coverage` sweep: **93.1%** of input definitions
+  rename cleanly (the coarse-net first cut was 51.5% — modelling `<tests>` + the real
+  cross-ref attrs and exempting coincidental literals closed the gap). Tier-1
+  `docs/decisions.md` §20, cli §D9.
+  - **Known limitation / future work — `filter-bare-ref` (5.6% of attempts).** An output
+    `<filter>` is a **Python** expression that names a param by *bare* word
+    (`genome == 'hg19'`), not `$genome`. Rewriting a bare name safely needs a Python
+    tokenizer (to skip string literals / attribute accesses / unrelated identifiers), so
+    rename currently **bails** when `old` appears as a bare token in any `<filter>` body
+    rather than risk a wrong edit. This is the single largest residual bail; closing it
+    (a small `ast`/`tokenize`-based rewrite of `<filter>` bodies, with the same
+    bail-on-doubt posture) is the obvious next coverage win for rename.
 - **M5.4 — shell-structure fixes via ② provenance-render.** Scoped to the render-clean +
   back-mappable subset (~⅓ whole-tool, more per-occurrence); behind the `[verify]` extra;
   bails loudly; each corpus-swept like every codemod. First targets: the deferred GTR032
