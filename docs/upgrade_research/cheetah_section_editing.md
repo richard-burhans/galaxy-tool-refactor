@@ -1,6 +1,7 @@
 # Editing code inside Cheetah sections — feasibility spike + roadmap (M5)
 
-> **Status: read-only feasibility spike COMPLETE (2026-06-04); no shipped code.** This is
+> **Status: spike COMPLETE (2026-06-04); M5.1 lexer SHIPPED (2026-06-05,
+> `galaxy_tool_xml.cheetah_cdm`); M5.2 read-only consumers SHIPPED (#95, #96).** This is
 > the data-backed verdict + sequenced roadmap for the long-deferred **M5** capability:
 > mechanically refactoring the code *inside* a tool's `<command>` / inline `<configfile>`
 > (the Cheetah-templated sections). Companion: `cheetah_bashlex_boundary_oracle.md` (the
@@ -21,7 +22,7 @@ span/scope model of the raw section that re-serialises byte-for-byte except wher
 
 ## Building blocks & their spike verdicts
 
-### ① Faithful cheetah-lex (CT3 `Parser` subclass) — **CONFIRMED, 99.6% corpus**
+### ① Faithful cheetah-lex (CT3 `Parser` subclass) — **CONFIRMED, 99.6% corpus; SHIPPED as `cheetah_cdm` (M5.1)**
 A `Cheetah.Parser.Parser` subclass overriding `eatPlaceholder`/`eatDirective`/`eatComment`
 records `(kind, start, end, text)` for every placeholder / directive / comment, inheriting
 correct `##` / `#raw` / escaped `\$` / embedded-string handling from the real parser
@@ -97,9 +98,15 @@ sanitizer constraints to prove more params space-free (cheap static widening of 
 
 ## Roadmap (data-backed; early value, risk back-loaded)
 
-- **M5.1 — CDM faithful lexer (tier 1).** The `Parser`-subclass span model behind an
-  optional extra (CT3, MIT, via `galaxy-util[template]`; same pattern as `[shell-oracle]`),
-  with the regex `command_text` lexer as the dependency-free fallback. Coverage 99.6%.
+- **M5.1 — CDM faithful lexer (tier 1). SHIPPED (2026-06-05).** The `Parser`-subclass
+  span model is `galaxy_tool_xml.cheetah_cdm` (`cheetah_spans` → ordered, disjoint,
+  round-trip-faithful `CheetahSpan`s), behind the optional `galaxy-tool-xml[cheetah-cdm]`
+  extra (CT3, MIT, via `galaxy-util[template]`; same pattern as `[shell-oracle]`), with the
+  regex `command_text` / `cheetah_refs` lexer as the dependency-free fallback (bail →
+  `None`). The shipped lexer reproduces the spike: `cheetah-cdm-coverage` reports 99.6%
+  parse-clean / 0.4% bail / 22.6%-of-clean scope-hazard. Tier-1 `docs/decisions.md` §19.
+  The read-only consumers (M5.2) keep the regex until the first mutator consumes the
+  faithful lexer.
 - **M5.2 — read-only param consumers (highest coverage, lowest risk).** find-references /
   dead-param / used-params, built on M5.1 + a scope model (bindings from `#set`/`#for`/`#def`
   heads). Zero mutation risk; validates the locator + scope model corpus-wide.
