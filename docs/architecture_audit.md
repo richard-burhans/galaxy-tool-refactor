@@ -1,5 +1,73 @@
 # Architectural audit — galaxy-tool-refactor
 
+## Re-audit 2026-06-05 — post Cheetah-mutation subsystem (PRs #95/#96/#98/#99/#100/#101) + escalation
+
+**Verdict — healthy; boundaries hold, the new tier-1 abstractions are coherent.** This
+covers the largest tier-1 addition since the last audit: the **Cheetah-mutation subsystem**
+in `galaxy-tool-xml` — `cheetah_cdm` (faithful CT3 lexer), `cheetah_refs` (read-only
+reference model), and `cheetah_rename` (the first Cheetah *mutator*: `rename_param` tree
+rewrite + the new **Tier-B `rename_param_plan`** offset API, both rendered from one shared
+`_plan_rename`). Method: a refreshed `ARCHITECTURE.md` baseline (the subsystem was entirely
+undocumented) + a 6-finder / adversarial-refuter escalation (per-tier × 2, per-dimension × 4;
+**24 raw findings → 23 surviving refutation, 1 refuted**).
+
+**No boundary violations, no High findings.** The escalation positively *re-confirmed* the
+load-bearing invariants: `cheetah_cdm`/`cheetah_refs`/`cheetah_rename` import only stdlib +
+lxml + intra-tier-1 (`binding.parse_tool`, `cdata`) — no higher tier, no cycle; the
+**no-serializer** contract holds for both renderings (`rename_param` mutates the tree;
+`rename_param_plan` returns offsets; the facade serialises via fmt — guarded by the
+serializer-allowlist test); the two renderings share one planner so they cannot diverge on
+scope or bail reason (corpus parity 96.8%, **0 mismatches**, pinned by a synthetic-fixture
+test in `test_measure.py`); the round-trip and atomic-bail contracts are unit-tested.
+
+### Findings
+
+**Phase-1 baseline drift — fixed:**
+- `[fixed]` **`ARCHITECTURE.md` tier-1 omitted the entire Cheetah-mutation subsystem** and
+  still called "M5" *deferred* (M5.1 `cheetah_cdm` + M5.3 `cheetah_rename` shipped). Added a
+  tier-1 subsystem bullet (lexer / reference model / mutator + the two-rendering contract),
+  corrected the stale `command_text` "deferred M5 lexer" note, and added three reference-index
+  rows (`cheetah_cdm` §19, `cheetah_refs` §18, `cheetah_rename` §20).
+
+**Medium — fixed:**
+- `[fixed]` **`GTR034` (`UnusedParam`) absent from `ARCHITECTURE.md`** (merged #96): the
+  reference-usage advisory check was missing from both the tier-3.5 prose and the rule-codes
+  table. Added to both (flagged as reference-usage, distinct from the presence/shape advisories).
+
+**Low — fixed (safe doc):**
+- `[fixed]` **CLI `README.md` said "seven commands"** and omitted `rename-param` — corrected
+  to eight, list updated.
+- `[fixed]` **Root `README.md` CLI row + command bullets omitted `find-references` /
+  `rename-param`** — added both; also corrected the stale `format` "byte-identical to the
+  historical behaviour" claim (GTR020.1 made default `format` behaviour-preserving, not
+  byte-identical; codemod §30).
+
+**Re-confirmed (no change — validates the design):** facade `rename_param` routes serialisation
+through fmt (`format_tool_document_subset`); the Tier-B parity classification in
+`scripts/measure.py` correctly models the shared-planner taxonomy (shared bails agree; the four
+offset-only bails are sound stricter declines); ARCHITECTURE/decisions/README numbers,
+signatures, dataclass fields, and §18/19/20 cross-references all match the code.
+
+**Accepted (intentional, documented):**
+- `[accepted]` **`rename_param_plan` has no in-repo production caller** — it is the
+  editor-oriented Tier-B API, reserved for the external galaxyls LSP binding (decisions xml
+  §20; `docs/upgrade_research/lsp_rename_integration.md`; shipped downstream as
+  galaxyproject/galaxy-language-server#331). It is exercised by unit tests and the
+  `rename-coverage` parity measure, and listed in the package's public API. Not dead surface.
+
+**Refuted:**
+- `[refuted]` *"the 96.8% / 0-mismatch parity is corpus-only, not CI-enforced."* The
+  `n_plan_mismatch == 0` classifier is pinned by a synthetic-fixture test in
+  `test_measure.py::test_measure_rename_coverage_classifies` (engine-present and engine-absent
+  paths), so the invariant is guarded in CI; the corpus sweep only scales it up.
+
+**Low — fixed (test coverage):**
+- `[fixed]` Added a dedicated unit test for the `locator-failed` plan-only bail
+  (`test_raw_offset_map_locator_failed`: char mismatch, raw-runs-out, and literal-`<`
+  cases), joining the already-pinned `parse-error` / `encoding` / `entity-content` cases.
+  An `element.tail`-on-bail immutability test was considered and dropped — the mutator never
+  rewrites `tail`, so there is no real gap.
+
 ## Re-audit 2026-06-04 — post GTR-namespace unify + partition sub-rules (PRs #86–#88) + full escalation
 
 **Verdict — healthy; boundaries hold, the new abstractions are coherent.** A refreshed

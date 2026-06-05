@@ -14,7 +14,7 @@ definition XML.
 | [`galaxy-tool-xml-fmt`](galaxy-tool-xml-fmt/README.md) | pre-release | Opinionated `black`-like cosmetic formatter (with a non-mutating `detect`). The only tier that serialises canonical output XML. |
 | [`galaxy-tool-xml-check`](galaxy-tool-xml-check/README.md) | pre-alpha | Advisory, detect-only IUC best-practice checks (`GTR` codes); read-only, reports but never mutates. Depends only on tiers 1 + 0.5. |
 | [`galaxy-tool-refactor-registry`](galaxy-tool-refactor-registry/README.md) | pre-alpha | Unified, code-addressable rule registry over all three families + named presets (`cosmetic`/`iuc`/`strict`) + a library-first `run`/`upgrade`/`detect` API. The orchestration core the CLI and the MCP server sit on. |
-| [`galaxy-tool-refactor-cli`](galaxy-tool-refactor-cli/README.md) | pre-alpha | The `galaxy-tool-refactor` app CLI — `format`, `upgrade`, report-only `check`, `presets` / `rules`, and the opt-in `normalize-macros`, with `--preset` / `--select` / `--ignore` rule selection. |
+| [`galaxy-tool-refactor-cli`](galaxy-tool-refactor-cli/README.md) | pre-alpha | The `galaxy-tool-refactor` app CLI — `format`, `upgrade`, report-only `check`, read-only `find-references`, mutating `rename-param`, `presets` / `rules`, and the opt-in `normalize-macros`, with `--preset` / `--select` / `--ignore` rule selection. |
 | [`galaxy-tool-refactor-mcp`](galaxy-tool-refactor-mcp/README.md) | pre-alpha | An agent-facing **MCP server** over the registry facade (CLI sibling): a thin FastMCP binding over a protocol-agnostic adapter, exposing `format_tool`/`upgrade_tool`/`check_tool`/`list_presets`/`list_rules`. |
 
 ## Quick start
@@ -57,8 +57,10 @@ which the app CLI consumes:
 
 - `galaxy-tool-refactor format` — apply a preset's fixable rules then cosmetic
   formatting. Default preset `iuc` = `CANONICAL_CODEMODS` (typo repair +
-  attribute / element order) + cosmetic — byte-identical to the historical
-  behaviour. Safe, idempotent; never changes `profile=`.
+  attribute / element order + CDATA wraps + GTR020 command-var single-quoting) +
+  cosmetic — behaviour-preserving (no longer byte-identical to the pre-GTR020
+  historical output; codemod `docs/decisions.md` §30). Safe, idempotent; never
+  changes `profile=`.
 - `galaxy-tool-refactor upgrade` — repair, then iterative profile upgrade, then
   cosmetic formatting. Opt-in, semantic. No `--preset`; `--select`/`--ignore`
   adjust its fixable rule set.
@@ -67,6 +69,13 @@ which the app CLI consumes:
   only *fixable* GTR findings; `--preset strict` adds the *advisory* checks
   (marked `(advisory)`). Exits non-zero on any fixable finding; advisory findings
   are informational unless `--strict`.
+- `galaxy-tool-refactor find-references NAME PATHS` — read-only query (not a rule):
+  print every Cheetah `$NAME` reference site across a tool's templated sections
+  (`galaxy_tool_xml.cheetah_refs`).
+- `galaxy-tool-refactor rename-param OLD NEW PATHS` — the mutating sibling of
+  `find-references`: rename a parameter across every Cheetah section, by-name
+  cross-ref attribute and `<tests>` mirror, plus the definition; atomic per file
+  (`--check` previews). The first Cheetah mutator (`galaxy_tool_xml.cheetah_rename`).
 - `galaxy-tool-refactor presets` / `rules` — list the baked-in presets and rules.
 - `galaxy-tool-refactor normalize-macros` — opt-in, repo-scoped: lowercase literal
   `format`/`ftype` in `<macros>`-root files (the macro-library fix the per-tool

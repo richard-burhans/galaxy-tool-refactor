@@ -15,8 +15,9 @@ facade (`galaxy-tool-refactor-registry`).
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` *(this package)* |
 
 Rule orchestration lives in the registry facade; this package depends on it
-(plus fmt's `cli_support` engine and tier-1 parsing) and exposes seven commands
-(`format`, `upgrade`, `check`, `find-references`, `presets`, `rules`, `normalize-macros`):
+(plus fmt's `cli_support` engine and tier-1 parsing) and exposes eight commands
+(`format`, `upgrade`, `check`, `find-references`, `rename-param`, `presets`, `rules`,
+`normalize-macros`):
 
 ```bash
 # Safe, idempotent: apply a preset's fixable rules + cosmetic formatting.

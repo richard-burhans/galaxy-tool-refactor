@@ -136,6 +136,26 @@ schema, and expose a typed view — **without ever serialising**.
   tier 1 so **both** the codemod fix sub-rules (tier 2) **and** the advisory check
   residuals (tier 3.5) share one definition — the partition's soundness seam (xml
   `docs/decisions.md` §16; registry D10).
+- **Cheetah-mutation subsystem** — the read/edit layer over a tool's *templated*
+  sections (`<command>` / inline `<configfile>` / attribute-Cheetah), all in tier 1,
+  all behind the optional `[cheetah-cdm]` extra (CT3):
+  - `cheetah_cdm.py` — a **faithful** Cheetah lexer, `cheetah_spans(text) ->
+    list[CheetahSpan] | None`, recording disjoint source-ordered placeholder /
+    directive / comment spans, so an edit can tell a live `$x` from one inside
+    `#raw` / a `##` comment / an escaped `\$x` (xml `docs/decisions.md` §19).
+  - `cheetah_refs.py` — the read-only reference model, `tool_cheetah_references(root)
+    -> list[CheetahRef]`: every `$param` reference site across the templated
+    sections; backs the CLI `find-references` (xml §18).
+  - `cheetah_rename.py` — the first Cheetah **mutator**: rename a parameter across
+    every live reference + the definition + `<tests>` mirrors + by-name cross-ref
+    attributes, **atomically** (rewrite all or bail unchanged, with a reason). One
+    planner (`_plan_rename`) feeds two renderings: `rename_param(root, *, old, new)
+    -> RenameOutcome` mutates the lxml tree (used by the facade / CLI `rename-param`),
+    and `rename_param_plan(source, *, old, new) -> RenamePlan` returns minimal
+    `RenameEdit(start, end, replacement)` offsets over the **original source** for an
+    editor / LSP `WorkspaceEdit` — no reflow; 96.8% corpus parity with the tree
+    mutator, 0 mismatches (xml §20). Still **no serializer**: the tree rendering
+    mutates in place, the offset rendering returns spans; the caller serialises.
 
 **Contract:** the lxml tree is the single representation; tier 1 emits no XML.
 *(xml `docs/decisions.md` §3 representation, §9 three-tier vision, §10 corpus
@@ -279,14 +299,16 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   *non-provable* unquoted `$var` the `GTR020.1` fix can't safely quote). Each reuses
   the shared tier-1 predicate its fix uses, so the partition is sound.
   **GTR032** (`CommandAndJoining`, `&&`-vs-lone-`&`) remains a reserved no-op stub
-  — its anti-pattern is ~1 tool corpus-wide (D3).
+  — its anti-pattern is ~1 tool corpus-wide (D3). **GTR034** (`UnusedParam`) is a
+  *reference-usage* advisory (not presence/shape): an `<inputs>` `<param>` never
+  referenced anywhere the tool uses it, via the tier-1 all-text identifier scan.
 - **`command_text.py`** (in **tier 1**, `galaxy_tool_xml.command_text`) — the
   read-only lexer `GTR020.2` reads `<command>` text through: a single character scan
   tracking `'…'` / `"…"` quote state **across newlines** and skipping Cheetah
   directive/comment lines, yielding each unquoted `$var` with its character span.
-  It only classifies, never rewrites — the detection-only slice of the codemod
-  tier's deferred M5 Cheetah/shell lexer, so it needs none of M4 / mutation cursors
-  / provenance. It moved to tier 1 (with `command_vars.py`, the quoting-safety
+  It only classifies, never rewrites — a lighter read-only lexer, deliberately
+  separate from the faithful `cheetah_cdm` lexer (§19) that the rename mutator uses,
+  so it needs none of the mutation machinery. It moved to tier 1 (with `command_vars.py`, the quoting-safety
   classifier, and `cdata.py`, the CDATA-wrappability predicate) so the `GTR020.1` /
   `GTR018.1` / `GTR019.1` codemods (tier 2) can share them with these checks; see
   `galaxy-tool-xml/docs/decisions.md` §16.
@@ -550,6 +572,9 @@ Each abstraction → its file → the decision record that justifies it.
 | `unquoted_cheetah_vars` (command lexer) | `galaxy-tool-xml/src/.../command_text.py` | xml `docs/decisions.md` §16 |
 | `provably_quotable` (quoting-safety classifier) | `galaxy-tool-xml/src/.../command_vars.py` | xml `docs/decisions.md` §16 |
 | `cdata_wrappable` / `needs_cdata` / `is_cdata_wrapped` | `galaxy-tool-xml/src/.../cdata.py` | xml `docs/decisions.md` §16; registry D10 |
+| `cheetah_spans` / `CheetahSpan` (faithful CT3 lexer) | `galaxy-tool-xml/src/.../cheetah_cdm.py` | xml `docs/decisions.md` §19 |
+| `tool_cheetah_references` / `CheetahRef` (reference model) | `galaxy-tool-xml/src/.../cheetah_refs.py` | xml `docs/decisions.md` §18 |
+| `rename_param` / `rename_param_plan` / `RenameOutcome` / `RenamePlan` | `galaxy-tool-xml/src/.../cheetah_rename.py` | xml `docs/decisions.md` §20 |
 | `CodemodCommand`, `Cursor`, `Change` | `galaxy-tool-xml-codemod/src/.../codemod.py`, `cursor.py`, `change.py` | codemod `docs/decisions.md` §6, §19 |
 | `CANONICAL_CODEMODS` / `AUTO_UPGRADE_CODEMODS` | `galaxy-tool-xml-codemod/src/.../canonical.py` | codemod `docs/decisions.md` §16 |
 | upgrade codemods | `galaxy-tool-xml-codemod/src/.../upgrades.py`, `codemods/upgrade_*.py` | codemod `docs/decisions.md` §11–14 |
@@ -592,3 +617,4 @@ Each abstraction → its file → the decision record that justifies it.
 | GTR021, GTR023–029, GTR033 | `TestsPresent` … (presence/shape) | `galaxy-tool-xml-check/.../checks.py` | check (flat advisory) |
 | GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks.py` | check (advisory, reserved no-op stub — D3) |
 | GTR033 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks.py` | check (advisory — D7) |
+| GTR034 | `UnusedParam` | `galaxy-tool-xml-check/.../checks.py` | check (advisory — reference-usage) |
