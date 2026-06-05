@@ -2,10 +2,12 @@
 
 > **TL;DR.** Install, then run one of eight commands on a tool file or a directory:
 > `format` (fix), `upgrade` (bump profile safely), `check` (report), `find-references`
-> (locate a param's Cheetah `$var` uses), `rename-param` (rename a param everywhere,
+> (locate a param's Cheetah `$var` uses across a tool **and its imported macros**),
+> `rename-param` (rename a param everywhere — tool **and its imported macros** —
 > atomically), `presets`/`rules` (introspect), `normalize-macros` (opt-in macro-library
-> fix). `format`/`upgrade`/`rename-param` support `--diff` / `--check` so you can preview
-> without writing.
+> fix). `format`/`upgrade`/`rename-param` support `--check` (and `format`/`upgrade`
+> `--diff`) to preview without writing; all four mutating commands take `--backup`
+> (`<file>.bak` before overwrite).
 
 ## Install & run
 
@@ -20,9 +22,12 @@ The eight commands:
 check            Report where tools deviate from the selection, without changing them.
 format           Apply a preset's fixable rules then cosmetic formatting (never profile=).
 upgrade          Repair and upgrade tools to the latest profile they can reach, then format.
-find-references  Report every Cheetah $var reference to a parameter across a tool (read-only).
+find-references  Report every Cheetah $var reference to a parameter across a tool AND its
+                 imported macro files (read-only).
 rename-param     Rename a parameter OLD->NEW across every Cheetah section, cross-ref attribute,
-                 and <tests> mirror, plus the definition (atomic per file; --check previews).
+                 and <tests> mirror, plus the definition — across a tool AND its imported
+                 macros, atomically. --repo-root proves a touched macro is sole-owned before
+                 editing it (a shared macro is skipped + reported); --check previews.
 presets          List the available presets and the rule codes each one selects.
 rules            List the baked-in rules: code, family, fixable/advisory, presets.
 normalize-macros Lowercase literal format/ftype in <macros>-root files (opt-in, repo-scoped).

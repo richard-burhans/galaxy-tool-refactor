@@ -1018,3 +1018,56 @@ is the separate step 2 of the design note, upstreamed there — not in this repo
 uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_cheetah_rename.py
 uv run python -m scripts.measure rename-coverage   # outcome distribution over the corpus
 ```
+
+## 21. The tool bundle — cross-file parameter rename (`bundle`)
+
+**Date:** 2026-06-05. Extends §20: rename a parameter across a tool **and its
+transitively-imported macro files**, not just the single tool file.
+
+A Galaxy tool routinely *defines* a `<param>` in its own `<inputs>` but only
+*references* it (`$param`) — or mirrors it in `<tests>` — inside an imported macro
+file. The real `tools-iuc/pal2nal` is the canonical case: `pal2nal.xml` defines
+`<param name="protein_alignment">` and is just `<expand macro="command"/>`, while the
+`$protein_alignment` references live in `macros.xml`'s `<xml name="command"><command>`
+and six `<test>` mirrors in `tests.xml`. The §20 single-file rename renamed the
+definition and **reported success while leaving the macro references dangling** — a
+silent broken-tool bug, not merely missing coverage. Renaming
+`protein_alignment` across the bundle rewrites **9 sites across 3 files**.
+
+Corpus-wide (`rename-macro-spread`): of 71,935 input-definition renames, **1,101 (1.5%)
+spill into an imported macro — every one a silent break today**; 918 (83%) touch only
+sole-owned macros (v1 auto-applies with `--repo-root`), 183 touch a shared macro (v1
+skips + reports). 91.3% are tool-internal (unaffected).
+
+### Decisions
+
+- **A `ToolBundle` is the unit; `load_bundle(path)` builds it** from the existing
+  `imported_macro_paths` + `load_tool` + `load_macros`. Each member carries its own
+  `source_path`, so edits write back to the right file ("locate-in-source" — the same
+  strategy `normalize-macros` / the `@PROFILE@` bump already use; **not** the deferred
+  expansion-provenance layer, which solves post-expansion node attribution — a problem
+  this rename doesn't have, since references are literal text in the macro source).
+- **One planner, three callers.** `rename_param` already took an arbitrary root; it now
+  reads the **mode from the root tag** (`<tool>` vs `<macros>`) so `<command>` /
+  `<configfile>` fragments nested under `<xml name="…">` are found by descendant scan,
+  and a `name="old"` definition / output / `<test>` mirror anywhere in a macro is
+  **rewritten** (not skipped — a skipped `name` is residual-exempt and would slip the
+  completeness net). No parallel planner; the §20 "two renderings share one planner"
+  invariant holds with `rename_param_in_bundle` as the third caller.
+- **Whole-bundle atomicity with a `not-found` carve-out.** A member that simply doesn't
+  mention `old` reports `not-found` and contributes nothing (the common outcome for an
+  unrelated macro — it must **not** abort). *Any other* member bail (`shadowed`,
+  `mixed-content`, `lexer-bail`, `filter-bare-ref`, `cross-ref-residual`) bails the
+  whole bundle: renaming the tool's param while a macro reference survives would dangle.
+- **No shared-file gate here.** This tier mutates in-memory trees and reports which
+  members changed; whether an edited macro is safe to write (sole-owned vs shared by
+  other tools) is a repo-wide question owned by the registry gate (registry D12). The
+  caller passes a bundle it will discard on a bail, exactly as the facade deep-copies
+  before the single-root `rename_param`.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_bundle.py
+uv run python -m scripts.measure rename-macro-spread   # spill % + silent-break count
+```

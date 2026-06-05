@@ -29,6 +29,15 @@ with a reason, leaving the tree unmutated) when it cannot prove the rewrite safe
 - ``not-found`` / ``invalid-name`` / ``no-op`` — nothing named ``old`` occurs, ``new``
   is not an identifier, or ``old == new``.
 
+``rename_param`` adapts to either a ``<tool>`` root or a ``<macros>`` library file: in
+the latter the ``<command>`` / ``<configfile>`` fragments and any ``<param>`` / output /
+``<test>`` mirror nest under ``<xml name="…">`` rather than the tool sections, so body
+discovery and the named-reference scan are descendant-scoped (the mode is read from the
+root tag). A ``name="old"`` definition/mirror in a macro is **rewritten**, not skipped,
+so a macro rename stays complete. ``rename_param_in_bundle`` (in ``bundle``) renames
+across a tool *and* its imported macro files atomically; the shared-macro safety (a
+macro imported by other tools) is enforced one tier up, in the registry gate.
+
 The tree is the source of truth (tier 1 has no serializer); the caller serialises. The
 facade deep-copies before calling, so even a post-apply bail leaves the original intact.
 
@@ -300,11 +309,30 @@ def _plan_lexer_body(element: etree._Element, old: str, /) -> _BodyPlan:
     return _BodyPlan(spans=tuple(edits), cdata=is_cdata_wrapped(element))
 
 
+def _is_macro_root(root: etree._Element, /) -> bool:
+    """Whether *root* is a ``<macros>`` library file rather than a ``<tool>``.
+
+    A macro file nests its ``<command>`` / ``<configfile>`` fragments inside
+    ``<xml name="…">`` blocks and carries no ``<inputs>`` definition, so body
+    discovery and the named-definition scan adapt to it. Selecting the mode from
+    the root tag (not a caller flag) makes the wrong mode unpickable.
+    """
+    return bool(root.tag == "macros")
+
+
 def _lexer_bodies(root: etree._Element, /) -> Iterator[etree._Element]:
-    """The faithful-lexer bodies: ``<command>`` and every inline ``<configfile>``."""
-    command = root.find("command")
-    if command is not None:
-        yield command
+    """The faithful-lexer bodies: ``<command>`` and every inline ``<configfile>``.
+
+    On a ``<tool>`` root the ``<command>`` is the single top-level child; on a
+    ``<macros>`` root the command/configfile fragments are nested under
+    ``<xml name="…">``, so both are reached by descendant scan.
+    """
+    if _is_macro_root(root):
+        yield from root.iter("command")
+    else:
+        command = root.find("command")
+        if command is not None:
+            yield command
     yield from root.iter("configfile")
 
 
@@ -329,11 +357,31 @@ def _attr_cheetah_sites(
         yield data_source, "redirect_url_params"
 
 
+_NAMED_REFERENCE_TAGS = (
+    _INPUT_DEFINITION_TAGS | _OUTPUT_DEFINITION_TAGS | _TEST_REFERENCE_TAGS
+)
+
+
 def _named_reference_elements(
     root: etree._Element, old: str, /
 ) -> Iterator[etree._Element]:
     """Elements whose ``name`` is *old*: the definition (``<inputs>`` / ``<outputs>``)
-    and every ``<tests>`` element that mirrors it (a test references params by name)."""
+    and every ``<tests>`` element that mirrors it (a test references params by name).
+
+    On a ``<macros>`` root the definition / output / test-mirror fragments nest in
+    ``<xml name="…">`` blocks rather than under the tool sections, so the whole tree is
+    scanned for any named-reference tag — every such ``name="old"`` is rewritten (not
+    skipped), which keeps a macro rename complete (a skipped ``name`` would be
+    residual-exempt and slip through the net)."""
+    if _is_macro_root(root):
+        for element in root.iter():
+            if (
+                isinstance(element.tag, str)
+                and element.tag in _NAMED_REFERENCE_TAGS
+                and element.get("name") == old
+            ):
+                yield element
+        return
     inputs = root.find("inputs")
     if inputs is not None:
         for element in inputs.iter():

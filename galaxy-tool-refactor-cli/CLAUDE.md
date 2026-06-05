@@ -43,14 +43,16 @@ longer imports the codemod / check tiers directly. It exposes the
   `(advisory)`). Fixable findings exit non-zero; advisory are informational unless
   `--strict`. Macro files are checked for cosmetic (fixable) drift too.
 - `find-references` — read-only query (mutates nothing, not a rule): print every
-  Cheetah `$NAME` reference site (`file:line  [section]  $ref`) across a tool's
-  templated sections — the first consumer of the tier-1 Cheetah reference model
-  (`galaxy_tool_xml.cheetah_refs`); see `docs/decisions.md` §D8.
+  Cheetah `$NAME` reference site (`file:line  [section]  $ref`) across a tool **and its
+  imported macro files** (`galaxy_tool_xml.cheetah_refs` + the bundle); see
+  `docs/decisions.md` §D8, §D10.
 - `rename-param` — the mutating sibling of `find-references` (not a rule): rename a
   parameter OLD→NEW across every Cheetah section, by-name cross-ref attribute, and
-  `<tests>` mirror, plus the definition. Atomic per file (rewrites all or skips with a
-  reason); `--check` previews. The first Cheetah mutator (M5.3) over `cheetah_rename`
-  / facade `rename_param`; see `docs/decisions.md` §D9.
+  `<tests>` mirror, plus the definition — across the tool **and its imported macros**
+  (the bundle), atomically. `--repo-root` proves a touched macro is sole-owned (a
+  shared macro is skipped + reported); `--check` previews; `--backup` keeps `.bak`s.
+  First Cheetah mutator (M5.3) over `cheetah_rename` / `bundle_rename`; see
+  `docs/decisions.md` §D9, §D10.
 - `presets` / `rules` — introspection of the baked-in presets and rules.
 - `normalize-macros` — opt-in, repo-scoped pass that lowercases literal
   `format`/`ftype` in `<macros>`-root files (the macro-library analog of 24.2
@@ -59,10 +61,13 @@ longer imports the codemod / check tiers directly. It exposes the
   separate command — never part of `format`/`upgrade` (cli §D7;
   `galaxy-tool-xml-codemod/docs/macro-aware-normalization.md`).
 
-Macro handling is **cosmetic-only and bundle-free** in v1: macro files are
-formatted/checked standalone as encountered (no import-graph, no shared-skip —
-cosmetic formatting is safe regardless of sharing). The import-graph bundle +
-shared-skip is Phase-3 content-edit infrastructure (cli §D5).
+Macro handling is **cosmetic-only and bundle-free for `format`/`check`** (macro
+files are formatted/checked standalone as encountered — cosmetic formatting is safe
+regardless of sharing; cli §D5). But `rename-param` / `find-references` **are
+bundle-aware** (cli §D10): they operate over a tool *and its imported macro files*,
+with a sole-owned `--repo-root` gate for the macro edits a rename makes (registry D12;
+`galaxy-tool-xml/docs/decisions.md` §21). All four mutating commands accept `--backup`
+(`<file>.bak` before overwrite).
 
 Selection (`--preset` / `--select` / `--ignore`) is shared by
 `format`/`upgrade`/`check` (upgrade takes no `--preset`); precedence is ruff-style

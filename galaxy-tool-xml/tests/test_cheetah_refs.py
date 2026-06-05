@@ -69,6 +69,19 @@ def test_tool_scan_covers_command_configfile_envvar_and_label() -> None:
     assert label_refs == ["$input.name", "$on_string"]
 
 
+def test_macros_root_scans_nested_command_fragments() -> None:
+    # On a <macros> file the <command> nests under <xml name="...">; the scan must
+    # still find its references (find-references across a tool's imported macros).
+    root = etree.fromstring(
+        b"<macros><xml name='command'>"
+        b"<command><![CDATA[tool '$protein_alignment']]></command></xml>"
+        b"<xml name='cfg'><configfile name='s'>v: $opts</configfile></xml></macros>"
+    )
+    sections = {ref.section: ref.name for ref in tool_cheetah_references(root)}
+    assert sections["command"] == "$protein_alignment"
+    assert sections["configfile:s"] == "$opts"
+
+
 def test_tool_scan_sourcelines_are_file_lines() -> None:
     root = _root(b"<command>\ntool $input\n</command>")
     command_refs = [r for r in tool_cheetah_references(root) if r.section == "command"]

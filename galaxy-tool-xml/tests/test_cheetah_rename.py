@@ -282,6 +282,83 @@ def test_outcome_is_dataclass() -> None:
     assert RenameOutcome(renamed=0, bailed=True, reason="x").reason == "x"
 
 
+# --- macro-file mode (a <macros> root) ------------------------------------------
+# rename_param adapts to a <macros> root: command/configfile fragments nest under
+# <xml name="...">, so body discovery is descendant-scoped, not direct-child.
+
+
+def test_macro_root_nested_command_reference_renamed() -> None:
+    # The pal2nal shape: a macro file defines the <command> fragment that references
+    # a param the importing tool defines. The reference must be found and rewritten.
+    root = _root(
+        "<macros><xml name='command'>"
+        "<command detect_errors='exit_code'><![CDATA[tool '$old' -o out]]></command>"
+        "</xml></macros>"
+    )
+    outcome = rename_param(root, old="old", new="new")
+    assert not outcome.bailed
+    assert root.find(".//command").text == "tool '$new' -o out"
+    assert outcome.renamed == 1
+
+
+def test_macro_root_nested_configfile_reference_renamed() -> None:
+    root = _root(
+        "<macros><xml name='cfg'>"
+        "<configfile name='script'>x = '$old'</configfile></xml></macros>"
+    )
+    outcome = rename_param(root, old="old", new="new")
+    assert not outcome.bailed
+    assert root.find(".//configfile").text == "x = '$new'"
+
+
+def test_macro_root_without_reference_is_not_found() -> None:
+    # A macro file the param does not appear in contributes nothing (the common case
+    # for an unrelated imported macro); per-member this is "not-found", not a bail.
+    root = _root(
+        "<macros><xml name='other'><command>run $unrelated</command></xml></macros>"
+    )
+    outcome = rename_param(root, old="old", new="new")
+    assert outcome.bailed
+    assert outcome.reason == "not-found"
+
+
+def test_macro_root_defining_param_is_renamed() -> None:
+    # A "common inputs" macro that defines the param by name: the bare <param name=>
+    # (nested in <xml>, not under <inputs>) AND the command reference are both
+    # rewritten, so the macro rename is complete. Shared-macro safety is the gate's job.
+    root = _root(
+        "<macros><xml name='inputs'><param name='old' type='data'/></xml>"
+        "<xml name='command'><command>run '$old'</command></xml></macros>"
+    )
+    outcome = rename_param(root, old="old", new="new")
+    assert not outcome.bailed
+    assert root.find(".//param").get("name") == "new"
+    assert root.find(".//command").text == "run '$new'"
+
+
+def test_macro_root_test_mirror_is_renamed() -> None:
+    # A <tests> macro (the common pal2nal/tests.xml shape) mirrors the input param by
+    # name; those mirrors are by-name references and must follow the rename, not bail.
+    root = _root(
+        "<macros><xml name='tests'><tests><test>"
+        "<param name='old' value='x'/></test></tests></xml></macros>"
+    )
+    outcome = rename_param(root, old="old", new="new")
+    assert not outcome.bailed
+    assert root.find(".//tests//param").get("name") == "new"
+
+
+def test_macro_root_shadowed_reference_bails() -> None:
+    # The shadow bail applies in a macro body too (a #set-bound $old isn't the param).
+    root = _root(
+        "<macros><xml name='command'>"
+        "<command>#set $old = 1\nrun $old</command></xml></macros>"
+    )
+    outcome = rename_param(root, old="old", new="new")
+    assert outcome.bailed
+    assert outcome.reason == "shadowed"
+
+
 # --- offset-returning rename (rename_param_plan) --------------------------------
 
 

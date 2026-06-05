@@ -15,6 +15,7 @@ all end in fmt's serializer, and the app tier already depends on fmt.
 from __future__ import annotations
 
 import difflib
+import shutil
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -60,6 +61,23 @@ class RunOptions:
     check: bool
     diff: bool
     quiet: bool
+    backup: bool = False
+
+
+def make_backup(path: Path, /) -> Path | None:
+    """Copy *path* to ``<path>.bak`` before it is overwritten; return the backup path.
+
+    A safety net for the in-place mutating commands: callers invoke this immediately
+    before writing the new bytes, only when the user passed ``--backup``. Returns
+    ``None`` when *path* does not yet exist (a fresh write has nothing to preserve).
+    The backup is overwritten on a repeat run, so ``<path>.bak`` always holds the
+    file's content immediately before the current edit (the ``sed -i.bak`` convention).
+    """
+    if not path.is_file():
+        return None
+    backup = path.with_name(path.name + ".bak")
+    shutil.copy2(path, backup)
+    return backup
 
 
 @dataclass
@@ -255,6 +273,8 @@ def _process_file(
         counts.would_change += 1
         return
     try:
+        if options.backup:
+            make_backup(path)
         path.write_bytes(outcome.formatted)
     except OSError as error:
         click.echo(f"error: cannot write {path}: {error}", err=True)

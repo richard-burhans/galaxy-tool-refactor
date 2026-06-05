@@ -8,7 +8,7 @@ import pytest
 from click.testing import CliRunner
 
 from galaxy_tool_xml_fmt.cli import main
-from galaxy_tool_xml_fmt.cli_support import is_macros_root, is_tool_root
+from galaxy_tool_xml_fmt.cli_support import is_macros_root, is_tool_root, make_backup
 
 _UNFORMATTED_TOOL = (
     b"<tool id='t' name='T' version='0.1'>"
@@ -20,6 +20,17 @@ _UNFORMATTED_TOOL = (
 def _write(path: Path, content: bytes) -> Path:
     path.write_bytes(content)
     return path
+
+
+def test_make_backup_copies_existing_file(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _UNFORMATTED_TOOL)
+    backup = make_backup(file)
+    assert backup == tmp_path / "tool.xml.bak"
+    assert backup.read_bytes() == _UNFORMATTED_TOOL
+
+
+def test_make_backup_is_none_for_absent_file(tmp_path: Path) -> None:
+    assert make_backup(tmp_path / "missing.xml") is None
 
 
 def test_reformats_file_in_place(tmp_path: Path) -> None:

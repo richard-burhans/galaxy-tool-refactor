@@ -54,6 +54,12 @@ from pathlib import Path
 
 import click
 from galaxy_tool_refactor_registry import facade
+from galaxy_tool_refactor_registry.bundle_rename import (
+    BundleRenameResult,
+    build_importer_map,
+    find_references_in_bundle,
+    rename_param_bundle,
+)
 from galaxy_tool_refactor_registry.errors import UnknownPreset, UnknownRuleCode
 from galaxy_tool_refactor_registry.macro_datatype import normalize_macro_files
 from galaxy_tool_refactor_registry.macro_profile import (
@@ -101,6 +107,20 @@ _QUIET_OPTION = click.option(
     "--quiet",
     is_flag=True,
     help="Suppress per-file output; only errors and the summary are shown.",
+)
+_REPO_ROOT_OPTION = click.option(
+    "--repo-root",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=None,
+    help=(
+        "Repo directory used to prove a macro file is sole-owned before a rename "
+        "edits it. Required only when a rename's references reach an imported macro."
+    ),
+)
+_BACKUP_OPTION = click.option(
+    "--backup",
+    is_flag=True,
+    help="Before overwriting a file, copy its current content to <file>.bak.",
 )
 _STRICT_OPTION = click.option(
     "--strict",
@@ -177,6 +197,7 @@ def main() -> None:
 @_CHECK_OPTION
 @_DIFF_OPTION
 @_QUIET_OPTION
+@_BACKUP_OPTION
 @_PRESET_OPTION
 @_SELECT_OPTION
 @_IGNORE_OPTION
@@ -185,6 +206,7 @@ def format_command(
     check: bool,
     diff: bool,
     quiet: bool,
+    backup: bool,
     preset: str | None,
     select: tuple[str, ...],
     ignore: tuple[str, ...],
@@ -214,7 +236,7 @@ def format_command(
         paths,
         transform=transform,
         action=Action(past="reformatted", conditional="would reformat"),
-        options=RunOptions(check=check, diff=diff, quiet=quiet),
+        options=RunOptions(check=check, diff=diff, quiet=quiet, backup=backup),
         macro_transform=macro_transform,
     )
     sys.exit(exit_code)
@@ -225,6 +247,7 @@ def format_command(
 @_CHECK_OPTION
 @_DIFF_OPTION
 @_QUIET_OPTION
+@_BACKUP_OPTION
 @_PRESET_OPTION
 @_SELECT_OPTION
 @_IGNORE_OPTION
@@ -233,6 +256,7 @@ def upgrade_command(
     check: bool,
     diff: bool,
     quiet: bool,
+    backup: bool,
     preset: str | None,
     select: tuple[str, ...],
     ignore: tuple[str, ...],
@@ -276,7 +300,7 @@ def upgrade_command(
     # per-file by GTR007 in the transform below). This edits *macro* files, so it
     # cannot ride the per-file tool transform.
     macro_pending = _upgrade_macro_profile_tokens(
-        paths, check=check, diff=diff, quiet=quiet
+        paths, check=check, diff=diff, quiet=quiet, backup=backup
     )
 
     def transform(document: ToolDocument) -> TransformOutcome:
@@ -287,7 +311,7 @@ def upgrade_command(
         paths,
         transform=transform,
         action=Action(past="upgraded", conditional="would upgrade"),
-        options=RunOptions(check=check, diff=diff, quiet=quiet),
+        options=RunOptions(check=check, diff=diff, quiet=quiet, backup=backup),
     )
     # A pending macro-token bump is a "would change" under either preview mode
     # (--check or --diff), so both must surface it in the exit code (cli D6).
@@ -295,7 +319,7 @@ def upgrade_command(
 
 
 def _upgrade_macro_profile_tokens(
-    paths: tuple[Path, ...], *, check: bool, diff: bool, quiet: bool
+    paths: tuple[Path, ...], *, check: bool, diff: bool, quiet: bool, backup: bool
 ) -> bool:
     """Upgrade imported ``@PROFILE@`` tokens across the run; return would-edit.
 
@@ -322,7 +346,9 @@ def _upgrade_macro_profile_tokens(
         if site is not None:
             sites.append(site)
     plans = plan_from_sites(sites)
-    result = apply_profile_token_plans(plans, write=not (check or diff))
+    result = apply_profile_token_plans(
+        plans, write=not (check or diff), backup=backup
+    )
     if not quiet:
         verb = "would upgrade" if (check or diff) else "upgraded"
         for edit in result.edits:
@@ -473,16 +499,20 @@ def check_command(
 def find_references_command(
     name: str, paths: tuple[Path, ...], quiet: bool
 ) -> None:
-    """Report every Cheetah $NAME reference across the tools' templated sections.
+    """Report every Cheetah $NAME reference across a tool **and its imported macros**.
 
-    Read-only query (mutates nothing). Scans each tool's ``<command>``, inline
-    ``<configfile>``\\ s, env vars, output labels and dynamic options, and prints one
-    ``file:line  [section]  $ref`` per occurrence whose identifier path includes NAME
-    (so ``$NAME``, ``$cond.NAME`` and ``$NAME.ext`` all match). PATHS may be files or
-    directories; non-tool XML is skipped. Conservative — may include occurrences in
-    comments/``#raw`` (see ``galaxy_tool_xml.cheetah_refs``). Non-zero exit on errors.
+    Read-only query (mutates nothing). For each tool it scans the tool's own
+    ``<command>``, inline ``<configfile>``\\ s, env vars, output labels and dynamic
+    options **plus every macro file it imports** (where a reference frequently lives),
+    and prints one ``file:line  [section]  $ref`` per occurrence whose identifier path
+    includes NAME (so ``$NAME``, ``$cond.NAME`` and ``$NAME.ext`` all match). PATHS may
+    be files or directories; non-tool XML is skipped. Occurrences are de-duplicated, so
+    a macro shared by several scanned tools is reported once. Conservative — may include
+    occurrences in comments/``#raw`` (see ``galaxy_tool_xml.cheetah_refs``). Non-zero
+    exit on errors.
     """
     total = scanned = skipped = errored = 0
+    seen: set[tuple[str, int, str, str]] = set()
     for target in iter_targets(paths):
         try:
             original = target.read_bytes()
@@ -494,51 +524,93 @@ def find_references_command(
             skipped += 1
             continue
         try:
-            document = load_tool(original)
+            result = find_references_in_bundle(target, name=name)
         except ToolXmlSyntaxError as error:
             click.echo(f"error: {target}: malformed XML: {error}", err=True)
             errored += 1
             continue
-        if document.root.tag != "tool":
-            skipped += 1
-            continue
         scanned += 1
-        for occurrence in facade.find_references(document, name=name).occurrences:
+        for ref in result.references:
+            key = (str(ref.path), ref.sourceline, ref.section, ref.reference)
+            if key in seen:
+                continue
+            seen.add(key)
             total += 1
             if not quiet:
                 click.echo(
-                    f"{target}:{occurrence.sourceline}  "
-                    f"[{occurrence.section}]  {occurrence.reference}"
+                    f"{ref.path}:{ref.sourceline}  [{ref.section}]  {ref.reference}"
                 )
     if not quiet:
         click.echo(f"{total} reference(s) to '{name}' across {scanned} tool(s)")
     sys.exit(1 if errored else 0)
 
 
+def _report_rename_skip(
+    result: BundleRenameResult, target: Path, *, quiet: bool
+) -> None:
+    """Print an informative skip line for a non-applied rename.
+
+    ``not-found`` is the common case (the tool has no such param) — it stays silent.
+    """
+    if result.reason == "not-found" or quiet:
+        return
+    if result.reason == "macro-edit-needs-repo-root":
+        click.echo(
+            f"skip {target}: '{result.old}' is referenced in an imported macro; "
+            "rerun with --repo-root DIR to prove the macro is sole-owned"
+        )
+        return
+    if result.reason == "shared-macro":
+        names = ", ".join(str(skip.macro_file) for skip in result.shared)
+        click.echo(
+            f"skip {target}: '{result.old}' is referenced in shared macro file(s) "
+            f"{names}; editing them would affect other tools (rename not applied)"
+        )
+        for skip in result.shared:
+            others = ", ".join(str(path) for path in skip.other_importers)
+            click.echo(f"    {skip.macro_file} also imported by: {others}")
+        return
+    click.echo(f"skip {target}: {result.reason}")
+
+
 @main.command(name="rename-param")
 @click.argument("old")
 @click.argument("new")
 @_PATH_ARGUMENT
+@_REPO_ROOT_OPTION
 @_CHECK_OPTION
+@_BACKUP_OPTION
 @_QUIET_OPTION
 def rename_param_command(
-    old: str, new: str, paths: tuple[Path, ...], check: bool, quiet: bool
+    old: str,
+    new: str,
+    paths: tuple[Path, ...],
+    repo_root: Path | None,
+    check: bool,
+    backup: bool,
+    quiet: bool,
 ) -> None:
-    """Rename parameter OLD to NEW across the tools' Cheetah sections.
+    """Rename parameter OLD to NEW across a tool **and its imported macro files**.
 
     The mutating sibling of ``find-references``. Rewrites every live ``$OLD`` reference
     (``<command>`` / inline ``<configfile>`` via the faithful lexer, attribute-Cheetah,
     by-name cross-reference attributes, and the ``<tests>`` mirrors) plus the
-    definition.
+    definition — across the tool **and every macro file it imports**, so a reference
+    that lives only in an imported macro is no longer left dangling.
 
-    Rename is **atomic per file**: a tool is rewritten only if every occurrence can be
-    proven safe, otherwise it is skipped with a reason (e.g. a ``#set`` local shadows
-    OLD, a section is mixed-content, or an output ``<filter>`` references OLD by bare
-    Python name). PATHS may be files or directories; non-tool XML is skipped.
-    ``--check`` previews without writing and exits non-zero if any file would change.
+    Rename is **atomic across the bundle**: every member is rewritten or none is. A
+    tool is skipped with a reason when the rename cannot be proven safe (e.g. a ``#set``
+    local shadows OLD, a section is mixed-content, or an output ``<filter>`` references
+    OLD by bare Python name). Editing an imported macro
+    requires ``--repo-root`` to prove the macro is **sole-owned** (imported by no other
+    tool); a macro **shared** with another tool is reported and the rename is skipped
+    (renaming in lockstep across importers is not yet supported). PATHS may be files or
+    directories; non-tool XML is skipped. ``--check`` previews without writing and exits
+    non-zero if any file would change.
     """
     if not old.isidentifier() or not new.isidentifier():
         raise click.BadParameter("OLD and NEW must be valid identifiers")
+    importers = build_importer_map(repo_root) if repo_root is not None else None
     renamed = would_change = skipped = errored = 0
     for target in iter_targets(paths):
         try:
@@ -551,37 +623,34 @@ def rename_param_command(
             skipped += 1
             continue
         try:
-            document = load_tool(original)
+            result = rename_param_bundle(
+                target,
+                old=old,
+                new=new,
+                importers=importers,
+                write=not check,
+                backup=backup,
+            )
         except ToolXmlSyntaxError as error:
             click.echo(f"error: {target}: malformed XML: {error}", err=True)
             errored += 1
             continue
-        if document.root.tag != "tool":
-            skipped += 1
-            continue
-        result = facade.rename_param(document, old=old, new=new)
         if not result.changed:
-            # "not-found" is the common, quiet case (the tool has no such param); any
-            # other reason is an informative skip (the rename could not be proven safe).
-            if result.reason != "not-found" and not quiet:
-                click.echo(f"skip {target}: {result.reason}")
+            _report_rename_skip(result, target, quiet=quiet)
             skipped += 1
             continue
+        sites = sum(edit.renamed for edit in result.edits)
+        files = len(result.edits)
         if check:
             would_change += 1
             if not quiet:
-                click.echo(f"would rename {target}: {result.renamed} site(s)")
-            continue
-        assert result.formatted is not None
-        try:
-            target.write_bytes(result.formatted)
-        except OSError as error:
-            click.echo(f"error: cannot write {target}: {error}", err=True)
-            errored += 1
+                click.echo(
+                    f"would rename {target}: {sites} site(s) across {files} file(s)"
+                )
             continue
         renamed += 1
         if not quiet:
-            click.echo(f"renamed {target}: {result.renamed} site(s)")
+            click.echo(f"renamed {target}: {sites} site(s) across {files} file(s)")
     if not quiet:
         done = would_change if check else renamed
         verb = "would rename" if check else "renamed"
@@ -643,7 +712,10 @@ def _collect_macro_files(paths: tuple[Path, ...], /) -> list[Path]:
 @click.option(
     "--check", is_flag=True, help="Report what would change and write nothing."
 )
-def normalize_macros_command(paths: tuple[Path, ...], check: bool) -> None:
+@_BACKUP_OPTION
+def normalize_macros_command(
+    paths: tuple[Path, ...], check: bool, backup: bool
+) -> None:
     """Normalize literal format/ftype in macro-library files (opt-in, repo-scoped).
 
     Lowercases literal ``format`` / ``ftype`` datatype tokens (leaving ``@TOKEN@``
@@ -653,7 +725,9 @@ def normalize_macros_command(paths: tuple[Path, ...], check: bool) -> None:
     this rewrites files other than the one named — a shared macro file affects every
     importer — so it is a deliberate, separate command, never part of ``format``.
     """
-    result = normalize_macro_files(_collect_macro_files(paths), write=not check)
+    result = normalize_macro_files(
+        _collect_macro_files(paths), write=not check, backup=backup
+    )
     verb = "would normalize" if check else "normalized"
     for edit in result.edits:
         click.echo(f"{verb} {edit.macro_file} ({edit.elements_changed} element(s))")

@@ -42,10 +42,6 @@ _ALLOWLIST: dict[str, tuple[frozenset[str], str]] = {
         frozenset({".write_bytes("}),
         "writes fmt-produced canonical bytes when a write_path is given",
     ),
-    "galaxy-tool-refactor-cli/src/galaxy_tool_refactor_cli/cli.py": (
-        frozenset({".write_bytes("}),
-        "rename-param writes fmt-produced bytes from facade.rename_param to disk",
-    ),
     (
         "galaxy-tool-refactor-registry/src/galaxy_tool_refactor_registry/"
         "macro_profile.py"
@@ -59,6 +55,14 @@ _ALLOWLIST: dict[str, tuple[frozenset[str], str]] = {
     ): (
         frozenset({".write_bytes("}),
         "writes fmt-produced macro-file bytes (format_macro_document)",
+    ),
+    (
+        "galaxy-tool-refactor-registry/src/galaxy_tool_refactor_registry/"
+        "bundle_rename.py"
+    ): (
+        frozenset({".write_bytes("}),
+        "cross-file rename writes fmt-produced tool + macro bytes "
+        "(format_tool_document_subset / format_macro_document)",
     ),
     "galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/codemods/_coarse_detect.py": (
         frozenset({"etree.tostring("}),
