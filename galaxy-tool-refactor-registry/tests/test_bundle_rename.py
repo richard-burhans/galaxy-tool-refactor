@@ -137,6 +137,20 @@ def test_macro_edit_without_importer_map_bails(tmp_path: Path) -> None:
     assert result.reason == "macro-edit-needs-repo-root"
 
 
+def test_macro_absent_from_importer_map_is_unprovable(tmp_path: Path) -> None:
+    # A non-empty importer map that does NOT cover the edited macro (e.g. --repo-root
+    # pointed away from the tool) must FAIL CLOSED — ownership can't be proven, so the
+    # rename is skipped, not fail-open-applied (which could break an unseen tool).
+    tool = _sole_owned_tool(tmp_path)
+    result = rename_param_bundle(
+        tool, old="protein_alignment", new="aln", importers={}, write=True
+    )
+    assert not result.changed
+    assert result.reason == "macro-ownership-unprovable"
+    assert result.unprovable == ((tmp_path / "macros.xml").resolve(),)
+    assert b"protein_alignment" in tool.read_bytes()  # nothing written
+
+
 def test_tool_internal_rename_needs_no_importer_map(tmp_path: Path) -> None:
     # All reference edits land in the tool, so no macro is touched and no map is needed.
     _write(

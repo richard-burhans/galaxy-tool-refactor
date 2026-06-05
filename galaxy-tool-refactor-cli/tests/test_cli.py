@@ -604,6 +604,22 @@ def test_rename_into_shared_macro_is_reported(tmp_path: Path) -> None:
     assert b"old" in tool_a.read_bytes()  # not applied
 
 
+def test_rename_repo_root_not_covering_tool_skips(tmp_path: Path) -> None:
+    # --repo-root pointed at a dir that does not contain the tool: the macro is absent
+    # from the importer map, so ownership can't be proven and the rename fails CLOSED.
+    tool = _pal2nal_bundle(tmp_path)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    result = CliRunner().invoke(
+        main,
+        ["rename-param", "protein_alignment", "aln", "--repo-root", str(elsewhere),
+         str(tool)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "cannot prove" in result.output and "sole-owned" in result.output
+    assert b"protein_alignment" in tool.read_bytes()  # not applied
+
+
 # --- --backup -------------------------------------------------------------------
 
 

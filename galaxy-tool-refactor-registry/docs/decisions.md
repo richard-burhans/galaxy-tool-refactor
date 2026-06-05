@@ -484,3 +484,31 @@ uv run --package galaxy-tool-refactor-registry pytest \
   galaxy-tool-refactor-registry/tests/test_bundle_rename.py
 uv run python -m scripts.measure rename-macro-spread
 ```
+
+## D13 (2026-06-05) — Cross-file rename gate fails **closed** on an uncovered macro
+
+### Decision
+
+Follow-up hardening to D12. The sole-owned gate classified an edited macro by
+`importers.get(macro, frozenset({tool}))` — so a macro **absent** from the importer map
+defaulted to "sole-owned by this tool" and the rename **applied** (fail-open). That is
+only reachable by misuse — `--repo-root` pointed somewhere that does not contain the
+tool — but it is exactly the under-counted-importer-set hazard D12's `--repo-root`
+requirement exists to prevent: an unseen tool elsewhere could import the same macro and
+break.
+
+`_gate_macros` now classifies each edited macro three ways: sole-owned (in the map,
+`== {tool}`) → apply; shared (in the map, other importers) → `shared-macro` skip;
+**absent from the map** → `macro-ownership-unprovable` skip (fail **closed**). In correct
+usage the tool is under the repo root, so it imports the macro and the macro is in the
+map with at least `{tool}`; absence means the root does not cover the tool, so ownership
+cannot be proven and the edit is refused. `BundleRenameResult` gains `unprovable:
+tuple[Path, ...]`; the CLI prints a message pointing at the likely cause (the tool is not
+under the given `--repo-root`).
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-registry pytest \
+  galaxy-tool-refactor-registry/tests/test_bundle_rename.py -k unprovable
+```

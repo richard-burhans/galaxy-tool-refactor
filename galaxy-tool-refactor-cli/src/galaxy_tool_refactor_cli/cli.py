@@ -560,6 +560,13 @@ def _report_rename_skip(
             "rerun with --repo-root DIR to prove the macro is sole-owned"
         )
         return
+    if result.reason == "macro-ownership-unprovable":
+        names = ", ".join(str(macro) for macro in result.unprovable)
+        click.echo(
+            f"skip {target}: cannot prove macro file(s) {names} are sole-owned within "
+            f"--repo-root (is {target} under the given --repo-root?)"
+        )
+        return
     if result.reason == "shared-macro":
         names = ", ".join(str(skip.macro_file) for skip in result.shared)
         click.echo(
