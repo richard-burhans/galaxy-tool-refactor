@@ -1,13 +1,14 @@
 # Bringing `rename-param` to the editor — galaxy-language-server integration design
 
-> **Status: design note (2026-06-05). Steps 1–2 + cross-file are shipped** —
-> the Tier-B API (`galaxy_tool_xml.cheetah_rename.rename_param_plan`, 96.8% corpus parity,
-> 0 mismatches; `galaxy-tool-xml/docs/decisions.md` §20) **and** the galaxyls binding,
-> including **cross-file** rename across imported macro files (upstream PR
-> galaxyproject/galaxy-language-server#331, head `richard-burhans:feat/rename-param`). The
-> one remaining gap is the **shared-macro gate** in the editor — see
-> [Known limitation](#known-limitation--no-shared-macro-gate-in-the-editor-future-work)
-> below. A grounded plan for exposing the
+> **Status: design note (2026-06-05). Steps 1–2 + cross-file + the shared-macro gate are
+> shipped** — the Tier-B API (`galaxy_tool_xml.cheetah_rename.rename_param_plan`, 96.8%
+> corpus parity, 0 mismatches; `galaxy-tool-xml/docs/decisions.md` §20) **and** the galaxyls
+> binding, including **cross-file** rename across imported macro files and the editor
+> **shared-macro gate** (upstream PR galaxyproject/galaxy-language-server#331, head
+> `richard-burhans:feat/rename-param`). What remains is polish — a reverse-import cache and
+> an in-editor *consensus* prompt — see
+> [the gate section](#shared-macro-gate-in-the-editor--shipped-option-1) below. A grounded
+> plan for exposing the
 > M5.3 parameter-rename capability (`galaxy_tool_xml.cheetah_rename`, shipped in
 > `galaxy-tool-xml/docs/decisions.md` §20) as an **in-editor refactor** through the
 > [galaxy-language-server](https://github.com/galaxyproject/galaxy-language-server)
@@ -162,8 +163,9 @@ not a re-think.
 3. **(Optional) Tier A** as an interim if an editor demo is wanted — not needed; Tier B
    shipped.
 4. **cross-file** rename via the macro import graph — ✅ **shipped** (the binding resolves
-   `imported_macro_paths` and emits a multi-file `WorkspaceEdit`), **except** the
-   shared-macro gate — see below.
+   `imported_macro_paths` and emits a multi-file `WorkspaceEdit`), **including** the
+   shared-macro gate (refuse a rename that would edit a macro another tool imports) — see
+   below.
 
 ## Open questions
 
@@ -177,51 +179,39 @@ not a re-think.
   a near-free win once `find_references` is wired — same offset machinery, read-only.
   Likely worth bundling with the rename PR.
 
-## Known limitation — no shared-macro gate in the editor (future work)
+## Shared-macro gate in the editor — SHIPPED (Option 1)
 
-The shipped galaxyls cross-file rename (#331) rewrites an imported macro **whenever the
-open tool references the parameter through it**, with no check on whether *other* tools
-also import that macro. For a **sole-owned** macro this is exactly right. For a **shared**
-macro it is incomplete: the rename updates the open tool and the macro, but the macro's
-*other* importers still define the old name — each would need the same rename, and they do
-not appear in the `WorkspaceEdit` the user reviews. So an editor rename of a parameter
-whose reference lives in a shared macro can leave sibling tools inconsistent.
+The galaxyls cross-file rename (#331) rewrites an imported macro whenever the open tool
+references the parameter through it. For a **sole-owned** macro that is exactly right; for a
+**shared** macro it would leave the macro's *other* importers still defining the old name —
+and they do not appear in the `WorkspaceEdit` the user reviews. The editor now **gates**
+this, the counterpart of the CLI's sole-owned default (`bundle_rename`, registry D12–D14).
 
-This is the editor counterpart of the CLI's shared-macro gate, which the CLI **does**
-enforce (`galaxy-tool-refactor-registry.bundle_rename`, registry `docs/decisions.md`
-D12–D14):
+**Implementation (Option 1 — the lightweight in-binding scan).** When a rename would rewrite
+an imported macro, `RenameService._first_shared_macro` walks the LSP `workspace` roots for
+tool files and resolves each one's transitive `imported_macro_paths` (using only
+`galaxy-tool-xml`, so no registry dependency and galaxyls' published metadata stays clean).
+If any *other* tool imports an edited macro, the rename is **refused** with a message
+pointing at the CLI (`rename-param --across-importers`). A sole-owned macro renames normally;
+with no workspace set, ownership cannot be proven so the gate is skipped (the documented
+no-gate fallback). This was chosen over Option 2 (depend on the registry) to keep the
+dependency boundary minimal — the registry returns serialized bytes, not the minimal offset
+edits the editor's `WorkspaceEdit` needs, so it would not have simplified the binding.
 
-- `rename-param --repo-root` skips a shared macro (sole-owned only), failing closed when
-  the repo root does not cover it (D13);
-- `rename-param --across-importers` renames every importer in lockstep when they all agree
-  (the consensus path, D14).
+**Remaining limitations (future work).**
 
-**Why it is not in the editor yet.** The gate needs the *reverse* import map — which other
-tools import a given macro — which is a workspace-wide question. The CLI builds it with
-`build_importer_map(repo_root)`. That logic lives in the **registry tier**, which the
-galaxyls binding deliberately does **not** depend on (it depends only on `galaxy-tool-xml`,
-the parsing engine, to keep galaxyls' published metadata free of a heavyweight dep).
+- **No cache.** The workspace walk runs on every macro-touching rename. It only triggers when
+  a rename actually edits a macro (the minority case), and renames are user-initiated, so the
+  cost is bounded — but a reverse-import map cached and invalidated on file-change events
+  would remove the per-rename latency.
+- **Refuse, not widen.** A shared-macro rename is refused, not offered as an in-editor
+  *consensus* ("rename across N importers?") rename. The CLI's `--across-importers` is the
+  path for that today; an editor prompt that widens the `WorkspaceEdit` across all importers
+  (when they agree) is the natural next step.
 
-**Two ways to close it, if we choose to:**
-
-1. **Lightweight in-binding scan.** Walk the LSP `workspace` root for tool files and resolve
-   each one's `imported_macro_paths` (already available from `galaxy-tool-xml`) to build the
-   reverse map in the binding — no new dependency, but it duplicates a slice of
-   `build_importer_map`, and a workspace-wide walk on every rename has a latency cost worth
-   caching/invalidating on file change.
-2. **Depend on the registry.** Make `galaxy-tool-refactor-registry` an optional engine the
-   same way `galaxy-tool-xml` is, and call `rename_param_bundle` / `rename_param_consensus`
-   directly — full parity with the CLI (sole-owned skip + consensus), at the cost of a
-   second optional dependency and adapting the registry's path/bytes I/O to LSP
-   document/URI + offset edits (the registry returns serialized bytes, not minimal offset
-   edits, so a minimal-`WorkspaceEdit` path would still need the per-file `rename_param_plan`).
-
-Either way, the editor would also want to *surface* a shared-macro rename (e.g. a warning,
-or a "rename across N importers?" prompt) rather than silently widen the edit. Until then,
-the binding documents the caveat (in its module docstring and the galaxyls changelog), and
-the **CLI is the safe path for shared macros**. No corpus sizing has been done for how often
-an editor rename would hit a shared macro specifically (the CLI's `rename-macro-spread`
-measure sizes the tool-driven case: 0.3% of corpus renames touch a shared macro).
+No corpus sizing has been done for how often an *editor* rename would hit a shared macro
+specifically; the CLI's `rename-macro-spread` sizes the tool-driven case (0.3% of corpus
+renames touch a shared macro).
 
 ## Provenance
 
