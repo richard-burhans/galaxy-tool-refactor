@@ -838,10 +838,10 @@ param refactors). `cheetah_references(text)` returns `CheetahRef`s (name, identi
   (mirroring `command_text` / `scripts.measure`); it also matches a `$var` inside a `##`
   comment / `#raw` block or an escaped `\$`. That over-counts in the *safe* direction
   (find-references shows a superset; unused-param never gets a false "unused"). The
-  spike-confirmed CT3 `Parser`-subclass lexer (99.6% corpus) is the precision drop-in this
-  seam is built for and lands with the first mutator (rename), where `#raw`/comment
-  fidelity matters. References from imported macros / `<expand>` are out of scope (they
-  live in the macro files).
+  CT3 `Parser`-subclass lexer (now shipped — §19) is the precision drop-in this seam is
+  built for; it will be consumed by the first mutator (rename), where `#raw`/comment
+  fidelity matters, while the read-only consumers keep the regex until then. References
+  from imported macros / `<expand>` are out of scope (they live in the macro files).
 - **`segments` not just root.** A reference's identifier segments (`${adv.x}` → `(adv, x)`)
   let a consumer match a parameter name as the *leaf* of a `$cond.sub` access, not only the
   root — needed for find-references on a conditional sub-param.
@@ -862,4 +862,51 @@ param refactors). `cheetah_references(text)` returns `CheetahRef`s (name, identi
 
 ```sh
 uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_cheetah_refs.py
+```
+
+## 19. Faithful Cheetah lexer (`cheetah_cdm`) — CT3 behind the `[cheetah-cdm]` extra
+
+**Date:** 2026-06-05. M5.1 of the Cheetah-section-editing roadmap
+(`../../docs/upgrade_research/cheetah_section_editing.md`) — the precision drop-in the
+`cheetah_refs` regex (§18) reserved, shipped ahead of the first mutator (rename).
+
+`cheetah_cdm.py` harvests the **exact source spans** of every `$placeholder` /
+`#directive` / comment in a Cheetah section by subclassing CT3's own
+`Cheetah.Parser.Parser` and recording each `eat*` hook's `[start, pos())` extent.
+`cheetah_spans(text)` returns the ordered list of `CheetahSpan`s (`kind`, `start`,
+`end`, `text`, `directive`), or `None` to bail. Because the real parser drives the
+harvest, `##` comments, `#raw` blocks, escaped `\$`, and embedded strings are classified
+exactly as Cheetah would — the fidelity a *mutator* needs and the regex cannot give
+(it would rewrite bytes inside a `#raw` block).
+
+### Decisions
+
+- **CT3 isolated behind the optional `galaxy-tool-xml[cheetah-cdm]` extra** (the
+  `galaxy-util[template]` extra, which pulls `CT3>=3.3.3`), mirroring `[shell-oracle]`
+  (§17): this tier stays a soft dependency, CT3 is imported lazily, and `cheetah_spans`
+  returns `None` when the extra is absent so callers fall back to the §18 regex. The
+  `Parser` subclass is built once in a `@cache`d factory so importing the module never
+  imports CT3.
+- **Spans are disjoint, ordered, and round-trip-faithful.** The literal text between
+  spans is the gap, so a section re-serialises by interleaving gaps with each
+  `span.text` — the contract a byte-faithful mutator relies on.
+- **A directive head swallows its own `$vars`.** `#if $paired` / `#set $tmp = $base` are
+  single directive spans (no nested placeholder spans); a reference *inside* a directive
+  must be recovered from that span's text by a scope-aware consumer, not read off the
+  placeholder list. This is exactly what the future rename scope model needs (bindings
+  live in `#set`/`#for`/`#def` heads).
+- **Bail (`None`) on any CT3 compile failure**, never raise: ~0.4% of corpus bodies
+  (py2-isms, `#import` of an absent module, an unbalanced `#end`). The caller degrades to
+  the regex, so a faithful answer is a strict upgrade and a bail is never worse than
+  today. SyntaxWarnings from CT3's generated code are silenced inside `cheetah_spans`.
+- **Parity with the spike.** Over the corpus, `cheetah-cdm-coverage` reports **9,202 /
+  9,236 = 99.6%** pure-text `<command>` bodies parse-clean, **0.4%** bail, and **22.6%**
+  of clean bodies carry a `#set`/`#for`/`#def` local (the rename scope-shadowing
+  population) — reproducing the read-only Phase-0 spike with shipped code.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_cheetah_cdm.py
+uv run python -m scripts.measure cheetah-cdm-coverage   # corpus parity + scope sizing
 ```

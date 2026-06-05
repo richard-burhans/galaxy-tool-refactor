@@ -23,6 +23,7 @@ from scripts.measure import (
     _cross_source_key_matches,
     _ExpansionGapResult,
     _facts_from_macro_container,
+    _measure_cheetah_cdm_coverage,
     _measure_cheetah_command_complexity,
     _measure_collection_type_normalization,
     _measure_command_iuc_heuristics,
@@ -56,6 +57,7 @@ from scripts.measure import (
     _version_tuple,
 )
 
+from galaxy_tool_xml.cheetah_cdm import cheetah_cdm_available
 from galaxy_tool_xml.shell_oracle import shell_oracle_available
 
 
@@ -717,6 +719,47 @@ def test_measure_cheetah_complexity_counts_tools(tmp_path: Path) -> None:
     assert result.feature_counts.get("directive:for", 0) == 1
     assert result.feature_counts.get("directive:if", 0) == 1  # from the configfile
     assert result.feature_counts.get("shape:special", 0) == 1
+
+
+# --- cheetah-cdm-coverage -------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not cheetah_cdm_available(), reason="requires the cheetah-cdm extra (CT3)"
+)
+def test_measure_cheetah_cdm_coverage_counts(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # Clean, directive + a #for local (rename scope hazard), two placeholders.
+    (repo / "locals.xml").write_text(
+        "<tool><command>#for $f in $files\ncat '$f'\n#end for</command></tool>",
+        encoding="utf-8",
+    )
+    # Clean, a bare placeholder, no directive.
+    (repo / "plain.xml").write_text(
+        "<tool><command>mytool $input</command></tool>", encoding="utf-8"
+    )
+    # Bail: an unterminated #if cannot compile.
+    (repo / "bail.xml").write_text(
+        "<tool><command>#if $x\necho hi\n</command></tool>", encoding="utf-8"
+    )
+    # Skipped: no $ or # in the body.
+    (repo / "trivial.xml").write_text(
+        "<tool><command>echo done</command></tool>", encoding="utf-8"
+    )
+    # Skipped: mixed content (child element) is not a pure-text body.
+    (repo / "mixed.xml").write_text(
+        "<tool><command>run $x <inputs/></command></tool>", encoding="utf-8"
+    )
+
+    result = _measure_cheetah_cdm_coverage(corpus_root=tmp_path)
+    assert result.cdm_available is True
+    assert result.n_bodies == 3  # locals + plain + bail (trivial/mixed skipped)
+    assert result.n_clean == 2  # locals + plain
+    assert result.n_bail == 1  # bail.xml
+    assert result.n_with_directive == 1  # locals.xml (#for/#end)
+    assert result.n_with_locals == 1  # locals.xml (#for)
+    assert result.n_placeholders == 2  # $f (loop body) + $input
 
 
 # --- interpreter-bucket-split ---------------------------------------------------

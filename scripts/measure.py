@@ -4640,6 +4640,109 @@ def _run_cheetah_command_complexity(args: argparse.Namespace) -> None:
         print(f"\nwrote {_display_path(out_path)}")
 
 
+# --- measurement: cheetah-cdm-coverage ------------------------------------------
+#
+# Parity + sizing for the SHIPPED faithful Cheetah lexer (galaxy_tool_xml.cheetah_cdm,
+# the M5.1 CDM lexer): run cheetah_spans() over every pure-text <command> body and
+# report the parse-clean rate (vs the ~0.4% that bail to the regex fallback) plus the
+# rename scope-shadowing population (tools whose directive spans include a
+# #set/#for/#def local binding). Reproduces the read-only Phase-0 spike with shipped
+# code, grounding the numbers in docs/upgrade_research/cheetah_section_editing.md.
+# Needs the corpus AND the cheetah-cdm extra (CT3), so it is print-only and not run in
+# CI; the pure aggregation is pinned by a synthetic-fixture unit test.
+
+
+@dataclass
+class _CheetahCdmCoverageResult:
+    """Coverage of the faithful CDM lexer over corpus <command> bodies."""
+
+    cdm_available: bool
+    n_bodies: int  # pure-text <command> bodies carrying a $ or #
+    n_clean: int  # cheetah_spans returned spans
+    n_bail: int  # cheetah_spans returned None (CT3 could not compile)
+    n_with_directive: int  # clean body with >=1 #directive span
+    n_with_locals: int  # clean body with a #set/#for/#def span (rename hazard)
+    n_placeholders: int  # total placeholder spans across clean bodies
+
+
+# Directive keywords that introduce a local binding shadowing a param under rename.
+_CDM_LOCAL_DIRECTIVES = frozenset({"set", "for", "def"})
+
+
+def _measure_cheetah_cdm_coverage(*, corpus_root: Path) -> _CheetahCdmCoverageResult:
+    """Run the shipped CDM lexer over the corpus; size parse-clean + scope hazards."""
+    from galaxy_tool_xml.cheetah_cdm import (
+        SpanKind,
+        cheetah_cdm_available,
+        cheetah_spans,
+    )
+
+    seen: set[str] = set()
+    n_bodies = n_clean = n_bail = n_directive = n_locals = n_placeholders = 0
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        command = root.find("command")
+        if command is None or len(command) > 0:  # pure-text bodies only (no children)
+            continue
+        body = command.text or ""
+        if not body.strip() or ("$" not in body and "#" not in body):
+            continue
+        n_bodies += 1
+        spans = cheetah_spans(body)
+        if spans is None:
+            n_bail += 1
+            continue
+        n_clean += 1
+        directives = [s.directive for s in spans if s.kind is SpanKind.DIRECTIVE]
+        if directives:
+            n_directive += 1
+        if any(name in _CDM_LOCAL_DIRECTIVES for name in directives):
+            n_locals += 1
+        n_placeholders += sum(1 for s in spans if s.kind is SpanKind.PLACEHOLDER)
+    return _CheetahCdmCoverageResult(
+        cdm_available=cheetah_cdm_available(),
+        n_bodies=n_bodies,
+        n_clean=n_clean,
+        n_bail=n_bail,
+        n_with_directive=n_directive,
+        n_with_locals=n_locals,
+        n_placeholders=n_placeholders,
+    )
+
+
+def _report_cheetah_cdm_coverage(result: _CheetahCdmCoverageResult) -> None:
+    print("\n=== cheetah-cdm-coverage (faithful CDM lexer parity + scope sizing) ===")
+    if not result.cdm_available:
+        print("  cheetah-cdm extra (CT3) not installed — install galaxy-tool-xml[cheetah-cdm].")
+        return
+
+    def pct(n: int, of: int) -> str:
+        return f"{100 * n / of:.1f}%" if of else "0.0%"
+
+    print(f"Pure-text <command> bodies (with $ or #): {result.n_bodies}")
+    print(f"  CT3 parse CLEAN: {result.n_clean} ({pct(result.n_clean, result.n_bodies)})")
+    print(f"  CT3 parse BAIL:  {result.n_bail} ({pct(result.n_bail, result.n_bodies)})")
+    print(f"  clean w/ directives:                 {result.n_with_directive}")
+    print(
+        f"  clean w/ #set/#for/#def (rename scope hazard): {result.n_with_locals} "
+        f"({pct(result.n_with_locals, result.n_clean)} of clean)"
+    )
+    print(f"  total placeholders harvested:        {result.n_placeholders}")
+
+
+def _run_cheetah_cdm_coverage(args: argparse.Namespace) -> None:
+    result = _measure_cheetah_cdm_coverage(corpus_root=args.corpus_root)
+    _report_cheetah_cdm_coverage(result)
+
+
 # --- measurement: interpreter-bucket-split --------------------------------------
 #
 # Sizes the auto-fixable population for a `16_04_fix_interpreter` codemod (GTR016;
@@ -5507,6 +5610,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "element-cardinality": _run_element_cardinality,
     "command-language": _run_command_language,
     "cheetah-command-complexity": _run_cheetah_command_complexity,
+    "cheetah-cdm-coverage": _run_cheetah_cdm_coverage,
     "interpreter-bucket-split": _run_interpreter_buckets,
     "output-format-input": _run_output_format_input,
     "help-formats": _run_help_formats,

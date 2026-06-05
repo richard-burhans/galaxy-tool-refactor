@@ -206,6 +206,14 @@ uv run python -m scripts.measure help-formats
 # docs/cheetah_command_stats.md (needs the corpus, so not run in CI):
 uv run python -m scripts.measure cheetah-command-complexity
 
+# Parity + scope sizing for the SHIPPED faithful CDM lexer (galaxy_tool_xml.cheetah_cdm,
+# M5.1): run cheetah_spans() over every pure-text <command> body; report the parse-clean
+# rate (vs the ~0.4% bail-to-regex) and the rename scope-shadowing population (clean
+# bodies whose directive spans carry a #set/#for/#def local). Reproduces the Phase-0
+# spike with shipped code. Needs the corpus AND the cheetah-cdm extra (CT3), print-only,
+# not run in CI. Backs galaxy-tool-xml/docs/decisions.md §19:
+uv run python -m scripts.measure cheetah-cdm-coverage
+
 # Auto-fixable population for a 16_04_fix_interpreter codemod (GTR016): tools with a
 # deprecated <command interpreter=…> split into bucket A (rewritable) / A-missing / B
 # (leading-Cheetah) / C (non-standard interpreter), reusing the codemod's own
