@@ -21,6 +21,11 @@ consensus skip:
 - A rename that would edit a macro but is given **no importer map** bails
   ``macro-edit-needs-repo-root``: an under-counted importer set must never silently
   authorise a shared write, so the caller must prove ownership over an explicit root.
+- A rename whose edited macro is **absent from the importer map** bails
+  ``macro-ownership-unprovable`` (fail **closed**). In correct usage the tool is under
+  the repo root, so it imports the macro and the macro is in the map; absence means the
+  repo root does not cover this tool, so ownership cannot be proven and the edit is
+  refused rather than fail-open-applied.
 
 Ownership is "sole-owned within the repo root the map was built over"; a tool outside
 that root importing the same macro is invisible (documented trust boundary).
@@ -113,8 +118,10 @@ class BundleRenameResult:
     ``mixed-content`` / ``lexer-bail`` / ``filter-bare-ref`` / ``cross-ref-residual`` /
     ``not-found`` / ``invalid-name`` / ``no-op``),
     ``unparseable-macro`` (an imported macro could not be read), ``shared-macro`` (the
-    gate tripped — see ``shared``), or ``macro-edit-needs-repo-root`` (a macro edit was
-    required but no importer map was supplied to prove ownership).
+    gate tripped — see ``shared``), ``macro-ownership-unprovable`` (a macro the rename
+    would edit is absent from the importer map — the repo root does not cover this
+    tool; see ``unprovable``), or ``macro-edit-needs-repo-root`` (a macro edit was
+    required but no importer map was supplied at all).
     """
 
     tool: Path
@@ -124,23 +131,36 @@ class BundleRenameResult:
     reason: str | None = None
     edits: tuple[BundleMemberEdit, ...] = ()
     shared: tuple[SharedMacroSkip, ...] = ()
+    unprovable: tuple[Path, ...] = ()
 
 
-def _gate_shared(
+def _gate_macros(
     edited_macros: tuple[Path, ...],
     tool: Path,
     importers: Mapping[Path, frozenset[Path]],
     /,
-) -> tuple[SharedMacroSkip, ...]:
-    """The edited macros that are shared (imported by a tool other than *tool*)."""
-    skips: list[SharedMacroSkip] = []
+) -> tuple[tuple[SharedMacroSkip, ...], tuple[Path, ...]]:
+    """Classify each edited macro against the importer map: ``(shared, unprovable)``.
+
+    - **shared** — present in the map and imported by a tool other than *tool* (a
+      ``SharedMacroSkip`` with the other importers).
+    - **unprovable** — *absent* from the map entirely. Fail **closed**: in correct
+      usage the tool is under the repo root the map was built over, so it imports the
+      macro and the macro is in the map (with at least *tool*). Absence means the tool
+      was not seen — the repo root does not cover it — so ownership cannot be proven and
+      the rename must not apply (an under-counted map could otherwise authorise a write
+      that breaks an unseen importer).
+    """
+    shared: list[SharedMacroSkip] = []
+    unprovable: list[Path] = []
     for macro in edited_macros:
-        others = importers.get(macro, frozenset({tool})) - {tool}
+        if macro not in importers:
+            unprovable.append(macro)
+            continue
+        others = importers[macro] - {tool}
         if others:
-            skips.append(
-                SharedMacroSkip(macro, tuple(sorted(others, key=str)))
-            )
-    return tuple(skips)
+            shared.append(SharedMacroSkip(macro, tuple(sorted(others, key=str))))
+    return tuple(shared), tuple(unprovable)
 
 
 def rename_param_bundle(
@@ -179,10 +199,19 @@ def rename_param_bundle(
             return BundleRenameResult(
                 tool, old, new, changed=False, reason="macro-edit-needs-repo-root"
             )
-        shared = _gate_shared(edited_macros, tool, importers)
+        shared, unprovable = _gate_macros(edited_macros, tool, importers)
         if shared:
             return BundleRenameResult(
                 tool, old, new, changed=False, reason="shared-macro", shared=shared
+            )
+        if unprovable:
+            return BundleRenameResult(
+                tool,
+                old,
+                new,
+                changed=False,
+                reason="macro-ownership-unprovable",
+                unprovable=unprovable,
             )
 
     renamed_by_path = {
