@@ -455,6 +455,65 @@ def test_gtr064_select_options_not_deprecated() -> None:
     assert "GTR064" not in _codes(_tool(inputs=ok))
 
 
+def test_gtr065_validator_type_compatible() -> None:
+    # regex validator is incompatible with an integer param type
+    bad_type = (
+        '<inputs><param name="x" type="integer" value="1">'
+        "<validator type=\"regex\">.*</validator></param></inputs>"
+    )
+    assert "GTR065" in _codes(_tool(inputs=bad_type))
+    # 'min' attribute is incompatible with a regex validator
+    bad_attr = (
+        '<inputs><param name="x" type="text">'
+        '<validator type="regex" min="1">.*</validator></param></inputs>'
+    )
+    assert "GTR065" in _codes(_tool(inputs=bad_attr))
+    ok = (
+        '<inputs><param name="x" type="integer" value="1">'
+        '<validator type="in_range" min="0"/></param></inputs>'
+    )
+    assert "GTR065" not in _codes(_tool(inputs=ok))
+
+
+def test_gtr066_validator_text_presence() -> None:
+    # a regex validator needs text
+    no_text = (
+        '<inputs><param name="x" type="text">'
+        '<validator type="regex"/></param></inputs>'
+    )
+    assert "GTR066" in _codes(_tool(inputs=no_text))
+    # a non-expression validator should not carry text
+    has_text = (
+        '<inputs><param name="x" type="data" format="txt">'
+        '<validator type="metadata" check="x">stray</validator></param></inputs>'
+    )
+    assert "GTR066" in _codes(_tool(inputs=has_text))
+    ok = (
+        '<inputs><param name="x" type="text">'
+        "<validator type=\"regex\">.*</validator></param></inputs>"
+    )
+    assert "GTR066" not in _codes(_tool(inputs=ok))
+
+
+def test_gtr067_validator_expression_valid() -> None:
+    bad = (
+        '<inputs><param name="x" type="text">'
+        '<validator type="regex">[</validator></param></inputs>'
+    )
+    assert "GTR067" in _codes(_tool(inputs=bad))
+    ok = (
+        '<inputs><param name="x" type="text">'
+        '<validator type="regex">ab+c</validator></param></inputs>'
+    )
+    assert "GTR067" not in _codes(_tool(inputs=ok))
+    # a macro-token validator body is skipped (raw-tree boundary)
+    macro = (
+        '<inputs><param name="x" type="text">'
+        '<validator type="regex">@PATTERN@</validator></param></inputs>'
+    )
+    assert "GTR067" not in _codes(_tool(inputs=macro))
+
+
 def test_iuc006_no_error_handling() -> None:
     # No <stdio> and the command has no detect_errors -> flagged.
     assert "GTR026" in _codes(_tool(stdio=""))

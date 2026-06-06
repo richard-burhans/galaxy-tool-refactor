@@ -74,3 +74,6 @@ Detect-only IUC best-practice checks. Advisory: `check` reports them but does no
 | GTR062 | check | 1 | 0.0% | 1 | A dynamic `<options>` element must define an option source. |
 | GTR063 | check | 0 | 0.0% | 0 | A dynamic `<options>` source combination must be coherent. |
 | GTR064 | check | 151 | 1.6% | 242 | A select should not use a deprecated options mechanism. |
+| GTR065 | check | 33 | 0.4% | 51 | A `<validator>` must be compatible with its param type and attributes. |
+| GTR066 | check | 0 | 0.0% | 0 | A `<validator>` body should match its type (expr/regex carry text). |
+| GTR067 | check | 1 | 0.0% | 1 | An expression/regex `<validator>` body must be valid. |

@@ -53,6 +53,9 @@ from galaxy_tool_xml_check.checks import (
     TestsPresent,
     ToolVersionWhitespace,
     UnusedParam,
+    ValidatorExpressionValid,
+    ValidatorTextPresence,
+    ValidatorTypeCompatible,
     VersionFormat,
 )
 from galaxy_tool_xml_check.rules import CheckRule
@@ -107,6 +110,9 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         SelectOptionsHaveSource,
         SelectOptionsSourceCoherent,
         SelectOptionsNotDeprecated,
+        ValidatorTypeCompatible,
+        ValidatorTextPresence,
+        ValidatorExpressionValid,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 
