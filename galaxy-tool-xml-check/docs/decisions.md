@@ -709,3 +709,27 @@ galaxy-tool-xml-check/tests/test_checks.py -k "gtr054 or gtr055 or gtr056 or gtr
   `…MetaFileKey`, plus the deprecated-attribute warnings (`InputsSelectDynamicOptions`,
   `InputsSelectOptionsDeprecatedAttr`).
 - **Corpus** (`docs/corpus_check_stats.md`): GTR058 **5**, GTR059 **1**, GTR060 **31**.
+
+## D19 (2026-06-06) — planemo-parity dynamic select `<options>` correctness: GTR061–GTR064
+
+**Date:** 2026-06-06. Ninth planemo-linter batch (`../../docs/planemo_linter_parity.md`)
+— the dynamic `<options>`-element slice of `inputs.py`, finishing the select surface, as
+advisory checks. Reproduced-by: `uv run --package galaxy-tool-xml-check pytest
+galaxy-tool-xml-check/tests/test_checks.py -k "gtr061 or gtr062 or gtr063 or gtr064"`.
+
+- **GTR061 `SelectOptionsSingle`** — reimplements planemo `InputsSelectOptionsMultiple`:
+  at most one `<options>` element.
+- **GTR062 `SelectOptionsHaveSource`** — reimplements planemo `InputsSelectOptionsDefinesOptions`:
+  an `<options>` must define a source (`from_file`/`from_parameter`/`from_dataset`/
+  `from_data_table`/`from_url`) or a `<filter type="add_value|data_meta">`. Skips an
+  `<options>` whose subtree has an `<expand>` (macro may inject the source — raw-tree boundary).
+- **GTR063 `SelectOptionsSourceCoherent`** — reimplements planemo
+  `InputsSelectOptionsFromDatasetAndDatatable` + `InputsSelectOptionsMetaFileKey`:
+  `from_dataset`/`from_data_table` are mutually exclusive; `meta_file_key` needs `from_dataset`.
+- **GTR064 `SelectOptionsNotDeprecated`** — reimplements planemo `InputsSelectDynamicOptions`
+  (the `dynamic_options` attr) + `InputsSelectOptionsDeprecatedAttr` (`from_file`/
+  `from_parameter`/`options_filter_attribute`/`transform_lines`). Advisory deprecation
+  signal (needs restructuring, not mechanically fixable); previously listed DETECT, now built.
+- **Corpus** (`docs/corpus_check_stats.md`): GTR061 **0**, GTR062 **1**, GTR063 **0** (low-noise
+  guards, cf. GTR045/061), GTR064 **151** (deprecated options mechanisms are still common —
+  a genuine, accurate advisory at ~1.6%).

@@ -386,6 +386,75 @@ def test_gtr060_select_options_distinct() -> None:
     assert "GTR060" not in _codes(_tool(inputs=distinct))
 
 
+def test_gtr061_select_options_single() -> None:
+    two = (
+        '<inputs><param name="s" type="select">'
+        '<options from_data_table="t"/><options from_data_table="u"/>'
+        "</param></inputs>"
+    )
+    assert "GTR061" in _codes(_tool(inputs=two))
+    one = (
+        '<inputs><param name="s" type="select">'
+        '<options from_data_table="t"/></param></inputs>'
+    )
+    assert "GTR061" not in _codes(_tool(inputs=one))
+
+
+def test_gtr062_select_options_have_source() -> None:
+    empty = '<inputs><param name="s" type="select"><options/></param></inputs>'
+    assert "GTR062" in _codes(_tool(inputs=empty))
+    sourced = (
+        '<inputs><param name="s" type="select">'
+        '<options from_data_table="t"/></param></inputs>'
+    )
+    assert "GTR062" not in _codes(_tool(inputs=sourced))
+    # a filter that adds values counts as a source
+    add_filter = (
+        '<inputs><param name="s" type="select"><options>'
+        '<filter type="add_value" value="x"/></options></param></inputs>'
+    )
+    assert "GTR062" not in _codes(_tool(inputs=add_filter))
+    # a macro <expand> in <options> may inject the source -> skip
+    macro = (
+        '<inputs><param name="s" type="select"><options>'
+        '<expand macro="opt_source"/></options></param></inputs>'
+    )
+    assert "GTR062" not in _codes(_tool(inputs=macro))
+
+
+def test_gtr063_select_options_source_coherent() -> None:
+    both = (
+        '<inputs><param name="s" type="select">'
+        '<options from_dataset="d" from_data_table="t"/></param></inputs>'
+    )
+    assert "GTR063" in _codes(_tool(inputs=both))
+    meta_no_dataset = (
+        '<inputs><param name="s" type="select">'
+        '<options from_data_table="t" meta_file_key="k"/></param></inputs>'
+    )
+    assert "GTR063" in _codes(_tool(inputs=meta_no_dataset))
+    ok = (
+        '<inputs><param name="s" type="select">'
+        '<options from_dataset="d" meta_file_key="k"/></param></inputs>'
+    )
+    assert "GTR063" not in _codes(_tool(inputs=ok))
+
+
+def test_gtr064_select_options_not_deprecated() -> None:
+    dyn = '<inputs><param name="s" type="select" dynamic_options="f()"/></inputs>'
+    assert "GTR064" in _codes(_tool(inputs=dyn))
+    dep_attr = (
+        '<inputs><param name="s" type="select">'
+        '<options from_file="f.txt"/></param></inputs>'
+    )
+    assert "GTR064" in _codes(_tool(inputs=dep_attr))
+    ok = (
+        '<inputs><param name="s" type="select">'
+        '<options from_data_table="t"/></param></inputs>'
+    )
+    assert "GTR064" not in _codes(_tool(inputs=ok))
+
+
 def test_iuc006_no_error_handling() -> None:
     # No <stdio> and the command has no detect_errors -> flagged.
     assert "GTR026" in _codes(_tool(stdio=""))

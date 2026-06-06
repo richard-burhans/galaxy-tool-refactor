@@ -1452,3 +1452,169 @@ class SelectOptionsDistinct(CheckRule):
                     self.meta,
                     f"select parameter '{name}' has options with duplicate text",
                 )
+
+
+# Attributes by which a dynamic ``<options>`` element can supply its option source
+# (planemo `InputsSelectOptionsDefinesOptions`); a
+# ``<filter type="add_value|data_meta">`` also supplies options.
+_OPTIONS_SOURCE_ATTRS = (
+    "from_file",
+    "from_parameter",
+    "from_dataset",
+    "from_data_table",
+    "from_url",
+)
+# Deprecated ``<options>`` attributes (planemo `InputsSelectOptionsDeprecatedAttr`).
+_DEPRECATED_OPTIONS_ATTRS = (
+    "from_file",
+    "from_parameter",
+    "options_filter_attribute",
+    "transform_lines",
+)
+
+
+class SelectOptionsSingle(CheckRule):
+    """GTR061 — a ``select`` may have at most one ``<options>`` element.
+
+    Reimplements planemo `InputsSelectOptionsMultiple`. Multiple ``<options>`` are
+    ambiguous. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR061",
+        summary="A select may have at most one <options> element.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for param, name in _select_params(document.root):
+            options = param.findall("options")
+            if len(options) > 1:
+                yield _violation(
+                    document,
+                    options[1],
+                    self.meta,
+                    f"select parameter '{name}' has multiple <options> elements",
+                )
+
+
+class SelectOptionsHaveSource(CheckRule):
+    """GTR062 — a dynamic ``<options>`` must define an option source.
+
+    Reimplements planemo `InputsSelectOptionsDefinesOptions`. An ``<options>`` with no
+    ``from_*`` source attribute and no ``<filter type="add_value|data_meta">`` produces
+    no options. An ``<options>`` whose subtree has an ``<expand>`` is **skipped** — a
+    macro may inject the source/filter (the raw-tree boundary, cf. GTR058). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR062",
+        summary="A dynamic <options> element must define an option source.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for param, name in _select_params(document.root):
+            options = param.find("options")
+            if options is None or options.find(".//expand") is not None:
+                continue
+            has_source = any(
+                options.get(attr) is not None for attr in _OPTIONS_SOURCE_ATTRS
+            )
+            adds_options = any(
+                option_filter.get("type") in ("add_value", "data_meta")
+                for option_filter in options.findall("filter")
+            )
+            if not has_source and not adds_options:
+                yield _violation(
+                    document,
+                    options,
+                    self.meta,
+                    f"select parameter '{name}' <options> defines no option source",
+                )
+
+
+class SelectOptionsSourceCoherent(CheckRule):
+    """GTR063 — a dynamic ``<options>`` source combination must be coherent.
+
+    Reimplements planemo `InputsSelectOptionsFromDatasetAndDatatable` +
+    `InputsSelectOptionsMetaFileKey`: ``from_dataset`` and ``from_data_table`` are
+    mutually exclusive, and ``meta_file_key`` is only meaningful with ``from_dataset``.
+    Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR063",
+        summary="A dynamic <options> source combination must be coherent.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for param, name in _select_params(document.root):
+            options = param.find("options")
+            if options is None:
+                continue
+            from_dataset = options.get("from_dataset")
+            if from_dataset is not None and options.get("from_data_table") is not None:
+                yield _violation(
+                    document,
+                    options,
+                    self.meta,
+                    f"select parameter '{name}' <options> sets both from_dataset and "
+                    "from_data_table",
+                )
+            if options.get("meta_file_key") is not None and from_dataset is None:
+                yield _violation(
+                    document,
+                    options,
+                    self.meta,
+                    f"select parameter '{name}' <options> meta_file_key requires "
+                    "from_dataset",
+                )
+
+
+class SelectOptionsNotDeprecated(CheckRule):
+    """GTR064 — a ``select`` should not use a deprecated options mechanism.
+
+    Reimplements planemo `InputsSelectDynamicOptions` (the ``dynamic_options`` attr)
+    + `InputsSelectOptionsDeprecatedAttr` (``from_file`` / ``from_parameter`` /
+    ``options_filter_attribute`` / ``transform_lines`` on ``<options>``). These need
+    restructuring (e.g. a data table); advisory, not mechanically fixable. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR064",
+        summary="A select should not use a deprecated options mechanism.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for param, name in _select_params(document.root):
+            if param.get("dynamic_options") is not None:
+                yield _violation(
+                    document,
+                    param,
+                    self.meta,
+                    f"select parameter '{name}' uses the deprecated "
+                    "'dynamic_options' attribute",
+                )
+            options = param.find("options")
+            if options is None:
+                continue
+            for attr in _DEPRECATED_OPTIONS_ATTRS:
+                if options.get(attr) is not None:
+                    yield _violation(
+                        document,
+                        options,
+                        self.meta,
+                        f"select parameter '{name}' <options> uses the deprecated "
+                        f"'{attr}' attribute",
+                    )
