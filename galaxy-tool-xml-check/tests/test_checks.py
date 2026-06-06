@@ -22,6 +22,7 @@ def _tool(
     tests: str = '<tests><test><param name="input" value="x"/></test></tests>',
     help_: str = "<help><![CDATA[Some help text.]]></help>",
     citations: str = '<citations><citation type="doi">10.1/x</citation></citations>',
+    outputs: str = '<outputs><data name="out" format="txt"/></outputs>',
 ) -> bytes:
     """Build a tool that, with every default, passes all checks. Override one
     keyword to break exactly one practice."""
@@ -29,7 +30,7 @@ def _tool(
         f'<tool id="{tool_id}" name="Good" version="{version}" profile="24.0">'
         f"{description}{edam}{requirements}{stdio}{command}"
         '<inputs><param name="input" type="data" format="txt"/></inputs>'
-        '<outputs><data name="out" format="txt"/></outputs>'
+        f"{outputs}"
         f"{tests}{help_}{citations}</tool>"
     ).encode()
 
@@ -87,6 +88,45 @@ def test_gtr039_no_todo_text() -> None:
     assert "GTR039" in _codes(_tool(command=todo_cmd))
     assert "GTR039" in _codes(_tool(help_="<help><![CDATA[TODO write help]]></help>"))
     assert "GTR039" not in _codes(_tool())  # default has no TODO
+
+
+def test_gtr040_output_names_unique() -> None:
+    dup = '<outputs><data name="out" format="txt"/><data name="out"/></outputs>'
+    assert "GTR040" in _codes(_tool(outputs=dup))
+    # a data and a collection sharing a name also collide
+    dup_mixed = (
+        '<outputs><data name="x"/><collection name="x" type="list"/></outputs>'
+    )
+    assert "GTR040" in _codes(_tool(outputs=dup_mixed))
+    assert "GTR040" not in _codes(_tool())  # default has a single unique name
+
+
+def test_gtr041_output_name_valid() -> None:
+    bad = '<outputs><data name="out put" format="txt"/></outputs>'
+    assert "GTR041" in _codes(_tool(outputs=bad))
+    leading_digit = '<outputs><data name="1out" format="txt"/></outputs>'
+    assert "GTR041" in _codes(_tool(outputs=leading_digit))
+    assert "GTR041" not in _codes(_tool())  # 'out' is a valid placeholder
+
+
+def test_gtr042_collection_type_declared() -> None:
+    no_type = '<outputs><collection name="c"/></outputs>'
+    assert "GTR042" in _codes(_tool(outputs=no_type))
+    typed = '<outputs><collection name="c" type="list"/></outputs>'
+    assert "GTR042" not in _codes(_tool(outputs=typed))
+    # structure derived via structured_like is accepted (lenient vs planemo)
+    derived = '<outputs><collection name="c" structured_like="x"/></outputs>'
+    assert "GTR042" not in _codes(_tool(outputs=derived))
+
+
+def test_gtr043_output_format_source_exclusive() -> None:
+    clash = '<outputs><data name="o" format_source="input" format="txt"/></outputs>'
+    assert "GTR043" in _codes(_tool(outputs=clash))
+    ext_clash = '<outputs><data name="o" format_source="input" ext="bam"/></outputs>'
+    assert "GTR043" in _codes(_tool(outputs=ext_clash))
+    only_source = '<outputs><data name="o" format_source="input"/></outputs>'
+    assert "GTR043" not in _codes(_tool(outputs=only_source))
+    assert "GTR043" not in _codes(_tool())  # default sets only format
 
 
 def test_iuc006_no_error_handling() -> None:

@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from galaxy_tool_xml_check.checks import (
     CitationsPresent,
+    CollectionTypeDeclared,
     CommandAndJoining,
     CommandCdata,
     DescriptionPresent,
@@ -23,6 +24,9 @@ from galaxy_tool_xml_check.checks import (
     HelpPresent,
     IdCharset,
     NoTodoText,
+    OutputFormatSourceExclusive,
+    OutputNamesUnique,
+    OutputNameValid,
     RequirementsPresent,
     RequirementVersionPinned,
     SingleQuotedCheetah,
@@ -57,6 +61,10 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         UnusedParam,
         CitationsPresent,
         NoTodoText,
+        OutputNamesUnique,
+        OutputNameValid,
+        CollectionTypeDeclared,
+        OutputFormatSourceExclusive,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 

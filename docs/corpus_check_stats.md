@@ -49,3 +49,7 @@ Detect-only IUC best-practice checks. Advisory: `check` reports them but does no
 | GTR034 | check | 189 | 2.0% | 467 | Input `<param>` is never referenced in the tool. |
 | GTR038 | check | 6,710 | 72.2% | 6,710 | Tool should declare a non-empty `<citation>` (doi/bibtex). |
 | GTR039 | check | 47 | 0.5% | 47 | `<command>`/`<help>` should not contain 'TODO' placeholder text. |
+| GTR040 | check | 11 | 0.1% | 11 | Output `<data>`/`<collection>` names must be unique. |
+| GTR041 | check | 74 | 0.8% | 189 | Output name should be a valid Cheetah placeholder. |
+| GTR042 | check | 0 | 0.0% | 0 | Output `<collection>` should declare a structure 'type'. |
+| GTR043 | check | 7 | 0.1% | 8 | An output should not set both format_source and format/ext. |

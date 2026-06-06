@@ -53,6 +53,10 @@ codemods GTR007–GTR016 are applied by `upgrade`, not the default `format`.)*
 | GTR037 | **InputsNameRedundantArgument** | ✓ | ✓ | codemod | drop a `<param>` `name` its `argument` implies |
 | GTR038 | CitationsMissing, CitationsNoText | ✓ | ✗ | check | tool should declare a non-empty `<citation>` |
 | GTR039 | CommandTODO, HelpTODO | ✓ | ✗ | check | `<command>`/`<help>` should not contain `TODO` placeholder text |
+| GTR040 | **OutputsNameDuplicated** | ✓ | ✗ | check | output `<data>`/`<collection>` names must be unique |
+| GTR041 | OutputsNameInvalidCheetah | ✓ | ✗ | check | output `name` must be a valid Cheetah placeholder |
+| GTR042 | OutputsCollectionType | ✓ | ✗ | check | output `<collection>` should declare a structure `type` |
+| GTR043 | OutputsFormatSourceIncomp | ✓ | ✗ | check | output should not set both `format_source` and `format`/`ext` |
 
 **Bold** planemo linters are ones planemo *only reports* and we *fix* (or, for the
 checks, detect with our own rule). The remaining unmapped planemo linters (the ~80
@@ -94,9 +98,9 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 17 | already covered (mostly as fixers). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), 2026-06-06 |
+| **HAVE** | 23 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), 2026-06-06 |
 | **FIX** (new, auto-fixable) | 0 | **complete** — GTR035/036/037 shipped; the rest of the original FIX candidates reclassified to advisory/detect on inspection (identity-changing or no mechanical equivalent) |
-| **DETECT** (new advisory) | ~80 | correctness checks for the `check` tier (report-only); incl. `ToolIDWhitespace`/`ToolVersionWhitespace` (advisory-by-design — §33) |
+| **DETECT** (new advisory) | ~74 | correctness checks for the `check` tier (report-only); incl. `ToolIDWhitespace`/`ToolVersionWhitespace` (advisory-by-design — §33). 6 landed so far: GTR038–043 |
 | **SKIP** (pass-state) | ~21 | `valid`/`info` reporters — nothing to build |
 | **n/a** (out of scope) | ~20 | CWL, filesystem, network/ontology, runtime |
 | **Total** | 146 | |
@@ -219,13 +223,13 @@ needs author intent. The **FIX** candidates (auto-fixable, our edge):
 | OutputsOutput | warn | codemod | **HAVE** | **GTR036** rewrites `<output type="data">` → `<data>`; `type="collection"` / expression outputs left advisory (§34) |
 | OutputsFormatInput | warn | upgrade | **HAVE** | = **GTR015** (`format="input"` → `format_source`) |
 | OutputsMissing | warn | check | DETECT | no outputs |
-| OutputsNameInvalidCheetah | warn | check | DETECT | output name not a valid placeholder |
-| OutputsNameDuplicated | error | check | DETECT | |
+| OutputsNameInvalidCheetah | warn | check | **HAVE** | **GTR041** name not a valid placeholder (`^[a-zA-Z_]\w*$`) |
+| OutputsNameDuplicated | error | check | **HAVE** | **GTR040** duplicate `<data>`/`<collection>` name |
 | OutputsFilterExpression | warn | check | DETECT | invalid filter expression |
 | OutputsLabelDuplicatedFilter / NoFilter | warn | check | DETECT | duplicate output labels |
-| OutputsCollectionType | warn | check | DETECT | collection without `type` |
+| OutputsCollectionType | warn | check | **HAVE** | **GTR042** collection without `type` (lenient: accepts `type_source`/`structured_like`) |
 | OutputsFormat | warn | check | DETECT | output without a format (fix=risky) |
-| OutputsFormatSourceIncomp | warn | check | DETECT | both `format` + `format_source` (≈ our GTR014 area) |
+| OutputsFormatSourceIncomp | warn | check | **HAVE** | **GTR043** both `format`/`ext` + `format_source` |
 | OutputsStructuredLikeReference · OutputsFormatSourceReference | warn | check | DETECT | cross-reference integrity |
 | OutputsNumber | info | — | SKIP | |
 

@@ -517,3 +517,41 @@ uv run python -m scripts.corpus_check check   # regenerates docs/corpus_check_st
   equivalent.
 - **Corpus** (`docs/corpus_check_stats.md`): GTR038 fires on **6,710 tools (72.2%)** —
   most corpus tools carry no citation; GTR039 on **47 (0.5%)**.
+
+## D13 (2026-06-06) — planemo-parity output-correctness checks: GTR040–GTR043
+
+**Date:** 2026-06-06. Second batch of the planemo-linter reimplementation
+(`../../docs/planemo_linter_parity.md`) — the `galaxy.tool_util.linters.output`
+correctness surface, landing as advisory checks. Reproduced-by:
+`uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py
+-k "gtr04"`.
+
+- **GTR040 `OutputNamesUnique`** — reimplements planemo `OutputsNameDuplicated`: a
+  duplicate `name` among the `<data>` / `<collection>` outputs means one silently
+  shadows another. Detect-only.
+- **GTR041 `OutputNameValid`** — reimplements planemo `OutputsNameInvalidCheetah`: an
+  output `name` that is not a valid Cheetah placeholder (`^[a-zA-Z_]\w*$`) cannot be
+  referenced as `$name`. Detect-only.
+- **GTR042 `CollectionTypeDeclared`** — reimplements planemo `OutputsCollectionType`,
+  **lenient**: a `<collection>` whose structure is supplied by `type_source` /
+  `structured_like` is accepted, so only one with *none* of `type` / `type_source` /
+  `structured_like` is flagged (more precise than planemo's bare-`type` check — avoids
+  false positives on derived collections). Detect-only.
+- **GTR043 `OutputFormatSourceExclusive`** — reimplements planemo
+  `OutputsFormatSourceIncomp`: combining `format_source` (derive the datatype from
+  another dataset) with an explicit `format` / `ext` is contradictory. Detect-only.
+- **Why detect, not fix.** Each flags an authoring mistake with no single correct
+  mechanical repair (which of two clashing values is right is the author's call), so
+  per the soundness discipline they report, never fix. They join the `strict` preset.
+- **Deferred.** The heavier `output` linters — `OutputsFormat` (`_check_format`
+  recursion through `change_format`/`actions`), `OutputsLabelDuplicated` (needs the
+  default-label model), `OutputsExpression`/`OutputsFilterExpression` — are a later
+  sub-batch.
+- **Scope: direct children only.** `_named_outputs` yields only the direct `<data>` /
+  `<collection>` children of `<outputs>`, not nested ones (a `<data>` inside a
+  `<collection>` is a structural child in the collection's own namespace, not a top-level
+  output) — matching planemo and keeping these advisories from over-flagging novel XML.
+- **Corpus** (`docs/corpus_check_stats.md`): GTR040 fires on **11 tools (0.1%)**, GTR041
+  on **74 (0.8%)**, GTR043 on **7 (0.1%)**; **GTR042 is 0** — every corpus `<collection>`
+  output already declares its structure, so the check is a low-noise guard for novel XML
+  rather than a corpus-prevalent finding.

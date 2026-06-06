@@ -552,3 +552,140 @@ class NoTodoText(CheckRule):
             if element is not None and "TODO" in (element.text or ""):
                 msg = f"<{tag}> contains a 'TODO' placeholder"
                 yield _violation(document, element, self.meta, msg)
+
+
+# A valid Cheetah placeholder name (Galaxy `is_valid_cheetah_placeholder`): a leading
+# letter/underscore then word characters. An output name must be one to be addressable.
+_CHEETAH_PLACEHOLDER = re.compile(r"^[a-zA-Z_]\w*$")
+
+
+def _named_outputs(root: etree._Element, /) -> Iterable[etree._Element]:
+    """Each top-level output ``<data>`` / ``<collection>`` (direct ``<outputs>`` child).
+
+    Deliberately *not* recursive: a ``<data>`` nested inside a ``<collection>`` is a
+    structural child in the collection's own namespace, not an independently-named
+    top-level output. Matching planemo's direct-child scan keeps these checks from
+    over-flagging — the failure mode for a detect-only advisory on novel XML.
+    """
+    outputs = root.find("outputs")
+    if outputs is None:
+        return
+    for element in outputs:
+        if element.tag in ("data", "collection"):
+            yield element
+
+
+class OutputNamesUnique(CheckRule):
+    """GTR040 — output ``<data>`` / ``<collection>`` names must be unique.
+
+    Reimplements planemo `OutputsNameDuplicated` (`galaxy.tool_util.linters.output`).
+    A duplicate name means one output silently shadows another. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR040",
+        summary="Output <data>/<collection> names must be unique.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        seen: set[str] = set()
+        for output in _named_outputs(document.root):
+            name = output.get("name")
+            if name is None:
+                continue
+            if name in seen:
+                yield _violation(
+                    document, output, self.meta, f"duplicate output name '{name}'"
+                )
+            seen.add(name)
+
+
+class OutputNameValid(CheckRule):
+    """GTR041 — an output ``name`` must be a valid Cheetah placeholder.
+
+    Reimplements planemo `OutputsNameInvalidCheetah`. A name that is not a valid
+    placeholder (``^[a-zA-Z_]\\w*$``) cannot be referenced as ``$name``. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR041",
+        summary="Output name should be a valid Cheetah placeholder.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for output in _named_outputs(document.root):
+            name = output.get("name")
+            if name is not None and not _CHEETAH_PLACEHOLDER.match(name):
+                yield _violation(
+                    document,
+                    output,
+                    self.meta,
+                    f"output name '{name}' is not a valid Cheetah placeholder",
+                )
+
+
+class CollectionTypeDeclared(CheckRule):
+    """GTR042 — an output ``<collection>`` should declare its structure ``type``.
+
+    Reimplements planemo `OutputsCollectionType`. Lenient vs planemo: a collection that
+    derives its structure from ``type_source`` / ``structured_like`` is accepted (those
+    are valid ways to supply the type), so only a collection with *none* of them is
+    flagged. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR042",
+        summary="Output <collection> should declare a structure 'type'.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for output in _named_outputs(document.root):
+            if output.tag != "collection":
+                continue
+            if not any(
+                output.get(attr) is not None
+                for attr in ("type", "type_source", "structured_like")
+            ):
+                yield _violation(
+                    document, output, self.meta, "collection output has no 'type'"
+                )
+
+
+class OutputFormatSourceExclusive(CheckRule):
+    """GTR043 — an output should not set both ``format_source`` and ``format``/``ext``.
+
+    Reimplements planemo `OutputsFormatSourceIncomp`. ``format_source`` derives the
+    datatype from another dataset; combining it with an explicit ``format``/``ext`` is
+    contradictory. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR043",
+        summary="An output should not set both format_source and format/ext.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for output in _named_outputs(document.root):
+            has_source = output.get("format_source") is not None
+            has_explicit = (
+                output.get("format") is not None or output.get("ext") is not None
+            )
+            if has_source and has_explicit:
+                yield _violation(
+                    document,
+                    output,
+                    self.meta,
+                    "output sets both format_source and format/ext (contradictory)",
+                )
