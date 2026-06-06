@@ -2243,6 +2243,147 @@ def _run_iuc011_fixability(args: argparse.Namespace) -> None:
     _report_iuc011_fixability(_measure_iuc011_fixability(corpus_root=args.corpus_root))
 
 
+# --- measurement: select-quoting-safety -----------------------------------------
+#
+# Sizes the GTR020.1 select/drill_down scope-narrowing (codemod decisions §30; tier-1
+# §16). Until this fix, `select` and `drill_down` were blanket members of
+# SAFE_SINGLE_TYPES, so GTR020.1 single-quoted ANY bare unquoted `$select_param` in
+# <command> — including the widespread multi-flag-dropdown idiom (`<option
+# value="-b -h">`), where quoting fuses several argv words into one literal token and
+# changes the command Galaxy runs (the behavior-preservation audit's counterexample).
+# This measure splits select/drill_down params by static option-value safety and,
+# crucially, counts the regression scope: bare select/drill_down references GTR020.1
+# would have quoted, split provable vs unsound. Heuristic (root-name resolution
+# against <inputs>, no full param-model walk). Needs the corpus, not in CI.
+
+_SELECT_WHITESPACE = re.compile(r"\s")
+# Glob / shell-active metacharacters whose meaning changes when single-quoted (mirrors
+# the non-whitespace half of command_vars._NOT_SINGLE_TOKEN).
+_SELECT_METACHAR = re.compile(r"[*?\[\]$`\\]")
+
+
+def _select_safety_class(param: etree._Element, /) -> str:
+    """Bucket one select/drill_down param by static option-value quoting safety.
+
+    Mirrors ``command_vars._select_options_are_single_tokens`` (``provable`` ==
+    that helper's ``True``), splitting the unsafe residual for reporting.
+    """
+    options = param.find("options")
+    if options is not None and any(n.startswith("from_") for n in options.attrib):
+        return "dynamic"  # runtime-sourced values -> not statically provable
+    values = [option.get("value") for option in param.iter("option")]
+    if not values or any(not value for value in values):
+        return "noopts"  # no static option set (or an empty value) -> nothing to prove
+    if any(_SELECT_WHITESPACE.search(value) for value in values if value):
+        return "multiflag"  # a value word-splits -> the multi-flag idiom
+    if any(_SELECT_METACHAR.search(value) for value in values if value):
+        return "metachar"  # a glob/shell-active value expands unquoted
+    return "provable"
+
+
+@dataclass
+class _SelectQuotingResult:
+    n_params: int  # all non-multiple select/drill_down params corpus-wide
+    per_class: Counter[str]  # by _select_safety_class
+    n_referenced: int  # of those, bare-referenced unquoted in <command> (GTR020.1 scope)
+    referenced_per_class: Counter[str]
+    n_tools_unsound_before: int  # tools where old GTR020.1 would quote an unsound select
+
+
+def _measure_select_quoting_safety(*, corpus_root: Path) -> _SelectQuotingResult:
+    """Split select/drill_down params by quoting safety + the GTR020.1 regression scope."""
+    from galaxy_tool_xml.command_text import unquoted_cheetah_vars
+
+    option_valued = {"select", "drill_down"}
+    seen: set[str] = set()
+    per_class: Counter[str] = Counter()
+    referenced_per_class: Counter[str] = Counter()
+    n_params = n_referenced = n_tools_unsound = 0
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        inputs = root.find("inputs")
+        if inputs is None:
+            continue
+        classes: dict[str, str] = {}  # param-name -> safety class (non-multiple only)
+        for param in inputs.iter("param"):
+            name = param.get("name")
+            if not name or param.get("type", "") not in option_valued:
+                continue
+            if param.get("multiple") in ("true", "True", "1"):
+                continue  # multiple= is a deliberate splat, never GTR020.1's scope
+            safety = _select_safety_class(param)
+            classes[name] = safety
+            per_class[safety] += 1
+            n_params += 1
+        if not classes:
+            continue
+        command = root.find("command")
+        if command is None:
+            continue
+        tool_unsound = False
+        for occurrence in unquoted_cheetah_vars("".join(command.itertext())):
+            # GTR020.1's select bug was for a BARE $param (no .attr / [idx]).
+            bare = occurrence.name.strip("${}")
+            if bare not in classes or any(sep in bare for sep in ".["):
+                continue
+            safety = classes[bare]
+            referenced_per_class[safety] += 1
+            n_referenced += 1
+            if safety != "provable":
+                tool_unsound = True
+        if tool_unsound:
+            n_tools_unsound += 1
+    return _SelectQuotingResult(
+        n_params=n_params,
+        per_class=per_class,
+        n_referenced=n_referenced,
+        referenced_per_class=referenced_per_class,
+        n_tools_unsound_before=n_tools_unsound,
+    )
+
+
+def _report_select_quoting_safety(result: _SelectQuotingResult) -> None:
+    order = ("provable", "multiflag", "metachar", "dynamic", "noopts")
+    print("\n=== select-quoting-safety (GTR020.1 scope-narrowing; heuristic) ===")
+
+    def line(label: str, per: Counter[str], total: int) -> None:
+        print(f"{label} (total {total}):")
+        for name in order:
+            count = per.get(name, 0)
+            pct = 100 * count / total if total else 0.0
+            print(f"  {name:10} {count:7d}  ({pct:.1f}%)")
+
+    line("All non-multiple select/drill_down params", result.per_class, result.n_params)
+    line(
+        "Bare-referenced unquoted in <command> (GTR020.1 scope)",
+        result.referenced_per_class,
+        result.n_referenced,
+    )
+    unsound = result.n_referenced - result.referenced_per_class.get("provable", 0)
+    print(
+        f"\nUnsound-before occurrences (old GTR020.1 would have mis-quoted): {unsound} "
+        f"across {result.n_tools_unsound_before} tools"
+    )
+    print(
+        f"Provable subset retained by the fix: "
+        f"{result.referenced_per_class.get('provable', 0)} / {result.n_referenced}"
+    )
+
+
+def _run_select_quoting_safety(args: argparse.Namespace) -> None:
+    _report_select_quoting_safety(
+        _measure_select_quoting_safety(corpus_root=args.corpus_root)
+    )
+
+
 # --- measurement: shell-oracle-quoting ------------------------------------------
 #
 # Sizes the shell boundary oracle's effect on GTR020.1 vs the pure value-domain rule
@@ -5924,6 +6065,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "command-lone-amp": _run_command_lone_amp,
     "command-unquoted-var": _run_command_unquoted_var,
     "iuc011-fixability": _run_iuc011_fixability,
+    "select-quoting-safety": _run_select_quoting_safety,
     "shell-oracle-quoting": _run_shell_oracle_quoting,
     "macro-fmt-idempotence": _run_macro_fmt_idempotence,
     "version-tokenization": _run_version_tokenization,

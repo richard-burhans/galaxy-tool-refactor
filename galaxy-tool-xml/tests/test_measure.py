@@ -42,6 +42,7 @@ from scripts.measure import (
     _measure_param_types,
     _measure_rename_coverage,
     _measure_rename_macro_spread,
+    _measure_select_quoting_safety,
     _measure_semantic_upgrade_boundaries,
     _measure_shell_oracle_quoting,
     _measure_upgrade_behavior_blocks,
@@ -106,6 +107,92 @@ def test_param_types_empty_corpus(tmp_path: Path) -> None:
     assert result.n_tools_parsed == 0
     assert result.n_params_total == 0
     assert len(result.type_counts) == 0
+
+
+# --- select-quoting-safety -------------------------------------------------------
+
+
+@pytest.fixture()
+def select_quoting_corpus(tmp_path: Path) -> Path:
+    """Synthetic corpus exercising every select/drill_down safety class + scope."""
+    repo = tmp_path / "owner" / "select-repo"
+    repo.mkdir(parents=True)
+    # provable: every option value a single token; bare-referenced in <command>.
+    (repo / "provable.xml").write_text(
+        '<tool id="t_prov"><inputs>'
+        '<param name="fmt" type="select">'
+        '<option value="-b">b</option><option value="-h">h</option></param>'
+        "</inputs><command><![CDATA[run $fmt]]></command></tool>",
+        encoding="utf-8",
+    )
+    # multiflag: an option value word-splits; referenced -> unsound before the fix.
+    (repo / "multiflag.xml").write_text(
+        '<tool id="t_mf"><inputs>'
+        '<param name="opt" type="select"><option value="-b -h">x</option></param>'
+        "</inputs><command><![CDATA[run $opt]]></command></tool>",
+        encoding="utf-8",
+    )
+    # metachar: a glob value expands unquoted; referenced -> unsound.
+    (repo / "metachar.xml").write_text(
+        '<tool id="t_mc"><inputs>'
+        '<param name="g" type="select"><option value="*.bam">x</option></param>'
+        "</inputs><command><![CDATA[run $g]]></command></tool>",
+        encoding="utf-8",
+    )
+    # dynamic: runtime-sourced values; referenced -> unsound.
+    (repo / "dynamic.xml").write_text(
+        '<tool id="t_dyn"><inputs>'
+        '<param name="src" type="select"><options from_dataset="d"/></param>'
+        "</inputs><command><![CDATA[run $src]]></command></tool>",
+        encoding="utf-8",
+    )
+    # drill_down with a whitespace value, NOT referenced -> counted, not in scope.
+    (repo / "drilldown.xml").write_text(
+        '<tool id="t_dd"><inputs>'
+        '<param name="tree" type="drill_down"><options>'
+        '<option name="A" value="a b"/></options></param>'
+        "</inputs><command><![CDATA[run nothing]]></command></tool>",
+        encoding="utf-8",
+    )
+    # multiple= select: a deliberate splat -> excluded from the population entirely.
+    (repo / "multiple.xml").write_text(
+        '<tool id="t_multi"><inputs>'
+        '<param name="m" type="select" multiple="true">'
+        '<option value="-b">b</option></param>'
+        "</inputs><command><![CDATA[run $m]]></command></tool>",
+        encoding="utf-8",
+    )
+    (repo / "not_a_tool.xml").write_text("<data/>", encoding="utf-8")
+    return tmp_path
+
+
+def test_select_quoting_safety_buckets_and_scope(select_quoting_corpus: Path) -> None:
+    result = _measure_select_quoting_safety(corpus_root=select_quoting_corpus)
+    # fmt, opt, g, src, tree -> 5 non-multiple option-valued params (m excluded).
+    assert result.n_params == 5
+    assert dict(result.per_class) == {
+        "provable": 1,
+        "multiflag": 2,  # opt + the unreferenced drill_down tree
+        "metachar": 1,
+        "dynamic": 1,
+    }
+    # Bare-referenced in <command>: fmt, opt, g, src (tree not referenced, m excluded).
+    assert result.n_referenced == 4
+    assert dict(result.referenced_per_class) == {
+        "provable": 1,
+        "multiflag": 1,
+        "metachar": 1,
+        "dynamic": 1,
+    }
+    # Old GTR020.1 would have mis-quoted opt, g, src -> 3 tools.
+    assert result.n_tools_unsound_before == 3
+
+
+def test_select_quoting_safety_empty_corpus(tmp_path: Path) -> None:
+    result = _measure_select_quoting_safety(corpus_root=tmp_path)
+    assert result.n_params == 0
+    assert result.n_referenced == 0
+    assert result.n_tools_unsound_before == 0
 
 
 # --- help-formats ----------------------------------------------------------------
