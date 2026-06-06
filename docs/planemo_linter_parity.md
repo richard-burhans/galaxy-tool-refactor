@@ -4,6 +4,59 @@ A reimplementation roadmap: every tool-XML linter `planemo lint` runs, mapped to
 it would live in **our** framework, and — the interesting column — whether we could
 **auto-fix** it (our edge: planemo only *reports*).
 
+## GTR coverage table (keyed by our rule)
+
+The scannable view: every GTR rule we ship, the planemo linter(s) it covers, whether we
+**detect** and/or **fix** it, the implementing **tier**, and a one-line description. Rows
+with planemo "—" are our own best-practices with no planemo equivalent. Use this to spot
+where a today-detect-only rule could grow a fix. *(Maintained as rules land; upgrade-only
+codemods GTR007–GTR016 are applied by `upgrade`, not the default `format`.)*
+
+| GTR | planemo linter(s) covered | detect | fix | tier | description |
+|---|---|:--:|:--:|---|---|
+| GTR001 | — | ✓ | ✓ | fmt | canonical 4-space indentation |
+| GTR002 | — | ✓ | ✓ | codemod | reorder `<param>` attributes to IUC order |
+| GTR003 | — | ✓ | ✓ | fmt | one blank line between top-level `<tool>` children |
+| GTR004 | — | ✓ | ✓ | fmt | collapse empty-with-whitespace leaves to `<foo/>` (skips content-bearing) |
+| GTR005 | — | ✓ | ✓ | codemod | reorder root `<tool>` attributes |
+| GTR006 | (XSD) | ✓ | ✓ | codemod | repair near-miss typos so an invalid tool validates |
+| GTR007 | ToolProfile\* | ✓ | ✓ | upgrade | bump an inline `@PROFILE@` / `profile=` to newest valid |
+| GTR008 | — | ✓ | ✓ | upgrade | 19.01→19.05 migration (name unnamed outputs) |
+| GTR009 | — | ✓ | ✓ | upgrade | 24.0→24.1 (hoist identical collection filters) |
+| GTR010 | ValidDatatypes (case) | ✓ | ✓ | upgrade | 24.1→24.2 format/ftype lowercase-token normalize |
+| GTR011 | — | ✓ | ✓ | upgrade | 25.1→26.0 (drop obsolete `<trackster_conf>`) |
+| GTR012 | — | ✓ | ✓ | upgrade | orchestrator: loop to newest reachable profile |
+| GTR013 | **XMLOrder** | ✓ | ✓ | codemod | reorder `<tool>` child elements (planemo only flags) |
+| GTR014 | — | ✓ | ✓ | upgrade | `from_work_dir` strip (<21.09 crossing) |
+| GTR015 | **OutputsFormatInput** | ✓ | ✓ | upgrade | `format="input"`→`format_source` (single data input) |
+| GTR016 | **CommandInterpreterDeprecated** | ✓ | ✓ | codemod | inline a deprecated `interpreter=` (planemo only flags) |
+| GTR017 | (XSD) | ✓ | ✓ | codemod | normalize Python-style booleans to `xs:boolean` |
+| GTR018.1 | — | ✓ | ✓ | codemod | wrap a pure-text `<command>` in CDATA |
+| GTR018.2 | — | ✓ | ✗ | check | `<command>` CDATA residual (mixed-content / `]]>` / `\r`) |
+| GTR019.1 | — | ✓ | ✓ | codemod | wrap a pure-text `<help>` in CDATA |
+| GTR019.2 | — | ✓ | ✗ | check | `<help>` CDATA residual |
+| GTR020.1 | — | ✓ | ✓ | codemod | single-quote provably-single-valued `<command>` Cheetah vars |
+| GTR020.2 | — | ✓ | ✗ | check | unquoted-`$var` non-provable residual |
+| GTR021 | **TestsMissing** | ✓ | ✗ | check | tool should ship a functional `<test>` |
+| GTR023 | **ToolIDValid** | ✓ | ✗ | check | tool id charset (lowercase / `_.+-`) |
+| GTR024 | **ToolVersionPEP404**, ToolVersionMissing | ✓ | ✗ | check | version should be PEP 440 (or a `@…@` macro) |
+| GTR025 | RequirementNameMissing | ✓ | ✗ | check | tool should declare `<requirements>` |
+| GTR026 | **StdIOAbsence** | ✓ | ✗ | check | declare error handling (`detect_errors`/`<stdio>`) |
+| GTR027 | **EDAMTermsValid**, BioToolsValid | ✓ | ✗ | check | declare EDAM topics/operations or `<xrefs>` |
+| GTR028 | **HelpMissing**, HelpEmpty | ✓ | ✗ | check | provide non-empty `<help>` |
+| GTR029 | — | ✓ | ✗ | check | provide a non-empty `<description>` |
+| GTR032 | — | — | ✗ | check | lone `&` vs `&&` (no-op stub; needs a shell parser) |
+| GTR033 | **RequirementVersionMissing** | ✓ | ✗ | check | package `<requirement>`s should pin a version |
+| GTR034 | — | ✓ | ✗ | check | input `<param>` never referenced |
+| GTR035 | **ToolNameWhitespace**, **RequirementVersionWhitespace** | ✓ | ✓ | codemod | trim accidental whitespace (name / requirement version) |
+| GTR036 | **OutputsOutput** | ✓ | ✓ | codemod | `<output type="data">` → `<data>` |
+| GTR037 | **InputsNameRedundantArgument** | ✓ | ✓ | codemod | drop a `<param>` `name` its `argument` implies |
+
+**Bold** planemo linters are ones planemo *only reports* and we *fix* (or, for the
+checks, detect with our own rule). The remaining unmapped planemo linters (the ~80
+correctness checks + the advisory-by-design ones) are in the per-module tables below;
+each becomes a new GTR row here as it's built.
+
 ## Method & source
 
 `planemo lint` delegates tool-XML linting to **`galaxy.tool_util.lint`**, which loads the
