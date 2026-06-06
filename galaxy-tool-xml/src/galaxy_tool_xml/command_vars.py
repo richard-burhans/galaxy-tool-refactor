@@ -20,7 +20,10 @@ Heuristic: root-name resolution against ``<inputs>``, no full param-model walk.
 The provable set is ``{safe, attr_safe, builtin_path}``:
 
 - ``safe`` — a bare ``$param`` of an intrinsically single-token type (a number, a
-  Galaxy-controlled dataset path, an author-fixed ``select`` value);
+  Galaxy-controlled dataset path), or a ``select`` / ``drill_down`` whose option set
+  is statically known and every option ``value`` is a single shell token (an
+  ``<option value="-b -h">`` multi-flag dropdown is *not* safe — quoting it would
+  fuse the intended argv words into one token);
 - ``attr_safe`` — a ``$param.attr`` whose attribute is space-free regardless of the
   run (``.ext`` is a charset-restricted datatype extension; ``.file_name`` / paths
   are Galaxy-controlled server paths);
@@ -43,6 +46,11 @@ from lxml import etree
 # Param types whose value is intrinsically a single shell token — quoting one can
 # never break word-splitting (it was always one argument). ``text`` is excluded: a
 # single value, but commonly a free-form "extra options" field meant to splat.
+# ``select`` / ``drill_down`` are NOT here: their value is an author-written
+# ``<option value="…">`` string with no charset constraint, and a widespread idiom
+# packs several argv words into one option value (``value="-b -h"``) precisely to
+# word-split. They are resolved separately, by inspecting the option values
+# (``_select_options_are_single_tokens``) — "safe" only for the provable subset.
 SAFE_SINGLE_TYPES = frozenset(
     {
         "data",
@@ -53,11 +61,20 @@ SAFE_SINGLE_TYPES = frozenset(
         "hidden",
         "baseurl",
         "genomebuild",
-        "select",
-        "drill_down",
         "data_column",
     }
 )
+
+# Param types whose value comes from author-written ``<option value="…">`` strings.
+# Single-token-safe only when every reachable static option value is one shell token
+# and the option set is not runtime-sourced (a ``<options from_*>`` element).
+OPTION_VALUED_TYPES = frozenset({"select", "drill_down"})
+
+# A select/drill_down option value that single-quoting could change: it carries
+# whitespace (so an unquoted value word-splits into several argv words — the
+# multi-flag-dropdown idiom) or a glob/shell-active metacharacter (which expands
+# unquoted). Quoting such a value is NOT a no-op, so it is not provably quotable.
+_NOT_SINGLE_TOKEN = re.compile(r"[\s*?\[\]$`\\]")
 
 # ``$param.attr`` metadata accessors whose value is space-free for any run: a
 # datatype extension (charset-restricted), a Galaxy-controlled server path, or an
@@ -120,6 +137,8 @@ def input_param_info(root: etree._Element, /) -> tuple[dict[str, str], set[str]]
             kind = "multi"
         elif ptype == "text":
             kind = "text"
+        elif ptype in OPTION_VALUED_TYPES:
+            kind = "safe" if _select_options_are_single_tokens(param) else "text"
         elif ptype in SAFE_SINGLE_TYPES:
             kind = "safe"
         else:
@@ -176,6 +195,24 @@ def provably_quotable(
     GTR020 codemod auto-quotes exactly this subset.
     """
     return classify_var(var_name, kinds, structural) in _PROVABLE_CLASSES
+
+
+def _select_options_are_single_tokens(param: etree._Element, /) -> bool:
+    """Whether a ``select`` / ``drill_down`` param is provably single-valued.
+
+    True only when the option set is statically known — no ``<options from_*>``
+    runtime source (``from_dataset`` / ``from_data_table`` / ``from_file`` …) — and
+    every reachable ``<option value="…">`` (including a ``drill_down``'s nested
+    options) is a single shell token. An empty static option set proves nothing, so
+    it is treated as unsafe.
+    """
+    options = param.find("options")
+    if options is not None and any(name.startswith("from_") for name in options.attrib):
+        return False  # runtime-sourced values -> not statically provable
+    values = [option.get("value") for option in param.iter("option")]
+    if not values:
+        return False  # nothing static to prove
+    return all(value and _NOT_SINGLE_TOKEN.search(value) is None for value in values)
 
 
 def _is_safe_attr(attr_segments: list[str], /) -> bool:

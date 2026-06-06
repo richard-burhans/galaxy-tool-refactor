@@ -741,11 +741,24 @@ Three small, dependency-light modules analyse `<command>` / `<help>` body conten
 - `command_text.unquoted_cheetah_vars(text)` — a read-only lexer yielding every
   fully-unquoted shell-line `$var` with its name, line offset, and absolute
   `start`/`end` character span (quote-state tracking across newlines, Cheetah
-  directive skipping). It is *not* a parser — no Cheetah grammar, no shell AST.
+  directive skipping). It is *not* a parser — no Cheetah grammar, no shell AST. The
+  conservative regex scan (`_scan_unquoted_cheetah_vars`) is the fallback; when the
+  `cheetah-cdm` extra is present it is **filtered against the faithful CT3 span lexer**
+  (§19): a candidate survives only if its `$` is the start of a genuine `PLACEHOLDER`
+  span, so a `$` inside a `#raw` block, a `#* … *#` block comment, or an escaped `\$`
+  — invisible to the line-based regex — is dropped. The lexer only *narrows* (mirrors
+  the `shell-oracle` posture); without the extra (or on the ~0.4% CT3 bail) the regex
+  result is returned verbatim, so default output is unchanged (2026-06-06).
 - `command_vars` — resolves a `$var` against a tool's `<inputs>` and classifies it
   (`input_param_info` / `classify_var` / `provably_quotable`) into the
   quoting-safety buckets, exposing the provable subset `{safe, attr_safe,
-  builtin_path}`.
+  builtin_path}`. A `select` / `drill_down` is "safe" only when its option set is
+  statically known and every `<option value>` is a single shell token
+  (`_select_options_are_single_tokens`) — *not* by type alone: a multi-flag dropdown
+  (`<option value="-b -h">`) word-splits, so quoting it would change behaviour. The
+  unprovable residual (whitespace/glob value, a `<options from_*>` runtime source, or
+  no static options) is demoted to `text` (advisory `GTR020.2`). Sized by
+  `scripts.measure select-quoting-safety` (2026-06-06).
 - `cdata` — `cdata_wrappable` / `needs_cdata` / `is_cdata_wrapped`: predicates on an
   element deciding whether a pure-text body can be losslessly wrapped in one CDATA
   section (the GTR018/GTR019 substrate).

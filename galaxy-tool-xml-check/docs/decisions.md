@@ -290,7 +290,11 @@ param's kind). Of **49,119** occurrences across **6,699** flagged tools:
 | `non_input` — root resolves to no input (`#set`-assembled, loop vars) | 16,513 (33.6%) | **unsafe / unknown** |
 
 (The `attr` / `builtin` classes were later split into space-free vs label sub-buckets
-— the provable-vs-not line GTR020 fixes on; see D8.)
+— the provable-vs-not line GTR020 fixes on; see D8. The `safe` row's `select-single`
+was *also* later narrowed: `select`/`drill_down` are provable only when their option
+values are statically single tokens, and the `command_text` lexer now filters escaped
+`\$`/`#raw`/comment false positives — both predate this sizing, so the current GTR020.2
+counts are lower; see codemod `docs/decisions.md` §32.)
 
 ### Decision
 

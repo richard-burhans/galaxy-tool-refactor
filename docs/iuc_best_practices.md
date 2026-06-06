@@ -144,9 +144,10 @@ a **read-only command-text lexer** (`galaxy-tool-xml/.../command_text.py`, tier 
 matcher language / mutation cursors / provenance), reporting **one finding per
 unquoted occurrence**. The *provably*-single-valued subset of those occurrences is
 now **auto-fixed** by GTR020.1 (`SingleQuoteCommandVars`, a tier-2 codemod in the
-`format`/`iuc` pipeline) — bare single-token params, `$__…__` path built-ins, and
-space-free attrs, whose value can never word-split for a working tool (49.5% of
-occurrences; `scripts.measure iuc011-fixability`, codemod `docs/decisions.md` §30).
+`format`/`iuc` pipeline) — bare single-token params, `$__…__` path built-ins,
+space-free attrs, plus `select`/`drill_down` whose option values are *provably*
+single tokens, whose value can never word-split for a working tool (50.9% of
+occurrences; `scripts.measure iuc011-fixability`, codemod `docs/decisions.md` §30/§32).
 The lexer moved to tier 1 so both the check (3.5) and the codemod (2) share it.
 GTR020.2 keeps flagging the non-provable residual (free-form `text`, `multiple=`
 splats, `$on_string`, label attrs, `#set`/loop vars). For *why* the command text is shell at all (Cheetah →

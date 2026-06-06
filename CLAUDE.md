@@ -132,19 +132,24 @@ uv run python -m scripts.measure macro-profile-ownership
 # tracking shell quotes, a genuinely-unquoted `$var` still fires on 73.2% of tools,
 # so GTR020.2 (unlike GTR032) has real signal (check §D4); iuc011-fixability then
 # resolves each unquoted `$var` against <inputs> and splits it into provable-vs-not
-# classes — the provable subset {safe, attr_safe, builtin_path} (49.5% of
-# occurrences) is auto-fixed by GTR020.1 (codemod §30 / check §D8), while the
-# non-provable residual (33.6% #set/loop, plus text/multi/label) keeps GTR020.2
+# classes — the provable subset {safe, attr_safe, builtin_path} (50.9% of
+# occurrences) is auto-fixed by GTR020.1 (codemod §30/§32 / check §D8), while the
+# non-provable residual (30.2% #set/loop, plus text/multi/label) keeps GTR020.2
 # advisory; shell-oracle-quoting sizes the bashlex-oracle delta on GTR020.1 vs the
 # pure value-domain rule — now WIDENED 0 (the no-split/assignment-RHS widening was
 # reverted as unsound: Cheetah renders values as literal text, so VAR=$x splits) /
 # NARROWED 0 (no value-domain-safe fd-dup target corpus-wide); needs the
 # galaxy-tool-xml[shell-oracle] extra (tier-1 §17, codemod §31);
+# select-quoting-safety sizes the GTR020.1 select/drill_down scope-narrowing (codemod
+# §32): of the bare select/drill_down refs GTR020.1 would quote, 85.0% are provable
+# (single-token option values, still auto-quoted) and 406 occ across 269 tools were
+# unsound-before (a multi-flag `<option value="-b -h">` quoting fuses argv words);
 # macro-fmt-idempotence backs fmt §D16:
 uv run python -m scripts.measure command-iuc-heuristics
 uv run python -m scripts.measure command-lone-amp
 uv run python -m scripts.measure command-unquoted-var
 uv run python -m scripts.measure iuc011-fixability
+uv run python -m scripts.measure select-quoting-safety
 uv run python -m scripts.measure shell-oracle-quoting
 uv run python -m scripts.measure macro-fmt-idempotence
 

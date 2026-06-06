@@ -138,6 +138,43 @@ def test_narrows_fd_dup_target() -> None:
     assert list(SingleQuoteCommandVars().detect(module)) == []
 
 
+def test_does_not_quote_multiflag_select_value() -> None:
+    # Behavior-preservation audit counterexample (iuc/bedtools/tagBed.xml shape): a
+    # select whose option packs several flags into one value MUST NOT be quoted —
+    # single-quoting "-b -h" fuses two argv words into one literal token, changing
+    # the command Galaxy runs. XSD validity + idempotence are both preserved, so the
+    # corpus oracles miss it; this fixture is the regression guard.
+    module = parse_module(
+        _HEAD + b"<inputs>"
+        b'<param name="output_options" type="select">'
+        b'<option value="-b -h">BAM with header</option>'
+        b'<option value="-b">BAM only</option></param>'
+        b"</inputs>"
+        b"<command><![CDATA[samtools view $output_options input.bam]]></command>"
+        b"</tool>"
+    )
+    assert list(SingleQuoteCommandVars().detect(module)) == []
+    before = etree.tostring(module.document.root)
+    SingleQuoteCommandVars().apply(module)
+    assert etree.tostring(module.document.root) == before
+
+
+def test_quotes_single_token_select_value() -> None:
+    # The provable subset is retained: a select whose every option value is a single
+    # shell token is still auto-quoted (this is what makes the scope-narrowing honest
+    # rather than a wholesale drop of select).
+    module = parse_module(
+        _HEAD + b"<inputs>"
+        b'<param name="fmt" type="select">'
+        b'<option value="-b">b</option><option value="-h">h</option></param>'
+        b"</inputs>"
+        b"<command><![CDATA[samtools view $fmt input.bam]]></command>"
+        b"</tool>"
+    )
+    SingleQuoteCommandVars().apply(module)
+    assert _command_text(module.document.root) == "samtools view '$fmt' input.bam"
+
+
 def test_certifier_seam_overrides_default() -> None:
     # An injected certifier replaces the default policy (the Phase-2 seam). A
     # quote-everything certifier quotes a residual text param the default leaves alone.

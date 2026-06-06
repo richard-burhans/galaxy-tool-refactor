@@ -61,6 +61,63 @@ def test_classify_var_buckets() -> None:
     assert classify("$assembled") == "non_input"
 
 
+def test_select_is_safe_only_when_all_option_values_are_single_tokens() -> None:
+    # A select whose every static option value is a single shell token is provably
+    # single-valued -> "safe". The audit's counterexample (a multi-flag dropdown
+    # whose option packs several argv words into one value) must NOT be "safe":
+    # quoting it would fuse the words into one literal token.
+    root = etree.fromstring(
+        b"<tool><inputs>"
+        b'<param name="single" type="select">'
+        b'<option value="-b">b</option><option value="-h">h</option></param>'
+        b'<param name="multiflag" type="select">'
+        b'<option value="-b -h">bh</option><option value="-b">b</option></param>'
+        b'<param name="globbed" type="select">'
+        b'<option value="*.bam">all</option></param>'
+        b'<param name="dynamic" type="select">'
+        b'<options from_dataset="x"/></param>'
+        b'<param name="noopts" type="select"/>'
+        b"</inputs></tool>"
+    )
+    kinds, _ = input_param_info(root)
+    assert kinds["single"] == "safe"  # every option value is one token
+    assert kinds["multiflag"] == "text"  # "-b -h" word-splits -> not provable
+    assert kinds["globbed"] == "text"  # a glob expands unquoted -> not provable
+    assert kinds["dynamic"] == "text"  # runtime-sourced values -> not provable
+    assert kinds["noopts"] == "text"  # nothing static to prove
+
+
+def test_drill_down_is_safe_only_when_all_nested_values_are_single_tokens() -> None:
+    # drill_down nests <option value=> under <options>; a static, all-single-token
+    # tree is "safe", a from_file source or a whitespace value is not.
+    root = etree.fromstring(
+        b"<tool><inputs>"
+        b'<param name="dd_ok" type="drill_down"><options>'
+        b'<option name="A" value="a"><option name="B" value="b"/></option>'
+        b"</options></param>"
+        b'<param name="dd_space" type="drill_down"><options>'
+        b'<option name="A" value="a b"/></options></param>'
+        b'<param name="dd_dyn" type="drill_down"><options from_file="x.txt"/></param>'
+        b"</inputs></tool>"
+    )
+    kinds, _ = input_param_info(root)
+    assert kinds["dd_ok"] == "safe"
+    assert kinds["dd_space"] == "text"
+    assert kinds["dd_dyn"] == "text"
+
+
+def test_multiple_select_stays_multi_regardless_of_option_values() -> None:
+    # multiple= is a deliberate splat; it outranks any option-value inspection.
+    root = etree.fromstring(
+        b"<tool><inputs>"
+        b'<param name="opt" type="select" multiple="true">'
+        b'<option value="-b">b</option></param>'
+        b"</inputs></tool>"
+    )
+    kinds, _ = input_param_info(root)
+    assert kinds["opt"] == "multi"
+
+
 def test_provably_quotable_is_exactly_the_provable_set() -> None:
     kinds = {"ds": "safe", "txt": "text", "multi": "multi"}
     structural: set[str] = set()
