@@ -64,6 +64,9 @@ codemods GTR007–GTR016 are applied by `upgrade`, not the default `format`.)*
 | GTR048 | **OutputsMissing** | ✓ | ✗ | check | tool should define an `<outputs>` section |
 | GTR049 | **OutputsFormat** | ✓ | ✗ | check | each output should define its datatype format |
 | GTR050 | OutputsLabelDuplicated\* | ✓ | ✗ | check | outputs should not share an *explicit* `label` (low-noise narrowing) |
+| GTR051 | **ContainerImageShape** | ✓ | ✗ | check | a `<container>` identifier should match a recognized shape |
+| GTR052 | **OutputsFilterExpression** | ✓ | ✗ | check | an output `<filter>` should be a valid Python expression |
+| GTR053 | **StdIORegex** | ✓ | ✗ | check | a `<stdio>` `<regex match>` should be a valid regular expression |
 
 **Bold** planemo linters are ones planemo *only reports* and we *fix* (or, for the
 checks, detect with our own rule). The remaining unmapped planemo linters (the ~80
@@ -105,9 +108,9 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 33 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), 2026-06-06 |
+| **HAVE** | 37 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), 2026-06-06 |
 | **FIX** (new, auto-fixable) | 0 | **complete** — GTR035/036/037 shipped; the rest of the original FIX candidates reclassified to advisory/detect on inspection (identity-changing or no mechanical equivalent) |
-| **DETECT** (new advisory) | ~64 | correctness checks for the `check` tier (report-only). 13 landed so far: GTR038–050 (citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, outputs present/format/label) |
+| **DETECT** (new advisory) | ~60 | correctness checks for the `check` tier (report-only). 16 landed so far: GTR038–053 (citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, outputs present/format/label, container/filter/regex validity) |
 | **SKIP** (pass-state) | ~21 | `valid`/`info` reporters — nothing to build |
 | **n/a** (out of scope) | ~20 | CWL, filesystem, network/ontology, runtime |
 | **Total** | 146 | |
@@ -138,7 +141,7 @@ The next planemo-parity frontier is the ~80 *correctness* checks → the advisor
 |---|---|---|---|---|
 | CitationsMissing | warn | check | **HAVE** | **GTR038** |
 | CitationsNoText | error | check | **HAVE** | **GTR038** (empty doi/bibtex) |
-| CitationsNoValid | warn | check | DETECT | no parseable citation (doi/bibtex) |
+| CitationsNoValid | warn | check | **HAVE** | **GTR038** subsumes it — fires on an empty `<citations>` (no `<citation>` children) |
 | CitationsFound | valid | — | SKIP | pass-state |
 
 ## command.py (5)
@@ -155,7 +158,7 @@ The next planemo-parity frontier is the ~80 *correctness* checks → the advisor
 
 | Linter | sev | tier | disp | note |
 |---|---|---|---|---|
-| ContainerImageShape | warn | check | DETECT | biocontainers/quay shape; pattern-matchable (no network) |
+| ContainerImageShape | warn | check | **HAVE** | **GTR051** recognized container shape (macro-token identifiers skipped) |
 
 ## cwl.py (9) — **all n/a** (CWL, not Galaxy tool XML)
 
@@ -167,7 +170,7 @@ The next planemo-parity frontier is the ~80 *correctness* checks → the advisor
 | Linter | sev | tier | disp | note |
 |---|---|---|---|---|
 | ValidDatatypes | error | check | DETECT | `format`/`ext` is a real datatype; we *normalize case* in `upgrade` (GTR010) but don't validate membership |
-| DatatypesCustomConf | warn | check | DETECT | discouraged custom `datatypes_conf.xml` |
+| DatatypesCustomConf | warn | check | DETECT (deferred) | needs the **filesystem** (a sibling `datatypes_conf.xml` on disk), not the parsed tree — out of the raw-tree check tier's reach, like `required_files.py` |
 
 ## general.py (19)
 
@@ -232,7 +235,7 @@ needs author intent. The **FIX** candidates (auto-fixable, our edge):
 | OutputsMissing | warn | check | **HAVE** | **GTR048** no `<outputs>` (macro-using tools skipped — raw-tree boundary) |
 | OutputsNameInvalidCheetah | warn | check | **HAVE** | **GTR041** name not a valid placeholder (`^[a-zA-Z_]\w*$`) |
 | OutputsNameDuplicated | error | check | **HAVE** | **GTR040** duplicate `<data>`/`<collection>` name |
-| OutputsFilterExpression | warn | check | DETECT | invalid filter expression |
+| OutputsFilterExpression | warn | check | **HAVE** | **GTR052** filter is valid Python (macro-token filters skipped) |
 | OutputsLabelDuplicatedFilter / NoFilter | warn | check | **HAVE** | **GTR050** duplicate *explicit* label; default-label collisions skipped (low-noise narrowing) |
 | OutputsCollectionType | warn | check | **HAVE** | **GTR042** collection without `type` (lenient: accepts `type_source`/`structured_like`) |
 | OutputsFormat | warn | check | **HAVE** | **GTR049** output without a format (galaxy.json-metadata + macro-`<expand>` exempt) |
@@ -249,7 +252,7 @@ needs author intent. The **FIX** candidates (auto-fixable, our edge):
 | Linter | sev | tier | disp | note |
 |---|---|---|---|---|
 | StdIOAbsence / StdIOAbsenceLegacy | info | check | **HAVE** | ≈ **GTR026** (error handling present) |
-| StdIORegex | error | check | DETECT | invalid `<regex>` match expression |
+| StdIORegex | error | check | **HAVE** | **GTR053** `<regex match>` must compile |
 
 ## tests.py (23)
 

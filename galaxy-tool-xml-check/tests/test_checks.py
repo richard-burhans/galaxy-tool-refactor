@@ -230,6 +230,55 @@ def test_gtr050_output_labels_distinct() -> None:
     assert "GTR050" not in _codes(_tool(outputs=no_label))
 
 
+def test_gtr051_container_shape_recognized() -> None:
+    bad = (
+        '<requirements><container type="docker">'
+        "not a shape!</container></requirements>"
+    )
+    assert "GTR051" in _codes(_tool(requirements=bad))
+    quay = (
+        '<requirements><container type="docker">'
+        "quay.io/biocontainers/samtools:1.0</container></requirements>"
+    )
+    assert "GTR051" not in _codes(_tool(requirements=quay))
+    hub = (
+        '<requirements><container type="docker">'
+        "biocontainers/samtools:1.0</container></requirements>"
+    )
+    assert "GTR051" not in _codes(_tool(requirements=hub))
+    # an unexpanded @…@ macro token cannot be checked on the raw tree -> skip
+    token = (
+        '<requirements><container type="docker">'
+        "@CONTAINER@</container></requirements>"
+    )
+    assert "GTR051" not in _codes(_tool(requirements=token))
+    assert "GTR051" not in _codes(_tool())  # default has no <container>
+
+
+def test_gtr052_output_filter_valid() -> None:
+    bad = '<outputs><data name="o" format="txt"><filter>1 +</filter></data></outputs>'
+    assert "GTR052" in _codes(_tool(outputs=bad))
+    good = (
+        '<outputs><data name="o" format="txt">'
+        "<filter>genome == 'hg19'</filter></data></outputs>"
+    )
+    assert "GTR052" not in _codes(_tool(outputs=good))
+    # a filter carrying a macro token is skipped (unprovable on the raw tree)
+    token = (
+        '<outputs><data name="o" format="txt"><filter>@FOO@</filter></data></outputs>'
+    )
+    assert "GTR052" not in _codes(_tool(outputs=token))
+    assert "GTR052" not in _codes(_tool())  # default has no <filter>
+
+
+def test_gtr053_stdio_regex_valid() -> None:
+    bad = '<stdio><regex match="["/></stdio>'
+    assert "GTR053" in _codes(_tool(stdio=bad))
+    good = '<stdio><regex match="error|fatal"/></stdio>'
+    assert "GTR053" not in _codes(_tool(stdio=good))
+    assert "GTR053" not in _codes(_tool())  # default stdio has no <regex>
+
+
 def test_iuc006_no_error_handling() -> None:
     # No <stdio> and the command has no detect_errors -> flagged.
     assert "GTR026" in _codes(_tool(stdio=""))

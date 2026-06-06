@@ -13,6 +13,7 @@ from what the fix accepts. ``GTR032`` (``&&`` vs lone ``&``) stays a no-op stub.
 
 from __future__ import annotations
 
+import ast
 import re
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, ClassVar
@@ -999,3 +1000,143 @@ class OutputLabelsDistinct(CheckRule):
                     message = f"output '{name}' reuses label '{label}'"
                 yield _violation(document, output, self.meta, message)
             seen.add(label)
+
+
+# Recognized container-identifier shapes (planemo `containers.CONTAINER_PREFIXES` +
+# `DOCKER_IMAGE_RE`): a known registry prefix, or a Docker-Hub ``<image>[:<tag>]``.
+_CONTAINER_PREFIXES = ("quay.io/biocontainers/", "docker://", "oras://")
+_DOCKER_IMAGE = re.compile(
+    r"^[a-zA-Z0-9][a-zA-Z0-9._-]*(/[a-zA-Z0-9._-]+)*(:[\w][\w.-]*)?$"
+)
+
+
+def _is_python_eval(expression: str, /) -> bool:
+    """Whether *expression* parses as a Python ``eval`` expression.
+
+    ``ast.parse`` has no LBYL validity predicate, so the narrow ``except`` is the
+    sanctioned third-party boundary (mirrors ``_is_pep440``). ``SyntaxError`` covers a
+    malformed expression; ``ValueError`` covers exotic inputs (e.g. null bytes).
+    """
+    try:
+        ast.parse(expression, mode="eval")
+    except (SyntaxError, ValueError):
+        return False
+    return True
+
+
+def _is_valid_regex(pattern: str, /) -> bool:
+    """Whether *pattern* compiles as a regular expression (``re.error`` boundary)."""
+    try:
+        re.compile(pattern)
+    except re.error:
+        return False
+    return True
+
+
+class ContainerShapeRecognized(CheckRule):
+    """GTR051 — a ``<container>`` identifier should match a recognized shape.
+
+    Reimplements planemo `ContainerImageShape`, `galaxy.tool_util.linters.containers`.
+    Recognized: a ``quay.io/biocontainers/`` / ``docker://`` / ``oras://`` prefix, or a
+    Docker-Hub ``<image>[:<tag>]`` reference. An identifier carrying a ``@…@`` macro
+    token is **skipped** — it resolves at expansion, and this tier reads the raw tree
+    (the GTR045 boundary). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR051",
+        summary="A <container> identifier should match a recognized shape.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        requirements = document.root.find("requirements")
+        if requirements is None:
+            return
+        for container in requirements.findall("container"):
+            identifier = (container.text or "").strip()
+            if not identifier:
+                continue
+            if identifier.startswith(_CONTAINER_PREFIXES):
+                continue
+            if _DOCKER_IMAGE.match(identifier):
+                continue
+            if "@" in identifier:
+                continue  # an unexpanded macro token -> unprovable on the raw tree
+            yield _violation(
+                document,
+                container,
+                self.meta,
+                f"container '{identifier}' has an unrecognized shape",
+            )
+
+
+class OutputFilterValid(CheckRule):
+    """GTR052 — an output ``<filter>`` should be a valid Python expression.
+
+    Reimplements planemo `OutputsFilterExpression`, `galaxy.tool_util.linters.output`. A
+    ``<filter>`` body is a Python expression Galaxy evaluates to decide whether the
+    output is produced; a malformed one raises at runtime. A filter carrying a ``@…@``
+    token is **skipped** — it is a template fragment, not yet a Python expression (the
+    GTR045 raw-tree boundary). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR052",
+        summary="An output <filter> should be a valid Python expression.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        outputs = document.root.find("outputs")
+        if outputs is None:
+            return
+        for output_filter in outputs.findall(".//filter"):
+            expression = (output_filter.text or "").strip()
+            if not expression or "@" in expression:
+                continue
+            if not _is_python_eval(expression):
+                yield _violation(
+                    document,
+                    output_filter,
+                    self.meta,
+                    f"output filter {expression!r} is not a valid expression",
+                )
+
+
+class StdioRegexValid(CheckRule):
+    """GTR053 — a ``<stdio>`` ``<regex match>`` should be a valid regular expression.
+
+    Reimplements planemo `StdIORegex`, `galaxy.tool_util.linters.stdio`. A ``match``
+    that does not compile silently never matches, so the error condition it guards goes
+    undetected. Like planemo, only a tool with exactly one ``<stdio>`` is checked.
+    Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR053",
+        summary="A <stdio> <regex match> should be a valid regular expression.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        stdios = document.root.findall("stdio")
+        if len(stdios) != 1:
+            return
+        for child in stdios[0]:
+            if child.tag != "regex":
+                continue
+            match = child.get("match")
+            if match and not _is_valid_regex(match):
+                yield _violation(
+                    document,
+                    child,
+                    self.meta,
+                    f"stdio regex match {match!r} is not a valid regular expression",
+                )

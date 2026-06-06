@@ -60,3 +60,6 @@ Detect-only IUC best-practice checks. Advisory: `check` reports them but does no
 | GTR048 | check | 4 | 0.0% | 4 | Tool should define an `<outputs>` section. |
 | GTR049 | check | 33 | 0.4% | 47 | Each output should define its datatype format. |
 | GTR050 | check | 104 | 1.1% | 202 | Outputs should not share an explicit label. |
+| GTR051 | check | 6 | 0.1% | 6 | A `<container>` identifier should match a recognized shape. |
+| GTR052 | check | 8 | 0.1% | 17 | An output `<filter>` should be a valid Python expression. |
+| GTR053 | check | 2 | 0.0% | 2 | A `<stdio>` `<regex match>` should be a valid regular expression. |

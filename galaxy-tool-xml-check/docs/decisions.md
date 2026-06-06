@@ -629,3 +629,32 @@ galaxy-tool-xml-check/tests/test_checks.py -k "gtr048 or gtr049 or gtr050"`.
   resolution matters: without it the naive rule flags 161 (128 of them tools using
   `__name_and_ext__`-style patterns that *do* define the ext — false positives). GTR050's
   explicit-label narrowing flags 104 vs planemo's 390 (the default-label-collision noise).
+
+## D16 (2026-06-06) — planemo-parity embedded-expression validity: GTR051–GTR053
+
+**Date:** 2026-06-06. Sixth planemo-linter batch (`../../docs/planemo_linter_parity.md`) —
+the "is this embedded shape/expression well-formed?" checks across `containers` /
+`output` / `stdio`, as advisory checks. Reproduced-by: `uv run --package
+galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k "gtr05 and not
+gtr050"`.
+
+- **GTR051 `ContainerShapeRecognized`** — reimplements planemo `ContainerImageShape`: a
+  `<requirements><container>` identifier should be a known registry prefix
+  (`quay.io/biocontainers/` / `docker://` / `oras://`) or a Docker-Hub `<image>[:<tag>]`
+  (`DOCKER_IMAGE_RE`). An identifier carrying a `@…@` macro token is skipped (raw-tree
+  boundary, cf. GTR045).
+- **GTR052 `OutputFilterValid`** — reimplements planemo `OutputsFilterExpression`: an
+  output `<filter>` body must `ast.parse` as a Python `eval` expression. A filter carrying
+  a `@…@` token is skipped — it is still a template fragment, not yet valid Python.
+- **GTR053 `StdioRegexValid`** — reimplements planemo `StdIORegex`: a `<stdio><regex
+  match>` must `re.compile`. Like planemo, only a tool with exactly one `<stdio>` is checked.
+- **Why try/except.** `ast.parse` / `re.compile` have no LBYL validity predicate, so the
+  narrow `except (SyntaxError, ValueError)` / `except re.error` is the sanctioned
+  third-party boundary (mirrors `_is_pep440`).
+- **Also reclassified (no new rule).** planemo `CitationsNoValid` (an empty `<citations>`)
+  is already **subsumed by GTR038** (which fires when `<citations>` has no `<citation>`
+  children) — marked HAVE. planemo `DatatypesCustomConf` needs the **filesystem** (a
+  sibling `datatypes_conf.xml`), out of the raw-tree tier's reach — DETECT-deferred.
+- **Corpus** (`docs/corpus_check_stats.md`): GTR051 **6**, GTR052 **8**, GTR053 **2** — the
+  `@…@` guards skip 44 container + 37 filter macro-token values that would otherwise
+  false-positive. See the regenerated page for the authoritative per-rule counts.
