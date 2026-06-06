@@ -39,7 +39,7 @@ Each rule applied alone to every validated tool, then applied again. *Tools touc
 |---|---:|---:|---:|---:|---:|
 | GTR001 | 8,608 | 8,608 | 863,912 | 0 | 0 |
 | GTR003 | 8,608 | 8,608 | 69,431 | 0 | 0 |
-| GTR004 | 8,608 | 1,405 | 2,472 | 0 | 0 |
+| GTR004 | 8,608 | 1,404 | 2,468 | 0 | 0 |
 
 ## codemods (isolated)
 

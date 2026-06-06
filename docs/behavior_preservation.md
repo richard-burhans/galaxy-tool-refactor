@@ -40,14 +40,14 @@ false alarms:
 
 ## Verdict summary
 
-19 fixable rules audited — **11 hold, 8 refuted** (3 fixed, 5 open).
+19 fixable rules audited — **11 hold, 8 refuted** (4 fixed, 4 open).
 
 | Rule | Codemod / fmt | Claim | Verdict | Basis |
 |---|---|---|---|---|
 | GTR001 | fmt indent | runtime | **REFUTED** | ws-only `.tail` in mixed content → rendered-text drift (zero corpus incidence) |
 | GTR002 | param attr order | runtime | hold | attribute reorder, no value/text touched |
 | GTR003 | blank-line trivia | runtime | hold | writes only None/ws tails of `<tool>` children |
-| GTR004 | empty-element | runtime | **REFUTED** | clears ws-only `.text` on content-bearing leaves (`<configfile>`/`<command>`/`<token>`) |
+| GTR004 | empty-element | runtime | **REFUTED → FIXED** | cleared ws-only `.text` on content-bearing leaves (`<configfile>`/`<command>`/`<token>`) (PR #113) |
 | GTR005 | tool attr order | runtime | hold | attribute reorder only |
 | GTR006 | FixTypos | validity-restore | **REFUTED*** | case-folds `format="RestructuredText"`→`restructuredtext` (*nuance: validity-restoration contract, see below) |
 | GTR007 | UpdateProfile | structural | hold | sets newest-valid `profile=`; runtime surfaced separately |
@@ -137,16 +137,19 @@ tails in place. Re-verified: `<command interpreter="python">script.py <!-- note 
 clear child nodes/tails too (or skip mixed-content `<command>`, matching the other
 command-rewriting codemods). Codemod §27, `fix_interpreter.py`.
 
-### GTR004 — clears whitespace-only `.text` on content-bearing leaves
+### GTR004 — clears whitespace-only `.text` on content-bearing leaves — FIXED (PR #113)
 
-The empty-element rule's safe-to-clear predicate protects an empty-string CDATA body
+The empty-element rule's safe-to-clear predicate protected an empty-string CDATA body
 but not a whitespace-only one. Re-verified: `<configfile><![CDATA[   ]]></configfile>`
 → `<configfile/>` (`.text` None). Galaxy reads `<configfile>.text` verbatim as the
 template content (`fill_template`, `strip=False`), so the generated config file's
-content silently drops from `"   "` to empty. **Remediation (scope-narrow):** exclude
-content-bearing tags (`<configfile>`/`<command>`/`<token>` — elements whose `.text` is
-runtime payload) from the clear, mirroring the existing empty-string CDATA guard. fmt
-`docs/decisions.md` (empty-element rule).
+content silently dropped from `"   "` to empty. **Fixed (scope-narrow):** the rule now
+skips a small denylist of content-bearing tags — `<command>`, `<configfile>`,
+`<token>` (elements whose `.text` is runtime/expansion payload). `<help>` is *not* in
+the set (whitespace-only help renders empty either way, so the opinionated formatter
+still tidies it to `<help/>` — the guard stays surgical). Corpus delta is a handful of
+degenerate whitespace-only command/token bodies now conservatively preserved. fmt
+`rule_empty_element.py`; regression fixture in `test_rule_empty_element.py`.
 
 ### GTR001 — whitespace-tail rewrite in mixed content (zero corpus incidence)
 
@@ -184,7 +187,7 @@ Refuted findings are **not** silently fixed here; this ledger + the xfail regres
 fixtures are the record. Suggested order (cleanest/highest-value first):
 
 1. ~~**GTR018.1 + GTR019.1 — CDATA `\r` guard**~~ — **DONE (PR #112)**: one shared `cdata_wrappable` fix resolved both findings.
-2. **GTR004 — content-bearing `.text` scope-narrow** (bug; clear data loss).
+2. ~~**GTR004 — content-bearing `.text` scope-narrow**~~ — **DONE (PR #113)**: empty-element rule skips `<command>`/`<configfile>`/`<token>`.
 3. **GTR016 — FixInterpreter mixed-content** (bug; flag duplication).
 4. **GTR009 — Upgrade24_0 mixed-content filter** (bug; text loss).
 5. **GTR001 — doc-tighten** (+ optional guard; zero incidence).

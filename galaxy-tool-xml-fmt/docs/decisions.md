@@ -896,3 +896,30 @@ the macro-handling audit (`../../docs/macro_handling_architecture.md` §4.3).
 - **Cosmetic-CLI safe.** fmt's own cosmetic CLI doesn't expand macros, so the only
   effect there is a harmless populated `source_path`; the 90-test fmt suite and the
   app-CLI suite are unchanged.
+
+## D18 (2026-06-06) — GTR004: don't collapse whitespace-only content-bearing leaves
+
+**Date:** 2026-06-06. Behavior-preservation finding GTR004
+(`../../docs/behavior_preservation.md`). Reproduced-by: `uv run --package
+galaxy-tool-xml-fmt pytest galaxy-tool-xml-fmt/tests/test_rule_empty_element.py`.
+
+- **The bug.** D5's empty-element rule clears any whitespace-only leaf `.text`
+  (`<inputs>\n  </inputs>` → `<inputs/>`). But for a few elements the `.text` is
+  *content*, not layout: Galaxy reads a `<configfile>` body verbatim
+  (`fill_template`, `strip=False`) as the template, and `<command>` / `<token>`
+  bodies are likewise runtime/expansion payload. A whitespace-only such body
+  (`<configfile><![CDATA[   ]]></configfile>`) was collapsed to `<configfile/>`,
+  silently dropping the payload — a behaviour change the static-validity oracle
+  can't see (the result stays XSD-valid). The adversarial behavior-preservation
+  audit refuted the rule's "behaviour-preserving for any whitespace-only leaf" claim.
+- **The fix.** The rule skips a denylist `_CONTENT_BEARING_TAGS = {command,
+  configfile, token}`. `<help>` is deliberately **excluded** from the denylist:
+  whitespace-only help renders empty either way, so the opinionated formatter keeps
+  tidying it to `<help/>` — the guard stays surgical rather than over-preserving all
+  CDATA whitespace (a measured 37 corpus `<help>` bodies would otherwise stop being
+  tidied).
+- **Corpus impact.** A handful of degenerate whitespace-only `<command>` / `<token>`
+  bodies (≈5 in a 13k-tool scan) are now conservatively preserved instead of
+  collapsed; idempotence and validity unaffected (corpus `fmt` sweep). Pinned by
+  `test_whitespace_only_content_bearing_text_is_preserved` (+ the `<help>`-still-
+  collapses companion).
