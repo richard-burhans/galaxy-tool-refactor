@@ -847,14 +847,17 @@ param refactors). `cheetah_references(text)` returns `CheetahRef`s (name, identi
   fully-unquoted shell-line `$var`s in `<command>` for the GTR020 quoting practice; this
   reports *every* reference (quoted, in `#if`/`#set` directives, in every templated
   section) because find-references / a future unused-param consumer need them all.
-- **Conservative regex v1, faithful CT3 lexer later.** Uses the `_CHEETAH_VAR` pattern
-  (mirroring `command_text` / `scripts.measure`); it also matches a `$var` inside a `##`
-  comment / `#raw` block or an escaped `\$`. That over-counts in the *safe* direction
-  (find-references shows a superset; unused-param never gets a false "unused"). The
-  CT3 `Parser`-subclass lexer (now shipped — §19) is the precision drop-in this seam is
-  built for; it will be consumed by the first mutator (rename), where `#raw`/comment
-  fidelity matters, while the read-only consumers keep the regex until then. References
-  from imported macros / `<expand>` are out of scope (they live in the macro files).
+- **Faithful by default (2026-06-06), regex only as a fallback.** `cheetah_references`
+  now resolves through the CT3 span lexer (§19) when the `cheetah-cdm` extra is present: a
+  reference is a `PLACEHOLDER` span or a `$var` in a `#if`/`#set`/… `DIRECTIVE` head;
+  `COMMENT` spans, `#raw` blocks (one verbatim directive span — `directive == "raw"`,
+  skipped), and escaped `\$` are excluded, exactly as Cheetah resolves them. This makes
+  `find-references` agree with the faithful `rename-param` mutator (so the query never
+  shows a site rename would refuse). It falls back to the conservative `_CHEETAH_VAR`
+  regex (the original superset) only when the extra is absent or CT3 cannot compile the
+  section (~0.4%) — the safe direction for a read-only query. The goal is correctness for
+  novel tool XML, not a corpus-fitted superset, so the faithful path is used whenever
+  available. References from imported macros / `<expand>` are out of scope (macro files).
 - **`segments` not just root.** A reference's identifier segments (`${adv.x}` → `(adv, x)`)
   let a consumer match a parameter name as the *leaf* of a `$cond.sub` access, not only the
   root — needed for find-references on a conditional sub-param.
@@ -870,6 +873,15 @@ param refactors). `cheetah_references(text)` returns `CheetahRef`s (name, identi
   XML), so no per-attribute allowlist is needed. Conservative (over-counts: a coincidental
   `format="fastq"` token only protects a like-named param). The check tier (3.5) consumes
   this on the macro-expanded tree; see check `docs/decisions.md` D11.
+- **Why `referenced_identifiers` deliberately does *not* use the faithful lexer.** Unlike
+  `cheetah_references`, it must also catch **bare-name** references the Cheetah lexer can't
+  see — a param named in an output `<filter>` Python expression (`<filter>store_ext</filter>`,
+  no `$`) or a cross-ref attribute — so it scans *all* identifier tokens, not just `$`
+  placeholders. And it powers an *advisory* (GTR034 "this param looks unused, remove it"),
+  where the costly error is a **false positive** (telling an author to delete a used param);
+  over-counting references is therefore the *correct* conservative direction, for novel XML
+  too. Narrowing it to the faithful `$var`-only scan would both miss bare-name refs and risk
+  false "unused" reports — so the broad scan is intentional, not a missed faithful upgrade.
 
 ### Reproduction
 

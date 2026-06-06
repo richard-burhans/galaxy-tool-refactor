@@ -8,16 +8,18 @@ reference in **every** Cheetah-templated section: quoted or not, inside
 labels, dynamic options — the sections Galaxy runs through ``fill_template``
 (see ``../../docs/galaxy_processing_model.md``).
 
-A **conservative regex** scan (``_CHEETAH_VAR``, mirroring ``command_text`` /
-``scripts.measure``): it also matches a ``$var`` inside a ``##``/``#raw`` block
-or an escaped ``\\$``, which Cheetah would not treat as a reference. That is the
-safe direction — find-references shows a superset of true sites, and a future
-unused-param consumer never gets a false "unused". The faithful CT3
-``Parser``-subclass lexer (spike-confirmed 99.6% corpus; the
-``cheetah_section_editing.md`` research note) is the precision drop-in this seam
-is built for; it lands with the first mutator (rename), where ``#raw``/comment
-fidelity matters. References from imported macros / ``<expand>`` live in the
-macro files and are out of scope for this raw-tree scan.
+Resolution is **faithful** when the optional ``cheetah-cdm`` extra is installed: the
+CT3 span lexer (``cheetah_cdm.cheetah_spans``, §19) classifies each region exactly as
+Cheetah does, so a ``$var`` inside a ``##``/``#* *#`` comment, a ``#raw`` block, or
+behind an escaped ``\\$`` is **not** reported — only genuine references survive
+(``PLACEHOLDER`` spans plus the ``$var``\\ s in ``#if``/``#set``/… ``DIRECTIVE`` heads).
+This matches what the rename mutator (``cheetah_rename``, also faithful) would touch, so
+``find-references`` and ``rename-param`` agree. When the extra is absent (or CT3 cannot
+compile the section, ~0.4%) it falls back to the conservative ``_CHEETAH_VAR`` regex,
+which over-reports the comment/raw/escaped cases — the safe direction for a read-only
+query. Correctness for novel tool XML (not a corpus-fitted superset) is the goal; the
+faithful path is used whenever it is available. References from imported macros /
+``<expand>`` live in the macro files and are out of scope for this raw-tree scan.
 """
 
 from __future__ import annotations
@@ -26,6 +28,8 @@ import re
 from dataclasses import dataclass
 
 from lxml import etree
+
+from galaxy_tool_xml.cheetah_cdm import SpanKind, cheetah_spans
 
 # ``$name`` / ``${name}`` / ``$obj.attr`` — a Cheetah variable reference (``$1`` and
 # ``$(…)`` excluded). Mirrors ``command_text._CHEETAH_VAR`` / ``scripts.measure``.
@@ -64,29 +68,82 @@ def _segments(name: str, /) -> tuple[str, ...]:
     return tuple(part for part in parts if part)
 
 
+def _ref_at(
+    name: str, start: int, end: int, /, *, section: str, base_line: int, text: str
+) -> CheetahRef:
+    """Build a :class:`CheetahRef` for *name* at absolute span ``[start, end)``."""
+    return CheetahRef(
+        name=name,
+        segments=_segments(name),
+        section=section,
+        sourceline=base_line + text.count("\n", 0, start),
+        start=start,
+        end=end,
+    )
+
+
 def cheetah_references(
     text: str, /, *, section: str = "text", base_line: int = 1
 ) -> list[CheetahRef]:
-    """Every Cheetah ``$var`` reference in *text*, in order.
+    """Every Cheetah ``$var`` reference in *text*, in source order.
 
-    *base_line* is the file line the text starts on (an element's ``sourceline``); each
-    reference's ``sourceline`` is ``base_line`` plus the newline count before it. The
-    default gives section-relative 1-based lines.
+    Faithful when the ``cheetah-cdm`` extra is present (CT3 span lexer): a reference is
+    a ``PLACEHOLDER`` span or a ``$var`` in a ``DIRECTIVE`` head (``#if`` / ``#set``);
+    ``COMMENT`` spans, ``#raw`` content, and an escaped ``\\$`` are excluded — Cheetah
+    does not treat those as references. Falls back to the conservative ``_CHEETAH_VAR``
+    regex (a superset) when the lexer is unavailable / bails. *base_line* is the file
+    line the text starts on (an element's ``sourceline``); each reference's
+    ``sourceline`` is ``base_line`` plus the newline count before it.
     """
-    refs: list[CheetahRef] = []
-    for match in _CHEETAH_VAR.finditer(text):
-        name = match.group()
-        line = base_line + text.count("\n", 0, match.start())
-        refs.append(
-            CheetahRef(
-                name=name,
-                segments=_segments(name),
+    if "$" not in text:
+        return []  # a Cheetah reference always starts with ``$``; skip the lexer
+    spans = cheetah_spans(text)
+    if spans is None:
+        # Conservative fallback: every regex ``$var``, including comment/raw/escaped.
+        return [
+            _ref_at(
+                match.group(),
+                match.start(),
+                match.end(),
                 section=section,
-                sourceline=line,
-                start=match.start(),
-                end=match.end(),
+                base_line=base_line,
+                text=text,
             )
-        )
+            for match in _CHEETAH_VAR.finditer(text)
+        ]
+    refs: list[CheetahRef] = []
+    for span in spans:
+        if span.kind is SpanKind.COMMENT:
+            continue  # ## / #* *# — Cheetah ignores any $var here
+        if span.kind is SpanKind.PLACEHOLDER:
+            # The span may carry call/index suffixes (``$arr[0]``); the regex match at
+            # the span start gives the reference name shape (stops at ``[``).
+            match = _CHEETAH_VAR.match(text, span.start)
+            if match is not None and match.start() == span.start:
+                refs.append(
+                    _ref_at(
+                        match.group(),
+                        match.start(),
+                        match.end(),
+                        section=section,
+                        base_line=base_line,
+                        text=text,
+                    )
+                )
+        elif span.directive == "raw":
+            continue  # a #raw block is verbatim — its $vars are literal, not refs
+        else:  # DIRECTIVE head — its clause may reference vars (``#if $x``, ``#set``)
+            for match in _CHEETAH_VAR.finditer(span.text):
+                refs.append(
+                    _ref_at(
+                        match.group(),
+                        span.start + match.start(),
+                        span.start + match.end(),
+                        section=section,
+                        base_line=base_line,
+                        text=text,
+                    )
+                )
     return refs
 
 
