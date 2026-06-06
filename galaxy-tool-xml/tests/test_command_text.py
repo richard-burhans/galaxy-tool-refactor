@@ -2,11 +2,39 @@
 
 from __future__ import annotations
 
+import pytest
+
+from galaxy_tool_xml.cheetah_cdm import cheetah_cdm_available
 from galaxy_tool_xml.command_text import unquoted_cheetah_vars
+
+requires_cdm = pytest.mark.skipif(
+    not cheetah_cdm_available(), reason="needs the cheetah-cdm extra (CT3)"
+)
 
 
 def _names(text: str) -> list[str]:
     return [var.name for var in unquoted_cheetah_vars(text)]
+
+
+@requires_cdm
+def test_faithful_lexer_excludes_non_placeholder_dollar_runs() -> None:
+    # When the faithful CT3 lexer is available it narrows away $-runs the regex
+    # scanner wrongly treats as shell vars: a $var inside a #raw block, inside a
+    # #* … *# block comment, and an escaped \$ are all NOT genuine placeholders.
+    assert _names("#raw\n$x\n#end raw\nrun $real") == ["$real"]
+    assert _names("echo $a #* $b *#") == ["$a"]
+    assert _names("run \\$x $real") == ["$real"]
+
+
+@requires_cdm
+def test_faithful_lexer_keeps_genuine_placeholders() -> None:
+    # Genuine shell-argument placeholders survive the filter unchanged (offsets too).
+    text = "samtools sort $input -o ${out.x}"
+    vars_ = unquoted_cheetah_vars(text)
+    assert [(v.name, v.start, v.end) for v in vars_] == [
+        ("$input", 14, 20),
+        ("${out.x}", 24, 32),
+    ]
 
 
 def test_flags_only_fully_unquoted_shell_vars() -> None:

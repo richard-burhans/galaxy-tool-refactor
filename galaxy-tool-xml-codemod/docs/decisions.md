@@ -1206,7 +1206,8 @@ galaxy_tool_xml_codemod.codemods.single_quote_command_vars:SingleQuoteCommandVar
   can contain whitespace. The tier-1 classifier (`galaxy_tool_xml.command_vars`,
   shared with the measure) resolves each occurrence against `<inputs>` and admits
   exactly `{safe, attr_safe, builtin_path}`: a bare `$param` of a single-token type
-  (number / Galaxy-controlled path / author-fixed `select`), a `$param.ext` /
+  (number / Galaxy-controlled path, or a `select` / `drill_down` whose option values
+  are *provably* single tokens — see §32), a `$param.ext` /
   server-path attr (charset-restricted / deployment-fixed), and a `$__…__` Galaxy
   path built-in. Each is space-free for any tool that *currently works* (a path with
   a space already breaks unquoted), so the quote is a strict no-op there. Excluded
@@ -1294,3 +1295,80 @@ uv run --package galaxy-tool-xml-codemod pytest \
   galaxy-tool-xml-codemod/tests/test_single_quote_command_vars.py
 uv run python -m scripts.measure shell-oracle-quoting   # needs galaxy-tool-xml[shell-oracle]
 ```
+
+## 32. `SingleQuoteCommandVars` (GTR020.1) — `select`/`drill_down` scope-narrowing + faithful-lexer var extraction
+
+**Date:** 2026-06-06. Closes a behavior-preservation audit finding (the adversarial
+audit refuted §30's blanket "`select` is single-token" claim) and rewrites the var
+extraction onto the faithful Cheetah lexer (tier-1 §16/§19). Reproduced-by: `uv run
+--package galaxy-tool-xml-codemod pytest
+galaxy-tool-xml-codemod/tests/test_single_quote_command_vars.py` (+ tier-1
+`test_command_vars.py` / `test_command_text.py`). Sizing: `uv run python -m
+scripts.measure select-quoting-safety`.
+
+### The bug
+
+§30 admitted `select`/`drill_down` to the `safe` class **by type alone**
+(`SAFE_SINGLE_TYPES`), asserting an "author-fixed `select` value" is intrinsically a
+single token. That is false: a `<param type="select">`'s value is an author-written
+`<option value="…">` string with no charset constraint, and a **widespread, intentional
+idiom** packs several argv words into one option value (`<option value="-b -h">`,
+`"-labels -intervals"`) precisely so the unquoted `$param` word-splits. GTR020.1 wrapped
+such a var in single quotes — fusing the intended N arguments into one literal token and
+**changing the command Galaxy runs**. XSD validity and idempotence are both preserved, so
+neither corpus oracle caught it; the corpus codemod sweep stayed green on a real
+behaviour regression. Confirmed live on `iuc/bedtools/tagBed.xml` (`$field`, option
+`"-labels -intervals"`).
+
+### The fix — option-value inspection (provable subset retained)
+
+`select` / `drill_down` are **removed from `SAFE_SINGLE_TYPES`** and resolved separately
+(`command_vars._select_options_are_single_tokens`): `safe` **only** when the option set
+is statically known — no `<options from_*>` runtime source — and every reachable
+`<option value>` (including a `drill_down`'s nested options) is a single shell token (no
+whitespace / glob / shell-active metacharacter). The unprovable residual — a value that
+word-splits, a glob, a runtime-sourced option set, or a select with no statically-visible
+options (e.g. macro-supplied, invisible to the pre-expansion codemod) — is demoted to
+`text`, so the advisory `GTR020.2` flags it (partition stays exact: both consume the same
+`input_param_info`). A **wholesale drop** of select/drill_down was rejected as
+over-conservative by the sizing below.
+
+### Faithful-lexer var extraction (tier-1 §16/§19)
+
+`command_text.unquoted_cheetah_vars` now filters its regex candidates against the faithful
+CT3 span lexer (`cheetah_cdm.cheetah_spans`) when the `cheetah-cdm` extra is present: a
+candidate survives only if its `$` starts a genuine `PLACEHOLDER` span, dropping `$`-runs
+inside a `#raw` block, a `#* … *#` block comment, an escaped `\$`, or a directive clause
+that the line-based regex cannot see. It only **narrows** (mirrors the `shell-oracle`
+posture); without the extra (or on the ~0.4% CT3 bail) behaviour is unchanged, so the
+default `format` output is unchanged there and license-clean. (As more rules adopt the
+faithful lexer for soundness, the optional-extra posture may flip to a hard dependency — a
+future call.)
+
+This barely touches the GTR020.1 fix population (those false positives classify as
+`non_input` and were never quoted) but it **materially sharpens the GTR020.2 advisory**:
+the dominant dropped case is the ubiquitous escaped-shell-var idiom `\${GALAXY_SLOTS:-4}`
+(and `#for`/`#set` directive vars), which the regex wrongly flagged as "please single-quote
+this Cheetah variable". A 4,000-tool sample drops 5.2% of regex candidates, all confirmed
+non-placeholders — corpus-wide GTR020.2 falls from 24,804 to 22,595 findings (the select
+demotion adds ~705; the faithful filter removes the rest).
+
+### Corpus sizing (`scripts.measure select-quoting-safety`, sha-deduped)
+
+Of **15,047** non-multiple `select`/`drill_down` params, **85.5%** are provable (every
+static option value a single token); the unsafe residual is 1.7% multi-flag (whitespace),
+0.1% glob, 5.9% runtime-sourced, 6.9% no-static-options. In GTR020.1's actual scope —
+bare references unquoted in `<command>` (**2,710** occurrences) — **85.0% (2,304) are
+provable and stay auto-quoted**, while **406 occurrences across 269 tools were
+unsound-before** (multi-flag/glob/dynamic) and a further 299 unprovable "no-options"
+occurrences move to advisory. So the scope-narrowing keeps ~85% of the coverage and
+removes the behaviour regression on 269 tools — wholesale removal would have sacrificed
+all 2,304 provable quotes for no soundness gain.
+
+### Corpus soundness
+
+`scripts.corpus_check codemod …:SingleQuoteCommandVars` over the combined corpus: of
+**8,607** eligible tools GTR020.1 now modifies **4,354** (down from §30's 4,433 — the 79
+tools whose *only* rewrite was an unsound select quote), with **8,607 idempotent, 0
+non-idempotent, 0 post-validate-failed, 0 crashed**. The fix removes a real behaviour
+regression while leaving every other quote and the idempotence/validity invariants intact.

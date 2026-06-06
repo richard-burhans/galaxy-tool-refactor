@@ -30,6 +30,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from galaxy_tool_xml.cheetah_cdm import SpanKind, cheetah_spans
+
 # A ``$name`` / ``${name}`` / ``$obj.attr`` Cheetah variable reference. ``$1`` and
 # ``$(…)`` are not Cheetah variables (no leading ``[A-Za-z_]``), so they are
 # excluded — matching ``scripts.measure``'s ``_CHEETAH_VAR``.
@@ -66,6 +68,40 @@ def unquoted_cheetah_vars(text: str, /) -> list[UnquotedVar]:
     ``command-unquoted-var`` target population). Quote state is tracked across
     newlines; a line whose first non-blank character is ``#`` **while not inside a
     quote** is a Cheetah directive/comment and its ``$var``s are skipped.
+
+    When the optional ``cheetah-cdm`` extra is installed, the regex candidates are
+    additionally filtered against the *faithful* CT3 span lexer
+    (``cheetah_cdm.cheetah_spans``): a candidate survives only if its ``$`` is the
+    start of a genuine ``PLACEHOLDER`` span, so a ``$`` inside a ``#raw`` block, a
+    ``#* … *#`` block comment, or an escaped ``\\$`` — which the line-based regex
+    cannot see — is dropped. Without the extra (or when CT3 cannot compile the
+    body, ~0.4%) the regex result is returned verbatim. This mirrors the
+    ``shell-oracle`` posture: the faithful lexer only *narrows*, never widens, so
+    default behaviour is unchanged and the GTR020.1 codemod / GTR020.2 check stay
+    on one source of truth.
+    """
+    candidates = _scan_unquoted_cheetah_vars(text)
+    if not candidates:
+        return candidates  # nothing to filter; skip the faithful-lexer pass
+    spans = cheetah_spans(text)
+    if spans is None:
+        return candidates
+    placeholder_starts = {
+        span.start for span in spans if span.kind is SpanKind.PLACEHOLDER
+    }
+    return [
+        candidate for candidate in candidates if candidate.start in placeholder_starts
+    ]
+
+
+def _scan_unquoted_cheetah_vars(text: str, /) -> list[UnquotedVar]:
+    """Regex + shell-quote + directive-line scan for unquoted ``$var`` candidates.
+
+    The conservative fallback layer of :func:`unquoted_cheetah_vars`: tracks shell
+    quote state across newlines and skips ``#``-led directive/comment lines, but —
+    being line-based — cannot see ``$``\\ s buried in a ``#raw`` block, a ``#* … *#``
+    block comment, or behind an escape. :func:`unquoted_cheetah_vars` filters those
+    out with the faithful lexer when it is available.
     """
     found: list[UnquotedVar] = []
     in_single = in_double = False
