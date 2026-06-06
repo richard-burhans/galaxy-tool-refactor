@@ -172,6 +172,64 @@ def test_gtr047_tool_version_whitespace() -> None:
     assert "GTR047" not in _codes(_tool())  # default has no surrounding whitespace
 
 
+def test_gtr048_outputs_present() -> None:
+    assert "GTR048" in _codes(_tool(outputs=""))  # no <outputs> at all
+    assert "GTR048" not in _codes(_tool())  # default has an <outputs>
+    # A macro may inject the <outputs>; can't prove absence on the raw tree -> skip.
+    assert "GTR048" not in _codes(_tool(outputs='<expand macro="outputs"/>'))
+
+
+def test_gtr049_output_format_defined() -> None:
+    no_fmt = '<outputs><data name="o"/></outputs>'
+    assert "GTR049" in _codes(_tool(outputs=no_fmt))
+    # format / ext / format_source / auto_format all satisfy it
+    assert "GTR049" not in _codes(_tool())  # default sets format="txt"
+    assert "GTR049" not in _codes(
+        _tool(outputs='<outputs><data name="o" ext="bam"/></outputs>')
+    )
+    assert "GTR049" not in _codes(
+        _tool(outputs='<outputs><data name="o" auto_format="true"/></outputs>')
+    )
+    # a child <action type="format"> defines it
+    action = (
+        '<outputs><data name="o"><actions>'
+        '<action type="format"><option type="from_param"/></action>'
+        "</actions></data></outputs>"
+    )
+    assert "GTR049" not in _codes(_tool(outputs=action))
+    # a discover_datasets pattern that captures the ext defines it
+    discover = (
+        '<outputs><data name="o">'
+        r'<discover_datasets pattern="(?P&lt;designation&gt;.+)\.(?P&lt;ext&gt;.+)"/>'
+        "</data></outputs>"
+    )
+    assert "GTR049" not in _codes(_tool(outputs=discover))
+    # a tool that writes galaxy.json provides formats at runtime -> whole tool exempt
+    meta_cmd = '<command><![CDATA[run > galaxy.json]]></command>'
+    assert "GTR049" not in _codes(_tool(outputs=no_fmt, command=meta_cmd))
+    # a macro may inject format-defining structure into the output -> skip
+    expand_out = '<outputs><data name="o"><expand macro="fmt"/></data></outputs>'
+    assert "GTR049" not in _codes(_tool(outputs=expand_out))
+
+
+def test_gtr050_output_labels_distinct() -> None:
+    dup = (
+        '<outputs><data name="a" label="result"/>'
+        '<data name="b" label="result"/></outputs>'
+    )
+    assert "GTR050" in _codes(_tool(outputs=dup))
+    # distinct explicit labels are fine
+    distinct = (
+        '<outputs><data name="a" label="one"/>'
+        '<data name="b" label="two"/></outputs>'
+    )
+    assert "GTR050" not in _codes(_tool(outputs=distinct))
+    # outputs without an explicit label share Galaxy's default -> not flagged
+    # (low-noise narrowing of planemo, which flags the default collision too)
+    no_label = '<outputs><data name="a"/><data name="b"/></outputs>'
+    assert "GTR050" not in _codes(_tool(outputs=no_label))
+
+
 def test_iuc006_no_error_handling() -> None:
     # No <stdio> and the command has no detect_errors -> flagged.
     assert "GTR026" in _codes(_tool(stdio=""))

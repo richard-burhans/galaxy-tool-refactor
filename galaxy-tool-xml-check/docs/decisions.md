@@ -598,3 +598,34 @@ correctness surface, landing as advisory checks. Reproduced-by:
   are 0**: every corpus profile is either well-formed or a `@…@` macro token (skipped),
   and every package `<requirement>` names a package — both are low-noise guards for novel
   XML rather than corpus-prevalent findings (cf. GTR042 in D13).
+
+## D15 (2026-06-06) — planemo-parity output-residual checks: GTR048–GTR050
+
+**Date:** 2026-06-06. Fifth planemo-linter batch (`../../docs/planemo_linter_parity.md`) —
+the remaining mechanical `galaxy.tool_util.linters.output` checks, as advisory checks.
+Reproduced-by: `uv run --package galaxy-tool-xml-check pytest
+galaxy-tool-xml-check/tests/test_checks.py -k "gtr048 or gtr049 or gtr050"`.
+
+- **GTR048 `OutputsPresent`** — reimplements planemo `OutputsMissing`: most tools should
+  declare an `<outputs>` section. A macro-using tool is **skipped** (a top-level
+  `<expand>` may inject `<outputs>`) — the same raw-tree boundary as GTR044.
+- **GTR049 `OutputFormatDefined`** — reimplements planemo `OutputsFormat`: a top-level
+  `<data>`/`<collection>` with no `format`/`ext`/`format_source`/format `<action>`/
+  `auto_format`/`structured_like`+`inherit_format`/ext-capturing `<discover_datasets>`
+  defaults to the generic `data` type. Honours planemo's tool-provided-metadata gate
+  (a tool writing `galaxy.json` is exempt) and resolves the named `<discover_datasets>`
+  patterns (`__default__` / `*_and_ext__`) before the `(?P<ext>…)` test. An output whose
+  subtree has an `<expand>` is skipped (macro may inject the format structure).
+- **GTR050 `OutputLabelsDistinct`** — reimplements planemo `OutputsLabelDuplicatedFilter`
+  + `OutputsLabelDuplicatedNoFilter`, **narrowed to explicit labels**. planemo also flags
+  the *default*-label collision (two outputs both omitting `label` share
+  `${tool.name} on ${on_string}`), but that is normal — Galaxy disambiguates by name — so
+  it is noise: planemo fires on 390 corpus tools vs 104 for genuine explicit duplicates.
+  Outputs with a `<filter>` may reuse a label across disjoint branches, so the message
+  says to double-check rather than asserting a defect. A measured low-noise narrowing
+  (`scripts.measure`-style probe in the PR), in the spirit of GTR042/GTR044.
+- **Corpus** (`docs/corpus_check_stats.md`, 9,289 tools): GTR048 **4 (0.0%)**, GTR049
+  **33 (0.4%)**, GTR050 **104 (1.1%)**. GTR049's named-`<discover_datasets>`-pattern
+  resolution matters: without it the naive rule flags 161 (128 of them tools using
+  `__name_and_ext__`-style patterns that *do* define the ext — false positives). GTR050's
+  explicit-label narrowing flags 104 vs planemo's 390 (the default-label-collision noise).

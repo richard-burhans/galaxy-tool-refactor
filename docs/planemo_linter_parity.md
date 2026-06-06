@@ -61,6 +61,9 @@ codemods GTR007–GTR016 are applied by `upgrade`, not the default `format`.)*
 | GTR045 | ToolProfileInvalid | ✓ | ✗ | check | declared `profile` must be a valid `<year>.<minor>` version |
 | GTR046 | **RequirementNameMissing** | ✓ | ✗ | check | a package `<requirement>` must name its package |
 | GTR047 | ToolVersionWhitespace | ✓ | ✗ | check | tool `version` should not be wrapped in whitespace (advisory-by-design — identity) |
+| GTR048 | **OutputsMissing** | ✓ | ✗ | check | tool should define an `<outputs>` section |
+| GTR049 | **OutputsFormat** | ✓ | ✗ | check | each output should define its datatype format |
+| GTR050 | OutputsLabelDuplicated\* | ✓ | ✗ | check | outputs should not share an *explicit* `label` (low-noise narrowing) |
 
 **Bold** planemo linters are ones planemo *only reports* and we *fix* (or, for the
 checks, detect with our own rule). The remaining unmapped planemo linters (the ~80
@@ -102,9 +105,9 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 30 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), 2026-06-06 |
+| **HAVE** | 33 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), 2026-06-06 |
 | **FIX** (new, auto-fixable) | 0 | **complete** — GTR035/036/037 shipped; the rest of the original FIX candidates reclassified to advisory/detect on inspection (identity-changing or no mechanical equivalent) |
-| **DETECT** (new advisory) | ~67 | correctness checks for the `check` tier (report-only). 10 landed so far: GTR038–047 (citations/TODO, output correctness, command/profile/requirement-name, version-whitespace) |
+| **DETECT** (new advisory) | ~64 | correctness checks for the `check` tier (report-only). 13 landed so far: GTR038–050 (citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, outputs present/format/label) |
 | **SKIP** (pass-state) | ~21 | `valid`/`info` reporters — nothing to build |
 | **n/a** (out of scope) | ~20 | CWL, filesystem, network/ontology, runtime |
 | **Total** | 146 | |
@@ -226,13 +229,13 @@ needs author intent. The **FIX** candidates (auto-fixable, our edge):
 |---|---|---|---|---|
 | OutputsOutput | warn | codemod | **HAVE** | **GTR036** rewrites `<output type="data">` → `<data>`; `type="collection"` / expression outputs left advisory (§34) |
 | OutputsFormatInput | warn | upgrade | **HAVE** | = **GTR015** (`format="input"` → `format_source`) |
-| OutputsMissing | warn | check | DETECT | no outputs |
+| OutputsMissing | warn | check | **HAVE** | **GTR048** no `<outputs>` (macro-using tools skipped — raw-tree boundary) |
 | OutputsNameInvalidCheetah | warn | check | **HAVE** | **GTR041** name not a valid placeholder (`^[a-zA-Z_]\w*$`) |
 | OutputsNameDuplicated | error | check | **HAVE** | **GTR040** duplicate `<data>`/`<collection>` name |
 | OutputsFilterExpression | warn | check | DETECT | invalid filter expression |
-| OutputsLabelDuplicatedFilter / NoFilter | warn | check | DETECT | duplicate output labels |
+| OutputsLabelDuplicatedFilter / NoFilter | warn | check | **HAVE** | **GTR050** duplicate *explicit* label; default-label collisions skipped (low-noise narrowing) |
 | OutputsCollectionType | warn | check | **HAVE** | **GTR042** collection without `type` (lenient: accepts `type_source`/`structured_like`) |
-| OutputsFormat | warn | check | DETECT | output without a format (fix=risky) |
+| OutputsFormat | warn | check | **HAVE** | **GTR049** output without a format (galaxy.json-metadata + macro-`<expand>` exempt) |
 | OutputsFormatSourceIncomp | warn | check | **HAVE** | **GTR043** both `format`/`ext` + `format_source` |
 | OutputsStructuredLikeReference · OutputsFormatSourceReference | warn | check | DETECT | cross-reference integrity |
 | OutputsNumber | info | — | SKIP | |
