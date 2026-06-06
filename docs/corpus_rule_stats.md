@@ -31,6 +31,7 @@ What each GTR rule does, across both tiers. The isolation tables below report ho
 | GTR019.1 | codemod | Wrap a pure-text `<help>` body in CDATA (IUC #42). |
 | GTR020.1 | codemod | Single-quote provably-single-valued Cheetah variables in `<command>` (bare single-token params, $__…__ path built-ins, space-free attrs). |
 | GTR035 | codemod | Trim accidental leading/trailing whitespace from a `<tool>` 'name' and a `<requirement>` 'version' (the behaviour-preserving subset; a `<tool>` 'id'/'version' are identity-significant and left for the advisory check). |
+| GTR036 | codemod | Replace a deprecated `<outputs>``<output type="data">` with `<data>` (collection / expression outputs are left for the advisory check). |
 
 ## fmt rules (isolated)
 
@@ -66,6 +67,7 @@ Each codemod applied alone to every eligible tool, checked for idempotence and p
 | GTR019.1 | WrapHelpCdata | 8,607 | 3,247 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR020.1 | SingleQuoteCommandVars | 8,607 | 4,354 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR035 | TrimAttributeWhitespace | 8,607 | 20 | 8,607 | 0 | 0 | 0 | 0 |
+| GTR036 | ReplaceOutputElement | 8,607 | 1 | 8,607 | 0 | 0 | 1 | 0 |
 
 ## Upgrade discovery (GTR012 `UpgradeToLatest`, isolated)
 

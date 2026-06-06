@@ -64,7 +64,7 @@ two attributes we fix, two we (will) only flag. (Advisory rule: planned.)
 
 ---
 
-## 🔭 `<output>` → `<data>` / `<collection>`
+## ✅ GTR036 — deprecated `<output type="data">` → `<data>`
 
 **Covers planemo:** `OutputsOutput` ("Avoid the use of 'output' and replace by 'data'
 or 'collection'").
@@ -72,17 +72,27 @@ or 'collection'").
 **Before:**
 ```xml
 <outputs>
-    <output name="out" format="txt"/>
+    <output type="data" name="out" format="txt"/>
 </outputs>
 ```
-**Planned fix (codemod):**
+**After `galaxy-tool-refactor format`:**
 ```xml
 <outputs>
     <data name="out" format="txt"/>
 </outputs>
 ```
-A tag rename to the modern element. Homework needed: confirm `<output>` is a pure alias
-for `<data>` (vs `<collection>`) so the rename is behaviour-preserving.
+
+**Why it's safe:** Galaxy routes a `<outputs>` child by tag — an `<output type="data">`
+is parsed by the *same* code path as a `<data>` (`tool_util/parser/xml.py`), so the
+rename + dropping the redundant `type="data"` is a no-op for Galaxy. **Corpus:** 1
+tool carries it; GTR036 fixes it — 0 non-idempotent, 0 post-validate-failed
+(`docs/corpus_rule_stats.md`).
+
+**Left advisory (not auto-fixed):** `<output type="collection">` — Galaxy remaps
+`collection_type`/`collection_type_source` and fills `type_source` via `unicodify(None)`
+when absent, so a literal rename isn't provably equivalent — and `<output>` with no
+`type` (an *expression* output, a different kind). Same soundness discipline as the
+`id`/`version` whitespace split above.
 
 ## 🔭 Drop a redundant `name` when `argument` implies it
 

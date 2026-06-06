@@ -1457,3 +1457,32 @@ galaxy_tool_xml_codemod.codemods.trim_attribute_whitespace:TrimAttributeWhitespa
   modifies **20** of the eligible tools with **0 non-idempotent, 0 post-validate-failed,
   0 crashed** (`docs/corpus_rule_stats.md`); the canonical `format` pipeline stays
   idempotent (fmt sweep: 8,608 idempotent, 0 non-idempotent).
+
+## 34. `ReplaceOutputElement` (GTR036) — deprecated `<output type="data">` → `<data>`
+
+**Date:** 2026-06-06. Second planemo-parity *fix*
+(`../../docs/planemo_linter_parity.md`): reimplement planemo's `OutputsOutput`
+(*"Avoid the use of 'output' and replace by 'data' or 'collection'"*) as a fixer.
+Reproduced-by: `uv run --package galaxy-tool-xml-codemod pytest
+galaxy-tool-xml-codemod/tests/test_replace_output_element.py`. Corpus sweep:
+`uv run python -m scripts.corpus_check codemod
+galaxy_tool_xml_codemod.codemods.replace_output_element:ReplaceOutputElement`.
+
+- **Behaviour-preserving for `type="data"`.** Galaxy routes a `<outputs>` child by tag
+  (`tool_util/parser/xml.py:548-563`): an `<output type="data">` goes through the *same*
+  `_parse` as a `<data>`. So renaming the element to `<data>` and dropping the redundant
+  `type="data"` is a no-op for Galaxy. Detect-primitive `detect_Output` →
+  `rename_tag("data")` + `delete_attribute("type")`.
+- **Scope homework — only `type="data"`.** Two siblings are left flagged (advisory), not
+  rewritten:
+  - `<output type="collection">` — Galaxy remaps `collection_type` → `type` /
+    `collection_type_source` → `type_source` and fills `type_source` via
+    `unicodify(None)` when the source attr is absent, so a literal rename is *not*
+    provably equivalent. Deferred.
+  - `<output>` with no `type` — an *expression* output (`_parse_expression`), a different
+    output kind, not a data rename.
+- **Guarded on the parent.** Acts only on `<output>` whose parent is `<outputs>`; an
+  `<output>` under `<test>` is a test assertion, not an output definition. Joins
+  `CANONICAL_CODEMODS` (safe, idempotent — no `<output>` remains after the rename,
+  `profile=`-preserving).
+- **Corpus.** 1 tool carries `<output type="data">` combined-corpus (`docs/corpus_check_stats.md`); the codemod sweep modifies **1**, with **0 non-idempotent, 0 post-validate-failed, 0 crashed** (`docs/corpus_rule_stats.md`); fmt pipeline stays idempotent. Low incidence, but correct for novel tool XML — not gated on corpus frequency.

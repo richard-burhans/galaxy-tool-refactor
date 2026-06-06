@@ -31,6 +31,9 @@ from galaxy_tool_xml_codemod.codemods.reorder_tool_attributes import (
 from galaxy_tool_xml_codemod.codemods.reorder_tool_children import (
     ReorderToolChildren,
 )
+from galaxy_tool_xml_codemod.codemods.replace_output_element import (
+    ReplaceOutputElement,
+)
 from galaxy_tool_xml_codemod.codemods.single_quote_command_vars import (
     SingleQuoteCommandVars,
 )
@@ -68,5 +71,6 @@ def coded_codemods() -> tuple[type[CodemodCommand], ...]:
         WrapHelpCdata,
         SingleQuoteCommandVars,
         TrimAttributeWhitespace,
+        ReplaceOutputElement,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))

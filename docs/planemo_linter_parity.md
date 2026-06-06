@@ -39,8 +39,8 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 15 | already covered (mostly as fixers). Incl. **GTR035** (2026-06-06): now fixes `ToolNameWhitespace` + `RequirementVersionWhitespace` |
-| **FIX** (new, auto-fixable) | ~4 | **the opportunity** remaining: `OutputsOutput`, `InputsNameRedundantArgument`, deprecated select-`<options>` ×2 |
+| **HAVE** | 16 | already covered (mostly as fixers). Incl. **GTR035** (`name`/req-`version` whitespace) + **GTR036** (`<output type="data">`→`<data>`), 2026-06-06 |
+| **FIX** (new, auto-fixable) | ~3 | **the opportunity** remaining: `InputsNameRedundantArgument`, deprecated select-`<options>` ×2 |
 | **DETECT** (new advisory) | ~80 | correctness checks for the `check` tier (report-only); incl. `ToolIDWhitespace`/`ToolVersionWhitespace` (advisory-by-design — §33) |
 | **SKIP** (pass-state) | ~21 | `valid`/`info` reporters — nothing to build |
 | **n/a** (out of scope) | ~20 | CWL, filesystem, network/ontology, runtime |
@@ -58,9 +58,9 @@ By our tier, for the **buildable** rows (HAVE + FIX + DETECT):
 - **check** (advisory): ~80 (the DETECT bulk + the advisory HAVEs)
 - **parse/validate**: 1 (XSD)
 
-**Headline:** planemo only *reports*; we *fix* the provably-safe subset. The first such
-fix (**GTR035**, whitespace trims) shipped; `<output>`→`<data>`, redundant-`name`, and
-deprecated select-`<options>` are the next FIX targets.
+**Headline:** planemo only *reports*; we *fix* the provably-safe subset. Shipped so far:
+**GTR035** (whitespace trims) and **GTR036** (`<output type="data">`→`<data>`).
+Remaining FIX targets: redundant-`name` drop, deprecated select-`<options>`.
 
 ---
 
@@ -159,7 +159,7 @@ needs author intent. The **FIX** candidates (auto-fixable, our edge):
 
 | Linter | sev | tier | disp | note |
 |---|---|---|---|---|
-| OutputsOutput | warn | codemod | **FIX** | replace `<output>` with `<data>`/`<collection>` (tag rename) |
+| OutputsOutput | warn | codemod | **HAVE** | **GTR036** rewrites `<output type="data">` → `<data>`; `type="collection"` / expression outputs left advisory (§34) |
 | OutputsFormatInput | warn | upgrade | **HAVE** | = **GTR015** (`format="input"` → `format_source`) |
 | OutputsMissing | warn | check | DETECT | no outputs |
 | OutputsNameInvalidCheetah | warn | check | DETECT | output name not a valid placeholder |
