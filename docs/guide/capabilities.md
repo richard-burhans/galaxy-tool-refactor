@@ -73,6 +73,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Tool-level correctness checks (`<command>` present/non-empty, valid `profile` format, package requirement names its package, tool-version whitespace) — planemo-parity advisory | GTR044–GTR047 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
 | Output presence/format/label checks (`<outputs>` present, each output defines a format, no shared explicit labels) — planemo-parity advisory | GTR048–GTR050 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
 | Embedded-expression validity (`<container>` identifier shape, output `<filter>` is valid Python, `<stdio>` `<regex>` compiles) — planemo-parity advisory | GTR051–GTR053 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
+| Input parameter naming/identity (param declares a name, name is a valid placeholder, names unique, no input/output name clash) — planemo-parity advisory | GTR054–GTR057 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
 | Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTR020, the residual stays advisory | GTR020.2 | ✅ Shipped | advisory; provable subset fixed (GTR020) |
 | Input `<param>` never referenced anywhere the tool uses it | GTR034 | ✅ Shipped | `strict` preset; 189/467 tools (`docs/corpus_check_stats.md`) |
 | Lone-`&` vs `&&` join | GTR032 | 🔭 Roadmap | registry labels it "not yet implemented" |

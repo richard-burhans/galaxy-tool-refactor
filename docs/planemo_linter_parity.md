@@ -67,6 +67,10 @@ codemods GTR007–GTR016 are applied by `upgrade`, not the default `format`.)*
 | GTR051 | **ContainerImageShape** | ✓ | ✗ | check | a `<container>` identifier should match a recognized shape |
 | GTR052 | **OutputsFilterExpression** | ✓ | ✗ | check | an output `<filter>` should be a valid Python expression |
 | GTR053 | **StdIORegex** | ✓ | ✗ | check | a `<stdio>` `<regex match>` should be a valid regular expression |
+| GTR054 | InputsName | ✓ | ✗ | check | an input `<param>` must declare a `name` or `argument` |
+| GTR055 | InputsNameEmpty, InputsNameValid | ✓ | ✗ | check | an input `<param>` name must be a valid Cheetah placeholder |
+| GTR056 | InputsNameDuplicate | ✓ | ✗ | check | input `<param>` names must be unique within their scope |
+| GTR057 | InputsNameDuplicateOutput | ✓ | ✗ | check | an output name must not duplicate an input param name |
 
 **Bold** planemo linters are ones planemo *only reports* and we *fix* (or, for the
 checks, detect with our own rule). The remaining unmapped planemo linters (the ~80
@@ -108,9 +112,9 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 37 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), 2026-06-06 |
+| **HAVE** | 42 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), 2026-06-06 |
 | **FIX** (new, auto-fixable) | 0 | **complete** — GTR035/036/037 shipped; the rest of the original FIX candidates reclassified to advisory/detect on inspection (identity-changing or no mechanical equivalent) |
-| **DETECT** (new advisory) | ~60 | correctness checks for the `check` tier (report-only). 16 landed so far: GTR038–053 (citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, outputs present/format/label, container/filter/regex validity) |
+| **DETECT** (new advisory) | ~55 | correctness checks for the `check` tier (report-only). 20 landed so far: GTR038–057 (citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, outputs present/format/label, container/filter/regex validity, input param naming) |
 | **SKIP** (pass-state) | ~21 | `valid`/`info` reporters — nothing to build |
 | **n/a** (out of scope) | ~20 | CWL, filesystem, network/ontology, runtime |
 | **Total** | 146 | |
@@ -211,12 +215,16 @@ needs author intent. The **FIX** candidates (auto-fixable, our edge):
 | Linter | sev | tier | disp | note |
 |---|---|---|---|---|
 | InputsNameRedundantArgument | warn | codemod | **HAVE** | **GTR037** drops it when `name == argument.lstrip('-').replace('-','_')` (§35) |
+| InputsName | error | check | **HAVE** | **GTR054** param has neither `name` nor `argument` |
+| InputsNameEmpty / InputsNameValid | error/warn | check | **HAVE** | **GTR055** name empty or not a valid Cheetah placeholder (macro-token names skipped) |
+| InputsNameDuplicate | error | check | **HAVE** | **GTR056** duplicate qualified param path (disjoint `<when>` branches OK) |
+| InputsNameDuplicateOutput | error | check | **HAVE** | **GTR057** output name duplicates an input param name |
 | InputsSelectDynamicOptions | warn | check | DETECT | `dynamic_options="<python expr>"` has no mechanical modern equivalent — advisory, not fixable |
 | InputsSelectOptionsDeprecatedAttr | warn | check | DETECT | `from_file`/`from_parameter`/`transform_lines`/`options_filter_attribute` need restructuring (e.g. a data table) — advisory, not fixable |
 | InputsDataFormat | warn | check | DETECT | no `format` → defaults to `data` (fix = risky, leave advisory) |
 
-**DETECT (the remaining ~52)** — group view:
-- *naming/identity:* `InputsName` · `InputsNameEmpty` · `InputsNameValid` (Cheetah-placeholder) · `InputsNameDuplicate` · `InputsNameDuplicateOutput`
+**DETECT (the remaining ~47)** — group view:
+- *naming/identity:* **HAVE** — `InputsName` (GTR054), `InputsNameEmpty`/`InputsNameValid` (GTR055), `InputsNameDuplicate` (GTR056), `InputsNameDuplicateOutput` (GTR057)
 - *type/structure:* `InputsMissing` · `InputsTypeChildCombination` · `InputsDataOptionsMultiple` · `InputsDataOptionsAttrib` · `InputsDataOptionsFilterAttribFiltersType` · `InputsDataOptionsFiltersType` · `InputsDataOptionsFiltersRef`
 - *select/options correctness:* `InputsSelectOptionsDef` · `InputsSelectOptionsDefConditional` · `InputsSelectOptionValueMissing` · `InputsSelectOptionDuplicateValue` · `InputsSelectOptionDuplicateText` · `InputsSelectOptionsMultiple` · `InputsSelectOptionsDefinesOptions` · `InputsSelectOptionsFromDatasetAndDatatable` · `InputsSelectOptionsMetaFileKey`
 - *option filters:* `InputsOptionsFiltersRequiredAttributes` · `InputsOptionsRemoveValueFilterRequiredAttributes` · `InputsOptionsFiltersAllowedAttributes` · `InputsOptionsRegexFilterExpression` · `InputsOptionsFiltersCheckReferences`

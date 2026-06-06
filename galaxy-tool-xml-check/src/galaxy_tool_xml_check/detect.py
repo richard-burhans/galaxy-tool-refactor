@@ -25,6 +25,7 @@ from galaxy_tool_xml_check.checks import (
     HelpCdata,
     HelpPresent,
     IdCharset,
+    InputOutputNamesDistinct,
     NoTodoText,
     OutputFilterValid,
     OutputFormatDefined,
@@ -33,6 +34,9 @@ from galaxy_tool_xml_check.checks import (
     OutputNamesUnique,
     OutputNameValid,
     OutputsPresent,
+    ParamNamePresent,
+    ParamNamesUnique,
+    ParamNameValid,
     ProfileFormatValid,
     RequirementNamePresent,
     RequirementsPresent,
@@ -85,6 +89,10 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         ContainerShapeRecognized,
         OutputFilterValid,
         StdioRegexValid,
+        ParamNamePresent,
+        ParamNameValid,
+        ParamNamesUnique,
+        InputOutputNamesDistinct,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 

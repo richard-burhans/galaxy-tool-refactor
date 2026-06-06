@@ -1140,3 +1140,181 @@ class StdioRegexValid(CheckRule):
                     self.meta,
                     f"stdio regex match {match!r} is not a valid regular expression",
                 )
+
+
+def _param_name(param: etree._Element, /) -> str | None:
+    """Galaxy's resolved parameter name: ``name``, else derived from ``argument``.
+
+    Mirrors ``galaxy.tool_util.parser.util._parse_name``: when ``name`` is absent the
+    name is derived from ``argument`` (leading dashes stripped, the rest ``-``→``_``).
+    Returns ``None`` when the param declares neither (the GTR054 case).
+    """
+    name = param.get("name")
+    if name is not None:
+        return str(name)
+    argument = param.get("argument")
+    if argument is None:
+        return None
+    return str(argument).lstrip("-").replace("-", "_")
+
+
+def _iter_named_params(
+    root: etree._Element, /
+) -> Iterable[tuple[etree._Element, str]]:
+    """Each ``<inputs>`` descendant ``<param>`` with its resolved name.
+
+    Skips a param declaring neither ``name`` nor ``argument`` (the GTR054 case),
+    matching planemo's ``_iter_param``. Macro-injected params are invisible on the raw
+    tree, so
+    these checks under-report rather than misfire (the GTR044/GTR045 boundary).
+    """
+    inputs = root.find("inputs")
+    if inputs is None:
+        return
+    for param in inputs.iterfind(".//param"):
+        name = _param_name(param)
+        if name is not None:
+            yield param, name
+
+
+def _param_qualified_path(param: etree._Element, name: str, /) -> str:
+    """planemo's ``_param_path``: *name* qualified by the enclosing structure.
+
+    Walks parents up to ``<inputs>``, prepending each ``<when>``'s ``value`` (so
+    identically-named params in disjoint conditional branches do not collide) or other
+    containers' ``name``. The dotted path is the identity planemo dedups on.
+    """
+    path = [name]
+    current = param
+    while True:
+        parent = current.getparent()
+        if parent is None or parent.tag == "inputs":
+            break
+        if parent.tag == "when":
+            path.append(str(parent.get("value")))
+        else:
+            path.append(str(parent.get("name")))
+        current = parent
+    return ".".join(reversed(path))
+
+
+class ParamNamePresent(CheckRule):
+    """GTR054 — an input ``<param>`` must declare a ``name`` or ``argument``.
+
+    Reimplements planemo `InputsName`, `galaxy.tool_util.linters.inputs`. Galaxy derives
+    a param's identity from ``name`` or, failing that, ``argument``; a param with
+    neither cannot be referenced. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR054",
+        summary="An input <param> must declare a name or argument.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        inputs = document.root.find("inputs")
+        if inputs is None:
+            return
+        for param in inputs.iterfind(".//param"):
+            if param.get("name") is None and param.get("argument") is None:
+                yield _violation(
+                    document,
+                    param,
+                    self.meta,
+                    "param has neither 'name' nor 'argument'",
+                )
+
+
+class ParamNameValid(CheckRule):
+    """GTR055 — an input ``<param>`` name must be a non-empty Cheetah placeholder.
+
+    Reimplements planemo `InputsNameEmpty` + `InputsNameValid` (planemo itself notes the
+    two overlap). The resolved name must be non-empty and match ``^[a-zA-Z_]\\w*$`` so
+    it can be referenced as ``$name``. A name carrying a ``@…@`` macro token is skipped
+    (the raw-tree boundary, cf. GTR045). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR055",
+        summary="An input <param> name must be a valid Cheetah placeholder.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for param, name in _iter_named_params(document.root):
+            if name.strip() == "":
+                yield _violation(document, param, self.meta, "param has an empty name")
+            elif "@" not in name and not _CHEETAH_PLACEHOLDER.match(name):
+                yield _violation(
+                    document,
+                    param,
+                    self.meta,
+                    f"param name '{name}' is not a valid Cheetah placeholder",
+                )
+
+
+class ParamNamesUnique(CheckRule):
+    """GTR056 — input ``<param>`` names must be unique within their scope.
+
+    Reimplements planemo `InputsNameDuplicate`. Two params sharing a qualified path
+    (name + enclosing conditional/section structure) clash; identically-named params in
+    disjoint ``<when>`` branches are fine (the path differs). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR056",
+        summary="Input <param> names must be unique within their scope.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        seen: set[str] = set()
+        for param, name in _iter_named_params(document.root):
+            path = _param_qualified_path(param, name)
+            if path in seen:
+                yield _violation(
+                    document, param, self.meta, f"duplicate parameter name '{path}'"
+                )
+            seen.add(path)
+
+
+class InputOutputNamesDistinct(CheckRule):
+    """GTR057 — an output name must not duplicate an input parameter name.
+
+    Reimplements planemo `InputsNameDuplicateOutput`. An output sharing a name with an
+    input parameter collides in the Cheetah/job namespace. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR057",
+        summary="An output name must not duplicate an input parameter name.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        input_paths = {
+            _param_qualified_path(param, name)
+            for param, name in _iter_named_params(root)
+        }
+        outputs = root.find("outputs")
+        if outputs is None:
+            return
+        for output in outputs:
+            name = output.get("name")
+            if name is not None and name in input_paths:
+                yield _violation(
+                    document,
+                    output,
+                    self.meta,
+                    f"output name '{name}' collides with an input parameter",
+                )
