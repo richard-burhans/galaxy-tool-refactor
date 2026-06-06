@@ -77,3 +77,4 @@ Detect-only IUC best-practice checks. Advisory: `check` reports them but does no
 | GTR065 | check | 33 | 0.4% | 51 | A `<validator>` must be compatible with its param type and attributes. |
 | GTR066 | check | 0 | 0.0% | 0 | A `<validator>` body should match its type (expr/regex carry text). |
 | GTR067 | check | 1 | 0.0% | 1 | An expression/regex `<validator>` body must be valid. |
+| GTR068 | check | 1 | 0.0% | 1 | A `<validator>` must carry the attributes its type requires. |

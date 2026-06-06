@@ -54,6 +54,7 @@ from galaxy_tool_xml_check.checks import (
     ToolVersionWhitespace,
     UnusedParam,
     ValidatorExpressionValid,
+    ValidatorRequiredAttributes,
     ValidatorTextPresence,
     ValidatorTypeCompatible,
     VersionFormat,
@@ -113,6 +114,7 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         ValidatorTypeCompatible,
         ValidatorTextPresence,
         ValidatorExpressionValid,
+        ValidatorRequiredAttributes,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 

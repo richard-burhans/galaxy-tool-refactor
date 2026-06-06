@@ -1893,3 +1893,94 @@ class ValidatorExpressionValid(CheckRule):
                         self.meta,
                         f"parameter '{name}': invalid {vtype} '{body}': {error}",
                     )
+
+
+# Validator types and the attribute set of which at least one is required (planemo's
+# `ValidatorMinMax` / `ValidatorMetadataCheckSkip` / `ValidatorTableName` /
+# `ValidatorMetadataName`). ``dataset_metadata_equal`` is handled separately below — it
+# needs ``(value | value_json)`` *and* ``metadata_name``, and not both value forms.
+_VALIDATOR_REQUIRED_ANY: tuple[tuple[frozenset[str], tuple[str, ...]], ...] = (
+    (frozenset({"in_range", "length", "dataset_metadata_in_range"}), ("min", "max")),
+    (frozenset({"metadata"}), ("check", "skip")),
+    (
+        frozenset(
+            {
+                "value_in_data_table",
+                "value_not_in_data_table",
+                "dataset_metadata_in_data_table",
+                "dataset_metadata_not_in_data_table",
+            }
+        ),
+        ("table_name",),
+    ),
+    (
+        frozenset(
+            {
+                "dataset_metadata_in_data_table",
+                "dataset_metadata_not_in_data_table",
+                "dataset_metadata_in_file",
+                "dataset_metadata_in_range",
+            }
+        ),
+        ("metadata_name",),
+    ),
+)
+
+
+class ValidatorRequiredAttributes(CheckRule):
+    """GTR068 — a ``<validator>`` must carry the attributes its type requires.
+
+    Reimplements planemo `ValidatorMinMax` (``in_range`` / ``length`` /
+    ``dataset_metadata_in_range`` need ``min`` or ``max``), `ValidatorMetadataCheckSkip`
+    (``metadata`` needs ``check`` or ``skip``), `ValidatorTableName` (the
+    ``*_data_table`` validators need ``table_name``), `ValidatorMetadataName` (the
+    ``dataset_metadata_*`` validators need ``metadata_name``), and
+    `ValidatorDatasetMetadataEqualValue` + `…OrJson` (``dataset_metadata_equal`` needs
+    ``value``/``value_json`` and ``metadata_name``, and not both value forms).
+    Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR068",
+        summary="A <validator> must carry the attributes its type requires.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for name, _param_type, validator, vtype in _iter_param_validators(
+            document.root
+        ):
+            for types, attrs in _VALIDATOR_REQUIRED_ANY:
+                if vtype in types and not any(
+                    validator.get(attr) is not None for attr in attrs
+                ):
+                    joined = " or ".join(f"'{attr}'" for attr in attrs)
+                    yield _violation(
+                        document,
+                        validator,
+                        self.meta,
+                        f"parameter '{name}': '{vtype}' validator needs the {joined} "
+                        "attribute(s)",
+                    )
+            if vtype == "dataset_metadata_equal":
+                has_value = validator.get("value") is not None
+                has_json = validator.get("value_json") is not None
+                has_name = validator.get("metadata_name") is not None
+                if not (has_value or has_json) or not has_name:
+                    yield _violation(
+                        document,
+                        validator,
+                        self.meta,
+                        f"parameter '{name}': 'dataset_metadata_equal' validator needs "
+                        "'value'/'value_json' and 'metadata_name'",
+                    )
+                if has_value and has_json:
+                    yield _violation(
+                        document,
+                        validator,
+                        self.meta,
+                        f"parameter '{name}': 'dataset_metadata_equal' validator must "
+                        "not set both 'value' and 'value_json'",
+                    )

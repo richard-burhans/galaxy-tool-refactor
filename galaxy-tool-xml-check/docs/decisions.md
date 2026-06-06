@@ -760,3 +760,23 @@ gtr066 or gtr067"`.
   (`<inputs>//param[@type]` × `<validator type=…>`).
 - **Corpus** (`docs/corpus_check_stats.md`): GTR065 **33**, GTR066 **0** (low-noise guard),
   GTR067 **1** (14 `@…@`-token validator bodies skipped — FPs avoided).
+
+## D21 (2026-06-06) — planemo-parity validator required-attributes: GTR068
+
+**Date:** 2026-06-06. Eleventh planemo-linter batch (`../../docs/planemo_linter_parity.md`)
+— the second half of the validator surface (required attributes), finishing `inputs.py`'s
+validators, as one data-driven advisory check. Reproduced-by: `uv run --package
+galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k gtr068`.
+
+- **GTR068 `ValidatorRequiredAttributes`** — one rule reimplementing six planemo linters
+  via a `_VALIDATOR_REQUIRED_ANY` table plus a `dataset_metadata_equal` special case:
+  `ValidatorMinMax` (`in_range`/`length`/`dataset_metadata_in_range` need `min`|`max`),
+  `ValidatorMetadataCheckSkip` (`metadata` needs `check`|`skip`), `ValidatorTableName`
+  (the `*_data_table` validators need `table_name`), `ValidatorMetadataName` (the
+  `dataset_metadata_*` validators need `metadata_name`), and `ValidatorDatasetMetadataEqualValue`
+  + `…OrJson` (`dataset_metadata_equal` needs `value`/`value_json` **and** `metadata_name`,
+  and not both value forms). Reuses `_iter_param_validators` (D20).
+- **Validator surface complete**; `inputs.py` now has only type/structure, display/idiom,
+  and option-filter groups left.
+- **Corpus** (`docs/corpus_check_stats.md`): GTR068 **1** — a low-noise correctness guard
+  (corpus validators almost always carry their required attributes; the XSD catches most).
