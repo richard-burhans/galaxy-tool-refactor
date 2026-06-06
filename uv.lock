@@ -606,16 +606,13 @@ version = "0.1.0"
 source = { editable = "galaxy-tool-xml" }
 dependencies = [
     { name = "click" },
-    { name = "galaxy-util" },
+    { name = "galaxy-util", extra = ["template"] },
     { name = "lxml" },
     { name = "packaging" },
     { name = "xsdata", extra = ["lxml"] },
 ]
 
 [package.optional-dependencies]
-cheetah-cdm = [
-    { name = "galaxy-util", extra = ["template"] },
-]
 shell-oracle = [
     { name = "bashlex" },
 ]
@@ -623,7 +620,6 @@ shell-oracle = [
 [package.dev-dependencies]
 dev = [
     { name = "bashlex" },
-    { name = "galaxy-util", extra = ["template"] },
     { name = "mercurial" },
     { name = "mypy" },
     { name = "pytest" },
@@ -635,18 +631,16 @@ dev = [
 requires-dist = [
     { name = "bashlex", marker = "extra == 'shell-oracle'", specifier = ">=0.18" },
     { name = "click", specifier = ">=8" },
-    { name = "galaxy-util", specifier = ">=24,<27" },
-    { name = "galaxy-util", extras = ["template"], marker = "extra == 'cheetah-cdm'", specifier = ">=24,<27" },
+    { name = "galaxy-util", extras = ["template"], specifier = ">=24,<27" },
     { name = "lxml", specifier = ">=5" },
     { name = "packaging", specifier = ">=23" },
     { name = "xsdata", extras = ["lxml"], specifier = ">=26.2" },
 ]
-provides-extras = ["shell-oracle", "cheetah-cdm"]
+provides-extras = ["shell-oracle"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "bashlex", specifier = ">=0.18" },
-    { name = "galaxy-util", extras = ["template"], specifier = ">=24,<27" },
     { name = "mercurial", specifier = ">=6" },
     { name = "mypy" },
     { name = "pytest", specifier = ">=8" },

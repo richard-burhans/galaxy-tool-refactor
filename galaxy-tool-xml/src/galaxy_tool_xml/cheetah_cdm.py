@@ -11,11 +11,15 @@ cannot trust (it would rewrite bytes inside a ``#raw`` block or a comment). This
 substrate the first Cheetah mutator (rename) edits; see
 ``../../docs/upgrade_research/cheetah_section_editing.md``.
 
-CT3 (the maintained Cheetah3 fork) is reached via the optional ``cheetah-cdm`` extra
-(``galaxy-util[template]``), mirroring the ``shell-oracle`` (bashlex) posture: this
-MIT-licensed tier keeps CT3 a soft dependency, imports it lazily, and every entry point
-degrades gracefully when it is absent — ``cheetah_cdm_available()`` is ``False`` and
-``cheetah_spans`` returns ``None`` so the caller falls back to the regex scan.
+CT3 (the maintained Cheetah3 fork) is a **required** dependency, pulled in via
+``galaxy-util[template]`` (CT3 is MIT-licensed, so — unlike the GPL ``bashlex`` behind
+the ``shell-oracle`` extra — it is a base dependency, not an opt-in): the faithful path
+is the *default* for ``find-references`` / GTR020 / rename, not something a caller must
+enable. It is still imported lazily, and ``cheetah_spans`` returns ``None`` on the
+~0.4% of bodies CT3 cannot compile (py2-isms, ``#import`` of an absent module, an
+unbalanced ``#end``) so the caller falls back to the regex scan for those. The
+``cheetah_cdm_available()`` guard remains as a defensive fallback (a broken install
+missing CT3 degrades rather than crashing) but is normally always ``True``.
 
 The spans are **disjoint and in source order**; the literal text between them is the
 gap, so a section re-serialises by interleaving the gaps with each ``span.text`` (the
@@ -65,7 +69,9 @@ class CheetahSpan:
 
 @cache
 def cheetah_cdm_available() -> bool:
-    """Whether the optional ``cheetah-cdm`` extra (CT3) is importable."""
+    """Whether CT3 is importable. Normally always ``True`` (CT3 is a base dependency,
+    ``galaxy-util[template]``); ``False`` only on a broken install missing it, where
+    callers fall back to the regex scan rather than crashing."""
     return importlib.util.find_spec("Cheetah") is not None
 
 
@@ -136,10 +142,10 @@ def cheetah_spans(text: str, /) -> list[CheetahSpan] | None:
 
     Returns the ordered, **disjoint** placeholder / directive / comment spans (the gaps
     between them are literal text, so the section re-serialises by interleaving gaps and
-    ``span.text``). Returns ``None`` when the faithful lexer is unavailable (the
-    ``cheetah-cdm`` extra is absent) or CT3 cannot compile *text* (~0.4% of the corpus:
-    py2-isms, ``#import`` of an absent module, an unbalanced ``#end``) — the caller then
-    falls back to the regex scan (``command_text`` / ``cheetah_refs``).
+    ``span.text``). Returns ``None`` when CT3 cannot compile *text* (~0.4% of the
+    corpus: py2-isms, ``#import`` of an absent module, an unbalanced ``#end``) — the
+    caller falls back to the regex scan (``command_text`` / ``cheetah_refs``) for those
+    — or, defensively, if CT3 is somehow absent (it is a base dep, normally present).
     """
     if not cheetah_cdm_available():
         return None

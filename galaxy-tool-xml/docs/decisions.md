@@ -742,13 +742,12 @@ Three small, dependency-light modules analyse `<command>` / `<help>` body conten
   fully-unquoted shell-line `$var` with its name, line offset, and absolute
   `start`/`end` character span (quote-state tracking across newlines, Cheetah
   directive skipping). It is *not* a parser — no Cheetah grammar, no shell AST. The
-  conservative regex scan (`_scan_unquoted_cheetah_vars`) is the fallback; when the
-  `cheetah-cdm` extra is present it is **filtered against the faithful CT3 span lexer**
-  (§19): a candidate survives only if its `$` is the start of a genuine `PLACEHOLDER`
-  span, so a `$` inside a `#raw` block, a `#* … *#` block comment, or an escaped `\$`
-  — invisible to the line-based regex — is dropped. The lexer only *narrows* (mirrors
-  the `shell-oracle` posture); without the extra (or on the ~0.4% CT3 bail) the regex
-  result is returned verbatim, so default output is unchanged (2026-06-06).
+  conservative regex scan (`_scan_unquoted_cheetah_vars`) is then **filtered against the
+  faithful CT3 span lexer** (§19; CT3 is a base dependency): a candidate survives only if
+  its `$` is the start of a genuine `PLACEHOLDER` span, so a `$` inside a `#raw` block, a
+  `#* … *#` block comment, or an escaped `\$` — invisible to the line-based regex — is
+  dropped. The lexer only *narrows*; only on the ~0.4% CT3 bail is the raw regex result
+  returned (2026-06-06: CT3 promoted from the `cheetah-cdm` extra to a base dep — §19).
 - `command_vars` — resolves a `$var` against a tool's `<inputs>` and classifies it
   (`input_param_info` / `classify_var` / `provably_quotable`) into the
   quoting-safety buckets, exposing the provable subset `{safe, attr_safe,
@@ -848,14 +847,14 @@ param refactors). `cheetah_references(text)` returns `CheetahRef`s (name, identi
   reports *every* reference (quoted, in `#if`/`#set` directives, in every templated
   section) because find-references / a future unused-param consumer need them all.
 - **Faithful by default (2026-06-06), regex only as a fallback.** `cheetah_references`
-  now resolves through the CT3 span lexer (§19) when the `cheetah-cdm` extra is present: a
-  reference is a `PLACEHOLDER` span or a `$var` in a `#if`/`#set`/… `DIRECTIVE` head;
-  `COMMENT` spans, `#raw` blocks (one verbatim directive span — `directive == "raw"`,
-  skipped), and escaped `\$` are excluded, exactly as Cheetah resolves them. This makes
+  resolves through the CT3 span lexer (§19; CT3 is a base dependency): a reference is a
+  `PLACEHOLDER` span or a `$var` in a `#if`/`#set`/… `DIRECTIVE` head; `COMMENT` spans,
+  `#raw` blocks (one verbatim directive span — `directive == "raw"`, skipped), and
+  escaped `\$` are excluded, exactly as Cheetah resolves them. This makes
   `find-references` agree with the faithful `rename-param` mutator (so the query never
   shows a site rename would refuse). It falls back to the conservative `_CHEETAH_VAR`
-  regex (the original superset) only when the extra is absent or CT3 cannot compile the
-  section (~0.4%) — the safe direction for a read-only query. The goal is correctness for
+  regex (the original superset) only on the ~0.4% of sections CT3 cannot compile — the
+  safe direction for a read-only query. The goal is correctness for
   novel tool XML, not a corpus-fitted superset, so the faithful path is used whenever
   available. References from imported macros / `<expand>` are out of scope (macro files).
 - **`segments` not just root.** A reference's identifier segments (`${adv.x}` → `(adv, x)`)
@@ -889,9 +888,11 @@ param refactors). `cheetah_references(text)` returns `CheetahRef`s (name, identi
 uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_cheetah_refs.py
 ```
 
-## 19. Faithful Cheetah lexer (`cheetah_cdm`) — CT3 behind the `[cheetah-cdm]` extra
+## 19. Faithful Cheetah lexer (`cheetah_cdm`) — CT3 (a base dependency)
 
-**Date:** 2026-06-05. M5.1 of the Cheetah-section-editing roadmap
+**Date:** 2026-06-05 (shipped behind the optional `[cheetah-cdm]` extra); **made a base
+dependency 2026-06-06** (see the update under Decisions). M5.1 of the
+Cheetah-section-editing roadmap
 (`../../docs/upgrade_research/cheetah_section_editing.md`) — the precision drop-in the
 `cheetah_refs` regex (§18) reserved, shipped ahead of the first mutator (rename).
 
@@ -906,12 +907,17 @@ exactly as Cheetah would — the fidelity a *mutator* needs and the regex cannot
 
 ### Decisions
 
-- **CT3 isolated behind the optional `galaxy-tool-xml[cheetah-cdm]` extra** (the
-  `galaxy-util[template]` extra, which pulls `CT3>=3.3.3`), mirroring `[shell-oracle]`
-  (§17): this tier stays a soft dependency, CT3 is imported lazily, and `cheetah_spans`
-  returns `None` when the extra is absent so callers fall back to the §18 regex. The
-  `Parser` subclass is built once in a `@cache`d factory so importing the module never
-  imports CT3.
+- **CT3 is a base dependency (Update 2026-06-06).** Originally isolated behind the
+  optional `galaxy-tool-xml[cheetah-cdm]` extra (mirroring `[shell-oracle]`, §17), CT3
+  was promoted to a **base dependency** (`galaxy-util[template]` in `[project]`
+  `dependencies`) once enough rules depend on faithful spans for *soundness*
+  (`command_text`/GTR020, `cheetah_refs`/find-references, rename): a single sound code
+  path beats a dual faithful/regex one, and the faithful result is correct for novel
+  tool XML by default. **Unlike `[shell-oracle]` (bashlex is GPL), CT3 is MIT**, so it
+  is a clean hard dependency. `cheetah_spans` still returns `None` on the ~0.4% of
+  bodies CT3 cannot compile — callers fall back to the §18 regex *only there* (those
+  cases are retained for later work) — and defensively if CT3 were somehow absent. The
+  `Parser` subclass is built once in a `@cache`d factory; CT3 is imported lazily.
 - **Spans are disjoint, ordered, and round-trip-faithful.** The literal text between
   spans is the gap, so a section re-serialises by interleaving gaps with each
   `span.text` — the contract a byte-faithful mutator relies on.

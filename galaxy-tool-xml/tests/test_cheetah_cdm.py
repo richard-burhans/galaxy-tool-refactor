@@ -1,4 +1,4 @@
-"""Tests for the faithful Cheetah lexer (the ``cheetah-cdm`` extra).
+"""Tests for the faithful Cheetah lexer (CT3, a base dependency).
 
 Exercises ``cheetah_spans`` — the disjoint, ordered placeholder / directive / comment
 span model harvested by the CT3 ``Parser`` subclass — covering round-trip fidelity,

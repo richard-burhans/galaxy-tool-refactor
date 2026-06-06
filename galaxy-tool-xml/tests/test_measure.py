@@ -814,7 +814,7 @@ def test_measure_cheetah_complexity_counts_tools(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(
-    not cheetah_cdm_available(), reason="requires the cheetah-cdm extra (CT3)"
+    not cheetah_cdm_available(), reason="CT3 missing (base dep; broken install)"
 )
 def test_measure_cheetah_cdm_coverage_counts(tmp_path: Path) -> None:
     repo = tmp_path / "owner" / "repo"
@@ -855,7 +855,7 @@ def test_measure_cheetah_cdm_coverage_counts(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(
-    not cheetah_cdm_available(), reason="requires the cheetah-cdm extra (CT3)"
+    not cheetah_cdm_available(), reason="CT3 missing (base dep; broken install)"
 )
 def test_measure_rename_coverage_classifies(tmp_path: Path) -> None:
     repo = tmp_path / "owner" / "repo"

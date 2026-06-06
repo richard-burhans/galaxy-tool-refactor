@@ -69,16 +69,14 @@ def unquoted_cheetah_vars(text: str, /) -> list[UnquotedVar]:
     newlines; a line whose first non-blank character is ``#`` **while not inside a
     quote** is a Cheetah directive/comment and its ``$var``s are skipped.
 
-    When the optional ``cheetah-cdm`` extra is installed, the regex candidates are
-    additionally filtered against the *faithful* CT3 span lexer
-    (``cheetah_cdm.cheetah_spans``): a candidate survives only if its ``$`` is the
-    start of a genuine ``PLACEHOLDER`` span, so a ``$`` inside a ``#raw`` block, a
-    ``#* … *#`` block comment, or an escaped ``\\$`` — which the line-based regex
-    cannot see — is dropped. Without the extra (or when CT3 cannot compile the
-    body, ~0.4%) the regex result is returned verbatim. This mirrors the
-    ``shell-oracle`` posture: the faithful lexer only *narrows*, never widens, so
-    default behaviour is unchanged and the GTR020.1 codemod / GTR020.2 check stay
-    on one source of truth.
+    The regex candidates are then filtered against the *faithful* CT3 span lexer
+    (``cheetah_cdm.cheetah_spans``; CT3 is a base dependency): a candidate survives only
+    if its ``$`` is the start of a genuine ``PLACEHOLDER`` span, so a ``$`` inside a
+    ``#raw`` block, a ``#* … *#`` block comment, or an escaped ``\\$`` — which the
+    line-based regex cannot see — is dropped. Only on the ~0.4% of bodies CT3 cannot
+    compile (``cheetah_spans`` returns ``None``) is the raw regex result returned. The
+    faithful lexer only *narrows*, never widens, and the GTR020.1 codemod / GTR020.2
+    check stay on this one source of truth.
     """
     candidates = _scan_unquoted_cheetah_vars(text)
     if not candidates:

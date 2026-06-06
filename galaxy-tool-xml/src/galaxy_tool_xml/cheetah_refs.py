@@ -8,17 +8,16 @@ reference in **every** Cheetah-templated section: quoted or not, inside
 labels, dynamic options — the sections Galaxy runs through ``fill_template``
 (see ``../../docs/galaxy_processing_model.md``).
 
-Resolution is **faithful** when the optional ``cheetah-cdm`` extra is installed: the
-CT3 span lexer (``cheetah_cdm.cheetah_spans``, §19) classifies each region exactly as
-Cheetah does, so a ``$var`` inside a ``##``/``#* *#`` comment, a ``#raw`` block, or
-behind an escaped ``\\$`` is **not** reported — only genuine references survive
-(``PLACEHOLDER`` spans plus the ``$var``\\ s in ``#if``/``#set``/… ``DIRECTIVE`` heads).
-This matches what the rename mutator (``cheetah_rename``, also faithful) would touch, so
-``find-references`` and ``rename-param`` agree. When the extra is absent (or CT3 cannot
-compile the section, ~0.4%) it falls back to the conservative ``_CHEETAH_VAR`` regex,
-which over-reports the comment/raw/escaped cases — the safe direction for a read-only
-query. Correctness for novel tool XML (not a corpus-fitted superset) is the goal; the
-faithful path is used whenever it is available. References from imported macros /
+Resolution is **faithful**: the CT3 span lexer (``cheetah_cdm.cheetah_spans``, §19; CT3
+is a base dependency) classifies each region exactly as Cheetah does, so a ``$var``
+inside a ``##``/``#* *#`` comment, a ``#raw`` block, or behind an escaped ``\\$`` is
+**not** reported — only genuine references survive (``PLACEHOLDER`` spans plus the
+``$var``\\ s in ``#if``/``#set``/… ``DIRECTIVE`` heads). This matches what the rename
+mutator (``cheetah_rename``, also faithful) would touch, so ``find-references`` and
+``rename-param`` agree. Only on the ~0.4% of sections CT3 cannot compile does it fall
+back to the conservative ``_CHEETAH_VAR`` regex (which over-reports the comment/raw/
+escaped cases — the safe direction for a read-only query). Correctness for novel tool
+XML, not a corpus-fitted superset, is the goal. References from imported macros /
 ``<expand>`` live in the macro files and are out of scope for this raw-tree scan.
 """
 
@@ -87,11 +86,11 @@ def cheetah_references(
 ) -> list[CheetahRef]:
     """Every Cheetah ``$var`` reference in *text*, in source order.
 
-    Faithful when the ``cheetah-cdm`` extra is present (CT3 span lexer): a reference is
-    a ``PLACEHOLDER`` span or a ``$var`` in a ``DIRECTIVE`` head (``#if`` / ``#set``);
-    ``COMMENT`` spans, ``#raw`` content, and an escaped ``\\$`` are excluded — Cheetah
-    does not treat those as references. Falls back to the conservative ``_CHEETAH_VAR``
-    regex (a superset) when the lexer is unavailable / bails. *base_line* is the file
+    Faithful via the CT3 span lexer (a base dep): a reference is a ``PLACEHOLDER``
+    span or a ``$var`` in a ``DIRECTIVE`` head (``#if`` / ``#set``); ``COMMENT`` spans,
+    ``#raw`` content, and an escaped ``\\$`` are excluded — Cheetah does not treat those
+    as references. Falls back to the conservative ``_CHEETAH_VAR`` regex (a superset)
+    only on the ~0.4% of sections CT3 cannot compile. *base_line* is the file
     line the text starts on (an element's ``sourceline``); each reference's
     ``sourceline`` is ``base_line`` plus the newline count before it.
     """

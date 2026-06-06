@@ -141,7 +141,8 @@ schema, and expose a typed view — **without ever serialising**.
   `docs/decisions.md` §16; registry D10).
 - **Cheetah-mutation subsystem** — the read/edit layer over a tool's *templated*
   sections (`<command>` / inline `<configfile>` / attribute-Cheetah), all in tier 1,
-  all behind the optional `[cheetah-cdm]` extra (CT3):
+  built on CT3 (a base dependency — the MIT-licensed faithful lexer; `cheetah_spans`
+  still bails to the regex on the ~0.4% CT3 can't compile):
   - `cheetah_cdm.py` — a **faithful** Cheetah lexer, `cheetah_spans(text) ->
     list[CheetahSpan] | None`, recording disjoint source-ordered placeholder /
     directive / comment spans, so an edit can tell a live `$x` from one inside
