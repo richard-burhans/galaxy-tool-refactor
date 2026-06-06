@@ -38,6 +38,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Normalize Python-style booleans (`True`→`true`) to `xs:boolean` | GTR017 | ✅ Shipped | `iuc` preset |
 | Wrap pure-text `<command>` / `<help>` in CDATA | GTR018, GTR019 | ✅ Shipped | `iuc` preset |
 | Single-quote the *provably*-single-valued Cheetah `$var`s in `<command>` | GTR020 | ✅ Shipped | `iuc` preset |
+| Trim accidental whitespace from a `<tool>` `name` / `<requirement>` `version` | GTR035 | ✅ Shipped | `iuc` preset; first planemo-parity *fix* (`docs/examples/planemo_fixable_issues.md`) |
 
 ### Upgrade (profile bump + repair, opt-in & semantic)
 

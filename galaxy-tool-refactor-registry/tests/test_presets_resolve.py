@@ -23,7 +23,7 @@ def test_preset_contents() -> None:
     assert p["cosmetic"] == {"GTR001", "GTR003", "GTR004"}
     assert p["iuc"] == {
         "GTR001", "GTR002", "GTR003", "GTR004", "GTR005", "GTR006", "GTR013",
-        "GTR017", "GTR018.1", "GTR019.1", "GTR020.1",
+        "GTR017", "GTR018.1", "GTR019.1", "GTR020.1", "GTR035",
     }
     # strict = iuc + every advisory check. Advisory-ness is a rule property
     # (advisory_codes()), no longer inferable from a code prefix.

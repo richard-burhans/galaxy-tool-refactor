@@ -1420,3 +1420,40 @@ all 2,304 provable quotes for no soundness gain.
 tools whose *only* rewrite was an unsound select quote), with **8,607 idempotent, 0
 non-idempotent, 0 post-validate-failed, 0 crashed**. The fix removes a real behaviour
 regression while leaving every other quote and the idempotence/validity invariants intact.
+
+## 33. `TrimAttributeWhitespace` (GTR035) — first planemo-parity *fix* (whitespace trims)
+
+**Date:** 2026-06-06. First rule from the planemo-linter reimplementation roadmap
+(`../../docs/planemo_linter_parity.md`): a planemo linter that only *reports*,
+reimplemented as a *fixer*. Reproduced-by: `uv run --package galaxy-tool-xml-codemod
+pytest galaxy-tool-xml-codemod/tests/test_trim_attribute_whitespace.py`. Corpus sweep:
+`uv run python -m scripts.corpus_check codemod
+galaxy_tool_xml_codemod.codemods.trim_attribute_whitespace:TrimAttributeWhitespace`.
+
+- **The planemo linters.** `galaxy.tool_util.linters.general` warns on accidental
+  leading/trailing whitespace in a tool's `version`/`name`/`id`
+  (`ToolVersionWhitespace`/`ToolNameWhitespace`/`ToolIDWhitespace`) and a
+  `<requirement>`'s `version` (`RequirementVersionWhitespace`) — *"this may cause
+  errors"* — but never fixes them.
+- **The soundness split (the homework the parity doc anticipated).** We trim only the
+  **behaviour-preserving** subset:
+  - `<tool name>` — display only; surrounding whitespace renders to nothing.
+  - `<requirement version>` — a whitespace-bearing conda version cannot resolve (the
+    solve fails), so a *working* tool never has one; trimming only ever repairs an
+    already-broken requirement.
+  - `<tool id>` and `<tool version>` are **excluded**: Galaxy reads both *raw* as the
+    tool's identity / version key (`tool_util/parser/xml.py` `parse_id`/`parse_version`
+    do not strip; `Tool.id` is the registration key, `Tool.version` the comparison key),
+    so trimming would change a *working* tool's identity — not behaviour-preserving.
+    They stay for an advisory check (planned), reported but not auto-fixed.
+- **Tiering — codemod, not fmt.** Trimming an attribute *value* changes meaning (not
+  layout trivia), so it is a tier-2 codemod, not a cosmetic fmt rule — even though the
+  effect is runtime-neutral for the two attributes we fix. It joins `CANONICAL_CODEMODS`
+  (safe, idempotent, `profile=`-preserving) after `NormalizeBooleanValues` (the other
+  attribute-value normalizer). Detect-primitive: `detect_Tool` (name) + `detect_Requirement`
+  (version) yield a `set_attribute(strip())` thunk. Idempotent by construction (post-trim
+  the value equals its `strip()`).
+- **Corpus.** 26 tools carry the issue (`docs/corpus_check_stats.md`); the codemod sweep
+  modifies **20** of the eligible tools with **0 non-idempotent, 0 post-validate-failed,
+  0 crashed** (`docs/corpus_rule_stats.md`); the canonical `format` pipeline stays
+  idempotent (fmt sweep: 8,608 idempotent, 0 non-idempotent).

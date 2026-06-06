@@ -39,22 +39,28 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 13 | already covered (mostly as fixers — see GTR column) |
-| **FIX** (new, auto-fixable) | 14 | **the opportunity**: planemo only reports these; we could fix them |
-| **DETECT** (new advisory) | ~78 | correctness checks to add to the `check` tier (report-only) |
+| **HAVE** | 15 | already covered (mostly as fixers). Incl. **GTR035** (2026-06-06): now fixes `ToolNameWhitespace` + `RequirementVersionWhitespace` |
+| **FIX** (new, auto-fixable) | ~4 | **the opportunity** remaining: `OutputsOutput`, `InputsNameRedundantArgument`, deprecated select-`<options>` ×2 |
+| **DETECT** (new advisory) | ~80 | correctness checks for the `check` tier (report-only); incl. `ToolIDWhitespace`/`ToolVersionWhitespace` (advisory-by-design — §33) |
 | **SKIP** (pass-state) | ~21 | `valid`/`info` reporters — nothing to build |
 | **n/a** (out of scope) | ~20 | CWL, filesystem, network/ontology, runtime |
 | **Total** | 146 | |
 
+> **Reclassified by homework (2026-06-06).** The whitespace cluster started as 4 "FIX"
+> rows; building **GTR035** split it honestly: `name` + `requirement version` are
+> behaviour-preserving to trim (**fixed**), but `id` + tool `version` are used *raw* as
+> the tool's identity (trimming changes identity) → **advisory-by-design**. Expect
+> similar per-rule reclassification as the rest are built — "FIX" is an upper bound, not
+> a promise. Worked before/afters live in [`examples/planemo_fixable_issues.md`](examples/planemo_fixable_issues.md).
+
 By our tier, for the **buildable** rows (HAVE + FIX + DETECT):
-- **codemod** (structural fix): the FIX rows below + GTR013/015/016 — ~15
-- **fmt** (cosmetic): the whitespace-strip FIX rows — 4
+- **codemod** (structural fix): the FIX rows below + GTR013/015/016/**035** — ~15
 - **check** (advisory): ~80 (the DETECT bulk + the advisory HAVEs)
 - **parse/validate**: 1 (XSD)
 
-**Headline:** of planemo's ~146 linters, **~14 are things we could auto-fix that planemo
-can only flag** (whitespace strips, deprecated-attribute rewrites, `<output>`→`<data>`,
-redundant-attribute drops) — the clearest "fix what they can't" wins.
+**Headline:** planemo only *reports*; we *fix* the provably-safe subset. The first such
+fix (**GTR035**, whitespace trims) shipped; `<output>`→`<data>`, redundant-`name`, and
+deprecated select-`<options>` are the next FIX targets.
 
 ---
 
@@ -99,10 +105,10 @@ redundant-attribute drops) — the clearest "fix what they can't" wins.
 
 | Linter | sev | tier | disp | note |
 |---|---|---|---|---|
-| ToolVersionWhitespace | warn | **fmt** | **FIX** | strip whitespace around `version` |
-| ToolNameWhitespace | warn | **fmt** | **FIX** | strip whitespace around `name` |
-| ToolIDWhitespace | warn | **fmt** | **FIX** | strip whitespace in `id` |
-| RequirementVersionWhitespace | warn | **fmt** | **FIX** | strip whitespace in requirement `version` |
+| ToolNameWhitespace | warn | codemod | **HAVE** | **GTR035** trims it (display-only — safe) |
+| RequirementVersionWhitespace | warn | codemod | **HAVE** | **GTR035** trims it (whitespace breaks the conda solve, so a working tool never has it — repair-safe) |
+| ToolVersionWhitespace | warn | check | DETECT | **advisory-by-design**: trimming `version` changes the tool's version identity (used raw); see §33 |
+| ToolIDWhitespace | warn | check | DETECT | **advisory-by-design**: trimming `id` changes the registration identity; see §33 |
 | ToolIDValid | valid/err | check | **HAVE** | id charset = **GTR023** |
 | RequirementVersionMissing | warn | check | **HAVE** | = **GTR033** (pin requirement version) |
 | EDAMTermsValid | warn | check | **HAVE\*** | ≈ **GTR027**; full EDAM-ontology validation needs network |

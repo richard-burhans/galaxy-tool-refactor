@@ -23,6 +23,7 @@ Structural canonical codemods and cosmetic fmt rules. A finding here means `form
 | GTR018.1 | codemod | 3,254 | 35.0% | 3,254 | Wrap a pure-text `<command>` body in CDATA (IUC #34). |
 | GTR019.1 | codemod | 3,732 | 40.2% | 3,975 | Wrap a pure-text `<help>` body in CDATA (IUC #42). |
 | GTR020.1 | codemod | 4,902 | 52.8% | 4,902 | Single-quote provably-single-valued Cheetah variables in `<command>` (bare single-token params, $__…__ path built-ins, space-free attrs). |
+| GTR035 | codemod | 26 | 0.3% | 26 | Trim accidental leading/trailing whitespace from a `<tool>` 'name' and a `<requirement>` 'version' (the behaviour-preserving subset; a `<tool>` 'id'/'version' are identity-significant and left for the advisory check). |
 
 ## Advisory checks (IUC — best practices)
 
