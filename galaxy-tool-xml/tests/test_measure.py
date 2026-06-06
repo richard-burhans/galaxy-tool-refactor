@@ -23,6 +23,7 @@ from scripts.measure import (
     _cross_source_key_matches,
     _ExpansionGapResult,
     _facts_from_macro_container,
+    _measure_cheetah_cdm_bails,
     _measure_cheetah_cdm_coverage,
     _measure_cheetah_command_complexity,
     _measure_collection_type_normalization,
@@ -849,6 +850,33 @@ def test_measure_cheetah_cdm_coverage_counts(tmp_path: Path) -> None:
     assert result.n_with_directive == 1  # locals.xml (#for/#end)
     assert result.n_with_locals == 1  # locals.xml (#for)
     assert result.n_placeholders == 2  # $f (loop body) + $input
+
+
+# --- cheetah-cdm-bails ----------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    not cheetah_cdm_available(), reason="CT3 missing (base dep; broken install)"
+)
+def test_measure_cheetah_cdm_bails_collects_only_bail_bodies(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # Bail: an unterminated #if cannot compile -> retained for later testing.
+    (repo / "bail.xml").write_text(
+        '<tool id="t_bail"><command>#if $x\necho hi\n</command></tool>',
+        encoding="utf-8",
+    )
+    # Clean body -> compiles, not retained.
+    (repo / "clean.xml").write_text(
+        '<tool id="t_clean"><command>mytool $input</command></tool>', encoding="utf-8"
+    )
+    # No $ or # -> skipped before the lexer.
+    (repo / "trivial.xml").write_text(
+        '<tool id="t_triv"><command>echo done</command></tool>', encoding="utf-8"
+    )
+    cases = _measure_cheetah_cdm_bails(corpus_root=tmp_path)
+    assert [(c.tool_id, c.body) for c in cases] == [("t_bail", "#if $x\necho hi\n")]
+    assert cases[0].source.endswith("bail.xml")
 
 
 # --- rename-coverage ------------------------------------------------------------

@@ -219,6 +219,12 @@ uv run python -m scripts.measure cheetah-command-complexity
 # not run in CI. Backs galaxy-tool-xml/docs/decisions.md §19:
 uv run python -m scripts.measure cheetah-cdm-coverage
 
+# Save the ~0.4% of pure-text <command> bodies CT3 cannot compile (cheetah_spans -> None,
+# where command_text/cheetah_refs fall back to the regex) as a retained corpus for later
+# CT3-bail work. Writes docs/corpus_data/cheetah_cdm_bail_cases.json. Needs the corpus;
+# not run in CI. Backs galaxy-tool-xml/docs/decisions.md §19:
+uv run python -m scripts.measure cheetah-cdm-bails
+
 # Coverage of the first Cheetah MUTATOR (M5.3): attempt to rename every input definition
 # of every tool via the shipped tier-1 cheetah_rename.rename_param, tallying clean apply
 # vs each atomic bail (shadowed / mixed-content / lexer-bail / filter-bare-ref /
