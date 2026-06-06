@@ -11,6 +11,16 @@ lxml-level way to distinguish an empty CDATA section from an empty
 string. The conservative choice is to only touch text that is actually
 whitespace.
 
+A handful of **content-bearing** elements are also left alone: their
+``.text`` is runtime/expansion payload Galaxy reads *verbatim*
+(``strip=False``), so a whitespace-only body is real content, not layout
+— clearing it would silently drop the payload (behaviour-preservation
+finding GTR004; ``../../docs/behavior_preservation.md``). These are
+``<command>`` (shell/Cheetah script), ``<configfile>`` (template body),
+and ``<token>`` (macro substitution value). Whitespace-only ``<help>``
+is *not* in this set: it renders empty either way, so it still collapses
+(the formatter stays opinionated about layout-only whitespace).
+
 Editorial; no IUC citation. PLAN.md prescribes ``<foo/>`` over
 ``<foo></foo>`` where the content model permits.
 """
@@ -24,6 +34,10 @@ from galaxy_tool_refactor_rules.meta import RuleMeta
 
 from galaxy_tool_xml_fmt.edits import ClearText, Edit
 from galaxy_tool_xml_fmt.rules import Rule
+
+# Elements whose ``.text`` is runtime/expansion payload Galaxy reads verbatim, so a
+# whitespace-only body is content (not layout) and must not be collapsed (GTR004).
+_CONTENT_BEARING_TAGS = frozenset({"command", "configfile", "token"})
 
 if TYPE_CHECKING:
     from lxml import etree
@@ -50,6 +64,8 @@ class EmptyElementShorthand(Rule):
             # Restrict the rule to real elements.
             if not isinstance(element.tag, str):
                 continue
+            if element.tag in _CONTENT_BEARING_TAGS:
+                continue  # whitespace-only body is payload, not layout — keep it
             if len(element) == 0:
                 text = element.text
                 if text and not text.strip():

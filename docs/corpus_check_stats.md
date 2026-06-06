@@ -12,10 +12,10 @@ Structural canonical codemods and cosmetic fmt rules. A finding here means `form
 
 | Rule | Tier | Tools flagged | % of tools | Findings | What it flags |
 |---|---|---:|---:|---:|---|
-| GTR001 | fmt | 6,656 | 71.7% | 311,236 | Canonical 4-space indentation; no tabs. |
+| GTR001 | fmt | 6,656 | 71.7% | 311,237 | Canonical 4-space indentation; no tabs. |
 | GTR002 | codemod | 6,627 | 71.3% | 37,334 | Reorder every `<param>` element's attributes to the IUC convention. |
-| GTR003 | fmt | 9,230 | 99.4% | 69,842 | One blank line between top-level children of `<tool>`. |
-| GTR004 | fmt | 1,219 | 13.1% | 2,130 | Collapse empty-with-whitespace leaves to `<foo/>` form. |
+| GTR003 | fmt | 9,230 | 99.4% | 69,841 | One blank line between top-level children of `<tool>`. |
+| GTR004 | fmt | 1,219 | 13.1% | 2,129 | Collapse empty-with-whitespace leaves to `<foo/>` form. |
 | GTR005 | codemod | 1,064 | 11.5% | 1,064 | Reorder the root `<tool>` element's attributes to the documented prefix. |
 | GTR006 | codemod | 30 | 0.3% | 30 | Repair near-miss spelling typos so a globally-invalid tool validates. |
 | GTR013 | codemod | 5,009 | 53.9% | 5,009 | Reorder `<tool>` child elements to the IUC convention. |
