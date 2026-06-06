@@ -1486,3 +1486,31 @@ galaxy_tool_xml_codemod.codemods.replace_output_element:ReplaceOutputElement`.
   `CANONICAL_CODEMODS` (safe, idempotent — no `<output>` remains after the rename,
   `profile=`-preserving).
 - **Corpus.** 1 tool carries `<output type="data">` combined-corpus (`docs/corpus_check_stats.md`); the codemod sweep modifies **1**, with **0 non-idempotent, 0 post-validate-failed, 0 crashed** (`docs/corpus_rule_stats.md`); fmt pipeline stays idempotent. Low incidence, but correct for novel tool XML — not gated on corpus frequency.
+
+## 35. `DropRedundantParamName` (GTR037) — drop a `<param>` name its `argument` implies
+
+**Date:** 2026-06-06. Third planemo-parity *fix*
+(`../../docs/planemo_linter_parity.md`): reimplement planemo's
+`InputsNameRedundantArgument` as a fixer. Reproduced-by: `uv run --package
+galaxy-tool-xml-codemod pytest
+galaxy-tool-xml-codemod/tests/test_drop_redundant_param_name.py`. Corpus sweep:
+`uv run python -m scripts.corpus_check codemod
+galaxy_tool_xml_codemod.codemods.drop_redundant_param_name:DropRedundantParamName`.
+
+- **The redundancy.** Galaxy derives a param name from `argument` when `name` is absent:
+  `_parse_name(None, argument) = argument.lstrip("-").replace("-", "_")`
+  (`tool_util/parser/util.py`). A `<param>` declaring **both**, where
+  `name == argument.lstrip("-").replace("-", "_")`, repeats what Galaxy would compute
+  anyway — exactly the linter's condition (`name == _parse_name(None, argument)`).
+- **Behaviour-preserving.** After dropping `name`, Galaxy computes the identical name, so
+  every Cheetah `$name` reference and by-name cross-reference keeps resolving. Only the
+  redundant subset is dropped (`name != derived` is kept — it carries information).
+- **Validity-safe for every profile (incl. novel XML).** `param/@name` is *optional* in
+  **all 28** vendored XSDs that allow `argument` (verified: none require `name` while
+  permitting `argument` — coupled in Galaxy's schema evolution), so dropping `name` never
+  invalidates a tool that currently validates. This is a *static* guarantee, not a
+  corpus observation — it holds for unseen tools too.
+- **Scoped to definitions.** Acts only on a `<param>` under `<inputs>` (walks ancestors);
+  a `<test><param>` is matched by name and is never touched. Joins `CANONICAL_CODEMODS`;
+  idempotent (no `name` remains to match).
+- **Corpus.** 343 tools carry a redundant name (1,846 findings, `docs/corpus_check_stats.md`); the codemod sweep modifies **332** eligible tools, **0 non-idempotent, 0 post-validate-failed, 0 crashed** (`docs/corpus_rule_stats.md`); fmt pipeline idempotent. The highest-impact planemo-parity fix so far.
