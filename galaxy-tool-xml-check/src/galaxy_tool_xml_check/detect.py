@@ -18,6 +18,9 @@ from galaxy_tool_xml_check.checks import (
     CommandAndJoining,
     CommandCdata,
     CommandPresent,
+    ConditionalTestParamAttributes,
+    ConditionalTestParamType,
+    ConditionalWhensMatchOptions,
     ContainerShapeRecognized,
     DescriptionPresent,
     EdamXrefs,
@@ -115,6 +118,9 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         ValidatorTextPresence,
         ValidatorExpressionValid,
         ValidatorRequiredAttributes,
+        ConditionalTestParamType,
+        ConditionalTestParamAttributes,
+        ConditionalWhensMatchOptions,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 

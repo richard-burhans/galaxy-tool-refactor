@@ -556,6 +556,62 @@ def test_gtr068_validator_required_attributes() -> None:
     assert "GTR068" not in _codes(_tool(inputs=meta_equal_ok))
 
 
+def test_gtr069_conditional_test_param_type() -> None:
+    text_first = (
+        '<inputs><conditional name="c">'
+        '<param name="p" type="text"/></conditional></inputs>'
+    )
+    assert "GTR069" in _codes(_tool(inputs=text_first))  # must be select/boolean
+    boolean_first = (
+        '<inputs><conditional name="c"><param name="p" type="boolean"/>'
+        '<when value="true"/><when value="false"/></conditional></inputs>'
+    )
+    assert "GTR069" in _codes(_tool(inputs=boolean_first))  # boolean discouraged
+    select_first = (
+        '<inputs><conditional name="c">'
+        '<param name="p" type="select"><option value="a">A</option></param>'
+        '<when value="a"/></conditional></inputs>'
+    )
+    assert "GTR069" not in _codes(_tool(inputs=select_first))
+
+
+def test_gtr070_conditional_test_param_attributes() -> None:
+    optional = (
+        '<inputs><conditional name="c">'
+        '<param name="p" type="select" optional="true">'
+        '<option value="a">A</option></param>'
+        '<when value="a"/></conditional></inputs>'
+    )
+    assert "GTR070" in _codes(_tool(inputs=optional))
+    assert "GTR070" not in _codes(_tool(inputs=(
+        '<inputs><conditional name="c">'
+        '<param name="p" type="select"><option value="a">A</option></param>'
+        '<when value="a"/></conditional></inputs>'
+    )))
+
+
+def test_gtr071_conditional_whens_match_options() -> None:
+    missing_when = (
+        '<inputs><conditional name="c"><param name="p" type="select">'
+        '<option value="a">A</option><option value="b">B</option></param>'
+        '<when value="a"/></conditional></inputs>'
+    )
+    assert "GTR071" in _codes(_tool(inputs=missing_when))  # option 'b' has no when
+    matched = (
+        '<inputs><conditional name="c"><param name="p" type="select">'
+        '<option value="a">A</option><option value="b">B</option></param>'
+        '<when value="a"/><when value="b"/></conditional></inputs>'
+    )
+    assert "GTR071" not in _codes(_tool(inputs=matched))
+    # a macro <expand> may supply the whens/options -> skip (raw-tree boundary)
+    macro = (
+        '<inputs><conditional name="c"><param name="p" type="select">'
+        '<option value="a">A</option></param>'
+        '<expand macro="whens"/></conditional></inputs>'
+    )
+    assert "GTR071" not in _codes(_tool(inputs=macro))
+
+
 def test_iuc006_no_error_handling() -> None:
     # No <stdio> and the command has no detect_errors -> flagged.
     assert "GTR026" in _codes(_tool(stdio=""))
