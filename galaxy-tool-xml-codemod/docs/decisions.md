@@ -1079,6 +1079,17 @@ galaxy_tool_xml_codemod.codemods.fix_interpreter:FixInterpreter`.
   profile); those are still rewritten by the live `upgrade` when they cross 16.04. The
   `upgrade-behavior-blocks` `16_04_fix_interpreter` stuck count drops **1,726 → 316** (the
   residual is bucket B/C).
+- **Mixed-content guard (2026-06-06; behavior-preservation GTR016).** `detect` builds the
+  new body from `"".join(command.itertext())` but `set_text` overwrites only `.text`,
+  leaving any child nodes (a comment / `<expand>`) and their tails — so a mixed-content
+  `<command>`'s absorbed tail was emitted **twice** (e.g. `script.py <!-- n --> --x`
+  → `python '…/script.py'  --x --x`), a silent behaviour change the validity oracle
+  can't see. `detect` now skips a `<command>` with child nodes
+  (`cursor.child_node_count() != 0`), matching `SingleQuoteCommandVars` /
+  `WrapCommandCdata`. Clearing the children was rejected — an `<expand>` carries macro
+  command content; skipping is the safe choice (the §23 warning still covers it). ~9
+  corpus interpreter commands are mixed-content; the rewrite count drops accordingly.
+  See `../docs/behavior_preservation.md`.
 
 ## 28. Per-tool detector **precision** audit — tightening the near-universal codes
 

@@ -92,6 +92,15 @@ class FixInterpreter(RuntimeGatedFix):
         if command is None:  # defensive: interpreter_rewrite already found it
             return
         cursor = Cursor(command)
+        if cursor.child_node_count() != 0:
+            # Mixed-content <command> (a comment / <expand> child): the rewrite builds
+            # the new body from itertext() but set_text overwrites only .text, leaving
+            # the children and their tails — so the absorbed tail would run twice. We
+            # cannot clear the children either (an <expand> carries macro command
+            # content). Skip it, matching the other command-rewriting codemods; the §23
+            # warning still covers it. (Behaviour-preservation GTR016;
+            # ../../docs/behavior_preservation.md.)
+            return
         yield Change(
             code=self.meta.code,
             sourceline=cursor.sourceline,
