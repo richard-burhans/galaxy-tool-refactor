@@ -53,6 +53,7 @@ What each GTR rule does, across both tiers. *fmt*-tier rules are the cosmetic ru
 | GTR019.1 | codemod | Wrap a pure-text `<help>` body in CDATA (IUC #42). |
 | GTR020.1 | codemod | Single-quote provably-single-valued Cheetah variables in `<command>` (bare single-token params, $__…__ path built-ins, space-free attrs). |
 | GTR035 | codemod | Trim accidental leading/trailing whitespace from a `<tool>` 'name' and a `<requirement>` 'version' (the behaviour-preserving subset; a `<tool>` 'id'/'version' are identity-significant and left for the advisory check). |
+| GTR036 | codemod | Replace a deprecated `<outputs>``<output type="data">` with `<data>` (collection / expression outputs are left for the advisory check). |
 
 ## Pass 1 rule triggers (raw input → canonical)
 
