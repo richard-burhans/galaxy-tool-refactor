@@ -7,6 +7,7 @@ Mixed-content / already-wrapped / ``]]>``-bearing bodies are left for GTR019.2.
 
 from __future__ import annotations
 
+import pytest
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemods.wrap_help_cdata import WrapHelpCdata
@@ -63,3 +64,20 @@ def test_is_idempotent() -> None:
     once = etree.tostring(module.document.root)
     WrapHelpCdata().apply(module)
     assert etree.tostring(module.document.root) == once
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="behavior-preservation bug GTR019.1: a carriage return makes the CDATA wrap "
+    "non-idempotent (&#13; -> raw 0x0d -> \\n on reparse); see "
+    "docs/behavior_preservation.md. Fix: shared cdata_wrappable must reject \\r.",
+)
+def test_carriage_return_wrap_is_idempotent() -> None:
+    # A <help> body with a literal CR: wrapping it in CDATA loses the CR (no in-CDATA
+    # form for &#13;), so a second pass over the re-parsed (CR->LF) body differs.
+    module = parse_module(_tool(b"<help>line one&#13;\nmore</help>"))
+    WrapHelpCdata().apply(module)
+    once = etree.tostring(module.document.root)
+    module2 = parse_module(once)
+    WrapHelpCdata().apply(module2)
+    assert etree.tostring(module2.document.root) == once

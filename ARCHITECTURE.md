@@ -11,7 +11,10 @@ the owning package's `docs/decisions.md`, and the §-pointers in the
 see the root [`CLAUDE.md`](CLAUDE.md); for the IUC best-practice coverage map see
 [`docs/iuc_best_practices.md`](docs/iuc_best_practices.md); for the per-profile
 upgrade map (what each profile bump requires, and the validity-vs-behaviour
-soundness boundary) see [`docs/profile_upgrades.md`](docs/profile_upgrades.md).
+soundness boundary) see [`docs/profile_upgrades.md`](docs/profile_upgrades.md); for
+the per-rule behaviour-preservation claims, their adversarial verdicts, and the
+open remediation backlog see
+[`docs/behavior_preservation.md`](docs/behavior_preservation.md).
 
 ---
 

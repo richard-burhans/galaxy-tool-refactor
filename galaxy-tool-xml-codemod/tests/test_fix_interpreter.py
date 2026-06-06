@@ -9,6 +9,7 @@ bucket B/C are left for the §23 warning.
 
 from __future__ import annotations
 
+import pytest
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemods.fix_interpreter import FixInterpreter
@@ -38,6 +39,26 @@ def test_bucket_a_rewrites_and_drops_attribute() -> None:
     )
     # The rewritten body is emitted as CDATA so shell operators stay literal.
     assert b"<![CDATA[" in etree.tostring(command)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="behavior-preservation bug GTR016: a mixed-content <command> keeps its "
+    "comment/<expand> children (and their tails) after set_text overwrites only .text, "
+    "so the absorbed tail is run twice; see docs/behavior_preservation.md. Fix: clear "
+    "child nodes when rewriting, or skip mixed-content <command>.",
+)
+def test_mixed_content_command_does_not_duplicate_tail() -> None:
+    # detect() builds the new body from itertext() (absorbing child tails) but set_text
+    # leaves the children + tails, so the effective command gains a duplicate flag.
+    module = parse_module(
+        _HEAD + b'<command interpreter="python">'
+        b"script.py <!-- note --> --x</command></tool>"
+    )
+    before = _command_text(module.document.root)
+    FixInterpreter().apply(module)
+    after = _command_text(module.document.root)
+    assert after.count("--x") == before.count("--x")
 
 
 def test_cdata_and_shell_operators_preserved() -> None:

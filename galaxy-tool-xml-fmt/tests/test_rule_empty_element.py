@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+import pytest
 from galaxy_tool_xml.document import ToolDocument
+from lxml import etree
 
 from galaxy_tool_xml_fmt.format import format_tool_document
 
@@ -90,3 +92,26 @@ def test_whitespace_only_xml_comment_is_preserved(
     )
     output = format_tool_document(make_doc(payload))
     assert b"<!--  -->" in output
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="behavior-preservation bug GTR004: whitespace-only .text on a content-"
+    "bearing leaf (<configfile>/<command>/<token>) is cleared, dropping runtime "
+    "template content (Galaxy reads it verbatim, strip=False); see "
+    "docs/behavior_preservation.md. Fix: exclude content-bearing tags from the clear.",
+)
+def test_whitespace_only_configfile_content_is_preserved(
+    make_doc: Callable[[bytes], ToolDocument],
+) -> None:
+    # A <configfile> whose body is three spaces is a real (whitespace) template
+    # payload; collapsing it to <configfile/> silently drops that content.
+    payload = (
+        b"<tool id='t' name='T' version='0'><configfiles>"
+        b"<configfile name='cfg'><![CDATA[   ]]></configfile>"
+        b"</configfiles></tool>"
+    )
+    output = format_tool_document(make_doc(payload))
+    configfile = etree.fromstring(output).find(".//configfile")
+    assert configfile is not None
+    assert configfile.text == "   "
