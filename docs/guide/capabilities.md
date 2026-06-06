@@ -71,6 +71,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | IUC best-practice checks (tests, CDATA, id charset, version, requirements, error handling, EDAM, help, description, version pinning, citations, TODO-text) | GTR021–GTR033, GTR038, GTR039 | ✅ Shipped | `strict` preset |
 | Output-correctness checks (unique names, valid placeholder names, collection `type`, `format_source`/`format` exclusivity) — planemo-parity advisory | GTR040–GTR043 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
 | Tool-level correctness checks (`<command>` present/non-empty, valid `profile` format, package requirement names its package, tool-version whitespace) — planemo-parity advisory | GTR044–GTR047 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
+| Output presence/format/label checks (`<outputs>` present, each output defines a format, no shared explicit labels) — planemo-parity advisory | GTR048–GTR050 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
 | Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTR020, the residual stays advisory | GTR020.2 | ✅ Shipped | advisory; provable subset fixed (GTR020) |
 | Input `<param>` never referenced anywhere the tool uses it | GTR034 | ✅ Shipped | `strict` preset; 189/467 tools (`docs/corpus_check_stats.md`) |
 | Lone-`&` vs `&&` join | GTR032 | 🔭 Roadmap | registry labels it "not yet implemented" |

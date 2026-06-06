@@ -25,9 +25,12 @@ from galaxy_tool_xml_check.checks import (
     HelpPresent,
     IdCharset,
     NoTodoText,
+    OutputFormatDefined,
     OutputFormatSourceExclusive,
+    OutputLabelsDistinct,
     OutputNamesUnique,
     OutputNameValid,
+    OutputsPresent,
     ProfileFormatValid,
     RequirementNamePresent,
     RequirementsPresent,
@@ -73,6 +76,9 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         ProfileFormatValid,
         RequirementNamePresent,
         ToolVersionWhitespace,
+        OutputsPresent,
+        OutputFormatDefined,
+        OutputLabelsDistinct,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 

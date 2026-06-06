@@ -827,3 +827,175 @@ class ToolVersionWhitespace(CheckRule):
                 self.meta,
                 f"tool version {version!r} is wrapped in whitespace",
             )
+
+
+# Galaxy's named ``<discover_datasets>`` patterns whose expansion captures the file
+# extension (``galaxy.tool_util.parser.output_collection_def.NAMED_PATTERNS`` +
+# ``DEFAULT_EXTRA_FILENAME_PATTERN``). A named pattern resolves to a regex, so — like
+# planemo's ``_check_pattern`` — we resolve it before looking for the ``(?P<ext>…)``
+# capture. ``__name__`` / ``__designation__`` resolve to regexes that do *not* capture
+# ext, so they are deliberately absent.
+_EXT_CAPTURING_PATTERNS = frozenset(
+    {"__default__", "__name_and_ext__", "__designation_and_ext__"}
+)
+
+
+def _tool_provides_metadata(root: etree._Element, /) -> bool:
+    """Whether the tool supplies output datatypes at runtime via ``galaxy.json``.
+
+    Mirrors planemo's ``_has_tool_provided_metadata``: a ``provided_metadata_*`` on
+    ``<outputs>``, a ``<command>`` that writes ``galaxy.json``, or a ``galaxy.json``
+    ``<configfile>``. When present, outputs need not declare a static format, so GTR049
+    exempts the whole tool. The ``command.text`` access is LBYL-guarded — on the raw
+    tree a macro-supplied ``<command>`` can be empty.
+    """
+    outputs = root.find("outputs")
+    if outputs is not None and (
+        outputs.get("provided_metadata_file") is not None
+        or outputs.get("provided_metadata_style") is not None
+    ):
+        return True
+    command = root.find("command")
+    if command is not None and command.text and "galaxy.json" in command.text:
+        return True
+    return root.find("configfiles/configfile[@filename='galaxy.json']") is not None
+
+
+def _output_format_defined(output: etree._Element, /) -> bool:
+    """Whether *output* (a top-level ``<data>``/``<collection>``) defines its format.
+
+    Mirrors planemo `OutputsFormat`'s ``_check_format`` / ``_check_pattern``: an
+    explicit ``format``/``ext``/``format_source``, a ``<action type="format">``, a
+    ``data`` ``auto_format``, a ``collection`` ``structured_like`` + ``inherit_format``,
+    or a ``<discover_datasets>`` whose ``pattern`` (resolving named patterns) captures
+    ``(?P<ext>…)``.
+    """
+    if (
+        output.get("format") is not None
+        or output.get("ext") is not None
+        or output.get("format_source") is not None
+    ):
+        return True
+    if output.find(".//action[@type='format']") is not None:
+        return True
+    if output.tag == "data" and output.get("auto_format"):
+        return True
+    if (
+        output.tag == "collection"
+        and output.get("structured_like") is not None
+        and output.get("inherit_format") is not None
+    ):
+        return True
+    for sub in output:
+        if (
+            sub.get("format") is not None
+            or sub.get("ext") is not None
+            or sub.get("format_source") is not None
+        ):
+            return True
+        if sub.tag == "discover_datasets":
+            pattern = sub.get("pattern") or ""
+            if pattern in _EXT_CAPTURING_PATTERNS or "(?P<ext>" in pattern:
+                return True
+    return False
+
+
+class OutputsPresent(CheckRule):
+    """GTR048 — the tool should define an ``<outputs>`` section.
+
+    Reimplements planemo `OutputsMissing`, `galaxy.tool_util.linters.output`. Most tools
+    produce outputs. A macro-using tool is **skipped**: a top-level ``<expand>`` may
+    inject ``<outputs>`` from an imported macro, and this tier reads the raw tree (the
+    GTR044 soundness boundary). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR048",
+        summary="Tool should define an <outputs> section.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        if root.find("outputs") is None and not has_macros(root):
+            yield _violation(document, root, self.meta, "no <outputs> section")
+
+
+class OutputFormatDefined(CheckRule):
+    """GTR049 — each output should define its datatype format.
+
+    Reimplements planemo `OutputsFormat`. An output ``<data>``/``<collection>`` with
+    none of ``format``/``ext``/``format_source``/a format ``<action>``/``auto_format``/
+    ``structured_like`` + ``inherit_format``/an ext-capturing ``<discover_datasets>``
+    defaults to the generic ``data`` type. A tool that supplies datatypes at runtime via
+    ``galaxy.json`` is exempt (planemo's tool-provided-metadata gate). An output whose
+    subtree contains an ``<expand>`` is **skipped** — a macro may inject the
+    format-defining structure (the GTR044 raw-tree boundary). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR049",
+        summary="Each output should define its datatype format.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        if _tool_provides_metadata(root):
+            return
+        for output in _named_outputs(root):
+            if output.find(".//expand") is not None:
+                continue
+            if not _output_format_defined(output):
+                name = output.get("name") or "with missing name"
+                yield _violation(
+                    document,
+                    output,
+                    self.meta,
+                    f"{output.tag} output '{name}' defines no format",
+                )
+
+
+class OutputLabelsDistinct(CheckRule):
+    """GTR050 — outputs should not share an explicit ``label``.
+
+    Reimplements planemo `OutputsLabelDuplicatedFilter` +
+    `OutputsLabelDuplicatedNoFilter`, narrowed to **explicit** labels: two outputs that
+    both omit ``label`` collide on
+    Galaxy's default (``${tool.name} on ${on_string}``), but that is normal — Galaxy
+    disambiguates by name — so flagging it (as planemo does, on 390 corpus tools vs 104
+    for explicit duplicates) is noise. A repeated *explicit* label is the genuinely
+    ambiguous case. Outputs with a ``<filter>`` may legitimately reuse a label across
+    disjoint conditional branches, so the message says to double-check rather than
+    asserting a defect. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR050",
+        summary="Outputs should not share an explicit label.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        seen: set[str] = set()
+        for output in _named_outputs(document.root):
+            label = output.get("label")
+            if label is None:
+                continue
+            if label in seen:
+                name = output.get("name") or "with missing name"
+                if output.find("filter") is not None:
+                    message = (
+                        f"output '{name}' reuses label '{label}' — check the "
+                        "<filter>s cover disjoint cases"
+                    )
+                else:
+                    message = f"output '{name}' reuses label '{label}'"
+                yield _violation(document, output, self.meta, message)
+            seen.add(label)
