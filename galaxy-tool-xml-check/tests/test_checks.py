@@ -514,6 +514,48 @@ def test_gtr067_validator_expression_valid() -> None:
     assert "GTR067" not in _codes(_tool(inputs=macro))
 
 
+def test_gtr068_validator_required_attributes() -> None:
+    no_range = (
+        '<inputs><param name="x" type="integer" value="1">'
+        '<validator type="in_range"/></param></inputs>'
+    )
+    assert "GTR068" in _codes(_tool(inputs=no_range))
+    with_min = (
+        '<inputs><param name="x" type="integer" value="1">'
+        '<validator type="in_range" min="0"/></param></inputs>'
+    )
+    assert "GTR068" not in _codes(_tool(inputs=with_min))
+    no_check = (
+        '<inputs><param name="x" type="data" format="txt">'
+        '<validator type="metadata"/></param></inputs>'
+    )
+    assert "GTR068" in _codes(_tool(inputs=no_check))
+    no_table = (
+        '<inputs><param name="x" type="text">'
+        '<validator type="value_in_data_table"/></param></inputs>'
+    )
+    assert "GTR068" in _codes(_tool(inputs=no_table))
+    # dataset_metadata_equal needs (value|value_json) AND metadata_name
+    meta_equal_missing = (
+        '<inputs><param name="x" type="data" format="txt">'
+        '<validator type="dataset_metadata_equal"/></param></inputs>'
+    )
+    assert "GTR068" in _codes(_tool(inputs=meta_equal_missing))
+    # ...and must not set both value and value_json
+    meta_equal_both = (
+        '<inputs><param name="x" type="data" format="txt">'
+        '<validator type="dataset_metadata_equal" value="a" value_json="b"'
+        ' metadata_name="m"/></param></inputs>'
+    )
+    assert "GTR068" in _codes(_tool(inputs=meta_equal_both))
+    meta_equal_ok = (
+        '<inputs><param name="x" type="data" format="txt">'
+        '<validator type="dataset_metadata_equal" value="a" metadata_name="m"/>'
+        "</param></inputs>"
+    )
+    assert "GTR068" not in _codes(_tool(inputs=meta_equal_ok))
+
+
 def test_iuc006_no_error_handling() -> None:
     # No <stdio> and the command has no detect_errors -> flagged.
     assert "GTR026" in _codes(_tool(stdio=""))

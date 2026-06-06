@@ -81,6 +81,7 @@ codemods GTR007–GTR016 are applied by `upgrade`, not the default `format`.)*
 | GTR065 | ValidatorParamIncompatible, …AttribIncompatible | ✓ | ✗ | check | a `<validator>` must be compatible with its param type + attributes |
 | GTR066 | ValidatorHasText, ValidatorHasNoText | ✓ | ✗ | check | a `<validator>` body should match its type (expr/regex carry text) |
 | GTR067 | ValidatorExpression, …ExpressionFuture | ✓ | ✗ | check | an `expression`/`regex` `<validator>` body must be valid |
+| GTR068 | ValidatorMinMax, …MetadataCheckSkip, …TableName, …MetadataName, …DatasetMetadataEqualValue, …OrJson | ✓ | ✗ | check | a `<validator>` must carry the attributes its type requires |
 
 **Bold** planemo linters are ones planemo *only reports* and we *fix* (or, for the
 checks, detect with our own rule). The remaining unmapped planemo linters (the ~80
@@ -122,9 +123,9 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 59 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–067** (validator compatibility/text/expression), 2026-06-06 |
+| **HAVE** | 65 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), 2026-06-06 |
 | **FIX** (new, auto-fixable) | 0 | **complete** — GTR035/036/037 shipped; the rest of the original FIX candidates reclassified to advisory/detect on inspection (identity-changing or no mechanical equivalent) |
-| **DETECT** (new advisory) | ~38 | correctness checks for the `check` tier (report-only). 30 landed so far: GTR038–067 (citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, outputs present/format/label, container/filter/regex validity, input param naming, static + dynamic select options, validator form) |
+| **DETECT** (new advisory) | ~32 | correctness checks for the `check` tier (report-only). 31 landed so far: GTR038–068 (citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, outputs present/format/label, container/filter/regex validity, input param naming, static + dynamic select options, validators) |
 | **SKIP** (pass-state) | ~21 | `valid`/`info` reporters — nothing to build |
 | **n/a** (out of scope) | ~20 | CWL, filesystem, network/ontology, runtime |
 | **Total** | 146 | |
@@ -239,17 +240,17 @@ needs author intent. The **FIX** candidates (auto-fixable, our edge):
 | ValidatorParamIncompatible / ValidatorAttribIncompatible | error | check | **HAVE** | **GTR065** validator type/attribute compatibility matrices |
 | ValidatorHasText / ValidatorHasNoText | error/warn | check | **HAVE** | **GTR066** expr/regex validators carry text; others do not |
 | ValidatorExpression / ValidatorExpressionFuture | error/warn | check | **HAVE** | **GTR067** expr/regex body compiles (`@…@` macro bodies skipped) |
+| ValidatorMinMax / …MetadataCheckSkip / …TableName / …MetadataName / …DatasetMetadataEqualValue / …OrJson | error | check | **HAVE** | **GTR068** validator type carries its required attribute(s) |
 | InputsDataFormat | warn | check | DETECT | no `format` → defaults to `data` (fix = risky, leave advisory) |
 
-**DETECT (the remaining ~34)** — group view:
+**DETECT (the remaining ~28)** — group view:
 - *naming/identity:* **HAVE** — `InputsName` (GTR054), `InputsNameEmpty`/`InputsNameValid` (GTR055), `InputsNameDuplicate` (GTR056), `InputsNameDuplicateOutput` (GTR057)
 - *static select options:* **HAVE** — `InputsSelectOptionsDef`/`…DefConditional` (GTR058), `InputsSelectOptionValueMissing` (GTR059), `InputsSelectOptionDuplicateValue`/`…Text` (GTR060)
 - *dynamic select `<options>`:* **HAVE** — `InputsSelectOptionsMultiple` (GTR061), `…DefinesOptions` (GTR062), `…FromDatasetAndDatatable`/`…MetaFileKey` (GTR063), `InputsSelectDynamicOptions`/`…DeprecatedAttr` (GTR064)
 - *type/structure:* `InputsMissing` · `InputsTypeChildCombination` · `InputsDataOptionsMultiple` · `InputsDataOptionsAttrib` · `InputsDataOptionsFilterAttribFiltersType` · `InputsDataOptionsFiltersType` · `InputsDataOptionsFiltersRef`
 - *option filters:* `InputsOptionsFiltersRequiredAttributes` · `InputsOptionsRemoveValueFilterRequiredAttributes` · `InputsOptionsFiltersAllowedAttributes` · `InputsOptionsRegexFilterExpression` · `InputsOptionsFiltersCheckReferences`
 - *display/idiom:* `InputsSelectSingleCheckboxes` · `InputsSelectMandatoryCheckboxes` · `InputsSelectMultipleRadio` · `InputsSelectOptionalRadio` · `InputsBoolDistinctValues` · `InputsBoolProblematic`
-- *validators (form):* **HAVE** — `ValidatorParamIncompatible`/`…AttribIncompatible` (GTR065), `ValidatorHasText`/`…HasNoText` (GTR066), `ValidatorExpression`/`…ExpressionFuture` (GTR067)
-- *validators (required attributes, TODO):* `ValidatorMinMax` · `ValidatorDatasetMetadataEqualValue` · `ValidatorDatasetMetadataEqualValueOrJson` · `ValidatorMetadataCheckSkip` · `ValidatorTableName` · `ValidatorMetadataName`
+- *validators:* **HAVE** — form: `ValidatorParamIncompatible`/`…AttribIncompatible` (GTR065), `ValidatorHasText`/`…HasNoText` (GTR066), `ValidatorExpression`/`…ExpressionFuture` (GTR067); required attributes: `ValidatorMinMax`/`…MetadataCheckSkip`/`…TableName`/`…MetadataName`/`…DatasetMetadataEqualValue`/`…OrJson` (GTR068)
 - *conditionals:* `ConditionalParamTypeBool` · `ConditionalParamType` · `ConditionalParamIncompatibleAttributes` · `ConditionalWhenMissing` · `ConditionalOptionMissing` · `ConditionalOptionMissingBoolean`
 
 **SKIP:** `InputsNum` · `InputsMissingDataSource` · `InputsDatasourceTags` (info).
