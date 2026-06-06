@@ -68,7 +68,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 
 | Capability | Codes | Status | Source |
 |---|---|---|---|
-| IUC best-practice checks (tests, CDATA, id charset, version, requirements, error handling, EDAM, help, description, version pinning) | GTR021–GTR019.2, GTR033 | ✅ Shipped | `strict` preset |
+| IUC best-practice checks (tests, CDATA, id charset, version, requirements, error handling, EDAM, help, description, version pinning, citations, TODO-text) | GTR021–GTR033, GTR038, GTR039 | ✅ Shipped | `strict` preset |
 | Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTR020, the residual stays advisory | GTR020.2 | ✅ Shipped | advisory; provable subset fixed (GTR020) |
 | Input `<param>` never referenced anywhere the tool uses it | GTR034 | ✅ Shipped | `strict` preset; 189/467 tools (`docs/corpus_check_stats.md`) |
 | Lone-`&` vs `&&` join | GTR032 | 🔭 Roadmap | registry labels it "not yet implemented" |

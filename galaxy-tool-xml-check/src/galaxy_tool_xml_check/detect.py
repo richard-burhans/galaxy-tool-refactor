@@ -13,6 +13,7 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 from galaxy_tool_xml_check.checks import (
+    CitationsPresent,
     CommandAndJoining,
     CommandCdata,
     DescriptionPresent,
@@ -21,6 +22,7 @@ from galaxy_tool_xml_check.checks import (
     HelpCdata,
     HelpPresent,
     IdCharset,
+    NoTodoText,
     RequirementsPresent,
     RequirementVersionPinned,
     SingleQuotedCheetah,
@@ -53,6 +55,8 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         CommandAndJoining,
         RequirementVersionPinned,
         UnusedParam,
+        CitationsPresent,
+        NoTodoText,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 

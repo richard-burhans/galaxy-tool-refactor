@@ -494,3 +494,26 @@ flagged params show only their own definition mention (truly orphaned).
 uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k gtr034
 uv run python -m scripts.corpus_check check   # regenerates docs/corpus_check_stats.md
 ```
+
+## D12 (2026-06-06) — planemo-parity advisory checks: GTR038 (citations), GTR039 (TODO)
+
+**Date:** 2026-06-06. First batch of the planemo-linter reimplementation
+(`../../docs/planemo_linter_parity.md`) landing as advisory checks. Reproduced-by:
+`uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py
+-k "gtr038 or gtr039"`.
+
+- **GTR038 `CitationsPresent`** — reimplements planemo `CitationsMissing` (no
+  `<citations>`) + `CitationsNoText` (an empty `doi`/`bibtex` citation),
+  `galaxy.tool_util.linters.citations`. Detect-only: a citation is author-supplied
+  content, never synthesised — no fix.
+- **GTR039 `NoTodoText`** — reimplements planemo `CommandTODO` + `HelpTODO`: a literal
+  `"TODO"` in a `<command>` / `<help>` `.text` marks an unfinished tool. Detect-only.
+- **Why detect, not fix.** Both flag missing/placeholder author content; there is nothing
+  to mechanically synthesise (consistent with the soundness discipline — fix only the
+  provable, report the rest). They join the `strict` preset (advisory).
+- **Coverage.** Several planemo `general.py`/`help.py`/`tests.py` linters were already
+  covered by existing checks (GTR021/023/024/025/026/027/028/033 — see the GTR coverage
+  table in the parity doc); this batch adds the citations + TODO concerns that had no
+  equivalent.
+- **Corpus** (`docs/corpus_check_stats.md`): GTR038 fires on **6,710 tools (72.2%)** —
+  most corpus tools carry no citation; GTR039 on **47 (0.5%)**.
