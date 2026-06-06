@@ -72,6 +72,10 @@ Advisory (IUC) findings — missing tests, no version pins, no error handling �
 - `upgrade`'s guarantee is **structural validity**, not behaviour preservation in general
   ([soundness](soundness.md)). Treat a `behavior_preserving: false` upgrade as
   "needs a human look," not "rejected."
+- The `format` fixes *are* behaviour-preserving — and that's not just asserted: every
+  fixable rule is adversarially audited, with genuine breaks fixed (regression-pinned)
+  and the verdicts recorded in the [behaviour-preservation ledger](../behavior_preservation.md)
+  ([soundness](soundness.md#how-we-know-format-is-behaviour-preserving--the-audit)).
 - The often-discussed *batch automation* (a bot that opens fix-PRs across a whole repo)
   is **not built** — the per-tool engine above is what it would stand on. See the
   [capabilities matrix](capabilities.md) for the Shipped/Partial/Roadmap split.

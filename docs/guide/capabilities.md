@@ -78,7 +78,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Rename a parameter across the definition, every reference, by-name cross-ref attributes, `<tests>` mirrors, **and output `<filter>` Python expressions** — **across a tool and its imported macro files**, atomically (rewrite all or skip with a reason) | ✅ Shipped | `rename-param`; 96.3% of definitions rename cleanly, and 1.7% reach into an imported macro the old single-file path silently left dangling (`galaxy_tool_xml.cheetah_rename` + `bundle`; `docs/rename_macro_spread_stats.md`) |
 | Gate a cross-file rename that touches a macro **shared** by other tools (edit only when sole-owned within `--repo-root`, else skip + report) | ✅ Shipped | `rename-param --repo-root` (`galaxy_tool_refactor_registry.bundle_rename`) |
 | Rename a parameter across **every importer** of a shared macro in lockstep (consensus — only when they all agree) | ✅ Shipped | `rename-param --across-importers` (`rename_param_consensus`) |
-| Minimal-diff offset rename for editors (LSP `WorkspaceEdit`) | 🟡 Partial | `rename_param_plan` (Tier-B API) shipped — 96.8% parity, 0 mismatches; editor binding is a draft PR (see Roadmap) |
+| Minimal-diff offset rename for editors (LSP `WorkspaceEdit`) | 🟡 Partial | `rename_param_plan` (Tier-B API) shipped — 96.8% parity, 0 mismatches; editor binding is an open PR (see Roadmap) |
 
 ### Surfaces & orchestration
 
@@ -88,6 +88,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `presets` / `rules` / `normalize-macros` | ✅ Shipped | `galaxy-tool-refactor` |
 | MCP server for agents: `format_tool` / `upgrade_tool` / `check_tool` / `list_presets` / `list_rules` | ✅ Shipped | `galaxy-tool-refactor-mcp` (vision Goal 1) |
 | Corpus evidence base: 9,358 unique tools, standing measurements | ✅ Shipped | `docs/*_stats.md`, `scripts/measure.py` |
+| Behaviour-preservation proof ledger — every fixable rule adversarially audited; genuine breaks fixed (regression-pinned), over-claims documented | ✅ Shipped | `docs/behavior_preservation.md` (see `soundness.md`) |
 
 ## Roadmap (🔭 — not built; never stated elsewhere as present tense)
 
@@ -95,9 +96,10 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 - **Streamlining / partial automation of IUC PR review** — the per-tool engine exists
   today (`check`/`format`/`upgrade`); the *review-workflow integration* does not.
 - **Agent-authored rules** — agents contributing new codemods/checks (MCP vision Goal 2).
-- **Editor "Rename Symbol" via `galaxy-language-server`** — the foundational Tier-B offset
-  API (`rename_param_plan`) shipped; the galaxyls binding is an open *draft* PR
-  (galaxyproject/galaxy-language-server#331), gated on publishing `galaxy-tool-xml` to PyPI.
+- **Editor "Rename Symbol" + "Find References" via `galaxy-language-server`** — the
+  foundational Tier-B offset API (`rename_param_plan`) shipped; the galaxyls binding is an
+  **open PR** (galaxyproject/galaxy-language-server#331, not draft, CI-green; cross-file
+  across imported macros), gated only on publishing `galaxy-tool-xml` to PyPI.
 - **General macro-expansion provenance** — a side-table mapping each expanded node to its
   source file, to edit *arbitrary* macro-supplied content. The literal-`format`/`ftype`
   slice (Phase 2a) shipped via locate-in-source (`normalize-macros`); the general layer is

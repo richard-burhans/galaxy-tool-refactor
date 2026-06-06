@@ -19,6 +19,38 @@ validity at the target profile** — it will only advance a tool to a profile wh
 tool still validates. Validity is a sound oracle for **structural** changes. It is
 **not** a behaviour oracle: two structurally-valid tools can behave differently.
 
+## How we know `format` is behaviour-preserving — the audit
+
+"Behaviour-preserving by construction" is a strong claim, so it is **adversarially
+audited**, not just asserted. Every fixable rule's behaviour-preservation claim was
+stress-tested by independent skeptics that try to *execute a counterexample* breaking
+it; each "refuted" verdict was then **re-verified by execution on the current code and
+against Galaxy's own source** before being acted on (adversarial agents over-claim).
+The result is recorded, rule by rule, in
+[`docs/behavior_preservation.md`](../behavior_preservation.md) — the proof ledger.
+
+This is an honest process, and it *found real bugs* in formatting rules once assumed
+safe — all now fixed, each pinned by a regression fixture so a future change can't
+silently reintroduce the break:
+
+- a whitespace-only `<configfile>`/`<command>`/`<token>` body was collapsed, dropping
+  template content (**GTR004**); a carriage return was lost through a CDATA wrap
+  (**GTR018.1/GTR019.1**); a multi-flag `<option value="-b -h">` `select` was
+  single-quoted into one token (**GTR020.1**); a deprecated `interpreter=` rewrite
+  duplicated a flag in a mixed-content `<command>` (**GTR016**).
+
+Two of the eight refuted findings turned out to be **over-claims by the audit itself**
+— confirmed harmless by reading Galaxy's source (e.g. Galaxy evaluates an output
+`<filter>` via `eval(filter.text.strip())`, so a comment-tail clause is dead at runtime
+either way). They were documented, not "fixed". The point: the `format` guarantee is
+backed by executed evidence and a living ledger, not by assertion.
+
+**Reference and rename operations read Cheetah faithfully.** `find-references` and
+`rename-param` resolve `$param` references through a faithful CT3 Cheetah lexer (a base
+dependency), so a `$var` inside a `#raw` block, a comment, or behind an escaped `\$` is
+classified exactly as Galaxy would — correct for novel tool XML, not a regex
+approximation tuned to the current corpus.
+
 ## How the boundary is enforced
 
 - The profile is advanced only to the **newest profile the tool structurally reaches**.
