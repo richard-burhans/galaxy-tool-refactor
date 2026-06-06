@@ -94,38 +94,53 @@ when absent, so a literal rename isn't provably equivalent — and `<output>` wi
 `type` (an *expression* output, a different kind). Same soundness discipline as the
 `id`/`version` whitespace split above.
 
-## 🔭 Drop a redundant `name` when `argument` implies it
+## ✅ GTR037 — drop a redundant `name` when `argument` implies it
 
 **Covers planemo:** `InputsNameRedundantArgument`.
 
 **Before:**
 ```xml
-<param argument="--threads" name="threads" type="integer"/>
+<inputs>
+    <param argument="--threads" name="threads" type="integer" value="1"/>
+</inputs>
 ```
-**Planned fix (codemod):**
+**After `galaxy-tool-refactor format`:**
 ```xml
-<param argument="--threads" type="integer"/>
+<inputs>
+    <param argument="--threads" type="integer" value="1"/>
+</inputs>
 ```
-Galaxy derives the `name` from `argument` (`--threads` → `threads`); the explicit
-`name` is redundant. Homework needed: verify Galaxy's derivation yields exactly the
-declared name before dropping it.
 
-## 🔭 Deprecated `<options>` / select attributes
+**Why it's safe:** Galaxy derives `name` from `argument` when absent
+(`_parse_name(None, "--threads")` = `"--threads".lstrip("-").replace("-","_")` =
+`"threads"`); we drop `name` *only* when it equals that derived value, so Galaxy
+computes the identical name and every `$threads` reference still resolves. And
+`param/@name` is optional in all 28 vendored XSDs that allow `argument`, so validity is
+preserved for every profile — including novel tool XML. **Corpus:** 343 tools carry it
+(1,846 findings); GTR037 fixes **332** — 0 non-idempotent, 0 post-validate-failed
+(`docs/corpus_rule_stats.md`).
+
+## 🛑 Deprecated `<options>` / select attributes — detect, don't fix
 
 **Covers planemo:** `InputsSelectDynamicOptions` (deprecated `dynamic_options=`),
-`InputsSelectOptionsDeprecatedAttr`.
+`InputsSelectOptionsDeprecatedAttr` (`from_file`/`from_parameter`/`transform_lines`/
+`options_filter_attribute`).
 
-A `<param type="select" dynamic_options="...">` or a deprecated `<options>` attribute
-rewritten to the current `<options>` form. Homework needed: per-attribute soundness —
-some deprecated forms have an exact modern equivalent, some don't.
+On inspection these have **no mechanical modern equivalent**: `dynamic_options=` holds an
+arbitrary Python expression, and the deprecated `<options>` attributes require
+restructuring (e.g. defining a data table). Migrating them needs author judgment, so —
+like the `id`/`version` whitespace and `<output type="collection">` cases above — they
+stay **advisory** (planned `check`-tier rules), reported but not auto-fixed.
 
 ---
 
 ## How this list grows
 
-Each FIX candidate from the parity map becomes a section here once it ships, with a real
-`format` before/after and its corpus stat. The roadmap order (cleanest first):
-whitespace trims (done) → `<output>`→`<data>` → redundant-`name` → deprecated
-select-options. The ~78 *correctness* checks planemo runs (param/validator/conditional/
-test rules) are mostly **detect-only** for us too — they need author intent, so they
-grow the advisory `check` tier rather than this fixer showcase.
+The auto-fixable subset of planemo's linters is now **complete**: **GTR035** (whitespace
+trims), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`).
+Every other candidate, on inspection, is either *identity-changing* (`id`/`version`
+whitespace) or has *no mechanical modern equivalent* (`<output type="collection">`,
+deprecated `dynamic_options`/`<options>` attrs) — so it's **advisory-by-design**, not a
+gap. The next planemo-parity frontier is the ~80 *correctness* checks
+(param/validator/conditional/test rules): mostly detect-only for us too, growing the
+advisory `check` tier rather than this fixer showcase.

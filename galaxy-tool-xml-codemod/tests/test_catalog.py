@@ -25,6 +25,7 @@ _EXPECTED_CODES = {
     "GTR020.1",  # SingleQuoteCommandVars (fix half of the GTR020 partition)
     "GTR035",  # TrimAttributeWhitespace (name + requirement version)
     "GTR036",  # ReplaceOutputElement (<output type="data"> -> <data>)
+    "GTR037",  # DropRedundantParamName (name == argument-derived)
 }
 
 

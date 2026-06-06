@@ -40,6 +40,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Single-quote the *provably*-single-valued Cheetah `$var`s in `<command>` | GTR020 | ✅ Shipped | `iuc` preset |
 | Trim accidental whitespace from a `<tool>` `name` / `<requirement>` `version` | GTR035 | ✅ Shipped | `iuc` preset; planemo-parity *fix* (`docs/examples/planemo_fixable_issues.md`) |
 | Replace a deprecated `<output type="data">` with `<data>` | GTR036 | ✅ Shipped | `iuc` preset; planemo-parity *fix* |
+| Drop a `<param>` `name` that its `argument` already implies | GTR037 | ✅ Shipped | `iuc` preset; planemo-parity *fix* |
 
 ### Upgrade (profile bump + repair, opt-in & semantic)
 

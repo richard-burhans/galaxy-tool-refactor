@@ -63,6 +63,9 @@ harmless.
 from __future__ import annotations
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
+from galaxy_tool_xml_codemod.codemods.drop_redundant_param_name import (
+    DropRedundantParamName,
+)
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.codemods.normalize_boolean_values import (
     NormalizeBooleanValues,
@@ -94,6 +97,7 @@ CANONICAL_CODEMODS: tuple[type[CodemodCommand], ...] = (
     NormalizeBooleanValues,
     TrimAttributeWhitespace,
     ReplaceOutputElement,
+    DropRedundantParamName,
     ReorderParamAttributes,
     ReorderToolAttributes,
     ReorderToolChildren,

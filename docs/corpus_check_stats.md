@@ -25,6 +25,7 @@ Structural canonical codemods and cosmetic fmt rules. A finding here means `form
 | GTR020.1 | codemod | 4,902 | 52.8% | 4,902 | Single-quote provably-single-valued Cheetah variables in `<command>` (bare single-token params, $__…__ path built-ins, space-free attrs). |
 | GTR035 | codemod | 26 | 0.3% | 26 | Trim accidental leading/trailing whitespace from a `<tool>` 'name' and a `<requirement>` 'version' (the behaviour-preserving subset; a `<tool>` 'id'/'version' are identity-significant and left for the advisory check). |
 | GTR036 | codemod | 1 | 0.0% | 1 | Replace a deprecated `<outputs>``<output type="data">` with `<data>` (collection / expression outputs are left for the advisory check). |
+| GTR037 | codemod | 343 | 3.7% | 1,846 | Drop a `<param>` 'name' that equals the name Galaxy derives from its 'argument' (redundant; argument implies the same name). |
 
 ## Advisory checks (IUC — best practices)
 
