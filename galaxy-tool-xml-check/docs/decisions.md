@@ -658,3 +658,28 @@ gtr050"`.
 - **Corpus** (`docs/corpus_check_stats.md`): GTR051 **6**, GTR052 **8**, GTR053 **2** — the
   `@…@` guards skip 44 container + 37 filter macro-token values that would otherwise
   false-positive. See the regenerated page for the authoritative per-rule counts.
+
+## D17 (2026-06-06) — planemo-parity input naming/identity: GTR054–GTR057
+
+**Date:** 2026-06-06. Seventh planemo-linter batch (`../../docs/planemo_linter_parity.md`)
+— the first slice of the big `inputs.py` correctness surface: parameter naming/identity,
+as advisory checks. Reproduced-by: `uv run --package galaxy-tool-xml-check pytest
+galaxy-tool-xml-check/tests/test_checks.py -k "gtr054 or gtr055 or gtr056 or gtr057"`.
+
+- **GTR054 `ParamNamePresent`** — reimplements planemo `InputsName`: an `<inputs>//param`
+  must declare a `name` or `argument`.
+- **GTR055 `ParamNameValid`** — reimplements planemo `InputsNameEmpty` + `InputsNameValid`
+  (planemo notes the two overlap): the resolved name must be non-empty and a valid Cheetah
+  placeholder (`^[a-zA-Z_]\w*$`). A `@…@` macro-token name is skipped (raw-tree boundary).
+- **GTR056 `ParamNamesUnique`** — reimplements planemo `InputsNameDuplicate`: dedup on the
+  *qualified* path (planemo's `_param_path` — name + enclosing conditional/section), so
+  identically-named params in disjoint `<when>` branches don't collide.
+- **GTR057 `InputOutputNamesDistinct`** — reimplements planemo `InputsNameDuplicateOutput`:
+  an output name equal to an input param name clashes in the job namespace.
+- **Shared helpers.** `_param_name` replicates Galaxy's `_parse_name` (name, else
+  `argument.lstrip("-").replace("-","_")`) — duplicated here because the check tier cannot
+  depend on the codemod tier that also derives it (GTR037's `_derived_name`). `_iter_named_params`
+  / `_param_qualified_path` mirror planemo's `_iter_param` / `_param_path`. Added a `name`-bearing
+  `inputs=` kwarg to the test `_tool` builder for this and the rest of the `inputs.py` surface.
+- **Corpus** (`docs/corpus_check_stats.md`): GTR054 **0** (every corpus param names itself —
+  a low-noise guard, cf. GTR045/046), GTR055 **13**, GTR056 **18**, GTR057 **4**.

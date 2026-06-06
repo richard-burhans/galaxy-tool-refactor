@@ -24,13 +24,14 @@ def _tool(
     citations: str = '<citations><citation type="doi">10.1/x</citation></citations>',
     outputs: str = '<outputs><data name="out" format="txt"/></outputs>',
     profile: str = "24.0",
+    inputs: str = '<inputs><param name="input" type="data" format="txt"/></inputs>',
 ) -> bytes:
     """Build a tool that, with every default, passes all checks. Override one
     keyword to break exactly one practice."""
     return (
         f'<tool id="{tool_id}" name="Good" version="{version}" profile="{profile}">'
         f"{description}{edam}{requirements}{stdio}{command}"
-        '<inputs><param name="input" type="data" format="txt"/></inputs>'
+        f"{inputs}"
         f"{outputs}"
         f"{tests}{help_}{citations}</tool>"
     ).encode()
@@ -277,6 +278,50 @@ def test_gtr053_stdio_regex_valid() -> None:
     good = '<stdio><regex match="error|fatal"/></stdio>'
     assert "GTR053" not in _codes(_tool(stdio=good))
     assert "GTR053" not in _codes(_tool())  # default stdio has no <regex>
+
+
+def test_gtr054_param_name_present() -> None:
+    nameless = '<inputs><param type="data" format="txt"/></inputs>'
+    assert "GTR054" in _codes(_tool(inputs=nameless))
+    # an 'argument' supplies the name -> fine
+    arg = '<inputs><param argument="--in" type="data" format="txt"/></inputs>'
+    assert "GTR054" not in _codes(_tool(inputs=arg))
+    assert "GTR054" not in _codes(_tool())  # default param has a name
+
+
+def test_gtr055_param_name_valid() -> None:
+    empty = '<inputs><param name="" type="data" format="txt"/></inputs>'
+    assert "GTR055" in _codes(_tool(inputs=empty))
+    bad = '<inputs><param name="in put" type="data" format="txt"/></inputs>'
+    assert "GTR055" in _codes(_tool(inputs=bad))
+    leading_digit = '<inputs><param name="1in" type="data" format="txt"/></inputs>'
+    assert "GTR055" in _codes(_tool(inputs=leading_digit))
+    assert "GTR055" not in _codes(_tool())  # 'input' is a valid placeholder
+
+
+def test_gtr056_param_names_unique() -> None:
+    dup = (
+        '<inputs><param name="x" type="text"/>'
+        '<param name="x" type="text"/></inputs>'
+    )
+    assert "GTR056" in _codes(_tool(inputs=dup))
+    # the same name in disjoint <when> branches is allowed (qualified path differs)
+    cond = (
+        '<inputs><conditional name="c"><param name="sel" type="select">'
+        '<option value="a">a</option><option value="b">b</option></param>'
+        '<when value="a"><param name="x" type="text"/></when>'
+        '<when value="b"><param name="x" type="text"/></when>'
+        "</conditional></inputs>"
+    )
+    assert "GTR056" not in _codes(_tool(inputs=cond))
+    assert "GTR056" not in _codes(_tool())  # single param, unique
+
+
+def test_gtr057_input_output_names_distinct() -> None:
+    clash = '<inputs><param name="out" type="text"/></inputs>'
+    # default output is named "out" -> collides with the input
+    assert "GTR057" in _codes(_tool(inputs=clash))
+    assert "GTR057" not in _codes(_tool())  # input 'input' != output 'out'
 
 
 def test_iuc006_no_error_handling() -> None:
