@@ -8,7 +8,6 @@ are left for the advisory GTR018.2 check.
 
 from __future__ import annotations
 
-import pytest
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemods.wrap_command_cdata import WrapCommandCdata
@@ -76,18 +75,14 @@ def test_is_idempotent() -> None:
     assert etree.tostring(module.document.root) == once
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="behavior-preservation bug GTR018.1: a carriage return is lost through the "
-    "CDATA wrap (CDATA cannot carry &#13;, so it normalizes to \\n on reparse); see "
-    "docs/behavior_preservation.md. Fix: cdata_wrappable must reject bodies with \\r.",
-)
-def test_carriage_return_survives_cdata_wrap() -> None:
-    # A <command> body with a literal CR must round-trip unchanged. Today the wrap
-    # emits a raw 0x0d inside the CDATA section, which XML newline-normalizes to \n
-    # on the next parse -> the command Galaxy runs changes (and it is non-idempotent).
+def test_carriage_return_command_is_left_unwrapped() -> None:
+    # A CR has no in-CDATA form (&#13; is not recognised inside a section, a raw CR
+    # normalizes to LF on reparse), so cdata_wrappable rejects a CR-bearing body and
+    # the command is left unwrapped — round-tripping the CR unchanged. Behaviour-
+    # preservation finding GTR018.1 (docs/behavior_preservation.md), fixed in cdata.py.
     module = parse_module(_tool(b"<command>echo a&#13;echo b</command>"))
     before = _command(module).text
+    assert not list(WrapCommandCdata().detect(module))  # CR body is not wrappable
     WrapCommandCdata().apply(module)
     reparsed = etree.fromstring(etree.tostring(module.document.root))
     assert "".join(reparsed.find("command").itertext()) == before

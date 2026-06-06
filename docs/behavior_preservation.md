@@ -40,7 +40,7 @@ false alarms:
 
 ## Verdict summary
 
-19 fixable rules audited — **11 hold, 8 refuted** (1 shipped, 7 open).
+19 fixable rules audited — **11 hold, 8 refuted** (3 fixed, 5 open).
 
 | Rule | Codemod / fmt | Claim | Verdict | Basis |
 |---|---|---|---|---|
@@ -60,8 +60,8 @@ false alarms:
 | GTR015 | format=input→source | runtime | hold | single-top-data-input; format_source-guarded |
 | GTR016 | FixInterpreter | runtime | **REFUTED** | mixed-content `<command>`: `set_text` keeps comment/`<expand>` children → flag duplicated |
 | GTR017 | NormalizeBooleanValues | runtime | hold | `True`→`true` only where the lenient model already accepts it; validity-restore |
-| GTR018.1 | WrapCommandCdata | runtime | **REFUTED** | body with `\r` → CDATA can't carry `&#13;` → CR lost, non-idempotent |
-| GTR019.1 | WrapHelpCdata | runtime | **REFUTED** | same `\r`-through-CDATA bug (shared `cdata_wrappable` predicate) |
+| GTR018.1 | WrapCommandCdata | runtime | **REFUTED → FIXED** | body with `\r` → CDATA can't carry `&#13;` → CR lost, non-idempotent (PR #112) |
+| GTR019.1 | WrapHelpCdata | runtime | **REFUTED → FIXED** | same `\r`-through-CDATA bug (shared `cdata_wrappable` predicate) (PR #112) |
 | GTR020.1 | SingleQuoteCommandVars | runtime | **REFUTED → FIXED** | quoted multi-flag `select` values (PR #110) |
 
 \* GTR006's refutation is the weakest — see its entry.
@@ -105,17 +105,18 @@ narrowed to the provable option-value subset + faithful-lexer var extraction. Se
 codemod `docs/decisions.md` §32; regression fixtures in
 `test_single_quote_command_vars.py` / `test_command_vars.py`.
 
-### GTR018.1 / GTR019.1 — carriage return lost through CDATA wrap (one shared bug)
+### GTR018.1 / GTR019.1 — carriage return lost through CDATA wrap (one shared bug) — FIXED (PR #112)
 
-Both derive from the tier-1 `cdata_wrappable` predicate (`cdata.py`), which accepts a
+Both derive from the tier-1 `cdata_wrappable` predicate (`cdata.py`), which accepted a
 body containing a carriage return (`\r` / U+000D). A `\r` has no in-CDATA form
 (`<![CDATA[…]]>` cannot carry `&#13;`), so on the next parse XML line-end
 normalization rewrites it to `\n`. Re-verified: `<command>echo a&#13;echo b</command>`
-→ wrapped body re-parses as `echo a\necho b` (CR→LF); `<help>` with `&#13;` is
+→ wrapped body re-parses as `echo a\necho b` (CR→LF); `<help>` with `&#13;` was
 **non-idempotent** (two `apply`s differ). Both are runtime/value changes.
-**Remediation (bug):** tighten `cdata_wrappable` to return False when the body
-contains `\r`. One predicate fixes both `.1` rules; the `.2` advisory residuals
-(`needs_cdata and not cdata_wrappable`) adjust in lockstep. Codemod §29.
+**Fixed:** `cdata_wrappable` now returns False when the body contains `\r`, so both
+`.1` rules leave a CR-bearing body unwrapped (the CR survives as `&#13;`); the `.2`
+advisory residuals (`needs_cdata and not cdata_wrappable`) flag it instead, in
+lockstep. One predicate, both findings. Codemod §29; tier-1 `cdata.py`.
 
 ### GTR009 — Upgrade24_0 drops collection-filter text after a comment
 
@@ -182,13 +183,14 @@ case-only near-miss can occur on an otherwise-valid tool (none found). Codemod �
 Refuted findings are **not** silently fixed here; this ledger + the xfail regression
 fixtures are the record. Suggested order (cleanest/highest-value first):
 
-1. **GTR018.1 + GTR019.1 — CDATA `\r` guard** (one shared `cdata_wrappable` fix; bug; resolves two findings).
+1. ~~**GTR018.1 + GTR019.1 — CDATA `\r` guard**~~ — **DONE (PR #112)**: one shared `cdata_wrappable` fix resolved both findings.
 2. **GTR004 — content-bearing `.text` scope-narrow** (bug; clear data loss).
 3. **GTR016 — FixInterpreter mixed-content** (bug; flag duplication).
 4. **GTR009 — Upgrade24_0 mixed-content filter** (bug; text loss).
 5. **GTR001 — doc-tighten** (+ optional guard; zero incidence).
 6. **GTR006 — doc-clarify the validity-restoration contract** (no code change).
 
-Each refuted finding has a `xfail(strict=True)` regression fixture in its owning test
-module, tagged with its GTR code, so a future scope-widening that re-introduces the
-break trips immediately and a fix flips the test to a positive assertion.
+Each *open* refuted finding has a `xfail(strict=True)` regression fixture in its owning
+test module, tagged with its GTR code, so a future scope-widening that re-introduces
+the break trips immediately and a fix flips the test to a positive assertion. When a
+fix lands, its fixture is flipped to a positive assertion (as GTR018.1/GTR019.1 were).
