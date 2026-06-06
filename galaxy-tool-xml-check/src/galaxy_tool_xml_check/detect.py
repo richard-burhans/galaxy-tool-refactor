@@ -18,6 +18,7 @@ from galaxy_tool_xml_check.checks import (
     CommandAndJoining,
     CommandCdata,
     CommandPresent,
+    ContainerShapeRecognized,
     DescriptionPresent,
     EdamXrefs,
     ErrorHandling,
@@ -25,6 +26,7 @@ from galaxy_tool_xml_check.checks import (
     HelpPresent,
     IdCharset,
     NoTodoText,
+    OutputFilterValid,
     OutputFormatDefined,
     OutputFormatSourceExclusive,
     OutputLabelsDistinct,
@@ -36,6 +38,7 @@ from galaxy_tool_xml_check.checks import (
     RequirementsPresent,
     RequirementVersionPinned,
     SingleQuotedCheetah,
+    StdioRegexValid,
     TestsPresent,
     ToolVersionWhitespace,
     UnusedParam,
@@ -79,6 +82,9 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         OutputsPresent,
         OutputFormatDefined,
         OutputLabelsDistinct,
+        ContainerShapeRecognized,
+        OutputFilterValid,
+        StdioRegexValid,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 
