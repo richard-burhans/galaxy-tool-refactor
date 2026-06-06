@@ -40,7 +40,11 @@ false alarms:
 
 ## Verdict summary
 
-19 fixable rules audited — **11 hold, 8 refuted** (5 fixed, 3 open).
+19 fixable rules audited — **11 hold, 8 refuted**. Of the refuted: **5 fixed**
+(GTR018.1, GTR019.1, GTR020.1, GTR004, GTR016), **1 open** (GTR001 — doc-tighten,
+zero corpus incidence), and **2 where the adversarial refutation itself overreached**
+and there is no bug to fix (GTR006, GTR009 — both confirmed against Galaxy source /
+the rule's contract; doc-clarify only).
 
 | Rule | Codemod / fmt | Claim | Verdict | Basis |
 |---|---|---|---|---|
@@ -52,7 +56,7 @@ false alarms:
 | GTR006 | FixTypos | validity-restore | **REFUTED*** | case-folds `format="RestructuredText"`→`restructuredtext` (*nuance: validity-restoration contract, see below) |
 | GTR007 | UpdateProfile | structural | hold | sets newest-valid `profile=`; runtime surfaced separately |
 | GTR008 | Upgrade19_01 | structural | hold | XSD-valid + idempotent; runtime surfaced separately |
-| GTR009 | Upgrade24_0 | structural | **REFUTED** | hoisted collection `<filter>` reads `.text`, drops text after a comment child |
+| GTR009 | Upgrade24_0 | structural | **REFUTED\*** | hoist reads `.text` — but so does Galaxy (`eval(filter.text.strip())`), so the dropped post-comment tail is dead at runtime → over-claim, behaviour-preserving |
 | GTR010 | Upgrade24_1 | structural | hold | format/ftype pattern-facet normalize; idempotent |
 | GTR011 | Upgrade25_1 | structural | hold | 25.1→26.0 validity + idempotence |
 | GTR013 | ReorderToolChildren | runtime | hold | `<tool>` is `xs:all` (order-free); reorder is validity-safe |
@@ -64,7 +68,9 @@ false alarms:
 | GTR019.1 | WrapHelpCdata | runtime | **REFUTED → FIXED** | same `\r`-through-CDATA bug (shared `cdata_wrappable` predicate) (PR #112) |
 | GTR020.1 | SingleQuoteCommandVars | runtime | **REFUTED → FIXED** | quoted multi-flag `select` values (PR #110) |
 
-\* GTR006's refutation is the weakest — see its entry.
+\* GTR006 and GTR009 are cases where the adversarial refutation **overreached** — on
+re-verification against Galaxy source / the rule's contract there is no behaviour
+change. See their entries.
 
 ## Holds — the proof basis
 
@@ -118,14 +124,23 @@ normalization rewrites it to `\n`. Re-verified: `<command>echo a&#13;echo b</com
 advisory residuals (`needs_cdata and not cdata_wrappable`) flag it instead, in
 lockstep. One predicate, both findings. Codemod §29; tier-1 `cdata.py`.
 
-### GTR009 — Upgrade24_0 drops collection-filter text after a comment
+### GTR009 — Upgrade24_0 and the collection-filter comment tail — refutation OVERREACHED (no bug)
 
-Hoisting identical per-child `<filter>`s to the collection level reads
-`Element.text`, which in lxml stops at the first child node. For
-`<filter>cond_one <!-- x --> and cond_two</filter>` `.text` is only `'cond_one '`, so
-` and cond_two` is silently dropped (re-verified: hoisted filter itertext
-`'cond_one '`). **Remediation (bug):** compare and rebuild filter bodies from
-`itertext()` (or refuse to hoist a mixed-content filter). Codemod `upgrade_24_0.py`.
+The refutation observed that hoisting identical per-child `<filter>`s reads
+`Element.text`, which in lxml stops at the first child node: for
+`<filter>cond_one <!-- x --> and cond_two</filter>`, `.text` is `'cond_one '` and
+` and cond_two` (on the comment's tail) is dropped — concluding the hoist loses part
+of the condition. **But Galaxy evaluates an output filter the same way**:
+`galaxy/tools/execution_helpers.py:filter_output` runs
+`eval(filter.text.strip(), …)` — `.text`, not `itertext`. So Galaxy *itself* never
+evaluates ` and cond_two`; the tool already behaves as `cond_one` before the codemod,
+and the hoisted `<filter>cond_one </filter>` evaluates to `cond_one` after — **runtime
+behaviour is identical**. The comparison (`{.text.strip()}`) likewise matches Galaxy's
+own notion of "same condition", so it can't false-equate two filters Galaxy would run
+differently. The dropped tail is dead text (and a `<!-- -->` comment), not behaviour.
+**No code change.** Confirmed via Galaxy source; pinned by
+`test_hoists_mixed_content_filter_by_galaxy_evaluated_text` (asserts the hoist
+preserves the Galaxy-evaluated condition). Codemod §14.
 
 ### GTR016 — FixInterpreter duplicates a flag in a mixed-content `<command>` — FIXED (PR #114)
 
@@ -192,9 +207,9 @@ fixtures are the record. Suggested order (cleanest/highest-value first):
 1. ~~**GTR018.1 + GTR019.1 — CDATA `\r` guard**~~ — **DONE (PR #112)**: one shared `cdata_wrappable` fix resolved both findings.
 2. ~~**GTR004 — content-bearing `.text` scope-narrow**~~ — **DONE (PR #113)**: empty-element rule skips `<command>`/`<configfile>`/`<token>`.
 3. ~~**GTR016 — FixInterpreter mixed-content**~~ — **DONE (PR #114)**: skips mixed-content `<command>`.
-4. **GTR009 — Upgrade24_0 mixed-content filter** (bug; text loss).
-5. **GTR001 — doc-tighten** (+ optional guard; zero incidence).
-6. **GTR006 — doc-clarify the validity-restoration contract** (no code change).
+4. ~~**GTR009 — Upgrade24_0 mixed-content filter**~~ — **RESOLVED (PR #115)**: refutation overreached; Galaxy evaluates `filter.text.strip()`, so the hoist is behaviour-preserving (no code change).
+5. **GTR001 — doc-tighten** (+ optional guard; zero incidence) — *open*.
+6. **GTR006 — doc-clarify the validity-restoration contract** (no code change) — *open*.
 
 Each *open* refuted finding has a `xfail(strict=True)` regression fixture in its owning
 test module, tagged with its GTR code, so a future scope-widening that re-introduces

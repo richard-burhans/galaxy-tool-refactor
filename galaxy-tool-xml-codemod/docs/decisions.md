@@ -458,6 +458,18 @@ ships GTR013 and the validation-driven codemods).
   silently left below latest. A version that *has* a codemod which merely
   can't advance a particular tool is not reported as missing (that's an
   incomplete codemod / unfixable tool, not an absent one).
+- **`Upgrade24_0` (GTR009) mixed-content filter — behaviour-preserving by `.text`
+  (2026-06-06).** The behavior-preservation audit flagged the collection-`<filter>`
+  hoist as dropping condition text after a comment child (`<filter>cond_one <!-- x -->
+  and cond_two</filter>` → `.text` `'cond_one '`). On re-verification this is **not** a
+  bug: Galaxy evaluates an output filter via `eval(filter.text.strip())`
+  (`galaxy/tools/execution_helpers.py:filter_output`) — `.text`, not `itertext` — so the
+  post-comment tail is dead at runtime; Galaxy never evaluated it. The hoist reads the
+  same `.text` Galaxy does, and the comparison `{found.text.strip()}` matches Galaxy's
+  own notion of the condition, so the restructure is faithful. The adversarial
+  refutation overreached (assumed `itertext` semantics). Pinned by
+  `test_hoists_mixed_content_filter_by_galaxy_evaluated_text`; see
+  `../docs/behavior_preservation.md`.
 
 ## 15. Codemods carry `RuleMeta` metadata + GTR codes; `coded_codemods()` catalog
 

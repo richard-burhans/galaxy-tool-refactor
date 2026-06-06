@@ -11,7 +11,6 @@ discovery sweep to report. See ``docs/decisions.md`` §14.
 
 from __future__ import annotations
 
-import pytest
 from galaxy_tool_xml.binding import newest_valid_profile
 from lxml import etree
 
@@ -47,16 +46,15 @@ def test_hoists_identical_filters_and_unsticks() -> None:
     assert newest_valid_profile(module.document) not in (None, "24.0")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="behavior-preservation bug GTR009: the hoisted collection <filter> is built "
-    "from Element.text, which stops at the first child node, so text after a comment "
-    "is dropped; see docs/behavior_preservation.md. Fix: rebuild via itertext().",
-)
-def test_hoisted_filter_preserves_text_after_a_comment() -> None:
-    # Per-child filters that read identically by .text but carry text after a comment
-    # child get hoisted; the hoisted filter must preserve the FULL condition, not just
-    # the run before the comment.
+def test_hoists_mixed_content_filter_by_galaxy_evaluated_text() -> None:
+    # Galaxy evaluates an output <filter> via eval(filter.text.strip())
+    # (galaxy tools/execution_helpers.py:filter_output) — .text, NOT itertext — so
+    # any text after a comment child is DEAD at runtime (it lives on the comment's
+    # tail, invisible to .text). The hoist reads the same .text, so it preserves
+    # exactly the condition Galaxy evaluates. The behavior-preservation audit's
+    # "drops ' and cond_two'" was an over-claim: Galaxy never evaluated that clause
+    # either (docs/behavior_preservation.md, GTR009). This pins that the hoist is
+    # Galaxy-semantics-preserving on a mixed-content filter.
     module = parse_module(
         _tool(
             b'<collection name="c" type="list">'
@@ -68,9 +66,14 @@ def test_hoisted_filter_preserves_text_after_a_comment() -> None:
         )
     )
     Upgrade24_0().apply(module)
-    hoisted = module.document.root.find("outputs/collection/filter")
-    assert hoisted is not None
-    assert "and cond_two" in "".join(hoisted.itertext())
+    collection = module.document.root.find("outputs/collection")
+    assert collection is not None
+    hoisted = collection.findall("filter")
+    assert len(hoisted) == 1
+    # The hoisted filter evaluates to the SAME condition Galaxy ran for each child
+    # (eval of the stripped .text) — behaviour-preserving, comment/dead-tail aside.
+    assert (hoisted[0].text or "").strip() == "cond_one"
+    assert all(d.find("filter") is None for d in collection.findall("data"))
 
 
 def test_leaves_top_level_data_filters_untouched() -> None:
