@@ -21,6 +21,7 @@ def _tool(
     command: str = "<command><![CDATA[foo --in '$input']]></command>",
     tests: str = '<tests><test><param name="input" value="x"/></test></tests>',
     help_: str = "<help><![CDATA[Some help text.]]></help>",
+    citations: str = '<citations><citation type="doi">10.1/x</citation></citations>',
 ) -> bytes:
     """Build a tool that, with every default, passes all checks. Override one
     keyword to break exactly one practice."""
@@ -29,7 +30,7 @@ def _tool(
         f"{description}{edam}{requirements}{stdio}{command}"
         '<inputs><param name="input" type="data" format="txt"/></inputs>'
         '<outputs><data name="out" format="txt"/></outputs>'
-        f"{tests}{help_}</tool>"
+        f"{tests}{help_}{citations}</tool>"
     ).encode()
 
 
@@ -71,6 +72,21 @@ def test_iuc005_missing_requirements() -> None:
     assert "GTR025" in _codes(_tool(requirements=""))
     assert "GTR025" in _codes(_tool(requirements="<requirements/>"))
     assert "GTR025" not in _codes(_tool())
+
+
+def test_gtr038_citations_present() -> None:
+    assert "GTR038" in _codes(_tool(citations=""))  # no <citations> at all
+    # citations element present but the doi citation is empty -> flagged
+    empty_doi = '<citations><citation type="doi"></citation></citations>'
+    assert "GTR038" in _codes(_tool(citations=empty_doi))
+    assert "GTR038" not in _codes(_tool())  # default has a non-empty doi citation
+
+
+def test_gtr039_no_todo_text() -> None:
+    todo_cmd = "<command><![CDATA[foo --in '$input' # TODO finish]]></command>"
+    assert "GTR039" in _codes(_tool(command=todo_cmd))
+    assert "GTR039" in _codes(_tool(help_="<help><![CDATA[TODO write help]]></help>"))
+    assert "GTR039" not in _codes(_tool())  # default has no TODO
 
 
 def test_iuc006_no_error_handling() -> None:

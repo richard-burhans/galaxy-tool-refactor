@@ -51,6 +51,8 @@ codemods GTR007–GTR016 are applied by `upgrade`, not the default `format`.)*
 | GTR035 | **ToolNameWhitespace**, **RequirementVersionWhitespace** | ✓ | ✓ | codemod | trim accidental whitespace (name / requirement version) |
 | GTR036 | **OutputsOutput** | ✓ | ✓ | codemod | `<output type="data">` → `<data>` |
 | GTR037 | **InputsNameRedundantArgument** | ✓ | ✓ | codemod | drop a `<param>` `name` its `argument` implies |
+| GTR038 | CitationsMissing, CitationsNoText | ✓ | ✗ | check | tool should declare a non-empty `<citation>` |
+| GTR039 | CommandTODO, HelpTODO | ✓ | ✗ | check | `<command>`/`<help>` should not contain `TODO` placeholder text |
 
 **Bold** planemo linters are ones planemo *only reports* and we *fix* (or, for the
 checks, detect with our own rule). The remaining unmapped planemo linters (the ~80
@@ -123,8 +125,8 @@ The next planemo-parity frontier is the ~80 *correctness* checks → the advisor
 
 | Linter | sev | tier | disp | note |
 |---|---|---|---|---|
-| CitationsMissing | warn | check | DETECT | tool should cite; can't synthesize a citation |
-| CitationsNoText | error | check | DETECT | empty `<citation>` |
+| CitationsMissing | warn | check | **HAVE** | **GTR038** |
+| CitationsNoText | error | check | **HAVE** | **GTR038** (empty doi/bibtex) |
 | CitationsNoValid | warn | check | DETECT | no parseable citation (doi/bibtex) |
 | CitationsFound | valid | — | SKIP | pass-state |
 
@@ -135,7 +137,7 @@ The next planemo-parity frontier is the ~80 *correctness* checks → the advisor
 | CommandInterpreterDeprecated | warn | codemod | **HAVE** | = **GTR016** (we inline `interpreter=`) |
 | CommandMissing | error | check | DETECT | no `<command>` |
 | CommandEmpty | error | check | DETECT | empty command |
-| CommandTODO | warn | check | DETECT | "TODO" text in command |
+| CommandTODO | warn | check | **HAVE** | **GTR039** |
 | CommandInfo | info | — | SKIP | pass-state |
 
 ## containers.py (1)
@@ -183,7 +185,7 @@ The next planemo-parity frontier is the ~80 *correctness* checks → the advisor
 |---|---|---|---|---|
 | HelpMissing | warn | check | **HAVE** | = **GTR028** |
 | HelpEmpty | warn | check | **HAVE** | GTR028 (non-empty help) |
-| HelpTODO | warn | check | DETECT | "TODO" in help |
+| HelpTODO | warn | check | **HAVE** | **GTR039** |
 | HelpInvalidRST | warn | check | DETECT | RST validity (needs an RST parser — `docutils`) |
 | HelpPresent · HelpValidRST | valid | — | SKIP | pass-states |
 

@@ -492,3 +492,63 @@ class RequirementVersionPinned(CheckRule):
                     f"package requirement {name!r} has no version — pin it for "
                     "reproducibility",
                 )
+
+
+class CitationsPresent(CheckRule):
+    """GTR038 — the tool should declare at least one non-empty citation.
+
+    Reimplements planemo's `CitationsMissing` (no `<citations>`) and `CitationsNoText`
+    (an empty ``doi``/``bibtex`` citation), `galaxy.tool_util.linters.citations`.
+    Detect-only: a citation is author-supplied content, never synthesised.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR038",
+        summary="Tool should declare a non-empty <citation> (doi/bibtex).",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        citations = root.find("citations")
+        if citations is None or not citations.findall("citation"):
+            yield _violation(
+                document,
+                citations if citations is not None else root,
+                self.meta,
+                "no citations — consider citing the tool's method/software",
+            )
+            return
+        for citation in citations.findall("citation"):
+            citation_type = citation.get("type")
+            if citation_type in ("doi", "bibtex") and not _has_text(citation):
+                yield _violation(
+                    document, citation, self.meta, f"empty {citation_type} citation"
+                )
+
+
+class NoTodoText(CheckRule):
+    """GTR039 — a ``<command>`` / ``<help>`` should not carry ``TODO`` placeholder text.
+
+    Reimplements planemo's `CommandTODO` / `HelpTODO`
+    (`galaxy.tool_util.linters.command` / `…help`) — a leftover ``TODO`` marks an
+    unfinished tool. Matches Galaxy: a literal ``"TODO"`` in the element's ``.text``.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR039",
+        summary="<command>/<help> should not contain 'TODO' placeholder text.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        for tag in ("command", "help"):
+            element = root.find(tag)
+            if element is not None and "TODO" in (element.text or ""):
+                msg = f"<{tag}> contains a 'TODO' placeholder"
+                yield _violation(document, element, self.meta, msg)
