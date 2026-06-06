@@ -23,11 +23,12 @@ def _tool(
     help_: str = "<help><![CDATA[Some help text.]]></help>",
     citations: str = '<citations><citation type="doi">10.1/x</citation></citations>',
     outputs: str = '<outputs><data name="out" format="txt"/></outputs>',
+    profile: str = "24.0",
 ) -> bytes:
     """Build a tool that, with every default, passes all checks. Override one
     keyword to break exactly one practice."""
     return (
-        f'<tool id="{tool_id}" name="Good" version="{version}" profile="24.0">'
+        f'<tool id="{tool_id}" name="Good" version="{version}" profile="{profile}">'
         f"{description}{edam}{requirements}{stdio}{command}"
         '<inputs><param name="input" type="data" format="txt"/></inputs>'
         f"{outputs}"
@@ -127,6 +128,48 @@ def test_gtr043_output_format_source_exclusive() -> None:
     only_source = '<outputs><data name="o" format_source="input"/></outputs>'
     assert "GTR043" not in _codes(_tool(outputs=only_source))
     assert "GTR043" not in _codes(_tool())  # default sets only format
+
+
+def test_gtr044_command_present() -> None:
+    assert "GTR044" in _codes(_tool(command=""))  # no <command> at all
+    assert "GTR044" in _codes(_tool(command="<command></command>"))  # empty
+    assert "GTR044" in _codes(_tool(command="<command>   </command>"))  # whitespace
+    assert "GTR044" not in _codes(_tool())  # default has a real command
+    # A macro may inject the <command>: a top-level <expand> (or a <macros> block)
+    # means we cannot prove the command absent on the raw tree -> skip, don't misfire.
+    assert "GTR044" not in _codes(_tool(command='<expand macro="cmd"/>'))
+    # An <expand> *child* supplies the body from a macro -> not really empty.
+    expand_body = '<command><expand macro="cmd"/></command>'
+    assert "GTR044" not in _codes(_tool(command=expand_body))
+
+
+def test_gtr045_profile_format_valid() -> None:
+    assert "GTR045" in _codes(_tool(profile="banana"))
+    assert "GTR045" in _codes(_tool(profile="2024"))  # no dotted minor
+    assert "GTR045" not in _codes(_tool(profile="21.09"))
+    # a @...@ macro token resolves at expansion; we lint the raw tree, so skip it
+    assert "GTR045" not in _codes(_tool(profile="@PROFILE@"))
+    assert "GTR045" not in _codes(_tool())  # default 24.0 is valid
+
+
+def test_gtr046_requirement_name_present() -> None:
+    empty_name = (
+        '<requirements><requirement type="package" version="1.0">'
+        "</requirement></requirements>"
+    )
+    assert "GTR046" in _codes(_tool(requirements=empty_name))
+    blank_name = (
+        '<requirements><requirement type="package" version="1.0">  '
+        "</requirement></requirements>"
+    )
+    assert "GTR046" in _codes(_tool(requirements=blank_name))
+    assert "GTR046" not in _codes(_tool())  # default names its requirement
+
+
+def test_gtr047_tool_version_whitespace() -> None:
+    assert "GTR047" in _codes(_tool(version="1.0.0 "))
+    assert "GTR047" in _codes(_tool(version=" 1.0.0"))
+    assert "GTR047" not in _codes(_tool())  # default has no surrounding whitespace
 
 
 def test_iuc006_no_error_handling() -> None:

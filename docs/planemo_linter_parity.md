@@ -39,8 +39,8 @@ codemods GTR007–GTR016 are applied by `upgrade`, not the default `format`.)*
 | GTR020.2 | — | ✓ | ✗ | check | unquoted-`$var` non-provable residual |
 | GTR021 | **TestsMissing** | ✓ | ✗ | check | tool should ship a functional `<test>` |
 | GTR023 | **ToolIDValid** | ✓ | ✗ | check | tool id charset (lowercase / `_.+-`) |
-| GTR024 | **ToolVersionPEP404**, ToolVersionMissing | ✓ | ✗ | check | version should be PEP 440 (or a `@…@` macro) |
-| GTR025 | RequirementNameMissing | ✓ | ✗ | check | tool should declare `<requirements>` |
+| GTR024 | **ToolVersionPEP404** | ✓ | ✗ | check | version should be PEP 440 (or a `@…@` macro) |
+| GTR025 | — | ✓ | ✗ | check | tool should declare `<requirements>` |
 | GTR026 | **StdIOAbsence** | ✓ | ✗ | check | declare error handling (`detect_errors`/`<stdio>`) |
 | GTR027 | **EDAMTermsValid**, BioToolsValid | ✓ | ✗ | check | declare EDAM topics/operations or `<xrefs>` |
 | GTR028 | **HelpMissing**, HelpEmpty | ✓ | ✗ | check | provide non-empty `<help>` |
@@ -57,6 +57,10 @@ codemods GTR007–GTR016 are applied by `upgrade`, not the default `format`.)*
 | GTR041 | OutputsNameInvalidCheetah | ✓ | ✗ | check | output `name` must be a valid Cheetah placeholder |
 | GTR042 | OutputsCollectionType | ✓ | ✗ | check | output `<collection>` should declare a structure `type` |
 | GTR043 | OutputsFormatSourceIncomp | ✓ | ✗ | check | output should not set both `format_source` and `format`/`ext` |
+| GTR044 | **CommandMissing**, CommandEmpty | ✓ | ✗ | check | tool should define a non-empty `<command>` |
+| GTR045 | ToolProfileInvalid | ✓ | ✗ | check | declared `profile` must be a valid `<year>.<minor>` version |
+| GTR046 | **RequirementNameMissing** | ✓ | ✗ | check | a package `<requirement>` must name its package |
+| GTR047 | ToolVersionWhitespace | ✓ | ✗ | check | tool `version` should not be wrapped in whitespace (advisory-by-design — identity) |
 
 **Bold** planemo linters are ones planemo *only reports* and we *fix* (or, for the
 checks, detect with our own rule). The remaining unmapped planemo linters (the ~80
@@ -98,9 +102,9 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 23 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), 2026-06-06 |
+| **HAVE** | 30 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), 2026-06-06 |
 | **FIX** (new, auto-fixable) | 0 | **complete** — GTR035/036/037 shipped; the rest of the original FIX candidates reclassified to advisory/detect on inspection (identity-changing or no mechanical equivalent) |
-| **DETECT** (new advisory) | ~74 | correctness checks for the `check` tier (report-only); incl. `ToolIDWhitespace`/`ToolVersionWhitespace` (advisory-by-design — §33). 6 landed so far: GTR038–043 |
+| **DETECT** (new advisory) | ~67 | correctness checks for the `check` tier (report-only). 10 landed so far: GTR038–047 (citations/TODO, output correctness, command/profile/requirement-name, version-whitespace) |
 | **SKIP** (pass-state) | ~21 | `valid`/`info` reporters — nothing to build |
 | **n/a** (out of scope) | ~20 | CWL, filesystem, network/ontology, runtime |
 | **Total** | 146 | |
@@ -139,8 +143,8 @@ The next planemo-parity frontier is the ~80 *correctness* checks → the advisor
 | Linter | sev | tier | disp | note |
 |---|---|---|---|---|
 | CommandInterpreterDeprecated | warn | codemod | **HAVE** | = **GTR016** (we inline `interpreter=`) |
-| CommandMissing | error | check | DETECT | no `<command>` |
-| CommandEmpty | error | check | DETECT | empty command |
+| CommandMissing | error | check | **HAVE** | **GTR044** no `<command>` |
+| CommandEmpty | error | check | **HAVE** | **GTR044** empty `<command>` body |
 | CommandTODO | warn | check | **HAVE** | **GTR039** |
 | CommandInfo | info | — | SKIP | pass-state |
 
@@ -168,17 +172,17 @@ The next planemo-parity frontier is the ~80 *correctness* checks → the advisor
 |---|---|---|---|---|
 | ToolNameWhitespace | warn | codemod | **HAVE** | **GTR035** trims it (display-only — safe) |
 | RequirementVersionWhitespace | warn | codemod | **HAVE** | **GTR035** trims it (whitespace breaks the conda solve, so a working tool never has it — repair-safe) |
-| ToolVersionWhitespace | warn | check | DETECT | **advisory-by-design**: trimming `version` changes the tool's version identity (used raw); see §33 |
-| ToolIDWhitespace | warn | check | DETECT | **advisory-by-design**: trimming `id` changes the registration identity; see §33 |
+| ToolVersionWhitespace | warn | check | **HAVE** | **GTR047** detect-only **by design**: trimming `version` changes the tool's version identity (used raw); see §33 |
+| ToolIDWhitespace | warn | check | **HAVE** | caught by **GTR023** (a whitespace id fails the id charset) |
 | ToolIDValid | valid/err | check | **HAVE** | id charset = **GTR023** |
 | RequirementVersionMissing | warn | check | **HAVE** | = **GTR033** (pin requirement version) |
 | EDAMTermsValid | warn | check | **HAVE\*** | ≈ **GTR027**; full EDAM-ontology validation needs network |
-| ToolVersionMissing | error | check | DETECT | |
-| ToolVersionPEP404 | warn | check | DETECT | version not PEP 440 |
-| ToolNameMissing | error | check | DETECT | |
-| ToolIDMissing | error | check | DETECT | |
-| ToolProfileInvalid | error | parse | DETECT | invalid profile (we resolve profiles in tier 1) |
-| RequirementNameMissing | error | check | DETECT | |
+| ToolVersionPEP404 | warn | check | **HAVE** | = **GTR024** (version not PEP 440) |
+| ToolProfileInvalid | error | check | **HAVE** | **GTR045** profile not `<year>.<minor>` |
+| RequirementNameMissing | error | check | **HAVE** | **GTR046** package requirement names no package |
+| ToolVersionMissing | error | check | DETECT | (XSD-required attr; detect TBD) |
+| ToolNameMissing | error | check | DETECT | (XSD-required attr; detect TBD) |
+| ToolIDMissing | error | check | DETECT | (XSD-required attr; detect TBD) |
 | ResourceRequirementExpression | warn | n/a | — | unsupported feature warning |
 | BioToolsValid | warn | n/a | — | needs bio.tools network lookup |
 | ToolVersionValid · ToolNameValid · ToolProfileLegacy · ToolProfileValid | valid | — | SKIP | pass-states |

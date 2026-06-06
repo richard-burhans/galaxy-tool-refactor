@@ -53,3 +53,7 @@ Detect-only IUC best-practice checks. Advisory: `check` reports them but does no
 | GTR041 | check | 74 | 0.8% | 189 | Output name should be a valid Cheetah placeholder. |
 | GTR042 | check | 0 | 0.0% | 0 | Output `<collection>` should declare a structure 'type'. |
 | GTR043 | check | 7 | 0.1% | 8 | An output should not set both format_source and format/ext. |
+| GTR044 | check | 8 | 0.1% | 8 | Tool should define a non-empty `<command>`. |
+| GTR045 | check | 0 | 0.0% | 0 | A declared profile should be a valid `<year>`.`<minor>` version. |
+| GTR046 | check | 0 | 0.0% | 0 | A package `<requirement>` must name its package. |
+| GTR047 | check | 4 | 0.0% | 4 | Tool version should not be wrapped in whitespace. |
