@@ -805,3 +805,27 @@ galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k gtr06
   boolean-discouraged advisory — boolean conditionals are common but genuinely
   discouraged), GTR070 **5**, GTR071 **233** (2.5%; when/option mismatches). The two
   high-incidence ones are accurate planemo-parity advisories, not false positives.
+
+## D23 (2026-06-06) — planemo-parity input type/structure: GTR072–GTR074
+
+**Date:** 2026-06-06. Thirteenth planemo-linter batch (`../../docs/planemo_linter_parity.md`)
+— the `inputs.py` type/structure group, as advisory checks. Reproduced-by: `uv run
+--package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k
+"gtr072 or gtr073 or gtr074"`.
+
+- **GTR072 `InputsPresent`** — reimplements planemo `InputsMissing`: a tool with no
+  `<inputs>//param` (and not a `data_source` tool) usually has a missing inputs section.
+  A macro-using tool is skipped (a top-level `<expand>` may inject params — 216 corpus FPs
+  avoided; guarded **15** vs un-guarded 231).
+- **GTR073 `ParamTypeChildCombination`** — reimplements planemo `InputsTypeChildCombination`:
+  `<options>` only for `data`/`select`/`drill_down`, `<options><option>` only for
+  `drill_down`, `<options><column>` only for `data`/`select`.
+- **GTR074 `DataOptionsValid`** — one rule reimplementing the five data-param `<options>`
+  linters: `InputsDataOptionsMultiple` (one `<options>`), `…Attrib` (only
+  `options_filter_attribute`), `…FilterAttribFiltersType` / `…FiltersType` (filter type/key
+  rules), `…FiltersRef` (filters need `ref`). **Faithful to planemo's strictness** — it
+  flags e.g. `add_value` filters and missing `ref` in a data param's `<options>` (verified
+  on the qiime2 suite), which is why it fires on ~2.6% of tools; this is parity, not an
+  FP relative to planemo.
+- **Corpus** (`docs/corpus_check_stats.md`): GTR072 **15**, GTR073 **0** (low-noise guard),
+  GTR074 **241** (2.6%; 1,071 findings — faithful planemo strictness on data-param options).
