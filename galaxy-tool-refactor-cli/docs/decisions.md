@@ -301,9 +301,11 @@ the tier-1 reference model `galaxy_tool_xml.cheetah_refs` (`tool_cheetah_referen
 It is the first read-only consumer of the M5 Cheetah-section-editing work
 (`../../docs/upgrade_research/cheetah_section_editing.md`): read-only first, highest
 coverage, zero mutation risk — validating the reference substrate before any mutator.
-The extractor is a **conservative regex** (it may surface occurrences in `##` comments /
-`#raw` / escaped `\$`); the faithful CT3 lexer is the precision drop-in reserved for the
-first mutator (rename). A query (not a rule) needs no preset, registry handle, or
+The extractor is **faithful** when the `cheetah-cdm` extra is present (tier-1
+`cheetah_refs` §18, updated 2026-06-06): a `$var` in a `##`/`#raw`/escaped-`\$` context
+is correctly *not* reported, so the query agrees with the faithful `rename-param`
+mutator; it falls back to the conservative `_CHEETAH_VAR` regex only when the lexer is
+unavailable. A query (not a rule) needs no preset, registry handle, or
 `docs/*_stats.md` regeneration.
 
 ### Reproduction

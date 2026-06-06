@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import pytest
 from lxml import etree
 
+from galaxy_tool_xml.cheetah_cdm import cheetah_cdm_available
 from galaxy_tool_xml.cheetah_refs import cheetah_references, tool_cheetah_references
+
+requires_cdm = pytest.mark.skipif(
+    not cheetah_cdm_available(), reason="needs the cheetah-cdm extra (CT3)"
+)
 
 
 def _names(text: str) -> list[str]:
@@ -26,11 +32,25 @@ def test_segments_capture_dotted_and_braced() -> None:
     assert by_name["$arr"] == ("arr",)
 
 
-def test_conservative_v1_reports_comment_and_escaped_refs() -> None:
-    # Documented v1 behaviour: a ## comment ref and an escaped \$ are still reported
-    # (the regex does not model Cheetah comments / escapes). Safe direction for the
-    # find-references / unused-param use; the CT3 lexer is the precision drop-in.
-    assert _names("## $note\necho \\$HOME $real") == ["$note", "$HOME", "$real"]
+@requires_cdm
+def test_faithful_lexer_excludes_comment_raw_and_escaped_refs() -> None:
+    # With the faithful CT3 lexer a $var that Cheetah does NOT treat as a reference is
+    # excluded: inside a ## comment, inside a #raw block, or behind an escaped \$.
+    # Only the genuine reference survives (correct for novel tool XML, not a
+    # corpus-fitted regex superset).
+    assert _names("## $note\necho \\$HOME $real") == ["$real"]
+    assert _names("#raw\n$literal\n#end raw\nrun $real") == ["$real"]
+
+
+@requires_cdm
+def test_faithful_lexer_keeps_directive_and_placeholder_refs() -> None:
+    # Genuine references in both directive heads (#if/#set) and literal text survive,
+    # with their exact offsets (text[start:end] == name).
+    text = "#set $tmp = $base\nrun '$tmp' ${adv.x}"
+    refs = cheetah_references(text)
+    assert [r.name for r in refs] == ["$tmp", "$base", "$tmp", "${adv.x}"]
+    for ref in refs:
+        assert text[ref.start : ref.end] == ref.name
 
 
 def test_sourceline_tracks_newlines_from_base() -> None:
