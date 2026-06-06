@@ -733,3 +733,30 @@ galaxy-tool-xml-check/tests/test_checks.py -k "gtr061 or gtr062 or gtr063 or gtr
 - **Corpus** (`docs/corpus_check_stats.md`): GTR061 **0**, GTR062 **1**, GTR063 **0** (low-noise
   guards, cf. GTR045/061), GTR064 **151** (deprecated options mechanisms are still common —
   a genuine, accurate advisory at ~1.6%).
+
+## D20 (2026-06-06) — planemo-parity validator form checks: GTR065–GTR067
+
+**Date:** 2026-06-06. Tenth planemo-linter batch (`../../docs/planemo_linter_parity.md`) —
+the first half of the `inputs.py` validator surface (validator *form*: compatibility,
+text, expression), as advisory checks. Reproduced-by: `uv run --package
+galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k "gtr065 or
+gtr066 or gtr067"`.
+
+- **GTR065 `ValidatorTypeCompatible`** — reimplements planemo `ValidatorParamIncompatible`
+  (validator `type` must be allowed for the param `type` — the vendored
+  `_PARAM_VALIDATOR_TYPES` matrix) + `ValidatorAttribIncompatible` (each validator
+  attribute must be allowed for the validator `type` — `_VALIDATOR_ATTR_TYPES`). A param
+  type absent from the matrix (e.g. `boolean`) accepts any validator.
+- **GTR066 `ValidatorTextPresence`** — reimplements planemo `ValidatorHasText` (`expression`
+  / `regex` validators need a body) + `ValidatorHasNoText` (others should not carry one).
+- **GTR067 `ValidatorExpressionValid`** — reimplements planemo `ValidatorExpression` (body
+  must `re.compile` / `ast.parse`, under a `warnings.simplefilter("error", FutureWarning)`)
+  + `ValidatorExpressionFuture` (a `FutureWarning` is reported as a deprecation, not an
+  error). A `@…@` macro-token body is skipped (the GTR052 raw-tree boundary).
+- **Deferred to a later sub-batch** (validator *required attributes*): `ValidatorMinMax`,
+  `ValidatorDatasetMetadataEqualValue`/`…OrJson`, `ValidatorMetadataCheckSkip`,
+  `ValidatorTableName`, `ValidatorMetadataName`.
+- **Helper.** `_iter_param_validators` mirrors planemo's `_iter_param_validator`
+  (`<inputs>//param[@type]` × `<validator type=…>`).
+- **Corpus** (`docs/corpus_check_stats.md`): GTR065 **33**, GTR066 **0** (low-noise guard),
+  GTR067 **1** (14 `@…@`-token validator bodies skipped — FPs avoided).
