@@ -79,6 +79,9 @@ from galaxy_tool_xml_codemod.codemods.reorder_tool_children import (
 from galaxy_tool_xml_codemod.codemods.single_quote_command_vars import (
     SingleQuoteCommandVars,
 )
+from galaxy_tool_xml_codemod.codemods.trim_attribute_whitespace import (
+    TrimAttributeWhitespace,
+)
 from galaxy_tool_xml_codemod.codemods.wrap_command_cdata import WrapCommandCdata
 from galaxy_tool_xml_codemod.codemods.wrap_help_cdata import WrapHelpCdata
 from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
@@ -86,6 +89,7 @@ from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 CANONICAL_CODEMODS: tuple[type[CodemodCommand], ...] = (
     FixTypos,
     NormalizeBooleanValues,
+    TrimAttributeWhitespace,
     ReorderParamAttributes,
     ReorderToolAttributes,
     ReorderToolChildren,

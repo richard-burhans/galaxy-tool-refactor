@@ -23,6 +23,7 @@ _EXPECTED_CODES = {
     "GTR018.1",  # WrapCommandCdata (fix half of the GTR018 partition)
     "GTR019.1",  # WrapHelpCdata (fix half of the GTR019 partition)
     "GTR020.1",  # SingleQuoteCommandVars (fix half of the GTR020 partition)
+    "GTR035",  # TrimAttributeWhitespace (name + requirement version)
 }
 
 
