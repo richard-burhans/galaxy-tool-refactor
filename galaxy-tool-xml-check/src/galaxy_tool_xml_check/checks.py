@@ -689,3 +689,141 @@ class OutputFormatSourceExclusive(CheckRule):
                     self.meta,
                     "output sets both format_source and format/ext (contradictory)",
                 )
+
+
+# A valid Galaxy profile version: a 21st/22nd-century year and a 1–2 digit minor,
+# e.g. ``21.09`` / ``24.0`` (Galaxy's ``general.PROFILE_PATTERN``). ``profile`` is
+# optional — its absence means the 16.01 default, which is valid, so only a present
+# malformed value is flagged.
+_PROFILE_PATTERN = re.compile(r"^[12]\d\.\d{1,2}$")
+
+
+class CommandPresent(CheckRule):
+    """GTR044 — the tool should define a non-empty ``<command>``.
+
+    Reimplements planemo `CommandMissing` (no `<command>`) + `CommandEmpty` (a
+    `<command>` whose body is empty), `galaxy.tool_util.linters.command`. A tool with
+    no command template cannot run. Detect-only: the template is author content.
+
+    A tool that uses macros is **skipped** for the *missing* case: a top-level
+    ``<expand>`` (e.g. ``<expand macro="version_command_config"/>``) commonly injects
+    the ``<command>`` from an imported macro. planemo lints the macro-*expanded* tool,
+    but this tier reads the raw tree, so it cannot prove the command absent — skipping
+    avoids false-positiving the dominant macro-supplied-command pattern (61% of the
+    naive findings corpus-wide). An *empty* literal ``<command>`` with no child
+    ``<expand>`` is still genuinely empty and flagged.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR044",
+        summary="Tool should define a non-empty <command>.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        command = root.find("command")
+        if command is None:
+            if not has_macros(root):  # a macro may inject the <command>
+                yield _violation(document, root, self.meta, "no <command> defined")
+        elif not (command.text or "").strip() and len(command) == 0:
+            # An <expand> child would supply the body from a macro; a childless,
+            # text-empty <command> is genuinely empty.
+            yield _violation(document, command, self.meta, "<command> is empty")
+
+
+class ProfileFormatValid(CheckRule):
+    """GTR045 — a declared ``profile`` should be a valid Galaxy profile version.
+
+    Reimplements planemo `ToolProfileInvalid`, `galaxy.tool_util.linters.general`. A
+    ``profile`` that is not ``<year>.<minor>`` (e.g. ``21.09``) is silently ignored by
+    Galaxy. Absent ``profile`` (the 16.01 default) is valid, not flagged. A ``@…@``
+    macro token (``profile="@PROFILE@"``) is skipped — planemo lints the *expanded*
+    tool, but this tier runs on the raw tree, so the token resolves later. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR045",
+        summary="A declared profile should be a valid <year>.<minor> version.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        profile = root.get("profile")
+        if profile is None or "@" in profile:
+            return  # absent (the 16.01 default) or a macro token like @PROFILE@
+        if _PROFILE_PATTERN.fullmatch(profile) is None:
+            yield _violation(
+                document,
+                root,
+                self.meta,
+                f"profile {profile!r} is not a valid <year>.<minor> version",
+            )
+
+
+class RequirementNamePresent(CheckRule):
+    """GTR046 — a package ``<requirement>`` must name its package.
+
+    Reimplements planemo `RequirementNameMissing`, `galaxy.tool_util.linters.general`.
+    A ``type="package"`` requirement (Galaxy's default when ``type`` is omitted) whose
+    body is empty names no package, so the conda solve has nothing to install.
+    Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR046",
+        summary="A package <requirement> must name its package.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        requirements = document.root.find("requirements")
+        if requirements is None:
+            return
+        for requirement in requirements.findall("requirement"):
+            if requirement.get("type", "package") != "package":
+                continue
+            if not (requirement.text or "").strip():
+                yield _violation(
+                    document,
+                    requirement,
+                    self.meta,
+                    "package requirement has no name",
+                )
+
+
+class ToolVersionWhitespace(CheckRule):
+    """GTR047 — the tool ``version`` should not be wrapped in whitespace.
+
+    Reimplements planemo `ToolVersionWhitespace`, `galaxy.tool_util.linters.general`.
+    Detect-only **by design**: unlike a ``<requirement>`` version (auto-trimmed by the
+    GTR035 codemod), the tool ``version`` is used *raw* as the tool's identity, so
+    trimming it would change which tool this is — we flag it but never edit it. (Tool
+    ``id`` whitespace is caught by GTR023, the id charset check.)
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR047",
+        summary="Tool version should not be wrapped in whitespace.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        version = root.get("version")
+        if version is not None and version != version.strip():
+            yield _violation(
+                document,
+                root,
+                self.meta,
+                f"tool version {version!r} is wrapped in whitespace",
+            )

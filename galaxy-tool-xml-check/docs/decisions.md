@@ -555,3 +555,46 @@ correctness surface, landing as advisory checks. Reproduced-by:
   on **74 (0.8%)**, GTR043 on **7 (0.1%)**; **GTR042 is 0** — every corpus `<collection>`
   output already declares its structure, so the check is a low-noise guard for novel XML
   rather than a corpus-prevalent finding.
+
+## D14 (2026-06-06) — planemo-parity tool-level correctness checks: GTR044–GTR047
+
+**Date:** 2026-06-06. Third batch of the planemo-linter reimplementation
+(`../../docs/planemo_linter_parity.md`) — tool-level presence/format correctness from
+`galaxy.tool_util.linters.command` + `.general`, as advisory checks. Reproduced-by:
+`uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py
+-k "gtr04 and not gtr040 and not gtr041 and not gtr042 and not gtr043"`.
+
+- **GTR044 `CommandPresent`** — reimplements planemo `CommandMissing` (no `<command>`)
+  + `CommandEmpty` (a `<command>` whose body is empty); a tool with no command template
+  cannot run. Flags a missing element and a whitespace-only/childless body. A
+  macro-using tool is **skipped** for the *missing* case: a top-level `<expand>` (e.g.
+  `<expand macro="version_command_config"/>`) commonly injects the `<command>` from an
+  imported macro, and planemo lints the *expanded* tool — flagging it on the raw tree
+  is a false positive (61% of the naive findings corpus-wide, e.g. the whole `raceid_*`
+  family). Same raw-tree soundness boundary as GTR045 below. An empty literal
+  `<command>` with no child `<expand>` is still flagged. Detect-only.
+- **GTR045 `ProfileFormatValid`** — reimplements planemo `ToolProfileInvalid`: a declared
+  `profile` that is not `<year>.<minor>` (`^[12]\d\.\d{1,2}$`) is silently ignored by
+  Galaxy. Absent `profile` (the 16.01 default) is valid, not flagged. A `@…@` macro token
+  (`profile="@PROFILE@"`, the corpus' single most common profile value) is **skipped**:
+  planemo lints the macro-*expanded* tool, but this tier reads the raw tree, so the token
+  resolves to a real version later — flagging it would be a false positive. Under-reporting
+  the (unprovable) macro case beats false-positiving the dominant one. Detect-only.
+- **GTR046 `RequirementNamePresent`** — reimplements planemo `RequirementNameMissing`: a
+  `type="package"` requirement (the default when `type` is omitted) with an empty body
+  names no package, so the conda solve has nothing to install. Detect-only. (Complements
+  GTR025 *requirements present* and GTR033 *version pinned* — the third requirement gap.)
+- **GTR047 `ToolVersionWhitespace`** — reimplements planemo `ToolVersionWhitespace`.
+  Detect-only **by design**: unlike a `<requirement>` version (auto-trimmed by GTR035),
+  the tool `version` is used *raw* as the tool's identity, so trimming it would change
+  which tool this is. Closes the §33 "advisory-by-design" story for the tool version;
+  tool `id` whitespace is already caught by GTR023 (the id charset check).
+- **Why detect, not fix.** Each flags a missing/malformed authoring element with no single
+  safe mechanical repair (or, for GTR047, a deliberately-unfixed identity field). Per the
+  soundness discipline they report, never fix. They join the `strict` preset.
+- **Corpus** (`docs/corpus_check_stats.md`, 9,289 tools): GTR044 flags **8 (0.1%)** —
+  after the macro guard above; the naive (un-guarded) rule flagged 59, of which 51 were
+  macro-supplied-command false positives. GTR047 flags **4 (0.0%)**. **GTR045 and GTR046
+  are 0**: every corpus profile is either well-formed or a `@…@` macro token (skipped),
+  and every package `<requirement>` names a package — both are low-noise guards for novel
+  XML rather than corpus-prevalent findings (cf. GTR042 in D13).

@@ -17,6 +17,7 @@ from galaxy_tool_xml_check.checks import (
     CollectionTypeDeclared,
     CommandAndJoining,
     CommandCdata,
+    CommandPresent,
     DescriptionPresent,
     EdamXrefs,
     ErrorHandling,
@@ -27,10 +28,13 @@ from galaxy_tool_xml_check.checks import (
     OutputFormatSourceExclusive,
     OutputNamesUnique,
     OutputNameValid,
+    ProfileFormatValid,
+    RequirementNamePresent,
     RequirementsPresent,
     RequirementVersionPinned,
     SingleQuotedCheetah,
     TestsPresent,
+    ToolVersionWhitespace,
     UnusedParam,
     VersionFormat,
 )
@@ -65,6 +69,10 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         OutputNameValid,
         CollectionTypeDeclared,
         OutputFormatSourceExclusive,
+        CommandPresent,
+        ProfileFormatValid,
+        RequirementNamePresent,
+        ToolVersionWhitespace,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 
