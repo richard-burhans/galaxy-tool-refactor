@@ -683,3 +683,29 @@ galaxy-tool-xml-check/tests/test_checks.py -k "gtr054 or gtr055 or gtr056 or gtr
   `inputs=` kwarg to the test `_tool` builder for this and the rest of the `inputs.py` surface.
 - **Corpus** (`docs/corpus_check_stats.md`): GTR054 **0** (every corpus param names itself —
   a low-noise guard, cf. GTR045/046), GTR055 **13**, GTR056 **18**, GTR057 **4**.
+
+## D18 (2026-06-06) — planemo-parity static select-option correctness: GTR058–GTR060
+
+**Date:** 2026-06-06. Eighth planemo-linter batch (`../../docs/planemo_linter_parity.md`)
+— the static `select`-option slice of `inputs.py`, as advisory checks. Reproduced-by:
+`uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py
+-k "gtr058 or gtr059 or gtr060"`.
+
+- **GTR058 `SelectOptionsDefined`** — reimplements planemo `InputsSelectOptionsDef` +
+  `InputsSelectOptionsDefConditional`: a top-level select must define options **exactly
+  one** way (`<option>` children / an `<options>` element / `dynamic_options`); a select
+  controlling a `<conditional>` must use `<option>` children only. **Macro guard is
+  decisive here**: a select whose subtree has an `<expand>` is skipped, because a macro
+  commonly injects the options — without it the rule fires on **157** tools, **152** of
+  them macro-supplied-option false positives (guarded: **5**). Largest macro exposure of
+  any check so far; same raw-tree boundary as GTR044/GTR058.
+- **GTR059 `SelectOptionValuePresent`** — reimplements planemo `InputsSelectOptionValueMissing`:
+  a static `<option>` with no `value` cannot be selected.
+- **GTR060 `SelectOptionsDistinct`** — reimplements planemo `InputsSelectOptionDuplicateValue`
+  + `InputsSelectOptionDuplicateText`: duplicate `(value, selected)` or `(text, selected)`
+  pairs (text defaulting to `value.capitalize()` when the body is empty, per planemo).
+- **Deferred to a later sub-batch** (the *dynamic* `<options>` element):
+  `InputsSelectOptionsMultiple` / `…DefinesOptions` / `…FromDatasetAndDatatable` /
+  `…MetaFileKey`, plus the deprecated-attribute warnings (`InputsSelectDynamicOptions`,
+  `InputsSelectOptionsDeprecatedAttr`).
+- **Corpus** (`docs/corpus_check_stats.md`): GTR058 **5**, GTR059 **1**, GTR060 **31**.

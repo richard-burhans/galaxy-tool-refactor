@@ -324,6 +324,68 @@ def test_gtr057_input_output_names_distinct() -> None:
     assert "GTR057" not in _codes(_tool())  # input 'input' != output 'out'
 
 
+def test_gtr058_select_options_defined() -> None:
+    none = '<inputs><param name="s" type="select"/></inputs>'
+    assert "GTR058" in _codes(_tool(inputs=none))  # zero ways to define options
+    both = (
+        '<inputs><param name="s" type="select"><option value="a">A</option>'
+        '<options from_data_table="t"/></param></inputs>'
+    )
+    assert "GTR058" in _codes(_tool(inputs=both))  # two ways at once
+    static = (
+        '<inputs><param name="s" type="select">'
+        '<option value="a">A</option></param></inputs>'
+    )
+    assert "GTR058" not in _codes(_tool(inputs=static))
+    dynamic = '<inputs><param name="s" type="select" dynamic_options="f()"/></inputs>'
+    assert "GTR058" not in _codes(_tool(inputs=dynamic))
+    # a conditional select must use <option> children, not <options>/dynamic
+    cond_bad = (
+        '<inputs><conditional name="c">'
+        '<param name="s" type="select"><options from_data_table="t"/></param>'
+        "</conditional></inputs>"
+    )
+    assert "GTR058" in _codes(_tool(inputs=cond_bad))
+    # a macro <expand> may inject the options -> skip (raw-tree boundary)
+    macro = (
+        '<inputs><param name="s" type="select">'
+        '<expand macro="opts"/></param></inputs>'
+    )
+    assert "GTR058" not in _codes(_tool(inputs=macro))
+
+
+def test_gtr059_select_option_value_present() -> None:
+    missing = (
+        '<inputs><param name="s" type="select">'
+        "<option>A</option></param></inputs>"
+    )
+    assert "GTR059" in _codes(_tool(inputs=missing))
+    ok = (
+        '<inputs><param name="s" type="select">'
+        '<option value="a">A</option></param></inputs>'
+    )
+    assert "GTR059" not in _codes(_tool(inputs=ok))
+
+
+def test_gtr060_select_options_distinct() -> None:
+    dup_value = (
+        '<inputs><param name="s" type="select">'
+        '<option value="a">A</option><option value="a">B</option></param></inputs>'
+    )
+    assert "GTR060" in _codes(_tool(inputs=dup_value))
+    dup_text = (
+        '<inputs><param name="s" type="select">'
+        '<option value="a">Same</option><option value="b">Same</option>'
+        "</param></inputs>"
+    )
+    assert "GTR060" in _codes(_tool(inputs=dup_text))
+    distinct = (
+        '<inputs><param name="s" type="select">'
+        '<option value="a">A</option><option value="b">B</option></param></inputs>'
+    )
+    assert "GTR060" not in _codes(_tool(inputs=distinct))
+
+
 def test_iuc006_no_error_handling() -> None:
     # No <stdio> and the command has no detect_errors -> flagged.
     assert "GTR026" in _codes(_tool(stdio=""))
