@@ -1318,3 +1318,137 @@ class InputOutputNamesDistinct(CheckRule):
                     self.meta,
                     f"output name '{name}' collides with an input parameter",
                 )
+
+
+def _select_params(root: etree._Element, /) -> Iterable[tuple[etree._Element, str]]:
+    """Each input ``<param type="select">`` with its resolved name."""
+    for param, name in _iter_named_params(root):
+        if param.get("type") == "select":
+            yield param, name
+
+
+class SelectOptionsDefined(CheckRule):
+    """GTR058 — a ``select`` parameter must define its options exactly one valid way.
+
+    Reimplements planemo `InputsSelectOptionsDef` + `InputsSelectOptionsDefConditional`.
+    A top-level select must use **exactly one** of ``<option>`` children, an
+    ``<options>`` element, or the ``dynamic_options`` attribute; a select controlling a
+    ``<conditional>`` must use ``<option>`` children only. A select whose subtree has an
+    ``<expand>`` is **skipped** — a macro may inject the options (the raw-tree boundary,
+    cf. GTR044). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR058",
+        summary="A select parameter must define its options exactly one valid way.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for param, name in _select_params(document.root):
+            if param.find(".//expand") is not None:
+                continue  # a macro may inject <option>/<options>
+            dynamic = param.get("dynamic_options") is not None
+            options = param.findall("options")
+            select_options = param.findall("option")
+            parent = param.getparent()
+            if parent is not None and parent.tag == "conditional":
+                if not select_options or dynamic or options:
+                    yield _violation(
+                        document,
+                        param,
+                        self.meta,
+                        f"select parameter '{name}' in a conditional must define "
+                        "options via <option> children",
+                    )
+            else:
+                ways = (1 if dynamic else 0) + (1 if options else 0) + (
+                    1 if select_options else 0
+                )
+                if ways != 1:
+                    yield _violation(
+                        document,
+                        param,
+                        self.meta,
+                        f"select parameter '{name}' must define options exactly one "
+                        "way (<option> children, an <options> element, or "
+                        "dynamic_options)",
+                    )
+
+
+class SelectOptionValuePresent(CheckRule):
+    """GTR059 — a static ``select`` ``<option>`` must carry a ``value``.
+
+    Reimplements planemo `InputsSelectOptionValueMissing`. An ``<option>`` with no
+    ``value`` cannot be selected. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR059",
+        summary="A static select <option> must carry a value.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for param, name in _select_params(document.root):
+            if any(option.get("value") is None for option in param.findall("option")):
+                yield _violation(
+                    document,
+                    param,
+                    self.meta,
+                    f"select parameter '{name}' has an <option> without a value",
+                )
+
+
+class SelectOptionsDistinct(CheckRule):
+    """GTR060 — a ``select``'s static options should be distinct.
+
+    Reimplements planemo `InputsSelectOptionDuplicateValue` +
+    `InputsSelectOptionDuplicateText`.
+    Duplicate ``(value, selected)`` or ``(text, selected)`` pairs make options
+    indistinguishable; matching planemo, an option's text defaults to its
+    ``value.capitalize()`` when the body is empty. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR060",
+        summary="A select's static options should have distinct values and text.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for param, name in _select_params(document.root):
+            options = param.findall("option")
+            values = [
+                (option.get("value", ""), option.get("selected", "false"))
+                for option in options
+            ]
+            if len(set(values)) != len(values):
+                yield _violation(
+                    document,
+                    param,
+                    self.meta,
+                    f"select parameter '{name}' has options with duplicate values",
+                )
+            texts = [
+                (
+                    option.text
+                    if option.text is not None
+                    else option.get("value", "").capitalize(),
+                    option.get("selected", "false"),
+                )
+                for option in options
+            ]
+            if len(set(texts)) != len(texts):
+                yield _violation(
+                    document,
+                    param,
+                    self.meta,
+                    f"select parameter '{name}' has options with duplicate text",
+                )

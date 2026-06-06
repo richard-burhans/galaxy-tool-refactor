@@ -67,3 +67,6 @@ Detect-only IUC best-practice checks. Advisory: `check` reports them but does no
 | GTR055 | check | 13 | 0.1% | 24 | An input `<param>` name must be a valid Cheetah placeholder. |
 | GTR056 | check | 18 | 0.2% | 30 | Input `<param>` names must be unique within their scope. |
 | GTR057 | check | 4 | 0.0% | 4 | An output name must not duplicate an input parameter name. |
+| GTR058 | check | 5 | 0.1% | 5 | A select parameter must define its options exactly one valid way. |
+| GTR059 | check | 1 | 0.0% | 1 | A static select `<option>` must carry a value. |
+| GTR060 | check | 31 | 0.3% | 53 | A select's static options should have distinct values and text. |
