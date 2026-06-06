@@ -916,8 +916,10 @@ exactly as Cheetah would — the fidelity a *mutator* needs and the regex cannot
   tool XML by default. **Unlike `[shell-oracle]` (bashlex is GPL), CT3 is MIT**, so it
   is a clean hard dependency. `cheetah_spans` still returns `None` on the ~0.4% of
   bodies CT3 cannot compile — callers fall back to the §18 regex *only there* (those
-  cases are retained for later work) — and defensively if CT3 were somehow absent. The
-  `Parser` subclass is built once in a `@cache`d factory; CT3 is imported lazily.
+  bodies are retained as a corpus for later work: `scripts.measure cheetah-cdm-bails`
+  writes `docs/corpus_data/cheetah_cdm_bail_cases.json`) — and defensively if CT3 were
+  somehow absent. The `Parser` subclass is built once in a `@cache`d factory; CT3 is
+  imported lazily.
 - **Spans are disjoint, ordered, and round-trip-faithful.** The literal text between
   spans is the gap, so a section re-serialises by interleaving gaps with each
   `span.text` — the contract a byte-faithful mutator relies on.

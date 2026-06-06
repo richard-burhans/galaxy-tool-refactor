@@ -4884,6 +4884,72 @@ def _run_cheetah_cdm_coverage(args: argparse.Namespace) -> None:
     _report_cheetah_cdm_coverage(result)
 
 
+# --- measurement: cheetah-cdm-bails ---------------------------------------------
+#
+# Save the ~0.4% of pure-text <command> bodies CT3 cannot compile (cheetah_spans ->
+# None) as a retained corpus for later work. These are exactly the bodies where
+# command_text / cheetah_refs fall back to the regex (galaxy-tool-xml/docs/decisions.md
+# §19); capturing them gives real test fixtures without needing the full corpus when we
+# later improve CT3-bail handling. Writes docs/corpus_data/cheetah_cdm_bail_cases.json.
+# Needs the corpus, not run in CI; the tally is pinned by a synthetic-fixture unit test.
+
+
+@dataclass
+class _CdmBailCase:
+    source: str  # corpus-relative path to the tool XML
+    tool_id: str
+    body: str  # the pure-text <command> body CT3 could not compile
+
+
+def _measure_cheetah_cdm_bails(*, corpus_root: Path) -> list[_CdmBailCase]:
+    """Collect every pure-text <command> body where ``cheetah_spans`` bails to ``None``."""
+    from galaxy_tool_xml.cheetah_cdm import cheetah_spans
+
+    seen: set[str] = set()
+    cases: list[_CdmBailCase] = []
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        command = root.find("command")
+        if command is None or len(command) > 0:  # pure-text bodies only (no children)
+            continue
+        body = command.text or ""
+        if not body.strip() or ("$" not in body and "#" not in body):
+            continue
+        if cheetah_spans(body) is None:
+            source = str(path.relative_to(corpus_root)) if path.is_relative_to(
+                corpus_root
+            ) else path.name
+            cases.append(_CdmBailCase(source=source, tool_id=root.get("id", ""), body=body))
+    cases.sort(key=lambda case: (case.source, case.tool_id))
+    return cases
+
+
+def _run_cheetah_cdm_bails(args: argparse.Namespace) -> None:
+    cases = _measure_cheetah_cdm_bails(corpus_root=args.corpus_root)
+    print("\n=== cheetah-cdm-bails (CT3 cannot-compile <command> bodies) ===")
+    print(f"bail cases retained: {len(cases)}")
+    for case in cases[:10]:
+        print(f"  {case.source}  (id={case.tool_id!r})  {len(case.body)} chars")
+    if not args.all:
+        out_path = _repo_root() / "docs" / "corpus_data" / "cheetah_cdm_bail_cases.json"
+        payload = [
+            {"source": case.source, "tool_id": case.tool_id, "body": case.body}
+            for case in cases
+        ]
+        out_path.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        print(f"\nwrote {_display_path(out_path)} ({len(cases)} cases)")
+
+
 # --- measurement: rename-coverage -----------------------------------------------
 #
 # Blast-radius / coverage sizing for the first Cheetah MUTATOR (M5.3): attempt to
@@ -6086,6 +6152,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "command-language": _run_command_language,
     "cheetah-command-complexity": _run_cheetah_command_complexity,
     "cheetah-cdm-coverage": _run_cheetah_cdm_coverage,
+    "cheetah-cdm-bails": _run_cheetah_cdm_bails,
     "rename-coverage": _run_rename_coverage,
     "rename-macro-spread": _run_rename_macro_spread,
     "interpreter-bucket-split": _run_interpreter_buckets,
