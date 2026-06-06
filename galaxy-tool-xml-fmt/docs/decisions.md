@@ -147,6 +147,14 @@ Working classification:
 | **Element name (rename, case-fix)** | **yes** | **2** |
 | **Adding/removing elements** | **yes** | **2** |
 
+**Caveat — "whitespace between elements is non-significant" holds only for *element*
+content, not *mixed* content** (text interspersed with child elements, e.g.
+`See <b>x</b> <i>y</i>` in a `<help>` body), where inter-element whitespace is a
+significant word separator. GTR001's `strip()`-guarded tail rewrite (`serializer.py`
+`safe_set_tail`) does not distinguish the two, so it *would* reflow such a separator —
+a documented behaviour-preservation limitation (GTR001) with **zero corpus incidence**,
+left unguarded rather than fixed. See `../../docs/behavior_preservation.md`.
+
 ### Source
 
 This mirrors the parent repo's `docs/decisions.md`:

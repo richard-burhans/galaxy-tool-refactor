@@ -228,6 +228,20 @@ ships GTR013 and the validation-driven codemods).
   (spelling, not version policy); the maintainer decides whether to bump
   the declared profile. This codemod is also what pulled M2's deferred
   `rename_tag` / `rename_attribute` mutation primitives into existence.
+- **Contract — validity-restoration, not runtime-preservation of invalid tools
+  (behaviour-preservation GTR006).** The `newest_valid_profile is None` guard means
+  `FixTypos` is a **no-op on every valid tool**, so it preserves the behaviour of any
+  tool that currently works. On an **invalid** tool it *restores validity* by
+  rewriting near-miss values to their canonical form (e.g. `format="RestructuredText"`
+  → `restructuredtext`, `type="Docker"` → `docker`) — and because Galaxy reads several
+  such attributes case-sensitively, repairing a broken value can change how the
+  *previously-broken* tool behaves (e.g. server-side vs client-side `<help>`
+  rendering). That is inherent to restoring validity, not a defect: the contract is
+  "preserve valid tools, repair invalid ones", *not* "preserve the runtime of an
+  invalid tool". The behaviour-preservation audit's refutation of GTR006 measured this
+  rendering shift on an invalid input and so overreached; no scope change is warranted
+  (no case-only near-miss fires on an otherwise-valid tool). See
+  `../docs/behavior_preservation.md`.
 
 ## 12. Per-codemod corpus-sweep eligibility hooks
 

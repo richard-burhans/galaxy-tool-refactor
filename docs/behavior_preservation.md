@@ -169,7 +169,7 @@ still tidies it to `<help/>` — the guard stays surgical). Corpus delta is a ha
 degenerate whitespace-only command/token bodies now conservatively preserved. fmt
 `rule_empty_element.py`; regression fixture in `test_rule_empty_element.py`.
 
-### GTR001 — whitespace-tail rewrite in mixed content (zero corpus incidence)
+### GTR001 — whitespace-tail rewrite in mixed content (zero corpus incidence) — DOCUMENTED (PR #116)
 
 The indentation rule's `strip()` oracle rewrites a whitespace-only `.tail` without
 checking whether the parent holds **mixed content** (text interspersed with
@@ -184,7 +184,7 @@ content); add `xml:space="preserve"` + mixed content to the rule's known limitat
 An optional guard (skip ws-tail rewrite inside a mixed-content parent) is low-priority
 given zero incidence. fmt `docs/decisions.md` D3.
 
-### GTR006 — FixTypos case-folds a `format`/`type` enum value (contract nuance)
+### GTR006 — FixTypos case-folds a `format`/`type` enum value (contract nuance) — DOCUMENTED (PR #116)
 
 FixTypos rewrites `help format="RestructuredText"` → `restructuredtext` (re-verified).
 The verdict called this a runtime change (Galaxy compares `format` case-sensitively:
@@ -208,8 +208,13 @@ fixtures are the record. Suggested order (cleanest/highest-value first):
 2. ~~**GTR004 — content-bearing `.text` scope-narrow**~~ — **DONE (PR #113)**: empty-element rule skips `<command>`/`<configfile>`/`<token>`.
 3. ~~**GTR016 — FixInterpreter mixed-content**~~ — **DONE (PR #114)**: skips mixed-content `<command>`.
 4. ~~**GTR009 — Upgrade24_0 mixed-content filter**~~ — **RESOLVED (PR #115)**: refutation overreached; Galaxy evaluates `filter.text.strip()`, so the hoist is behaviour-preserving (no code change).
-5. **GTR001 — doc-tighten** (+ optional guard; zero incidence) — *open*.
-6. **GTR006 — doc-clarify the validity-restoration contract** (no code change) — *open*.
+5. ~~**GTR001 — doc-tighten**~~ — **DONE (PR #116)**: mixed-content limitation documented at `serializer.safe_set_tail` + fmt §D3. The optional guard stays deliberately deferred (zero corpus incidence); the `xfail` fixture remains as the known-limitation marker.
+6. ~~**GTR006 — doc-clarify the validity-restoration contract**~~ — **DONE (PR #116)**: codemod §11 now states the contract (preserve valid tools, repair invalid ones); no code change.
+
+**Backlog complete.** All 8 refuted findings are resolved: 5 fixed (GTR004, GTR016,
+GTR018.1, GTR019.1, GTR020.1), 2 refutation-overreach documented (GTR006, GTR009), and
+GTR001's mixed-content limitation documented (the only residual; a guard is deferred on
+zero incidence).
 
 Each *open* refuted finding has a `xfail(strict=True)` regression fixture in its owning
 test module, tagged with its GTR code, so a future scope-widening that re-introduces
