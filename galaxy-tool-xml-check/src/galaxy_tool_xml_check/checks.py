@@ -1984,3 +1984,160 @@ class ValidatorRequiredAttributes(CheckRule):
                         f"parameter '{name}': 'dataset_metadata_equal' validator must "
                         "not set both 'value' and 'value_json'",
                     )
+
+
+def _string_as_bool(value: object, /) -> bool:
+    """Galaxy's ``string_as_bool``: truthy for ``true``/``yes``/``on``/``1`` (any case).
+
+    Case-insensitive, mirroring ``galaxy.util.string_as_bool``.
+    """
+    return str(value).lower() in ("true", "yes", "on", "1")
+
+
+def _iter_conditionals(
+    root: etree._Element, /
+) -> Iterable[tuple[etree._Element, etree._Element, str | None]]:
+    """Each ``<inputs>//conditional`` with its first ``<param>`` and that param's type.
+
+    Mirrors planemo's ``_iter_conditional``: skips a ``value_from`` conditional (the
+    upload tool's, which has no ``<when>`` children) and a conditional whose first child
+    ``<param>`` is absent (e.g. macro-supplied — invisible on the raw tree).
+    """
+    inputs = root.find("inputs")
+    if inputs is None:
+        return
+    for conditional in inputs.iterfind(".//conditional"):
+        if conditional.get("value_from"):
+            continue
+        first_param = conditional.find("param")
+        if first_param is None:
+            continue
+        yield conditional, first_param, first_param.get("type")
+
+
+class ConditionalTestParamType(CheckRule):
+    """GTR069 — a ``<conditional>``'s first ``<param>`` should be a ``select``.
+
+    Reimplements planemo `ConditionalParamType` (the test param must be ``select`` or
+    ``boolean``) + `ConditionalParamTypeBool` (a ``boolean`` test param is discouraged —
+    a ``select`` is preferred). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR069",
+        summary="A conditional's first <param> should be a select.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for conditional, first_param, ptype in _iter_conditionals(document.root):
+            name = conditional.get("name") or "with missing name"
+            if ptype not in ("boolean", "select"):
+                yield _violation(
+                    document,
+                    first_param,
+                    self.meta,
+                    f"conditional '{name}' test param should be type 'select'",
+                )
+            elif ptype == "boolean":
+                yield _violation(
+                    document,
+                    first_param,
+                    self.meta,
+                    f"conditional '{name}' boolean test param is discouraged; "
+                    "use a select",
+                )
+
+
+class ConditionalTestParamAttributes(CheckRule):
+    """GTR070 — a ``<conditional>``'s test param must not be optional/multiple.
+
+    Reimplements planemo `ConditionalParamIncompatibleAttributes`: the ``select`` /
+    ``boolean`` test param of a conditional cannot be ``optional="true"`` or
+    ``multiple="true"``. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR070",
+        summary="A conditional's test param must not be optional or multiple.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for conditional, first_param, ptype in _iter_conditionals(document.root):
+            if ptype not in ("boolean", "select"):
+                continue
+            name = conditional.get("name") or "with missing name"
+            for attr in ("optional", "multiple"):
+                if _string_as_bool(first_param.get(attr, False)):
+                    yield _violation(
+                        document,
+                        first_param,
+                        self.meta,
+                        f"conditional '{name}' test param cannot be {attr}=\"true\"",
+                    )
+
+
+class ConditionalWhensMatchOptions(CheckRule):
+    """GTR071 — a ``<conditional>``'s ``<when>`` blocks must match the test options.
+
+    Reimplements planemo `ConditionalWhenMissing` (every test-param option needs a
+    ``<when>``) + `ConditionalOptionMissing` / `ConditionalOptionMissingBoolean` (every
+    ``<when>`` needs a matching option / ``truevalue``/``falsevalue``). The option set
+    is the ``select``'s ``<option value=…>`` values or the ``boolean``'s
+    ``truevalue``/``falsevalue``. A conditional whose subtree has an ``<expand>`` is
+    **skipped** — a macro may supply the options/whens (the raw-tree boundary).
+    Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR071",
+        summary="A conditional's <when> blocks must match the test-param options.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for conditional, first_param, ptype in _iter_conditionals(document.root):
+            if ptype not in ("boolean", "select"):
+                continue
+            if conditional.find(".//expand") is not None:
+                continue  # a macro may supply options/whens
+            name = conditional.get("name") or "with missing name"
+            if ptype == "select":
+                option_ids = {
+                    option.get("value")
+                    for option in first_param.findall("./option[@value]")
+                }
+            else:
+                option_ids = {
+                    first_param.get("truevalue", "true"),
+                    first_param.get("falsevalue", "false"),
+                }
+            when_ids = {
+                when.get("value")
+                for when in conditional.findall("./when[@value]")
+                if when.get("value") is not None
+            }
+            for missing_when in option_ids - when_ids:
+                yield _violation(
+                    document,
+                    conditional,
+                    self.meta,
+                    f"conditional '{name}': no <when> block for option "
+                    f"'{missing_when}'",
+                )
+            label = "truevalue/falsevalue" if ptype == "boolean" else "<option>"
+            for missing_option in when_ids - option_ids:
+                yield _violation(
+                    document,
+                    conditional,
+                    self.meta,
+                    f"conditional '{name}': no {label} for <when value="
+                    f"'{missing_option}'>",
+                )

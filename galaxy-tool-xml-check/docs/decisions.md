@@ -780,3 +780,28 @@ galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k gtr06
   and option-filter groups left.
 - **Corpus** (`docs/corpus_check_stats.md`): GTR068 **1** — a low-noise correctness guard
   (corpus validators almost always carry their required attributes; the XSD catches most).
+
+## D22 (2026-06-06) — planemo-parity conditional checks: GTR069–GTR071
+
+**Date:** 2026-06-06. Twelfth planemo-linter batch (`../../docs/planemo_linter_parity.md`)
+— the `<conditional>` slice of `inputs.py`, as advisory checks. Reproduced-by: `uv run
+--package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k
+"gtr069 or gtr070 or gtr071"`.
+
+- **GTR069 `ConditionalTestParamType`** — reimplements planemo `ConditionalParamType` (the
+  first `<param>` must be `select` or `boolean`) + `ConditionalParamTypeBool` (a `boolean`
+  test param is discouraged — prefer a `select`).
+- **GTR070 `ConditionalTestParamAttributes`** — reimplements planemo
+  `ConditionalParamIncompatibleAttributes`: the test param cannot be `optional="true"` or
+  `multiple="true"` (via Galaxy's `string_as_bool`).
+- **GTR071 `ConditionalWhensMatchOptions`** — reimplements planemo `ConditionalWhenMissing`
+  + `ConditionalOptionMissing` + `ConditionalOptionMissingBoolean`: every test-param option
+  (`select` `<option value>` / `boolean` `truevalue`/`falsevalue`) needs a `<when>` and vice
+  versa. A conditional whose subtree has an `<expand>` is skipped — a macro may supply
+  options/whens (22 corpus FPs avoided).
+- **Helper.** `_iter_conditionals` mirrors planemo's `_iter_conditional` (skips `value_from`
+  conditionals and those whose first `<param>` is macro-supplied/absent).
+- **Corpus** (`docs/corpus_check_stats.md`): GTR069 **220** (2.4%; mostly the
+  boolean-discouraged advisory — boolean conditionals are common but genuinely
+  discouraged), GTR070 **5**, GTR071 **233** (2.5%; when/option mismatches). The two
+  high-incidence ones are accurate planemo-parity advisories, not false positives.
