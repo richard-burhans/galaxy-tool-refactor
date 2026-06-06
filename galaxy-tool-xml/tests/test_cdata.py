@@ -38,6 +38,14 @@ def test_cdata_wrappable_residual_cases() -> None:
     assert not cdata_wrappable(_command(b"echo ]]&gt; hi"))
 
 
+def test_cdata_wrappable_rejects_carriage_return() -> None:
+    # A CDATA section cannot carry &#13;: XML line-end normalization rewrites a raw CR
+    # to LF on the next parse, so wrapping a body containing \r would silently change
+    # it (behaviour-preservation GTR018.1/GTR019.1; docs/behavior_preservation.md).
+    assert not cdata_wrappable(_command(b"echo a&#13;echo b"))
+    assert not cdata_wrappable(_command(b"line one&#13;\nmore"))
+
+
 def test_needs_cdata_is_the_union() -> None:
     # needs_cdata = has text, not wrapped — the population the practice applies to.
     assert needs_cdata(_command(b"echo hi"))  # fix-eligible

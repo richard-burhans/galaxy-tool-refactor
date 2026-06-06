@@ -1185,6 +1185,18 @@ one-off classification scan (mirrors the codemod's eligibility predicate).
   validity-preserving on every tool, zero retained regressions. The remaining bodies
   are already CDATA-wrapped (5,982 command / 5,007 help in the raw scan) or
   mixed-content (12 command / 9 help; 0 carry a `]]>` terminator).
+- **Carriage-return guard (2026-06-06; behavior-preservation GTR018.1/GTR019.1).** The
+  shared tier-1 predicate `galaxy_tool_xml.cdata.cdata_wrappable` was unsound for a
+  body containing a carriage return: a CDATA section cannot carry `&#13;` (entity/char
+  references are not recognised inside a section), and a raw CR is normalised to LF on
+  the next parse — so wrapping a CR-bearing body silently rewrote it `\r`→`\n` and was
+  non-idempotent. `cdata_wrappable` now rejects any body containing `\r`, so both `.1`
+  rules leave it unwrapped (the CR survives as `&#13;`) and the `.2` advisories flag it
+  in lockstep. **Zero corpus incidence** — no tool carries a CR in an otherwise-wrappable
+  body, so the GTR018/019 counts above are unchanged; the guard is a soundness
+  safety-net against the silent rewrite, not a corpus-driven change. Pinned by
+  `test_cdata.py::test_cdata_wrappable_rejects_carriage_return`. See
+  `../docs/behavior_preservation.md`.
 
 ## 30. `SingleQuoteCommandVars` (GTR020.1) — auto-quote the provable single-quote subset
 
