@@ -8,7 +8,7 @@ from galaxy_tool_xml.cheetah_cdm import cheetah_cdm_available
 from galaxy_tool_xml.command_text import unquoted_cheetah_vars
 
 requires_cdm = pytest.mark.skipif(
-    not cheetah_cdm_available(), reason="needs the cheetah-cdm extra (CT3)"
+    not cheetah_cdm_available(), reason="CT3 missing (base dep; broken install)"
 )
 
 

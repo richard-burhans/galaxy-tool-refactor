@@ -4789,7 +4789,7 @@ def _run_cheetah_command_complexity(args: argparse.Namespace) -> None:
 # rename scope-shadowing population (tools whose directive spans include a
 # #set/#for/#def local binding). Reproduces the read-only Phase-0 spike with shipped
 # code, grounding the numbers in docs/upgrade_research/cheetah_section_editing.md.
-# Needs the corpus AND the cheetah-cdm extra (CT3), so it is print-only and not run in
+# Needs the corpus (CT3 is a base dep), so it is print-only and not run in
 # CI; the pure aggregation is pinned by a synthetic-fixture unit test.
 
 
@@ -4862,7 +4862,7 @@ def _measure_cheetah_cdm_coverage(*, corpus_root: Path) -> _CheetahCdmCoverageRe
 def _report_cheetah_cdm_coverage(result: _CheetahCdmCoverageResult) -> None:
     print("\n=== cheetah-cdm-coverage (faithful CDM lexer parity + scope sizing) ===")
     if not result.cdm_available:
-        print("  cheetah-cdm extra (CT3) not installed — install galaxy-tool-xml[cheetah-cdm].")
+        print("  CT3 not importable — it is a base dependency; reinstall galaxy-tool-xml.")
         return
 
     def pct(n: int, of: int) -> str:
@@ -4895,7 +4895,7 @@ def _run_cheetah_cdm_coverage(args: argparse.Namespace) -> None:
 # parity: the offset-returning `rename_param_plan` must reach the same verdict as the tree
 # mutator (same apply / same bail reason), except where the stricter offset path soundly
 # bails (entity-content / locator-failed); genuine mismatches must be 0. Needs the corpus
-# AND the cheetah-cdm extra (CT3); print-only, not run in CI; the pure tally is pinned
+# (CT3 is a base dep); print-only, not run in CI; the pure tally is pinned
 # by a synthetic-fixture unit test. Backs galaxy-tool-xml/docs/decisions.md §20.
 
 _RENAME_DEFINITION_TAGS = frozenset({"param", "conditional", "repeat", "section"})
@@ -5010,7 +5010,7 @@ def _measure_rename_coverage(*, corpus_root: Path) -> _RenameCoverageResult:
 def _report_rename_coverage(result: _RenameCoverageResult) -> None:
     print("\n=== rename-coverage (first Cheetah mutator: outcome distribution) ===")
     if not result.cdm_available:
-        print("  cheetah-cdm extra (CT3) not installed — install galaxy-tool-xml[cheetah-cdm].")
+        print("  CT3 not importable — it is a base dependency; reinstall galaxy-tool-xml.")
         return
 
     def pct(n: int, of: int) -> str:
@@ -5063,8 +5063,8 @@ def _run_rename_coverage(args: argparse.Namespace) -> None:
 # feature fixes: renames the *old* single-file path reported as success while leaving
 # a ``$old`` reference dangling in an imported macro. Reuses the SHIPPED
 # build_importer_map / rename_param_in_bundle so the measure can't drift from the
-# code. Writes docs/rename_macro_spread_stats.md. Needs the corpus + the cheetah-cdm
-# extra; not run in CI. Backs galaxy-tool-xml/docs/decisions.md §21.
+# code. Writes docs/rename_macro_spread_stats.md. Needs the corpus (CT3 is a base dep);
+# not run in CI. Backs galaxy-tool-xml/docs/decisions.md §21.
 
 
 @dataclass
@@ -5168,7 +5168,7 @@ def _render_rename_macro_spread_page(result: _RenameMacroSpreadResult) -> str:
         "# Cross-file rename: macro spread + sole-owned gate",
         "",
         "Reproduced by `uv run python -m scripts.measure rename-macro-spread` "
-        "(needs the corpus + the `galaxy-tool-xml[cheetah-cdm]` extra).",
+        "(needs the corpus; CT3 is a base dependency).",
         "",
         f"- Tools with renameable input definitions: **{result.n_tools}**",
         f"- Rename attempts (one per definition): **{a}**",
@@ -5201,7 +5201,7 @@ def _render_rename_macro_spread_page(result: _RenameMacroSpreadResult) -> str:
 def _report_rename_macro_spread(result: _RenameMacroSpreadResult) -> None:
     print("\n=== rename-macro-spread (cross-file rename: spread + gate) ===")
     if not result.cdm_available:
-        print("  cheetah-cdm extra (CT3) not installed — install galaxy-tool-xml[cheetah-cdm].")
+        print("  CT3 not importable — it is a base dependency; reinstall galaxy-tool-xml.")
         return
     print(_render_rename_macro_spread_page(result))
 

@@ -101,10 +101,11 @@ sanitizer constraints to prove more params space-free (cheap static widening of 
 
 - **M5.1 — CDM faithful lexer (tier 1). SHIPPED (2026-06-05).** The `Parser`-subclass
   span model is `galaxy_tool_xml.cheetah_cdm` (`cheetah_spans` → ordered, disjoint,
-  round-trip-faithful `CheetahSpan`s), behind the optional `galaxy-tool-xml[cheetah-cdm]`
-  extra (CT3, MIT, via `galaxy-util[template]`; same pattern as `[shell-oracle]`), with the
-  regex `command_text` / `cheetah_refs` lexer as the dependency-free fallback (bail →
-  `None`). The shipped lexer reproduces the spike: `cheetah-cdm-coverage` reports 99.6%
+  round-trip-faithful `CheetahSpan`s). CT3 (MIT, via `galaxy-util[template]`) shipped
+  behind the optional `[cheetah-cdm]` extra and was **promoted to a base dependency
+  2026-06-06** (MIT, so unlike GPL `[shell-oracle]` it is a clean hard dep), with the
+  regex `command_text` / `cheetah_refs` scan kept as the fallback only on the ~0.4% CT3
+  cannot compile (bail → `None`). The shipped lexer reproduces the spike: `cheetah-cdm-coverage` reports 99.6%
   parse-clean / 0.4% bail / 22.6%-of-clean scope-hazard. Tier-1 `docs/decisions.md` §19.
   The read-only consumers (M5.2) keep the regex until the first mutator consumes the
   faithful lexer.

@@ -1384,15 +1384,14 @@ over-conservative by the sizing below.
 
 ### Faithful-lexer var extraction (tier-1 §16/§19)
 
-`command_text.unquoted_cheetah_vars` now filters its regex candidates against the faithful
-CT3 span lexer (`cheetah_cdm.cheetah_spans`) when the `cheetah-cdm` extra is present: a
-candidate survives only if its `$` starts a genuine `PLACEHOLDER` span, dropping `$`-runs
-inside a `#raw` block, a `#* … *#` block comment, an escaped `\$`, or a directive clause
-that the line-based regex cannot see. It only **narrows** (mirrors the `shell-oracle`
-posture); without the extra (or on the ~0.4% CT3 bail) behaviour is unchanged, so the
-default `format` output is unchanged there and license-clean. (As more rules adopt the
-faithful lexer for soundness, the optional-extra posture may flip to a hard dependency — a
-future call.)
+`command_text.unquoted_cheetah_vars` filters its regex candidates against the faithful
+CT3 span lexer (`cheetah_cdm.cheetah_spans`; CT3 is a base dependency — §19, promoted from
+the optional `cheetah-cdm` extra 2026-06-06): a candidate survives only if its `$` starts a
+genuine `PLACEHOLDER` span, dropping `$`-runs inside a `#raw` block, a `#* … *#` block
+comment, an escaped `\$`, or a directive clause that the line-based regex cannot see. It
+only **narrows**; only on the ~0.4% of bodies CT3 cannot compile is the raw regex result
+used. The MIT license of CT3 (unlike GPL bashlex behind `shell-oracle`) made the hard
+dependency clean.
 
 This barely touches the GTR020.1 fix population (those false positives classify as
 `non_input` and were never quoted) but it **materially sharpens the GTR020.2 advisory**:

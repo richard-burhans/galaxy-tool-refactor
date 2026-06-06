@@ -1,6 +1,6 @@
 # Cross-file rename: macro spread + sole-owned gate
 
-Reproduced by `uv run python -m scripts.measure rename-macro-spread` (needs the corpus + the `galaxy-tool-xml[cheetah-cdm]` extra).
+Reproduced by `uv run python -m scripts.measure rename-macro-spread` (needs the corpus; CT3 is a base dependency).
 
 - Tools with renameable input definitions: **8888**
 - Rename attempts (one per definition): **71935**

@@ -67,7 +67,7 @@ the only nontrivial new code is on our side.
 
 The minimum viable path, almost entirely on galaxyls's side:
 
-1. Add `galaxy-tool-xml[cheetah-cdm]` to galaxyls deps.
+1. Add `galaxy-tool-xml` to galaxyls deps (CT3 / the faithful lexer comes in as a base dependency — no extra needed).
 2. Register `textDocument/prepareRename` + `textDocument/rename`.
 3. On `rename`: read the document text, call our `facade.rename_param(text, old=…,
    new=…)`, and return **one whole-document `TextEdit`** with the serialised result

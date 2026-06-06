@@ -10,7 +10,11 @@ dependencies = [
     "xsdata[lxml]>=26.2",
     "lxml>=5",             # declared explicitly: galaxy-util needs lxml but does not declare it
     "click>=8",
-    "galaxy-util>=24,<27", # macro expansion (galaxy.util.xml_macros); internal API -> ranged pin
+    # galaxy-util: macro expansion (galaxy.util.xml_macros). The [template] extra pulls
+    # in CT3 (the maintained, MIT-licensed Cheetah3 fork) for the faithful Cheetah lexer
+    # (galaxy_tool_xml.cheetah_cdm) — a REQUIRED dependency: the faithful path is the
+    # default for find-references / GTR020 / rename, not an opt-in. internal API -> ranged pin.
+    "galaxy-util[template]>=24,<27",
     "packaging>=23",       # version comparison; only a transitive dep of galaxy-util otherwise
 ]
 
@@ -19,12 +23,10 @@ dependencies = [
 # it is isolated behind this extra rather than a hard dependency of this MIT tier;
 # shell_oracle degrades gracefully when it is absent. See
 # ../docs/upgrade_research/cheetah_bashlex_boundary_oracle.md.
+# (CT3 — the faithful Cheetah lexer — is MIT, so unlike bashlex it is NOT gated behind
+# an extra: it is a base dependency above. cheetah_cdm still returns None on the ~0.4%
+# of bodies CT3 cannot compile, where callers fall back to the regex; see §19.)
 shell-oracle = ["bashlex>=0.18"]
-# The faithful Cheetah lexer (galaxy_tool_xml.cheetah_cdm). CT3 (the maintained
-# Cheetah3 fork) is reached via galaxy-util's own ``template`` extra rather than a hard
-# dependency of this tier; cheetah_cdm degrades gracefully when it is absent. See
-# ../docs/upgrade_research/cheetah_section_editing.md.
-cheetah-cdm = ["galaxy-util[template]>=24,<27"]
 
 [project.scripts]
 galaxy-tool-xml = "galaxy_tool_xml.cli:main"
@@ -36,7 +38,8 @@ galaxy-tool-xml = "galaxy_tool_xml.cli:main"
 # (the Galaxy ToolShed exposes its content only over the Mercurial wire
 # protocol; the pip-installed package brings its own `hg` binary).
 # bashlex: the shell-oracle extra, in dev so its tests run in CI.
-# galaxy-util[template]: the cheetah-cdm extra (CT3), in dev so its tests run in CI.
+# (CT3 for the faithful lexer is now a base dependency — galaxy-util[template] above —
+# so it no longer needs a dev entry.)
 dev = [
     "xsdata[cli]>=26.2",
     "pytest>=8",
@@ -44,7 +47,6 @@ dev = [
     "mypy",
     "mercurial>=6",
     "bashlex>=0.18",
-    "galaxy-util[template]>=24,<27",
 ]
 
 [build-system]
@@ -91,8 +93,8 @@ strict = true
 # are still type-checked.
 exclude = "src/galaxy_tool_xml/models/(v[0-9].*|any_tool\\.py)"
 
-# lxml, galaxy-util, bashlex (the shell-oracle extra), and Cheetah/CT3 (the cheetah-cdm
-# extra) ship no type information.
+# lxml, galaxy-util, bashlex (the shell-oracle extra), and Cheetah/CT3 (the faithful
+# lexer, a base dependency) ship no type information.
 [[tool.mypy.overrides]]
 module = ["lxml.*", "galaxy.*", "bashlex.*", "Cheetah.*"]
 ignore_missing_imports = true

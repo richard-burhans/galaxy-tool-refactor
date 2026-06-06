@@ -215,7 +215,7 @@ uv run python -m scripts.measure cheetah-command-complexity
 # M5.1): run cheetah_spans() over every pure-text <command> body; report the parse-clean
 # rate (vs the ~0.4% bail-to-regex) and the rename scope-shadowing population (clean
 # bodies whose directive spans carry a #set/#for/#def local). Reproduces the Phase-0
-# spike with shipped code. Needs the corpus AND the cheetah-cdm extra (CT3), print-only,
+# spike with shipped code. Needs the corpus (CT3 is now a base dep), print-only,
 # not run in CI. Backs galaxy-tool-xml/docs/decisions.md §19:
 uv run python -m scripts.measure cheetah-cdm-coverage
 
@@ -226,7 +226,7 @@ uv run python -m scripts.measure cheetah-cdm-coverage
 # it from 93.1%; filter-bare-ref is now a 2.4% residual of ambiguous cases). Also checks
 # Tier-B parity: rename_param_plan (offset-returning) must reach the same verdict as the
 # tree mutator (96.8% same-verdict, 0 mismatches; the rest soundly decline). Needs the
-# corpus AND the cheetah-cdm extra (CT3), print-only, not run in CI. Backs
+# corpus (CT3 is now a base dep), print-only, not run in CI. Backs
 # galaxy-tool-xml/docs/decisions.md §20:
 uv run python -m scripts.measure rename-coverage
 
@@ -234,7 +234,7 @@ uv run python -m scripts.measure rename-coverage
 # across the tool AND its imported macros; classify tool-only / spills-to-macro (sole-owned
 # vs shared) / bailed, plus the silent-break-today count (the bug the bundle fixes: 1.7% of
 # renames). Reuses the shipped build_importer_map / rename_param_in_bundle. Writes
-# docs/rename_macro_spread_stats.md. Needs the corpus + cheetah-cdm extra; not in CI. Backs
+# docs/rename_macro_spread_stats.md. Needs the corpus (CT3 is now a base dep); not in CI. Backs
 # galaxy-tool-xml/docs/decisions.md §21:
 uv run python -m scripts.measure rename-macro-spread
 
