@@ -40,7 +40,7 @@ false alarms:
 
 ## Verdict summary
 
-19 fixable rules audited — **11 hold, 8 refuted** (4 fixed, 4 open).
+19 fixable rules audited — **11 hold, 8 refuted** (5 fixed, 3 open).
 
 | Rule | Codemod / fmt | Claim | Verdict | Basis |
 |---|---|---|---|---|
@@ -58,7 +58,7 @@ false alarms:
 | GTR013 | ReorderToolChildren | runtime | hold | `<tool>` is `xs:all` (order-free); reorder is validity-safe |
 | GTR014 | from_work_dir strip | runtime (conditional) | hold | matches Galaxy's own `<21.09` `strip()`; crossing-gated |
 | GTR015 | format=input→source | runtime | hold | single-top-data-input; format_source-guarded |
-| GTR016 | FixInterpreter | runtime | **REFUTED** | mixed-content `<command>`: `set_text` keeps comment/`<expand>` children → flag duplicated |
+| GTR016 | FixInterpreter | runtime | **REFUTED → FIXED** | mixed-content `<command>`: `set_text` kept comment/`<expand>` children → flag duplicated (PR #114) |
 | GTR017 | NormalizeBooleanValues | runtime | hold | `True`→`true` only where the lenient model already accepts it; validity-restore |
 | GTR018.1 | WrapCommandCdata | runtime | **REFUTED → FIXED** | body with `\r` → CDATA can't carry `&#13;` → CR lost, non-idempotent (PR #112) |
 | GTR019.1 | WrapHelpCdata | runtime | **REFUTED → FIXED** | same `\r`-through-CDATA bug (shared `cdata_wrappable` predicate) (PR #112) |
@@ -127,15 +127,18 @@ Hoisting identical per-child `<filter>`s to the collection level reads
 `'cond_one '`). **Remediation (bug):** compare and rebuild filter bodies from
 `itertext()` (or refuse to hoist a mixed-content filter). Codemod `upgrade_24_0.py`.
 
-### GTR016 — FixInterpreter duplicates a flag in a mixed-content `<command>`
+### GTR016 — FixInterpreter duplicates a flag in a mixed-content `<command>` — FIXED (PR #114)
 
 `detect()` builds the new body from `"".join(command.itertext())` (absorbing child
-tails) but `cursor.set_text` overwrites only `.text` and leaves the children + their
+tails) but `cursor.set_text` overwrites only `.text` and left the children + their
 tails in place. Re-verified: `<command interpreter="python">script.py <!-- note -->
 --x</command>` → effective command `script.py  --x` → `python '…/script.py'  --x --x`
-(the `--x` flag is passed twice). **Remediation (bug):** when rewriting `<command>`,
-clear child nodes/tails too (or skip mixed-content `<command>`, matching the other
-command-rewriting codemods). Codemod §27, `fix_interpreter.py`.
+(the `--x` flag passed twice). **Fixed:** FixInterpreter now **skips** a mixed-content
+`<command>` (`cursor.child_node_count() != 0`), matching the other command-rewriting
+codemods (`SingleQuoteCommandVars`/`WrapCommandCdata`). Clearing the children was
+rejected — a child `<expand>` carries macro command content that must not be dropped;
+skipping is the safe choice (the §23 warning still covers it). Corpus: ~9 mixed-content
+interpreter commands no longer rewritten. Codemod §27, `fix_interpreter.py`.
 
 ### GTR004 — clears whitespace-only `.text` on content-bearing leaves — FIXED (PR #113)
 
@@ -188,7 +191,7 @@ fixtures are the record. Suggested order (cleanest/highest-value first):
 
 1. ~~**GTR018.1 + GTR019.1 — CDATA `\r` guard**~~ — **DONE (PR #112)**: one shared `cdata_wrappable` fix resolved both findings.
 2. ~~**GTR004 — content-bearing `.text` scope-narrow**~~ — **DONE (PR #113)**: empty-element rule skips `<command>`/`<configfile>`/`<token>`.
-3. **GTR016 — FixInterpreter mixed-content** (bug; flag duplication).
+3. ~~**GTR016 — FixInterpreter mixed-content**~~ — **DONE (PR #114)**: skips mixed-content `<command>`.
 4. **GTR009 — Upgrade24_0 mixed-content filter** (bug; text loss).
 5. **GTR001 — doc-tighten** (+ optional guard; zero incidence).
 6. **GTR006 — doc-clarify the validity-restoration contract** (no code change).

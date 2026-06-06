@@ -59,7 +59,7 @@ Each codemod applied alone to every eligible tool, checked for idempotence and p
 | GTR013 | ReorderToolChildren | 8,607 | 4,640 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR014 | FixFromWorkDirWhitespace | 8,607 | 4 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR015 | FixOutputFormatInput | 8,607 | 79 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR016 | FixInterpreter | 8,607 | 1,127 | 8,607 | 0 | 0 | 0 | 0 |
+| GTR016 | FixInterpreter | 8,607 | 1,123 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR017 | NormalizeBooleanValues | 708 | 21 | 708 | 0 | 0 | 687 | 0 |
 | GTR018.1 | WrapCommandCdata | 8,607 | 2,772 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR019.1 | WrapHelpCdata | 8,607 | 3,247 | 8,607 | 0 | 0 | 0 | 0 |
