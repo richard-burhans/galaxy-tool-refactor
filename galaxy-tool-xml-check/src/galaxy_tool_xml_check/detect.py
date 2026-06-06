@@ -22,6 +22,7 @@ from galaxy_tool_xml_check.checks import (
     ConditionalTestParamType,
     ConditionalWhensMatchOptions,
     ContainerShapeRecognized,
+    DataOptionsValid,
     DescriptionPresent,
     EdamXrefs,
     ErrorHandling,
@@ -29,6 +30,7 @@ from galaxy_tool_xml_check.checks import (
     HelpPresent,
     IdCharset,
     InputOutputNamesDistinct,
+    InputsPresent,
     NoTodoText,
     OutputFilterValid,
     OutputFormatDefined,
@@ -40,6 +42,7 @@ from galaxy_tool_xml_check.checks import (
     ParamNamePresent,
     ParamNamesUnique,
     ParamNameValid,
+    ParamTypeChildCombination,
     ProfileFormatValid,
     RequirementNamePresent,
     RequirementsPresent,
@@ -121,6 +124,9 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         ConditionalTestParamType,
         ConditionalTestParamAttributes,
         ConditionalWhensMatchOptions,
+        InputsPresent,
+        ParamTypeChildCombination,
+        DataOptionsValid,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 

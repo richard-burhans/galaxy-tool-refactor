@@ -2141,3 +2141,162 @@ class ConditionalWhensMatchOptions(CheckRule):
                     f"conditional '{name}': no {label} for <when value="
                     f"'{missing_option}'>",
                 )
+
+
+# Galaxy's valid parameter-type → child-element combinations (planemo's
+# ``PARAM_TYPE_CHILD_COMBINATIONS``): a child at the path is only valid for the listed
+# param types.
+_PARAM_TYPE_CHILDREN: tuple[tuple[str, frozenset[str]], ...] = (
+    ("options", frozenset({"data", "select", "drill_down"})),
+    ("options/option", frozenset({"drill_down"})),
+    ("options/column", frozenset({"data", "select"})),
+)
+
+
+def _is_datasource(root: etree._Element, /) -> bool:
+    """Whether the tool is a data-source tool (planemo's ``is_datasource``)."""
+    return root.get("tool_type", "") in ("data_source", "data_source_async")
+
+
+def _iter_named_typed_params(
+    root: etree._Element, /
+) -> Iterable[tuple[etree._Element, str, str]]:
+    """Each named ``<inputs>//param`` with a non-empty ``type`` (planemo's
+    ``_iter_param_type``), as ``(param, name, type)``."""
+    for param, name in _iter_named_params(root):
+        ptype = param.get("type")
+        if ptype:
+            yield param, name, str(ptype)
+
+
+class InputsPresent(CheckRule):
+    """GTR072 — most tools should define input parameters.
+
+    Reimplements planemo `InputsMissing`. A tool with no ``<inputs>//param`` (and not a
+    ``data_source`` tool) usually indicates a missing inputs section. A macro-using tool
+    is **skipped** — a top-level ``<expand>`` may inject the params (the GTR044 raw-tree
+    boundary). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR072",
+        summary="Most tools should define input parameters.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        inputs = root.find("inputs")
+        num_params = len(inputs.findall(".//param")) if inputs is not None else 0
+        if num_params == 0 and not _is_datasource(root) and not has_macros(root):
+            yield _violation(
+                document,
+                inputs if inputs is not None else root,
+                self.meta,
+                "tool defines no input parameters",
+            )
+
+
+class ParamTypeChildCombination(CheckRule):
+    """GTR073 — a ``<param>`` child element must be valid for the param type.
+
+    Reimplements planemo `InputsTypeChildCombination`: ``<options>`` is only valid for
+    ``data`` / ``select`` / ``drill_down`` params, ``<options><option>`` only for
+    ``drill_down``, and ``<options><column>`` only for ``data`` / ``select``.
+    Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR073",
+        summary="A <param> child element must be valid for the param type.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for param, name, ptype in _iter_named_typed_params(document.root):
+            for child_path, allowed in _PARAM_TYPE_CHILDREN:
+                if param.find(child_path) is not None and ptype not in allowed:
+                    yield _violation(
+                        document,
+                        param,
+                        self.meta,
+                        f"parameter '{name}': '{child_path}' child is not valid for a "
+                        f"'{ptype}' param",
+                    )
+
+
+class DataOptionsValid(CheckRule):
+    """GTR074 — a ``data`` param's ``<options>`` (metadata filtering) must be valid.
+
+    Reimplements planemo `InputsDataOptionsMultiple` (one ``<options>``), `…Attrib`
+    (only ``options_filter_attribute`` is a valid attribute), `…FilterAttribFiltersType`
+    (with ``options_filter_attribute`` the filters must be ``type="data_meta"``),
+    `…FiltersType` (without it filters must be ``key="dbkey" type="data_meta"``), and
+    `…FiltersRef` (every filter needs a ``ref``). Faithful to planemo's strictness —
+    e.g. an ``add_value`` filter or a missing ``ref`` in a data param's ``<options>`` is
+    flagged. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR074",
+        summary="A data param's <options> (metadata filtering) must be valid.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for param, name, ptype in _iter_named_typed_params(document.root):
+            if ptype != "data":
+                continue
+            all_options = param.findall("options")
+            if len(all_options) > 1:
+                yield _violation(
+                    document,
+                    all_options[1],
+                    self.meta,
+                    f"data parameter '{name}' has multiple <options> elements",
+                )
+            options = param.find("options")
+            if options is None:
+                continue
+            has_filter_attr = "options_filter_attribute" in options.attrib
+            for attr in options.attrib:
+                if attr != "options_filter_attribute":
+                    yield _violation(
+                        document,
+                        param,
+                        self.meta,
+                        f"data parameter '{name}' <options> has invalid attribute "
+                        f"'{attr}'",
+                    )
+            for option_filter in param.findall("options/filter"):
+                ftype = option_filter.get("type")
+                if has_filter_attr:
+                    if ftype != "data_meta":
+                        yield _violation(
+                            document,
+                            option_filter,
+                            self.meta,
+                            f"data parameter '{name}' filter must be type='data_meta' "
+                            f"(found '{ftype}')",
+                        )
+                elif option_filter.get("key") != "dbkey" or ftype != "data_meta":
+                    yield _violation(
+                        document,
+                        option_filter,
+                        self.meta,
+                        f"data parameter '{name}' filter must be key='dbkey' "
+                        "type='data_meta'",
+                    )
+                if not option_filter.get("ref"):
+                    yield _violation(
+                        document,
+                        option_filter,
+                        self.meta,
+                        f"data parameter '{name}' filter needs a 'ref' attribute",
+                    )

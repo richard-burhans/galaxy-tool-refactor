@@ -612,6 +612,56 @@ def test_gtr071_conditional_whens_match_options() -> None:
     assert "GTR071" not in _codes(_tool(inputs=macro))
 
 
+def test_gtr072_inputs_present() -> None:
+    assert "GTR072" in _codes(_tool(inputs="<inputs></inputs>"))  # no params
+    assert "GTR072" not in _codes(_tool())  # default has a param
+    # a macro <expand> may inject the params -> skip (raw-tree boundary)
+    macro = "<inputs><expand macro=\"params\"/></inputs>"
+    assert "GTR072" not in _codes(_tool(inputs=macro))
+
+
+def test_gtr073_param_type_child_combination() -> None:
+    # <options> is only valid for data/select/drill_down params
+    bad = (
+        '<inputs><param name="x" type="integer" value="1">'
+        '<options from_data_table="t"/></param></inputs>'
+    )
+    assert "GTR073" in _codes(_tool(inputs=bad))
+    # a select with <options> is fine
+    ok = (
+        '<inputs><param name="x" type="select">'
+        '<options from_data_table="t"/></param></inputs>'
+    )
+    assert "GTR073" not in _codes(_tool(inputs=ok))
+
+
+def test_gtr074_data_options_valid() -> None:
+    multiple = (
+        '<inputs><param name="x" type="data" format="txt">'
+        '<options><filter type="data_meta" key="dbkey" ref="r"/></options>'
+        '<options><filter type="data_meta" key="dbkey" ref="r"/></options>'
+        "</param></inputs>"
+    )
+    assert "GTR074" in _codes(_tool(inputs=multiple))  # multiple <options>
+    bad_attr = (
+        '<inputs><param name="x" type="data" format="txt">'
+        '<options from_data_table="t"/></param></inputs>'
+    )
+    assert "GTR074" in _codes(_tool(inputs=bad_attr))  # invalid options attribute
+    bad_filter = (
+        '<inputs><param name="x" type="data" format="txt">'
+        '<options><filter type="static_value" column="1" value="x"/></options>'
+        "</param></inputs>"
+    )
+    assert "GTR074" in _codes(_tool(inputs=bad_filter))  # not dbkey/data_meta, no ref
+    ok = (
+        '<inputs><param name="x" type="data" format="txt">'
+        '<options><filter type="data_meta" key="dbkey" ref="r"/></options>'
+        "</param></inputs>"
+    )
+    assert "GTR074" not in _codes(_tool(inputs=ok))
+
+
 def test_iuc006_no_error_handling() -> None:
     # No <stdio> and the command has no detect_errors -> flagged.
     assert "GTR026" in _codes(_tool(stdio=""))
