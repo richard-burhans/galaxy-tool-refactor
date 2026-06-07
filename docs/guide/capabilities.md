@@ -85,6 +85,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | `<test>` assertion well-formedness (single assert blocks, `has_n`/`has_size` quantifiers, output `compare`-attribute compatibility) — planemo-parity advisory | GTR080–GTR081 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
 | `<test>` output correspondence (each test output is named and matches a declared `<data>`/`<collection>` of the right kind) — planemo-parity advisory | GTR082–GTR083 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
 | `<test>` discovered-dataset coverage (a test of a `discover_datasets` output asserts count/elements) — planemo-parity advisory | GTR084 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
+| `<test>` parameters & expectations (test params name real inputs, `expect_failure` coherence, `expect_num_outputs` for filtered outputs, tests assert something) — planemo-parity advisory | GTR085–GTR088 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
 | Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTR020, the residual stays advisory | GTR020.2 | ✅ Shipped | advisory; provable subset fixed (GTR020) |
 | Input `<param>` never referenced anywhere the tool uses it | GTR034 | ✅ Shipped | `strict` preset; 189/467 tools (`docs/corpus_check_stats.md`) |
 | Lone-`&` vs `&&` join | GTR032 | 🔭 Roadmap | registry labels it "not yet implemented" |

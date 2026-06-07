@@ -2893,3 +2893,199 @@ class TestDiscoveredOutputsChecked(CheckRule):
         if corresponding.find(".//discover_datasets") is None:
             return None
         return corresponding
+
+
+def _test_param_resolves(name: str, names: set[str], arguments: set[str], /) -> bool:
+    """Whether a test param *name* matches a tool input by name or argument variants.
+
+    Mirrors planemo `TestsParamInInputs`: an input ``name`` equal to *name*, or an input
+    ``argument`` equal to *name* / ``-name`` / ``--name`` (and ``_``→``-`` variants).
+    """
+    if name in names:
+        return True
+    candidates = {name, f"-{name}", f"--{name}"}
+    if "_" in name:
+        dashed = name.replace("_", "-")
+        candidates |= {dashed, f"-{dashed}", f"--{dashed}"}
+    return bool(candidates & arguments)
+
+
+def _test_has_expectations(test: etree._Element, /) -> bool | None:
+    """planemo's ``_iter_tests`` validity: whether *test* asserts anything.
+
+    A test is valid if it has an ``expect_failure``/``expect_exit_code``/
+    ``expect_num_outputs`` attribute, an ``assert_stdout``/``stderr``/``command`` block,
+    or an ``<output>``/``<output_collection>``. Returns ``None`` for the malformed
+    ``expect_failure`` + outputs/expect_num_outputs case (GTR086 owns that).
+    """
+    valid = bool(
+        set(test.attrib) & {"expect_failure", "expect_exit_code", "expect_num_outputs"}
+    )
+    if any(
+        test.find(tag) is not None
+        for tag in ("assert_stdout", "assert_stderr", "assert_command")
+    ):
+        valid = True
+    found_output = (
+        test.find("output") is not None or test.find("output_collection") is not None
+    )
+    if _string_as_bool(test.get("expect_failure", "false")) and (
+        found_output or "expect_num_outputs" in test.attrib
+    ):
+        return None
+    return valid or found_output
+
+
+class TestParamsInInputs(CheckRule):
+    """GTR085 — a ``<test>`` ``<param>`` must name a tool input.
+
+    Reimplements planemo `TestsParamInInputs` (matching by input ``name`` or
+    ``argument`` variants). A macro-using tool is **skipped** — the input set is
+    incomplete on the raw tree, so a test param referencing a macro-supplied input
+    can't be proven absent (the
+    GTR079 boundary). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR085",
+        summary="A test <param> must name a tool input.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        if has_macros(root):
+            return
+        inputs = root.find("inputs")
+        if inputs is None:
+            return
+        names: set[str] = set()
+        arguments: set[str] = set()
+        for param in inputs.iterfind(".//param"):
+            name = param.get("name")
+            if name:
+                names.add(name)
+            argument = param.get("argument")
+            if argument:
+                arguments.add(argument)
+        for index, test in enumerate(root.findall("tests/test"), start=1):
+            for param in test.findall("param"):
+                raw_name = param.get("name")
+                if not raw_name:
+                    continue
+                name = raw_name.split("|")[-1]
+                if not _test_param_resolves(name, names, arguments):
+                    yield _violation(
+                        document,
+                        param,
+                        self.meta,
+                        f"test {index}: param '{name}' is not in the tool inputs",
+                    )
+
+
+class TestExpectFailureCoherent(CheckRule):
+    """GTR086 — an ``expect_failure`` ``<test>`` must not assert outputs.
+
+    Reimplements planemo `TestsOutputFailing` (a failing test cannot define
+    ``<output>``/``<output_collection>``) + `TestsExpectNumOutputsFailing` (nor set
+    ``expect_num_outputs``). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR086",
+        summary="An expect_failure test must not assert outputs.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for index, test in enumerate(document.root.findall("tests/test"), start=1):
+            if not _string_as_bool(test.get("expect_failure", "false")):
+                continue
+            if (
+                test.find("output") is not None
+                or test.find("output_collection") is not None
+            ):
+                yield _violation(
+                    document,
+                    test,
+                    self.meta,
+                    f"test {index}: an expect_failure test cannot define outputs",
+                )
+            elif "expect_num_outputs" in test.attrib:
+                yield _violation(
+                    document,
+                    test,
+                    self.meta,
+                    f"test {index}: an expect_failure test cannot set "
+                    "expect_num_outputs",
+                )
+
+
+class TestExpectNumOutputs(CheckRule):
+    """GTR087 — a ``<test>`` should set ``expect_num_outputs`` for filtered outputs.
+
+    Reimplements planemo `TestsExpectNumOutputs`: if any output has a ``<filter>``, each
+    non-failure test should set ``expect_num_outputs`` (so the variable output count is
+    pinned). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR087",
+        summary="A test should set expect_num_outputs when outputs are filtered.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        has_filter = (
+            root.find("outputs/data/filter") is not None
+            or root.find("outputs/collection/filter") is not None
+        )
+        if not has_filter:
+            return
+        for index, test in enumerate(root.findall("tests/test"), start=1):
+            if "expect_num_outputs" in test.attrib:
+                continue
+            if _string_as_bool(test.get("expect_failure", "false")):
+                continue
+            yield _violation(
+                document,
+                test,
+                self.meta,
+                f"test {index}: should set 'expect_num_outputs' (an output has a "
+                "<filter>)",
+            )
+
+
+class TestHasExpectations(CheckRule):
+    """GTR088 — a ``<test>`` should assert outputs or expectations.
+
+    Reimplements planemo `TestsHasExpectations` (a test with no ``<output>`` /
+    ``<output_collection>`` / assert block / ``expect_*`` attribute is likely invalid).
+    Subsumes planemo `TestsValid` (the tool-level "no valid test" warning is conveyed by
+    flagging each empty test). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR088",
+        summary="A test should assert outputs or expectations.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for index, test in enumerate(document.root.findall("tests/test"), start=1):
+            if _test_has_expectations(test) is False:
+                yield _violation(
+                    document,
+                    test,
+                    self.meta,
+                    f"test {index}: defines no outputs or expectations",
+                )

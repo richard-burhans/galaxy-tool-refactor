@@ -19,7 +19,10 @@ def _tool(
     ),
     stdio: str = '<stdio><exit_code range="1:" level="fatal"/></stdio>',
     command: str = "<command><![CDATA[foo --in '$input']]></command>",
-    tests: str = '<tests><test><param name="input" value="x"/></test></tests>',
+    tests: str = (
+        '<tests><test expect_num_outputs="1">'
+        '<param name="input" value="x"/></test></tests>'
+    ),
     help_: str = "<help><![CDATA[Some help text.]]></help>",
     citations: str = '<citations><citation type="doi">10.1/x</citation></citations>',
     outputs: str = '<outputs><data name="out" format="txt"/></outputs>',
@@ -824,6 +827,65 @@ def test_gtr084_test_discovered_outputs_checked() -> None:
     assert "GTR084" not in _codes(
         _tool(tests='<tests><test><output name="out" count="1"/></test></tests>')
     )
+
+
+def test_gtr085_test_params_in_inputs() -> None:
+    ghost = (
+        '<tests><test expect_num_outputs="1">'
+        '<param name="nope" value="x"/></test></tests>'
+    )
+    assert "GTR085" in _codes(_tool(tests=ghost))  # 'nope' is not an input
+    # the default input is named 'input'; a test param matching it is fine
+    ok = (
+        '<tests><test expect_num_outputs="1">'
+        '<param name="input" value="x"/></test></tests>'
+    )
+    assert "GTR085" not in _codes(_tool(tests=ok))
+    # a test param matching an input's argument (dash/underscore variants) resolves
+    arg_inputs = '<inputs><param argument="--my-flag" type="text"/></inputs>'
+    arg_test = (
+        '<tests><test expect_num_outputs="1">'
+        '<param name="my_flag" value="x"/></test></tests>'
+    )
+    assert "GTR085" not in _codes(_tool(inputs=arg_inputs, tests=arg_test))
+
+
+def test_gtr086_test_expect_failure_coherent() -> None:
+    with_output = (
+        '<tests><test expect_failure="true">'
+        '<output name="out"/></test></tests>'
+    )
+    assert "GTR086" in _codes(_tool(tests=with_output))  # failure test w/ output
+    with_num = '<tests><test expect_failure="true" expect_num_outputs="1"/></tests>'
+    assert "GTR086" in _codes(_tool(tests=with_num))  # failure test w/ expect_num
+    ok = '<tests><test expect_failure="true"/></tests>'
+    assert "GTR086" not in _codes(_tool(tests=ok))
+
+
+def test_gtr087_test_expect_num_outputs() -> None:
+    filtered_outputs = (
+        '<outputs><data name="out" format="txt">'
+        "<filter>x</filter></data></outputs>"
+    )
+    filtered = _tool(
+        outputs=filtered_outputs,
+        tests='<tests><test><param name="input" value="x"/></test></tests>',
+    )
+    assert "GTR087" in _codes(filtered)  # filtered output, no expect_num_outputs
+    ok = _tool(
+        outputs=filtered_outputs,
+        tests=(
+            '<tests><test expect_num_outputs="1">'
+            '<param name="input" value="x"/></test></tests>'
+        ),
+    )
+    assert "GTR087" not in _codes(ok)
+
+
+def test_gtr088_test_has_expectations() -> None:
+    empty = '<tests><test><param name="input" value="x"/></test></tests>'
+    assert "GTR088" in _codes(_tool(tests=empty))  # asserts nothing
+    assert "GTR088" not in _codes(_tool())  # default sets expect_num_outputs
 
 
 def test_iuc006_no_error_handling() -> None:

@@ -63,9 +63,13 @@ from galaxy_tool_xml_check.checks import (
     StdioRegexValid,
     TestAssertionsWellFormed,
     TestDiscoveredOutputsChecked,
+    TestExpectFailureCoherent,
+    TestExpectNumOutputs,
+    TestHasExpectations,
     TestOutputCompareAttributes,
     TestOutputNamed,
     TestOutputsCorrespond,
+    TestParamsInInputs,
     TestsPresent,
     ToolVersionWhitespace,
     UnusedParam,
@@ -147,6 +151,10 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         TestOutputNamed,
         TestOutputsCorrespond,
         TestDiscoveredOutputsChecked,
+        TestParamsInInputs,
+        TestExpectFailureCoherent,
+        TestExpectNumOutputs,
+        TestHasExpectations,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 
