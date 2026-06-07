@@ -89,3 +89,5 @@ Detect-only IUC best-practice checks. Advisory: `check` reports them but does no
 | GTR077 | check | 31 | 0.3% | 60 | An `<options>`/`<filter>` must carry the attributes its type allows. |
 | GTR078 | check | 0 | 0.0% | 0 | A regexp `<options>`/`<filter>` value must be a valid regular expression. |
 | GTR079 | check | 1 | 0.0% | 1 | An `<options>`/`<filter>` ref/meta_ref must name a real parameter. |
+| GTR080 | check | 1 | 0.0% | 1 | A `<test>`'s assertions must be well formed. |
+| GTR081 | check | 2 | 0.0% | 2 | A test output's attributes must agree with its compare mode. |

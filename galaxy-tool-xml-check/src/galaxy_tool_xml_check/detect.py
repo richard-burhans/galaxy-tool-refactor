@@ -61,6 +61,8 @@ from galaxy_tool_xml_check.checks import (
     SelectOptionValuePresent,
     SingleQuotedCheetah,
     StdioRegexValid,
+    TestAssertionsWellFormed,
+    TestOutputCompareAttributes,
     TestsPresent,
     ToolVersionWhitespace,
     UnusedParam,
@@ -137,6 +139,8 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         OptionFilterAttributes,
         OptionFilterExpression,
         OptionFilterReferences,
+        TestAssertionsWellFormed,
+        TestOutputCompareAttributes,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 
