@@ -925,3 +925,29 @@ or gtr083"`.
   with ``count``/``min``/``max``). Only resolved output names are checked (reuses
   `_declared_output_map`), so a macro-supplied output under-reports — no extra guard needed.
 - **Corpus** (`docs/corpus_check_stats.md`): GTR084 **27**.
+
+## D29 (2026-06-06) — planemo-parity test expectations/param-in-inputs: GTR085–GTR088
+
+**Date:** 2026-06-06. Nineteenth planemo-linter batch (`../../docs/planemo_linter_parity.md`)
+— the final mechanically-reimplementable `tests.py` slice, completing all of `tests.py`
+except the two pydantic-model linters. Reproduced-by: `uv run --package
+galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k "gtr085 or gtr086
+or gtr087 or gtr088"`.
+
+- **GTR085 `TestParamsInInputs`** — reimplements planemo `TestsParamInInputs` (a test
+  `<param>` resolves to an input by name or argument variant), injection-free (set
+  comparison, not interpolated XPath). **Skips macro-using tools** — the input set is
+  incomplete on the raw tree (~1,400 corpus FPs avoided; guarded 166 vs ~1,570).
+- **GTR086 `TestExpectFailureCoherent`** — reimplements `TestsOutputFailing` +
+  `TestsExpectNumOutputsFailing`: an `expect_failure` test must not define outputs or set
+  `expect_num_outputs`.
+- **GTR087 `TestExpectNumOutputs`** — reimplements `TestsExpectNumOutputs`: a non-failure
+  test should set `expect_num_outputs` when an output has a `<filter>`.
+- **GTR088 `TestHasExpectations`** — reimplements `TestsHasExpectations` (a test that
+  asserts nothing — no output/assert/expect_*); **subsumes** `TestsValid` (its tool-level
+  "no valid test" warning is conveyed per-test). The test `_tool` builder's baseline test
+  gained `expect_num_outputs="1"` so it is a *valid* test (else GTR088 would fire on it).
+- **Corpus** (`docs/corpus_check_stats.md`): GTR085 **166**, GTR086 **3**, GTR087 **618**,
+  GTR088 **190** — GTR087/088 are high but faithful planemo advisories (under-asserted
+  tests are genuinely common), not our false positives. `tests.py` is now complete bar the
+  two pydantic-model linters.
