@@ -951,3 +951,28 @@ or gtr087 or gtr088"`.
   GTR088 **190** — GTR087/088 are high but faithful planemo advisories (under-asserted
   tests are genuinely common), not our false positives. `tests.py` is now complete bar the
   two pydantic-model linters.
+
+## D30 (2026-06-06) — planemo-parity help RST validity: GTR089 (docutils dep)
+
+**Date:** 2026-06-06. Twentieth planemo-linter batch (`../../docs/planemo_linter_parity.md`)
+— the `<help>` reStructuredText check, the first check needing a real RST parser.
+Reproduced-by: `uv run --package galaxy-tool-xml-check pytest
+galaxy-tool-xml-check/tests/test_checks.py -k gtr089`.
+
+- **GTR089 `HelpRstValid`** — reimplements planemo `HelpInvalidRST`
+  (`galaxy.tool_util.linters.help`). Validates the `<help>` body by publishing it through
+  **docutils** with a `warning_stream` that raises on any reported message and `halt_level`
+  lifted so the stream is the trigger — a faithful standalone of Galaxy's
+  `rst_to_html(error=True)` / `rst_invalid`. Help with `format="markdown"` is skipped (RST
+  is the default); a whole-help-via-macro tool has no literal `<help>` text and is skipped.
+  stderr is redirected during the parse so a noisy role/directive can't leak.
+- **New dependency:** `docutils>=0.21` added to the check tier (the only check needing an
+  RST parser; mirrors how lxml/packaging are external deps — the tier still depends only on
+  *our* tiers 1 + 0.5). A `docutils.*` mypy override (no usable stubs) sits beside lxml's.
+- **No `@…@` guard.** Unlike value-domain checks, a macro token in help prose is inert
+  text; corpus spot-checks of `@`-containing invalid help confirmed the errors are
+  structural (undefined RST reference targets, bad directives), not token-caused — so help
+  with tokens is validated normally (planemo validates the expanded help; structural errors
+  are identical).
+- **Corpus** (`docs/corpus_check_stats.md`): GTR089 **220** (2.4% of tools; of ~8,671 RST
+  help bodies), with 35 `format="markdown"` help bodies skipped.

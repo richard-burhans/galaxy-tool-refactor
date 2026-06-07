@@ -10,6 +10,9 @@ authors = [{ name = "Richard Burhans" }]
 # report findings as the shared tier-0.5 `Violation`. They do NOT depend on the
 # mutating tiers (codemod / fmt) — the app composes this alongside them.
 dependencies = [
+    # GTR089 validates <help> reStructuredText the way Galaxy does (docutils publisher
+    # with a warning stream that raises) — the only check needing a real RST parser.
+    "docutils>=0.21",
     "galaxy-tool-refactor-rules",
     "galaxy-tool-xml",
     "lxml>=5",
@@ -42,8 +45,8 @@ files = ["src"]
 strict = true
 
 [[tool.mypy.overrides]]
-# lxml ships no type information.
-module = ["lxml.*"]
+# lxml and docutils ship no (usable) type information.
+module = ["lxml.*", "docutils.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

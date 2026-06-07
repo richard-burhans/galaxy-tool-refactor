@@ -653,6 +653,7 @@ name = "galaxy-tool-xml-check"
 version = "0.0.1"
 source = { editable = "galaxy-tool-xml-check" }
 dependencies = [
+    { name = "docutils" },
     { name = "galaxy-tool-refactor-rules" },
     { name = "galaxy-tool-xml" },
     { name = "lxml" },
@@ -669,6 +670,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "docutils", specifier = ">=0.21" },
     { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
     { name = "galaxy-tool-xml", editable = "galaxy-tool-xml" },
     { name = "lxml", specifier = ">=5" },

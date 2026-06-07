@@ -98,3 +98,4 @@ Detect-only IUC best-practice checks. Advisory: `check` reports them but does no
 | GTR086 | check | 3 | 0.0% | 5 | An expect_failure test must not assert outputs. |
 | GTR087 | check | 618 | 6.7% | 1,610 | A test should set expect_num_outputs when outputs are filtered. |
 | GTR088 | check | 190 | 2.0% | 277 | A test should assert outputs or expectations. |
+| GTR089 | check | 220 | 2.4% | 220 | A `<help>` body should be valid reStructuredText. |
