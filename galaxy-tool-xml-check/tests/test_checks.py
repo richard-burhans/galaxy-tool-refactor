@@ -662,6 +662,46 @@ def test_gtr074_data_options_valid() -> None:
     assert "GTR074" not in _codes(_tool(inputs=ok))
 
 
+def test_gtr075_boolean_values_distinct() -> None:
+    same = (
+        '<inputs><param name="b" type="boolean" '
+        'truevalue="x" falsevalue="x"/></inputs>'
+    )
+    assert "GTR075" in _codes(_tool(inputs=same))  # identical true/false values
+    swapped = (
+        '<inputs><param name="b" type="boolean" truevalue="false"/></inputs>'
+    )
+    assert "GTR075" in _codes(_tool(inputs=swapped))  # truevalue looks false
+    ok = (
+        '<inputs><param name="b" type="boolean" '
+        'truevalue="--flag" falsevalue=""/></inputs>'
+    )
+    assert "GTR075" not in _codes(_tool(inputs=ok))
+
+
+def test_gtr076_select_display_consistent() -> None:
+    checkboxes_single = (
+        '<inputs><param name="s" type="select" display="checkboxes">'
+        '<option value="a">A</option></param></inputs>'
+    )
+    assert "GTR076" in _codes(_tool(inputs=checkboxes_single))  # not multiple
+    radio_multiple = (
+        '<inputs><param name="s" type="select" display="radio" multiple="true">'
+        '<option value="a">A</option></param></inputs>'
+    )
+    assert "GTR076" in _codes(_tool(inputs=radio_multiple))
+    checkboxes_ok = (
+        '<inputs><param name="s" type="select" display="checkboxes" multiple="true">'
+        '<option value="a">A</option></param></inputs>'
+    )
+    assert "GTR076" not in _codes(_tool(inputs=checkboxes_ok))
+    radio_ok = (
+        '<inputs><param name="s" type="select" display="radio">'
+        '<option value="a">A</option></param></inputs>'
+    )
+    assert "GTR076" not in _codes(_tool(inputs=radio_ok))
+
+
 def test_iuc006_no_error_handling() -> None:
     # No <stdio> and the command has no detect_errors -> flagged.
     assert "GTR026" in _codes(_tool(stdio=""))
