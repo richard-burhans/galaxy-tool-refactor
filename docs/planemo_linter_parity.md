@@ -102,6 +102,7 @@ codemods GTR007–GTR016 are applied by `upgrade`, not the default `format`.)*
 | GTR086 | TestsOutputFailing, TestsExpectNumOutputsFailing | ✓ | ✗ | check | an `expect_failure` test must not assert outputs |
 | GTR087 | TestsExpectNumOutputs | ✓ | ✗ | check | a test should set `expect_num_outputs` for filtered outputs |
 | GTR088 | TestsHasExpectations (TestsValid subsumed) | ✓ | ✗ | check | a test should assert outputs or expectations |
+| GTR089 | **HelpInvalidRST** | ✓ | ✗ | check | a `<help>` body should be valid reStructuredText (docutils) |
 
 **Bold** planemo linters are ones planemo *only reports* and we *fix* (or, for the
 checks, detect with our own rule). The remaining unmapped planemo linters (the ~80
@@ -143,9 +144,9 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 109 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), **GTR077–079** (option-filter attributes/expression/references), **GTR080–084** (test assertions/compare/output-correspondence/discovered), **GTR085–088** (test param-in-inputs / expect-failure / expect-num-outputs / has-expectations), 2026-06-06 |
+| **HAVE** | 110 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), **GTR077–079** (option-filter attributes/expression/references), **GTR080–084** (test assertions/compare/output-correspondence/discovered), **GTR085–088** (test param-in-inputs / expect-failure / expect-num-outputs / has-expectations), **GTR089** (help RST validity, docutils), 2026-06-06 |
 | **FIX** (new, auto-fixable) | 0 | **complete** — GTR035/036/037 shipped; the rest of the original FIX candidates reclassified to advisory/detect on inspection (identity-changing or no mechanical equivalent) |
-| **DETECT** (new advisory) | ~11 | correctness checks for the `check` tier (report-only). 51 GTR rules landed so far (GTR038–088) — the **entire `inputs.py` correctness surface** plus citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, container/filter/regex validity, and **all mechanically-reimplementable `tests.py` checks**. **Remaining DETECT:** `TestsAssertionValidation`/`TestsCaseValidation` (2, need Galaxy's pydantic models), general `ToolVersionMissing`/`ToolNameMissing`/`ToolIDMissing` (3), `OutputsStructuredLikeReference`/`OutputsFormatSourceReference` (2), `ValidDatatypes`/`DatatypesCustomConf` (2), `InputsDataFormat` (1), `HelpInvalidRST` (1) |
+| **DETECT** (new advisory) | ~10 | correctness checks for the `check` tier (report-only). 52 GTR rules landed so far (GTR038–089) — the **entire `inputs.py` correctness surface**, **all mechanically-reimplementable `tests.py` checks**, and **help RST validity** (GTR089, via `docutils`), plus citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, container/filter/regex validity. **Remaining DETECT** all need external infra or are deliberately deferred: `TestsAssertionValidation`/`TestsCaseValidation` (2, need Galaxy's pydantic models), general `ToolVersionMissing`/`ToolNameMissing`/`ToolIDMissing` (3, XSD-required), `OutputsStructuredLikeReference`/`OutputsFormatSourceReference` (2, mechanical cross-refs — buildable), `ValidDatatypes`/`DatatypesCustomConf` (2, datatype registry / filesystem), `InputsDataFormat` (1, mechanical) |
 | **SKIP** (pass-state) | ~14 | `valid`/`info` reporters — nothing to build |
 | **n/a** (out of scope) | ~12 | CWL (9), filesystem (`required_files`), `ResourceRequirementExpression`, `BioToolsValid` (network) |
 | **Total** | 146 | |
@@ -162,18 +163,19 @@ they're **SKIP**.
 
 By our tier, for the **buildable** rows (HAVE + FIX + DETECT):
 - **codemod** (structural fix): the FIX rows below + GTR013/015/016/**035** — ~15
-- **check** (advisory): the DETECT bulk + the advisory HAVEs — **65 GTR check rules shipped**
-  (GTR021–GTR088, detect-only), ~11 planemo advisories still to build
+- **check** (advisory): the DETECT bulk + the advisory HAVEs — **66 GTR check rules shipped**
+  (GTR021–GTR089, detect-only), ~10 planemo advisories still to build
 - **parse/validate**: 1 (XSD)
 
 **Headline:** planemo only *reports*; we *fix* the provably-safe subset (**GTR035/036/037**,
 complete) and **detect the rest** as advisory `check`-tier rules. As of 2026-06-06 the check
-tier has **65 rules** covering the whole `inputs.py` correctness surface and **all
-mechanically-reimplementable `tests.py` checks**, plus citations, command, container,
-general, help, output, and stdio. Only ~11 planemo advisories remain: the two `tests.py`
-linters that need Galaxy's pydantic models (`TestsAssertionValidation`,
-`TestsCaseValidation`) and a handful of scattered residuals (general missing
-name/id/version, output cross-references, datatypes, `InputsDataFormat`, `HelpInvalidRST`).
+tier has **66 rules** covering the whole `inputs.py` correctness surface, **all
+mechanically-reimplementable `tests.py` checks**, and **help RST validity** (GTR089, via
+`docutils`), plus citations, command, container, general, output, and stdio. Only ~10
+planemo advisories remain, all needing external infra or deliberately deferred: the two
+`tests.py` linters that need Galaxy's pydantic models (`TestsAssertionValidation`,
+`TestsCaseValidation`), general missing name/id/version, output cross-references,
+datatypes (registry/filesystem), and `InputsDataFormat`.
 
 ---
 
@@ -242,7 +244,7 @@ name/id/version, output cross-references, datatypes, `InputsDataFormat`, `HelpIn
 | HelpMissing | warn | check | **HAVE** | = **GTR028** |
 | HelpEmpty | warn | check | **HAVE** | GTR028 (non-empty help) |
 | HelpTODO | warn | check | **HAVE** | **GTR039** |
-| HelpInvalidRST | warn | check | DETECT | RST validity (needs an RST parser — `docutils`) |
+| HelpInvalidRST | warn | check | **HAVE** | **GTR089** RST validity via `docutils` (Galaxy's `rst_to_html`); `format="markdown"` help skipped |
 | HelpPresent · HelpValidRST | valid | — | SKIP | pass-states |
 
 ## inputs.py (57) — the big correctness surface

@@ -888,6 +888,15 @@ def test_gtr088_test_has_expectations() -> None:
     assert "GTR088" not in _codes(_tool())  # default sets expect_num_outputs
 
 
+def test_gtr089_help_rst_valid() -> None:
+    bad = "<help><![CDATA[See `missing`_ for details.]]></help>"
+    assert "GTR089" in _codes(_tool(help_=bad))  # undefined RST reference target
+    assert "GTR089" not in _codes(_tool())  # default help is valid RST
+    # markdown help is not RST and is skipped even if it isn't valid RST
+    markdown = '<help format="markdown"><![CDATA[See `missing`_]]></help>'
+    assert "GTR089" not in _codes(_tool(help_=markdown))
+
+
 def test_iuc006_no_error_handling() -> None:
     # No <stdio> and the command has no detect_errors -> flagged.
     assert "GTR026" in _codes(_tool(stdio=""))
