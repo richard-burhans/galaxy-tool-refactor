@@ -2710,3 +2710,105 @@ class TestOutputCompareAttributes(CheckRule):
                             f"test {index}: attribute '{attr}' is incompatible with "
                             f"compare='{compare}'",
                         )
+
+
+def _declared_output_map(root: etree._Element, /) -> dict[str, etree._Element]:
+    """name → output element for the single ``<outputs>`` block (planemo's
+    ``_collect_output_names``). Empty if there isn't exactly one ``<outputs>``."""
+    outputs = root.findall("outputs")
+    result: dict[str, etree._Element] = {}
+    if len(outputs) == 1:
+        for output in list(outputs[0]):
+            name = output.get("name")
+            if name:
+                result[name] = output
+    return result
+
+
+class TestOutputNamed(CheckRule):
+    """GTR082 — a ``<test>`` ``<output>`` must declare a ``name``.
+
+    Reimplements planemo `TestsOutputName` (``<output_collection>`` names are
+    XSD-required). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR082",
+        summary="A test <output> must declare a name.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for index, test in enumerate(document.root.findall("tests/test"), start=1):
+            for output in test.findall("output"):
+                if not output.get("name"):
+                    yield _violation(
+                        document,
+                        output,
+                        self.meta,
+                        f"test {index}: <output> has no name",
+                    )
+
+
+class TestOutputsCorrespond(CheckRule):
+    """GTR083 — a test output must name a declared output of the matching kind.
+
+    Reimplements planemo `TestsOutputDefined` (the name is a declared output),
+    `TestsOutputCorresponding` (a test ``<output>`` corresponds to a ``<data>``) and
+    `TestsOutputCollectionCorresponding` (a ``<output_collection>`` corresponds to a
+    ``<collection>``). The *unknown-name* case is **skipped** for a macro-using tool —
+    the declared-output set is incomplete on the raw tree (the GTR079 boundary);
+    correspondence is still checked for names that do resolve. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR083",
+        summary="A test output must name a declared output of the matching kind.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        declared = _declared_output_map(root)
+        macros = has_macros(root)
+        for index, test in enumerate(root.findall("tests/test"), start=1):
+            test_outputs = list(test.findall("output")) + list(
+                test.findall("output_collection")
+            )
+            for output in test_outputs:
+                name = output.get("name")
+                if not name:
+                    continue
+                if name not in declared:
+                    if not macros:
+                        yield _violation(
+                            document,
+                            output,
+                            self.meta,
+                            f"test {index}: {output.tag} '{name}' is not a declared "
+                            "output",
+                        )
+                    continue
+                corresponding = declared[name]
+                if output.tag == "output" and corresponding.tag != "data":
+                    yield _violation(
+                        document,
+                        output,
+                        self.meta,
+                        f"test {index}: <output> '{name}' corresponds to a "
+                        f"'{corresponding.tag}', expected a <data>",
+                    )
+                elif output.tag == "output_collection" and corresponding.tag != (
+                    "collection"
+                ):
+                    yield _violation(
+                        document,
+                        output,
+                        self.meta,
+                        f"test {index}: <output_collection> '{name}' corresponds to a "
+                        f"'{corresponding.tag}', expected a <collection>",
+                    )

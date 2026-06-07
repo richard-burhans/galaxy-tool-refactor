@@ -780,6 +780,26 @@ def test_gtr081_test_output_compare_attributes() -> None:
     assert "GTR081" not in _codes(_tool(tests=ok))  # compare defaults to diff
 
 
+def test_gtr082_test_output_named() -> None:
+    no_name = "<tests><test><output/></test></tests>"
+    assert "GTR082" in _codes(_tool(tests=no_name))
+    named = '<tests><test><output name="out"/></test></tests>'
+    assert "GTR082" not in _codes(_tool(tests=named))
+
+
+def test_gtr083_test_outputs_correspond() -> None:
+    ghost = '<tests><test><output name="ghost"/></test></tests>'
+    assert "GTR083" in _codes(_tool(tests=ghost))  # not a declared output
+    # a test <output> referencing a <collection> output is the wrong kind
+    mismatch = _tool(
+        outputs='<outputs><collection name="c" type="list"/></outputs>',
+        tests='<tests><test><output name="c"/></test></tests>',
+    )
+    assert "GTR083" in _codes(mismatch)
+    ok = '<tests><test><output name="out"/></test></tests>'
+    assert "GTR083" not in _codes(_tool(tests=ok))  # 'out' is a <data> output
+
+
 def test_iuc006_no_error_handling() -> None:
     # No <stdio> and the command has no detect_errors -> flagged.
     assert "GTR026" in _codes(_tool(stdio=""))
