@@ -747,6 +747,39 @@ def test_gtr079_option_filter_references() -> None:
     assert "GTR079" not in _codes(_tool(inputs=resolved))
 
 
+def test_gtr080_test_assertions_well_formed() -> None:
+    two_stdout = (
+        "<tests><test><assert_stdout><has_line line=\"a\"/></assert_stdout>"
+        "<assert_stdout><has_line line=\"b\"/></assert_stdout></test></tests>"
+    )
+    assert "GTR080" in _codes(_tool(tests=two_stdout))  # >1 assert_stdout
+    no_quant = (
+        "<tests><test><assert_stdout><has_n_lines/></assert_stdout></test></tests>"
+    )
+    assert "GTR080" in _codes(_tool(tests=no_quant))  # has_n_lines needs n/min/max
+    size_both = (
+        '<tests><test><output name="out"><assert_contents>'
+        '<has_size value="5" size="5"/></assert_contents></output></test></tests>'
+    )
+    assert "GTR080" in _codes(_tool(tests=size_both))  # value and size
+    ok = (
+        '<tests><test><output name="out"><assert_contents>'
+        '<has_size value="5"/></assert_contents></output></test></tests>'
+    )
+    assert "GTR080" not in _codes(_tool(tests=ok))
+    assert "GTR080" not in _codes(_tool())  # default test has no assertions
+
+
+def test_gtr081_test_output_compare_attributes() -> None:
+    bad = (
+        '<tests><test><output name="out" sort="true" compare="contains"/>'
+        "</test></tests>"
+    )
+    assert "GTR081" in _codes(_tool(tests=bad))  # sort needs diff/re_match
+    ok = '<tests><test><output name="out" sort="true"/></test></tests>'
+    assert "GTR081" not in _codes(_tool(tests=ok))  # compare defaults to diff
+
+
 def test_iuc006_no_error_handling() -> None:
     # No <stdio> and the command has no detect_errors -> flagged.
     assert "GTR026" in _codes(_tool(stdio=""))

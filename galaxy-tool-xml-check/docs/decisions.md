@@ -868,3 +868,25 @@ galaxy-tool-xml-check/tests/test_checks.py -k "gtr077 or gtr078 or gtr079"`.
   `InputsDataFormat` advisory). The remaining planemo-parity frontier is `tests.py`.
 - **Corpus** (`docs/corpus_check_stats.md`): GTR077 **31**, GTR078 **0** (low-noise guard),
   GTR079 **1** (after the macro guard).
+
+## D26 (2026-06-06) — planemo-parity test assertions: GTR080–GTR081 (`tests.py` begun)
+
+**Date:** 2026-06-06. Sixteenth planemo-linter batch (`../../docs/planemo_linter_parity.md`)
+— the first `tests.py` slice (assertion well-formedness + output compare-attrs), as advisory
+checks. Reproduced-by: `uv run --package galaxy-tool-xml-check pytest
+galaxy-tool-xml-check/tests/test_checks.py -k "gtr080 or gtr081"`.
+
+- **GTR080 `TestAssertionsWellFormed`** — reimplements planemo `TestsAssertsMultiple` (at
+  most one ``assert_stdout``/``assert_stderr``/``assert_command`` per test) +
+  `TestsAssertsHasNQuant` (``has_n_lines``/``has_n_columns`` need ``n``/``min``/``max``) +
+  `TestsAssertsHasSizeQuant` (``has_size`` needs ``size``/``value``/``min``/``max``) +
+  `TestsAssertsHasSizeOrValueQuant` (``has_size`` not both ``value`` and ``size``), via the
+  shared ``assert_contents``/``stdout``/``stderr``/``command`` xpath.
+- **GTR081 `TestOutputCompareAttributes`** — reimplements planemo `TestsOutputCompareAttrib`:
+  ``sort``/``lines_diff``/``decompress``/``delta``/``delta_frac``/``metric``/``eps`` each
+  valid only with specific ``compare`` modes.
+- **Deferred** (need Galaxy's pydantic models, not a raw-tree query): `TestsAssertionValidation`
+  (assertion list model) + `TestsCaseValidation` (test parameter model). The remaining ~14
+  mechanical `tests.py` linters (output correspondence, discovered, failure expectations,
+  param-in-inputs) are follow-up sub-batches.
+- **Corpus** (`docs/corpus_check_stats.md`): GTR080 **1**, GTR081 **2** — low-noise guards.

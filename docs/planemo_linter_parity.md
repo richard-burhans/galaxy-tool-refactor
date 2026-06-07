@@ -93,6 +93,8 @@ codemods GTR007–GTR016 are applied by `upgrade`, not the default `format`.)*
 | GTR077 | InputsOptionsFiltersRequiredAttributes, …RemoveValueFilterRequiredAttributes, …FiltersAllowedAttributes | ✓ | ✗ | check | an `<options>/<filter>` must carry the attributes its type allows |
 | GTR078 | InputsOptionsRegexFilterExpression | ✓ | ✗ | check | a `regexp` `<options>/<filter>` value must be a valid regex |
 | GTR079 | InputsOptionsFiltersCheckReferences | ✓ | ✗ | check | an `<options>/<filter>` ref/meta_ref must name a real param |
+| GTR080 | TestsAssertsMultiple, …HasNQuant, …HasSizeQuant, …HasSizeOrValueQuant | ✓ | ✗ | check | a `<test>`'s assertions must be well formed |
+| GTR081 | TestsOutputCompareAttrib | ✓ | ✗ | check | a test output's attributes must agree with its `compare` mode |
 
 **Bold** planemo linters are ones planemo *only reports* and we *fix* (or, for the
 checks, detect with our own rule). The remaining unmapped planemo linters (the ~80
@@ -134,9 +136,9 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 91 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), **GTR077–079** (option-filter attributes/expression/references), 2026-06-06 |
+| **HAVE** | 96 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), **GTR077–079** (option-filter attributes/expression/references), **GTR080–081** (test assertion well-formedness + output compare-attrs), 2026-06-06 |
 | **FIX** (new, auto-fixable) | 0 | **complete** — GTR035/036/037 shipped; the rest of the original FIX candidates reclassified to advisory/detect on inspection (identity-changing or no mechanical equivalent) |
-| **DETECT** (new advisory) | ~29 | correctness checks for the `check` tier (report-only). 42 GTR rules landed so far (GTR038–079) — the **entire `inputs.py` correctness surface** plus citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, container/filter/regex validity. **Remaining DETECT:** `tests.py` (~21) is the bulk; the residuals are general `ToolVersionMissing`/`ToolNameMissing`/`ToolIDMissing` (3, XSD-required), `OutputsStructuredLikeReference`/`OutputsFormatSourceReference` (2, output cross-refs), `ValidDatatypes`/`DatatypesCustomConf` (2, registry/filesystem), `InputsDataFormat` (1), `HelpInvalidRST` (1, docutils) |
+| **DETECT** (new advisory) | ~24 | correctness checks for the `check` tier (report-only). 44 GTR rules landed so far (GTR038–081) — the **entire `inputs.py` correctness surface** plus citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, container/filter/regex validity, and the first `tests.py` assertion checks. **Remaining DETECT:** the rest of `tests.py` (~14 mechanical + 2 pydantic-model deferred); the residuals are general `ToolVersionMissing`/`ToolNameMissing`/`ToolIDMissing` (3), `OutputsStructuredLikeReference`/`OutputsFormatSourceReference` (2), `ValidDatatypes`/`DatatypesCustomConf` (2), `InputsDataFormat` (1), `HelpInvalidRST` (1) |
 | **SKIP** (pass-state) | ~14 | `valid`/`info` reporters — nothing to build |
 | **n/a** (out of scope) | ~12 | CWL (9), filesystem (`required_files`), `ResourceRequirementExpression`, `BioToolsValid` (network) |
 | **Total** | 146 | |
@@ -153,15 +155,16 @@ they're **SKIP**.
 
 By our tier, for the **buildable** rows (HAVE + FIX + DETECT):
 - **codemod** (structural fix): the FIX rows below + GTR013/015/016/**035** — ~15
-- **check** (advisory): the DETECT bulk + the advisory HAVEs — **56 GTR check rules shipped**
-  (GTR021–GTR079, detect-only), ~29 planemo advisories still to build
+- **check** (advisory): the DETECT bulk + the advisory HAVEs — **58 GTR check rules shipped**
+  (GTR021–GTR081, detect-only), ~24 planemo advisories still to build
 - **parse/validate**: 1 (XSD)
 
 **Headline:** planemo only *reports*; we *fix* the provably-safe subset (**GTR035/036/037**,
 complete) and **detect the rest** as advisory `check`-tier rules. As of 2026-06-06 the check
-tier has **56 rules** covering the whole `inputs.py` correctness surface plus citations,
-command, container, general, help, output, and stdio. The remaining planemo-parity frontier
-is **`tests.py`** (~21 test-correctness checks) and a handful of scattered residuals
+tier has **58 rules** covering the whole `inputs.py` correctness surface plus citations,
+command, container, general, help, output, stdio, and the first `tests.py` assertion checks.
+The remaining planemo-parity frontier is the rest of **`tests.py`** (~14 mechanical test
+checks + 2 that need Galaxy's pydantic models) and a handful of scattered residuals
 (general missing name/id/version, output cross-references, datatypes, `HelpInvalidRST`).
 
 ---
@@ -312,18 +315,19 @@ SKIP):
 | StdIOAbsence / StdIOAbsenceLegacy | info | check | **HAVE** | ≈ **GTR026** (error handling present) |
 | StdIORegex | error | check | **HAVE** | **GTR053** `<regex match>` must compile |
 
-## tests.py (23)
+## tests.py (23) — the remaining DETECT frontier
 
 | Linter | sev | tier | disp | note |
 |---|---|---|---|---|
 | TestsMissing | warn | check | **HAVE** | = **GTR021** |
-| (21 correctness checks) | error/warn | check | DETECT | assertion quantifiers, output/collection correspondence, `expect_num_outputs`, param-in-inputs, discovered-output rules, failing-test rules — author intent needed |
+| TestsAssertsMultiple / …HasNQuant / …HasSizeQuant / …HasSizeOrValueQuant | error | check | **HAVE** | **GTR080** assertion well-formedness |
+| TestsOutputCompareAttrib | error | check | **HAVE** | **GTR081** output attr ↔ `compare` mode |
 | TestsMissingDatasource · TestsNoValid | info/valid | — | SKIP | |
+| TestsAssertionValidation · TestsCaseValidation | warn/error | check | DETECT (deferred) | need Galaxy's pydantic assertion / parameter models (not a raw-tree query) |
 
-DETECT list: `TestsAssertsMultiple` · `TestsAssertsHasNQuant` · `TestsAssertsHasSizeQuant` ·
-`TestsAssertsHasSizeOrValueQuant` · `TestsAssertionValidation` · `TestsCaseValidation` ·
+**DETECT (the remaining ~14 mechanical ones)** — to build in follow-up sub-batches:
 `TestsExpectNumOutputs` · `TestsParamInInputs` · `TestsOutputName` · `TestsOutputDefined` ·
-`TestsOutputCorresponding` · `TestsOutputCollectionCorresponding` · `TestsOutputCompareAttrib` ·
+`TestsOutputCorresponding` · `TestsOutputCollectionCorresponding` ·
 `TestsOutputCheckDiscovered` · `TestsOutputCollectionCheckDiscovered` ·
 `TestsOutputCollectionCheckDiscoveredNested` · `TestsOutputFailing` ·
 `TestsExpectNumOutputsFailing` · `TestsHasExpectations` · `TestsValid`.

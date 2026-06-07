@@ -2599,3 +2599,114 @@ class OptionFilterReferences(CheckRule):
                         f"parameter '{name}' filter {ref_attr} '{ref}' refers to a "
                         "non-existent parameter",
                     )
+
+
+# Assertion elements live under an assert_contents/stdout/stderr/command block.
+_ASSERT_BLOCK_XPATH = (
+    ".//*[self::assert_contents or self::assert_stdout or self::assert_stderr "
+    "or self::assert_command]//*"
+)
+
+# Output-comparison attributes and the ``compare`` modes each is valid with (planemo's
+# ``TestsOutputCompareAttrib`` ``COMPARE_COMPATIBILITY``).
+_COMPARE_COMPATIBILITY: dict[str, frozenset[str]] = {
+    "sort": frozenset({"diff", "re_match", "re_match_multiline"}),
+    "lines_diff": frozenset({"diff", "re_match", "contains"}),
+    "decompress": frozenset({"diff"}),
+    "delta": frozenset({"sim_size"}),
+    "delta_frac": frozenset({"sim_size"}),
+    "metric": frozenset({"image_diff"}),
+    "eps": frozenset({"image_diff"}),
+}
+
+
+class TestAssertionsWellFormed(CheckRule):
+    """GTR080 — a ``<test>``'s assertions must be well formed.
+
+    Reimplements planemo `TestsAssertsMultiple` (at most one ``assert_stdout`` /
+    ``assert_stderr`` / ``assert_command`` per test), `TestsAssertsHasNQuant`
+    (``has_n_lines`` / ``has_n_columns`` need ``n`` / ``min`` / ``max``),
+    `TestsAssertsHasSizeQuant` (``has_size`` needs ``size`` / ``value`` / ``min`` /
+    ``max``) and `TestsAssertsHasSizeOrValueQuant` (``has_size`` must not set both
+    ``value`` and ``size``). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR080",
+        summary="A <test>'s assertions must be well formed.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for index, test in enumerate(document.root.findall("tests/test"), start=1):
+            for assert_tag in ("assert_stdout", "assert_stderr", "assert_command"):
+                if len(test.findall(assert_tag)) > 1:
+                    yield _violation(
+                        document,
+                        test,
+                        self.meta,
+                        f"test {index}: more than one <{assert_tag}> (only the first "
+                        "is used)",
+                    )
+            for assertion in test.xpath(_ASSERT_BLOCK_XPATH):
+                attrs = set(assertion.attrib)
+                if assertion.tag in ("has_n_lines", "has_n_columns") and not (
+                    attrs & {"n", "min", "max"}
+                ):
+                    yield _violation(
+                        document,
+                        assertion,
+                        self.meta,
+                        f"test {index}: <{assertion.tag}> needs 'n', 'min', or 'max'",
+                    )
+                elif assertion.tag == "has_size":
+                    if not (attrs & {"value", "size", "min", "max"}):
+                        yield _violation(
+                            document,
+                            assertion,
+                            self.meta,
+                            f"test {index}: <has_size> needs 'size', 'min', or 'max'",
+                        )
+                    if "value" in attrs and "size" in attrs:
+                        yield _violation(
+                            document,
+                            assertion,
+                            self.meta,
+                            f"test {index}: <has_size> must not set both 'value' and "
+                            "'size'",
+                        )
+
+
+class TestOutputCompareAttributes(CheckRule):
+    """GTR081 — a test output's attributes must agree with its ``compare`` mode.
+
+    Reimplements planemo `TestsOutputCompareAttrib`: ``sort`` / ``lines_diff`` /
+    ``decompress`` / ``delta`` / ``delta_frac`` / ``metric`` / ``eps`` are each valid
+    only with specific ``compare`` modes (default ``diff``). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR081",
+        summary="A test output's attributes must agree with its compare mode.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for index, test in enumerate(document.root.findall("tests/test"), start=1):
+            for output in test.xpath(
+                ".//*[self::output or self::element or self::discovered_dataset]"
+            ):
+                compare = output.get("compare", "diff")
+                for attr, allowed in _COMPARE_COMPATIBILITY.items():
+                    if attr in output.attrib and compare not in allowed:
+                        yield _violation(
+                            document,
+                            output,
+                            self.meta,
+                            f"test {index}: attribute '{attr}' is incompatible with "
+                            f"compare='{compare}'",
+                        )
