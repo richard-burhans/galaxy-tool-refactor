@@ -847,3 +847,24 @@ galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k "gtr0
   (``display="radio"`` incompatible with ``multiple``/``optional``), for
   ``select``/``data_column``/``drill_down``. ``optional`` defaults to ``multiple`` per Galaxy.
 - **Corpus** (`docs/corpus_check_stats.md`): GTR075 **8**, GTR076 **28** — low-noise.
+
+## D25 (2026-06-06) — planemo-parity option-filter checks: GTR077–GTR079 (`inputs.py` complete)
+
+**Date:** 2026-06-06. Fifteenth planemo-linter batch (`../../docs/planemo_linter_parity.md`)
+— the `<options>/<filter>` group, **completing the entire `inputs.py` correctness surface**.
+Reproduced-by: `uv run --package galaxy-tool-xml-check pytest
+galaxy-tool-xml-check/tests/test_checks.py -k "gtr077 or gtr078 or gtr079"`.
+
+- **GTR077 `OptionFilterAttributes`** — reimplements planemo
+  `InputsOptionsFiltersRequiredAttributes` + `InputsOptionsRemoveValueFilterRequiredAttributes`
+  + `InputsOptionsFiltersAllowedAttributes`, vendoring `FILTER_REQUIRED_ATTRIBUTES` /
+  `FILTER_ALLOWED_ATTRIBUTES` and the `remove_value` one-of rule.
+- **GTR078 `OptionFilterExpression`** — reimplements `InputsOptionsRegexFilterExpression`
+  (a `regexp` filter's `value` must `re.compile`; reuses `_is_valid_regex`).
+- **GTR079 `OptionFilterReferences`** — reimplements `InputsOptionsFiltersCheckReferences`
+  (filter `ref`/`meta_ref` must name a real param). **Skips macro-using tools** — the
+  param-name set is incomplete on the raw tree (6 corpus FPs avoided; guarded 1 vs 7).
+- **`inputs.py` is now fully covered** (all 57 linters HAVE/SKIP/n-a except the single
+  `InputsDataFormat` advisory). The remaining planemo-parity frontier is `tests.py`.
+- **Corpus** (`docs/corpus_check_stats.md`): GTR077 **31**, GTR078 **0** (low-noise guard),
+  GTR079 **1** (after the macro guard).

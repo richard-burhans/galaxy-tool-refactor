@@ -86,3 +86,6 @@ Detect-only IUC best-practice checks. Advisory: `check` reports them but does no
 | GTR074 | check | 241 | 2.6% | 1,071 | A data param's `<options>` (metadata filtering) must be valid. |
 | GTR075 | check | 8 | 0.1% | 13 | A boolean param's truevalue/falsevalue must be distinct and sane. |
 | GTR076 | check | 28 | 0.3% | 39 | A select's display must agree with multiple/optional. |
+| GTR077 | check | 31 | 0.3% | 60 | An `<options>`/`<filter>` must carry the attributes its type allows. |
+| GTR078 | check | 0 | 0.0% | 0 | A regexp `<options>`/`<filter>` value must be a valid regular expression. |
+| GTR079 | check | 1 | 0.0% | 1 | An `<options>`/`<filter>` ref/meta_ref must name a real parameter. |

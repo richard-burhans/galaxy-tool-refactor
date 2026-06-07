@@ -33,6 +33,9 @@ from galaxy_tool_xml_check.checks import (
     InputOutputNamesDistinct,
     InputsPresent,
     NoTodoText,
+    OptionFilterAttributes,
+    OptionFilterExpression,
+    OptionFilterReferences,
     OutputFilterValid,
     OutputFormatDefined,
     OutputFormatSourceExclusive,
@@ -131,6 +134,9 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         DataOptionsValid,
         BooleanValuesDistinct,
         SelectDisplayConsistent,
+        OptionFilterAttributes,
+        OptionFilterExpression,
+        OptionFilterReferences,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 
