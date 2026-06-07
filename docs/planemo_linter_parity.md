@@ -88,6 +88,8 @@ codemods GTR007–GTR016 are applied by `upgrade`, not the default `format`.)*
 | GTR072 | InputsMissing | ✓ | ✗ | check | most tools should define input parameters |
 | GTR073 | InputsTypeChildCombination | ✓ | ✗ | check | a `<param>` child element must be valid for the param type |
 | GTR074 | InputsDataOptionsMultiple, …Attrib, …FilterAttribFiltersType, …FiltersType, …FiltersRef | ✓ | ✗ | check | a `data` param's `<options>` (metadata filtering) must be valid |
+| GTR075 | InputsBoolDistinctValues, InputsBoolProblematic | ✓ | ✗ | check | a `boolean` param's truevalue/falsevalue must be distinct and sane |
+| GTR076 | InputsSelectSingleCheckboxes, …MandatoryCheckboxes, …MultipleRadio, …OptionalRadio | ✓ | ✗ | check | a select's `display` must agree with `multiple`/`optional` |
 
 **Bold** planemo linters are ones planemo *only reports* and we *fix* (or, for the
 checks, detect with our own rule). The remaining unmapped planemo linters (the ~80
@@ -129,9 +131,9 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 78 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), 2026-06-06 |
+| **HAVE** | 84 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), 2026-06-06 |
 | **FIX** (new, auto-fixable) | 0 | **complete** — GTR035/036/037 shipped; the rest of the original FIX candidates reclassified to advisory/detect on inspection (identity-changing or no mechanical equivalent) |
-| **DETECT** (new advisory) | ~19 | correctness checks for the `check` tier (report-only). 37 landed so far: GTR038–074 (citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, outputs present/format/label, container/filter/regex validity, input param naming, static + dynamic select options, validators, conditionals, type/structure) |
+| **DETECT** (new advisory) | ~13 | correctness checks for the `check` tier (report-only). 39 landed so far: GTR038–076 (citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, outputs present/format/label, container/filter/regex validity, input param naming, static + dynamic select options, validators, conditionals, type/structure, display/idiom). `inputs.py` now complete except option filters |
 | **SKIP** (pass-state) | ~21 | `valid`/`info` reporters — nothing to build |
 | **n/a** (out of scope) | ~20 | CWL, filesystem, network/ontology, runtime |
 | **Total** | 146 | |
@@ -253,15 +255,17 @@ needs author intent. The **FIX** candidates (auto-fixable, our edge):
 | InputsMissing | warn | check | **HAVE** | **GTR072** no input params (datasource + macro-`<expand>` skipped) |
 | InputsTypeChildCombination | error | check | **HAVE** | **GTR073** `<options>`/`<option>`/`<column>` valid for the param type |
 | InputsDataOptionsMultiple / …Attrib / …FilterAttribFiltersType / …FiltersType / …FiltersRef | error | check | **HAVE** | **GTR074** data param `<options>` metadata-filtering validity (faithful to planemo strictness) |
+| InputsBoolDistinctValues / InputsBoolProblematic | warn/error | check | **HAVE** | **GTR075** boolean truevalue/falsevalue distinct + not swapped |
+| InputsSelectSingleCheckboxes / …MandatoryCheckboxes / …MultipleRadio / …OptionalRadio | error | check | **HAVE** | **GTR076** `display="checkboxes"/"radio"` ↔ `multiple`/`optional` consistency |
 | InputsDataFormat | warn | check | DETECT | no `format` → defaults to `data` (fix = risky, leave advisory) |
 
-**DETECT (the remaining ~15)** — group view:
+**DETECT (the remaining ~9)** — group view:
 - *naming/identity:* **HAVE** — `InputsName` (GTR054), `InputsNameEmpty`/`InputsNameValid` (GTR055), `InputsNameDuplicate` (GTR056), `InputsNameDuplicateOutput` (GTR057)
 - *static select options:* **HAVE** — `InputsSelectOptionsDef`/`…DefConditional` (GTR058), `InputsSelectOptionValueMissing` (GTR059), `InputsSelectOptionDuplicateValue`/`…Text` (GTR060)
 - *dynamic select `<options>`:* **HAVE** — `InputsSelectOptionsMultiple` (GTR061), `…DefinesOptions` (GTR062), `…FromDatasetAndDatatable`/`…MetaFileKey` (GTR063), `InputsSelectDynamicOptions`/`…DeprecatedAttr` (GTR064)
 - *type/structure:* **HAVE** — `InputsMissing` (GTR072), `InputsTypeChildCombination` (GTR073), `InputsDataOptionsMultiple`/`…Attrib`/`…FilterAttribFiltersType`/`…FiltersType`/`…FiltersRef` (GTR074)
 - *option filters:* `InputsOptionsFiltersRequiredAttributes` · `InputsOptionsRemoveValueFilterRequiredAttributes` · `InputsOptionsFiltersAllowedAttributes` · `InputsOptionsRegexFilterExpression` · `InputsOptionsFiltersCheckReferences`
-- *display/idiom:* `InputsSelectSingleCheckboxes` · `InputsSelectMandatoryCheckboxes` · `InputsSelectMultipleRadio` · `InputsSelectOptionalRadio` · `InputsBoolDistinctValues` · `InputsBoolProblematic`
+- *display/idiom:* **HAVE** — `InputsBoolDistinctValues`/`InputsBoolProblematic` (GTR075), `InputsSelectSingleCheckboxes`/`…MandatoryCheckboxes`/`…MultipleRadio`/`…OptionalRadio` (GTR076)
 - *validators:* **HAVE** — form: `ValidatorParamIncompatible`/`…AttribIncompatible` (GTR065), `ValidatorHasText`/`…HasNoText` (GTR066), `ValidatorExpression`/`…ExpressionFuture` (GTR067); required attributes: `ValidatorMinMax`/`…MetadataCheckSkip`/`…TableName`/`…MetadataName`/`…DatasetMetadataEqualValue`/`…OrJson` (GTR068)
 - *conditionals:* **HAVE** — `ConditionalParamType`/`…ParamTypeBool` (GTR069), `ConditionalParamIncompatibleAttributes` (GTR070), `ConditionalWhenMissing`/`…OptionMissing`/`…OptionMissingBoolean` (GTR071)
 

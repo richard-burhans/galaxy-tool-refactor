@@ -84,3 +84,5 @@ Detect-only IUC best-practice checks. Advisory: `check` reports them but does no
 | GTR072 | check | 15 | 0.2% | 15 | Most tools should define input parameters. |
 | GTR073 | check | 0 | 0.0% | 0 | A `<param>` child element must be valid for the param type. |
 | GTR074 | check | 241 | 2.6% | 1,071 | A data param's `<options>` (metadata filtering) must be valid. |
+| GTR075 | check | 8 | 0.1% | 13 | A boolean param's truevalue/falsevalue must be distinct and sane. |
+| GTR076 | check | 28 | 0.3% | 39 | A select's display must agree with multiple/optional. |

@@ -829,3 +829,21 @@ galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k gtr06
   FP relative to planemo.
 - **Corpus** (`docs/corpus_check_stats.md`): GTR072 **15**, GTR073 **0** (low-noise guard),
   GTR074 **241** (2.6%; 1,071 findings — faithful planemo strictness on data-param options).
+
+## D24 (2026-06-06) — planemo-parity input display/idiom: GTR075–GTR076
+
+**Date:** 2026-06-06. Fourteenth planemo-linter batch (`../../docs/planemo_linter_parity.md`)
+— the `inputs.py` display/idiom group (boolean values + select widget consistency),
+completing all of `inputs.py` except option filters. Reproduced-by: `uv run --package
+galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k "gtr075 or gtr076"`.
+
+- **GTR075 `BooleanValuesDistinct`** — reimplements planemo `InputsBoolDistinctValues`
+  (``truevalue`` ≠ ``falsevalue``) + `InputsBoolProblematic` (``truevalue`` not a false
+  string, ``falsevalue`` not a true string). planemo's severity is profile-gated
+  (warn <23.1 / error ≥23.1); this report-only tier flags regardless, so no profile needed.
+- **GTR076 `SelectDisplayConsistent`** — reimplements planemo `InputsSelectSingleCheckboxes`
+  + `InputsSelectMandatoryCheckboxes` (``display="checkboxes"`` needs ``multiple`` and
+  ``optional``) + `InputsSelectMultipleRadio` + `InputsSelectOptionalRadio`
+  (``display="radio"`` incompatible with ``multiple``/``optional``), for
+  ``select``/``data_column``/``drill_down``. ``optional`` defaults to ``multiple`` per Galaxy.
+- **Corpus** (`docs/corpus_check_stats.md`): GTR075 **8**, GTR076 **28** — low-noise.

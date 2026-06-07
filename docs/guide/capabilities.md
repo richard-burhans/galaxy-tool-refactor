@@ -80,6 +80,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | `<validator>` required attributes (each validator type carries its required `min`/`max`/`table_name`/`metadata_name`/… ) — planemo-parity advisory | GTR068 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
 | `<conditional>` correctness (test param is a `select`, not optional/multiple, `<when>` blocks match the options) — planemo-parity advisory | GTR069–GTR071 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
 | Input type/structure (tool has inputs, param child elements valid for the type, `data` param `<options>` metadata-filtering valid) — planemo-parity advisory | GTR072–GTR074 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
+| Input display/idiom (boolean truevalue/falsevalue sane, select `display` agrees with `multiple`/`optional`) — planemo-parity advisory | GTR075–GTR076 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
 | Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTR020, the residual stays advisory | GTR020.2 | ✅ Shipped | advisory; provable subset fixed (GTR020) |
 | Input `<param>` never referenced anywhere the tool uses it | GTR034 | ✅ Shipped | `strict` preset; 189/467 tools (`docs/corpus_check_stats.md`) |
 | Lone-`&` vs `&&` join | GTR032 | 🔭 Roadmap | registry labels it "not yet implemented" |

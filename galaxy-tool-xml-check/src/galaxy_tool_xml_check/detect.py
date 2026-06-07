@@ -13,6 +13,7 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 from galaxy_tool_xml_check.checks import (
+    BooleanValuesDistinct,
     CitationsPresent,
     CollectionTypeDeclared,
     CommandAndJoining,
@@ -47,6 +48,7 @@ from galaxy_tool_xml_check.checks import (
     RequirementNamePresent,
     RequirementsPresent,
     RequirementVersionPinned,
+    SelectDisplayConsistent,
     SelectOptionsDefined,
     SelectOptionsDistinct,
     SelectOptionsHaveSource,
@@ -127,6 +129,8 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         InputsPresent,
         ParamTypeChildCombination,
         DataOptionsValid,
+        BooleanValuesDistinct,
+        SelectDisplayConsistent,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 

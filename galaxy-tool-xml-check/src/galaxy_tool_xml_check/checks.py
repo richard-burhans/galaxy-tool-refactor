@@ -2300,3 +2300,118 @@ class DataOptionsValid(CheckRule):
                         self.meta,
                         f"data parameter '{name}' filter needs a 'ref' attribute",
                     )
+
+
+# Param types whose ``display`` ("checkboxes"/"radio") interacts with multiple/optional.
+_DISPLAY_PARAM_TYPES = frozenset({"select", "data_column", "drill_down"})
+
+
+class BooleanValuesDistinct(CheckRule):
+    """GTR075 — a ``boolean`` param's true/false values must be sane.
+
+    Reimplements planemo `InputsBoolDistinctValues` (``truevalue`` and ``falsevalue``
+    must differ) + `InputsBoolProblematic` (``truevalue`` should not read as a false
+    value, and vice versa). planemo's severity depends on the profile; this report-only
+    tier flags it regardless. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR075",
+        summary="A boolean param's truevalue/falsevalue must be distinct and sane.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for param, name, ptype in _iter_named_typed_params(document.root):
+            if ptype != "boolean":
+                continue
+            truevalue = str(param.get("truevalue", "true"))
+            falsevalue = str(param.get("falsevalue", "false"))
+            if truevalue == falsevalue:
+                yield _violation(
+                    document,
+                    param,
+                    self.meta,
+                    f"boolean parameter '{name}' has identical truevalue/falsevalue "
+                    f"'{truevalue}'",
+                )
+            if truevalue.lower() == "false":
+                yield _violation(
+                    document,
+                    param,
+                    self.meta,
+                    f"boolean parameter '{name}' truevalue '{truevalue}' reads as a "
+                    "false value",
+                )
+            if falsevalue.lower() == "true":
+                yield _violation(
+                    document,
+                    param,
+                    self.meta,
+                    f"boolean parameter '{name}' falsevalue '{falsevalue}' reads as a "
+                    "true value",
+                )
+
+
+class SelectDisplayConsistent(CheckRule):
+    """GTR076 — a select's ``display`` must agree with ``multiple``/``optional``.
+
+    Reimplements planemo `InputsSelectSingleCheckboxes` +
+    `InputsSelectMandatoryCheckboxes` (``display="checkboxes"`` needs ``multiple`` *and*
+    ``optional``) + `InputsSelectMultipleRadio` + `InputsSelectOptionalRadio`
+    (``display="radio"`` is incompatible with ``multiple`` or ``optional``). Applies to
+    ``select`` / ``data_column`` / ``drill_down``. ``optional`` defaults to ``multiple``
+    when unset, per Galaxy. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR076",
+        summary="A select's display must agree with multiple/optional.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for param, name, ptype in _iter_named_typed_params(document.root):
+            if ptype not in _DISPLAY_PARAM_TYPES:
+                continue
+            display = param.get("display")
+            if display not in ("checkboxes", "radio"):
+                continue
+            multiple = _string_as_bool(param.get("multiple", "false"))
+            optional = _string_as_bool(param.get("optional", multiple))
+            if display == "checkboxes":
+                if not multiple:
+                    yield _violation(
+                        document,
+                        param,
+                        self.meta,
+                        f"select '{name}' display=checkboxes needs multiple=true",
+                    )
+                if not optional:
+                    yield _violation(
+                        document,
+                        param,
+                        self.meta,
+                        f"select '{name}' display=checkboxes needs optional=true",
+                    )
+            else:  # radio
+                if multiple:
+                    yield _violation(
+                        document,
+                        param,
+                        self.meta,
+                        f"select '{name}' display=radio is incompatible with "
+                        "multiple=true",
+                    )
+                if optional:
+                    yield _violation(
+                        document,
+                        param,
+                        self.meta,
+                        f"select '{name}' display=radio is incompatible with "
+                        "optional=true",
+                    )
