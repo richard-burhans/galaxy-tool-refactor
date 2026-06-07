@@ -2812,3 +2812,84 @@ class TestOutputsCorrespond(CheckRule):
                         f"test {index}: <output_collection> '{name}' corresponds to a "
                         f"'{corresponding.tag}', expected a <collection>",
                     )
+
+
+class TestDiscoveredOutputsChecked(CheckRule):
+    """GTR084 — a test of a discovering output must assert on the discovered datasets.
+
+    Reimplements planemo `TestsOutputCheckDiscovered` (a test ``<output>`` for a tool
+    output with ``<discover_datasets>`` needs ``count``/``min``/``max`` or
+    ``<discovered_dataset>`` children), `TestsOutputCollectionCheckDiscovered` (a
+    ``<output_collection>`` needs ``count``/``min``/``max`` or ``<element>`` children)
+    and `TestsOutputCollectionCheckDiscoveredNested` (a ``list:list`` / ``list:paired``
+    collection needs nested ``<element>`` tags or element children with
+    ``count``/``min``/``max``). Only resolved output names are checked, so a
+    macro-supplied output simply under-reports. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR084",
+        summary="A discovering output's test must assert on the discovered datasets.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        declared = _declared_output_map(document.root)
+        for index, test in enumerate(document.root.findall("tests/test"), start=1):
+            for output in test.findall("output"):
+                corresponding = self._discovering_output(output, declared)
+                if corresponding is None:
+                    continue
+                if not (set(output.attrib) & {"count", "min", "max"}) and (
+                    output.find("discovered_dataset") is None
+                ):
+                    yield _violation(
+                        document,
+                        output,
+                        self.meta,
+                        f"test {index}: output '{output.get('name')}' discovers "
+                        "datasets — assert 'count'/'min'/'max' or list "
+                        "<discovered_dataset> children",
+                    )
+            for output in test.findall("output_collection"):
+                corresponding = self._discovering_output(output, declared)
+                if corresponding is None:
+                    continue
+                if not (set(output.attrib) & {"count", "min", "max"}) and (
+                    output.find("element") is None
+                ):
+                    yield _violation(
+                        document,
+                        output,
+                        self.meta,
+                        f"test {index}: collection '{output.get('name')}' discovers "
+                        "datasets — assert 'count'/'min'/'max' or list <element> "
+                        "children",
+                    )
+                if corresponding.get("type", "") in ("list:list", "list:paired"):
+                    has_nested = output.find("element/element") is not None
+                    counted = output.xpath("./element[@count or @min or @max]")
+                    if not has_nested and not counted:
+                        yield _violation(
+                            document,
+                            output,
+                            self.meta,
+                            f"test {index}: nested collection "
+                            f"'{output.get('name')}' must assert nested <element> tags "
+                            "or element children with 'count'/'min'/'max'",
+                        )
+
+    @staticmethod
+    def _discovering_output(
+        test_output: etree._Element, declared: dict[str, etree._Element], /
+    ) -> etree._Element | None:
+        """The declared output for *test_output* if it discovers datasets, else None."""
+        name = test_output.get("name")
+        if not name or name not in declared:
+            return None
+        corresponding = declared[name]
+        if corresponding.find(".//discover_datasets") is None:
+            return None
+        return corresponding

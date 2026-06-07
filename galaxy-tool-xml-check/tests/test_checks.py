@@ -800,6 +800,32 @@ def test_gtr083_test_outputs_correspond() -> None:
     assert "GTR083" not in _codes(_tool(tests=ok))  # 'out' is a <data> output
 
 
+def test_gtr084_test_discovered_outputs_checked() -> None:
+    discover = "<discover_datasets pattern=\"__name__\"/>"
+    data_unchecked = _tool(
+        outputs=f'<outputs><data name="out" format="txt">{discover}</data></outputs>',
+        tests='<tests><test><output name="out"/></test></tests>',
+    )
+    assert "GTR084" in _codes(data_unchecked)  # discovers datasets, not asserted
+    data_checked = _tool(
+        outputs=f'<outputs><data name="out" format="txt">{discover}</data></outputs>',
+        tests='<tests><test><output name="out" count="1"/></test></tests>',
+    )
+    assert "GTR084" not in _codes(data_checked)
+    coll_unchecked = _tool(
+        outputs=(
+            f'<outputs><collection name="c" type="list">{discover}'
+            "</collection></outputs>"
+        ),
+        tests='<tests><test><output_collection name="c"/></test></tests>',
+    )
+    assert "GTR084" in _codes(coll_unchecked)  # collection discovers, not asserted
+    # a plain output without discover_datasets is never required to assert counts
+    assert "GTR084" not in _codes(
+        _tool(tests='<tests><test><output name="out" count="1"/></test></tests>')
+    )
+
+
 def test_iuc006_no_error_handling() -> None:
     # No <stdio> and the command has no detect_errors -> flagged.
     assert "GTR026" in _codes(_tool(stdio=""))
