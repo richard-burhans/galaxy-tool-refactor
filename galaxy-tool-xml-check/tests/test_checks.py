@@ -702,6 +702,51 @@ def test_gtr076_select_display_consistent() -> None:
     assert "GTR076" not in _codes(_tool(inputs=radio_ok))
 
 
+def test_gtr077_option_filter_attributes() -> None:
+    missing_required = (
+        '<inputs><param name="s" type="select"><options from_data_table="t">'
+        '<filter type="data_meta" ref="r"/></options></param></inputs>'
+    )
+    assert "GTR077" in _codes(_tool(inputs=missing_required))  # data_meta needs key
+    remove_value_bad = (
+        '<inputs><param name="s" type="select"><options from_data_table="t">'
+        '<filter type="remove_value" value="x" ref="y"/></options></param></inputs>'
+    )
+    assert "GTR077" in _codes(_tool(inputs=remove_value_bad))  # value AND ref
+    ok = (
+        '<inputs><param name="s" type="select"><options from_data_table="t">'
+        '<filter type="data_meta" ref="r" key="dbkey"/></options></param></inputs>'
+    )
+    assert "GTR077" not in _codes(_tool(inputs=ok))
+
+
+def test_gtr078_option_filter_expression() -> None:
+    bad = (
+        '<inputs><param name="s" type="select"><options from_data_table="t">'
+        '<filter type="regexp" column="1" value="["/></options></param></inputs>'
+    )
+    assert "GTR078" in _codes(_tool(inputs=bad))
+    good = (
+        '<inputs><param name="s" type="select"><options from_data_table="t">'
+        '<filter type="regexp" column="1" value="ab+"/></options></param></inputs>'
+    )
+    assert "GTR078" not in _codes(_tool(inputs=good))
+
+
+def test_gtr079_option_filter_references() -> None:
+    ghost = (
+        '<inputs><param name="s" type="select"><options from_data_table="t">'
+        '<filter type="data_meta" ref="ghost" key="dbkey"/></options></param></inputs>'
+    )
+    assert "GTR079" in _codes(_tool(inputs=ghost))  # ref to a non-existent param
+    resolved = (
+        '<inputs><param name="d" type="data" format="txt"/>'
+        '<param name="s" type="select"><options from_data_table="t">'
+        '<filter type="data_meta" ref="d" key="dbkey"/></options></param></inputs>'
+    )
+    assert "GTR079" not in _codes(_tool(inputs=resolved))
+
+
 def test_iuc006_no_error_handling() -> None:
     # No <stdio> and the command has no detect_errors -> flagged.
     assert "GTR026" in _codes(_tool(stdio=""))

@@ -90,6 +90,9 @@ codemods GTR007–GTR016 are applied by `upgrade`, not the default `format`.)*
 | GTR074 | InputsDataOptionsMultiple, …Attrib, …FilterAttribFiltersType, …FiltersType, …FiltersRef | ✓ | ✗ | check | a `data` param's `<options>` (metadata filtering) must be valid |
 | GTR075 | InputsBoolDistinctValues, InputsBoolProblematic | ✓ | ✗ | check | a `boolean` param's truevalue/falsevalue must be distinct and sane |
 | GTR076 | InputsSelectSingleCheckboxes, …MandatoryCheckboxes, …MultipleRadio, …OptionalRadio | ✓ | ✗ | check | a select's `display` must agree with `multiple`/`optional` |
+| GTR077 | InputsOptionsFiltersRequiredAttributes, …RemoveValueFilterRequiredAttributes, …FiltersAllowedAttributes | ✓ | ✗ | check | an `<options>/<filter>` must carry the attributes its type allows |
+| GTR078 | InputsOptionsRegexFilterExpression | ✓ | ✗ | check | a `regexp` `<options>/<filter>` value must be a valid regex |
+| GTR079 | InputsOptionsFiltersCheckReferences | ✓ | ✗ | check | an `<options>/<filter>` ref/meta_ref must name a real param |
 
 **Bold** planemo linters are ones planemo *only reports* and we *fix* (or, for the
 checks, detect with our own rule). The remaining unmapped planemo linters (the ~80
@@ -131,12 +134,15 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 84 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), 2026-06-06 |
+| **HAVE** | 91 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), **GTR077–079** (option-filter attributes/expression/references), 2026-06-06 |
 | **FIX** (new, auto-fixable) | 0 | **complete** — GTR035/036/037 shipped; the rest of the original FIX candidates reclassified to advisory/detect on inspection (identity-changing or no mechanical equivalent) |
-| **DETECT** (new advisory) | ~13 | correctness checks for the `check` tier (report-only). 39 landed so far: GTR038–076 (citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, outputs present/format/label, container/filter/regex validity, input param naming, static + dynamic select options, validators, conditionals, type/structure, display/idiom). `inputs.py` now complete except option filters |
-| **SKIP** (pass-state) | ~21 | `valid`/`info` reporters — nothing to build |
-| **n/a** (out of scope) | ~20 | CWL, filesystem, network/ontology, runtime |
+| **DETECT** (new advisory) | ~29 | correctness checks for the `check` tier (report-only). 42 GTR rules landed so far (GTR038–079) — the **entire `inputs.py` correctness surface** plus citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, container/filter/regex validity. **Remaining DETECT:** `tests.py` (~21) is the bulk; the residuals are general `ToolVersionMissing`/`ToolNameMissing`/`ToolIDMissing` (3, XSD-required), `OutputsStructuredLikeReference`/`OutputsFormatSourceReference` (2, output cross-refs), `ValidDatatypes`/`DatatypesCustomConf` (2, registry/filesystem), `InputsDataFormat` (1), `HelpInvalidRST` (1, docutils) |
+| **SKIP** (pass-state) | ~14 | `valid`/`info` reporters — nothing to build |
+| **n/a** (out of scope) | ~12 | CWL (9), filesystem (`required_files`), `ResourceRequirementExpression`, `BioToolsValid` (network) |
 | **Total** | 146 | |
+
+> **Counts recomputed 2026-06-06** module-by-module after the `inputs.py` arc — the earlier
+> running `~`-totals for DETECT/SKIP/n/a had drifted; these now sum to 146.
 
 > **Reclassified by homework (2026-06-06).** The whitespace cluster started as 4 "FIX"
 > rows; building **GTR035** split it honestly: `name` + `requirement version` are
@@ -147,14 +153,16 @@ they're **SKIP**.
 
 By our tier, for the **buildable** rows (HAVE + FIX + DETECT):
 - **codemod** (structural fix): the FIX rows below + GTR013/015/016/**035** — ~15
-- **check** (advisory): ~80 (the DETECT bulk + the advisory HAVEs)
+- **check** (advisory): the DETECT bulk + the advisory HAVEs — **56 GTR check rules shipped**
+  (GTR021–GTR079, detect-only), ~29 planemo advisories still to build
 - **parse/validate**: 1 (XSD)
 
-**Headline:** planemo only *reports*; we *fix* the provably-safe subset — now **complete**:
-**GTR035** (whitespace trims), **GTR036** (`<output type="data">`→`<data>`), **GTR037**
-(redundant `name`). Every other original FIX candidate, on inspection, is either
-identity-changing (advisory-by-design) or has no mechanical modern equivalent (detect).
-The next planemo-parity frontier is the ~80 *correctness* checks → the advisory `check` tier.
+**Headline:** planemo only *reports*; we *fix* the provably-safe subset (**GTR035/036/037**,
+complete) and **detect the rest** as advisory `check`-tier rules. As of 2026-06-06 the check
+tier has **56 rules** covering the whole `inputs.py` correctness surface plus citations,
+command, container, general, help, output, and stdio. The remaining planemo-parity frontier
+is **`tests.py`** (~21 test-correctness checks) and a handful of scattered residuals
+(general missing name/id/version, output cross-references, datatypes, `HelpInvalidRST`).
 
 ---
 
@@ -257,14 +265,19 @@ needs author intent. The **FIX** candidates (auto-fixable, our edge):
 | InputsDataOptionsMultiple / …Attrib / …FilterAttribFiltersType / …FiltersType / …FiltersRef | error | check | **HAVE** | **GTR074** data param `<options>` metadata-filtering validity (faithful to planemo strictness) |
 | InputsBoolDistinctValues / InputsBoolProblematic | warn/error | check | **HAVE** | **GTR075** boolean truevalue/falsevalue distinct + not swapped |
 | InputsSelectSingleCheckboxes / …MandatoryCheckboxes / …MultipleRadio / …OptionalRadio | error | check | **HAVE** | **GTR076** `display="checkboxes"/"radio"` ↔ `multiple`/`optional` consistency |
+| InputsOptionsFiltersRequiredAttributes / …RemoveValueFilterRequiredAttributes / …FiltersAllowedAttributes | error/warn | check | **HAVE** | **GTR077** `<filter>` attribute schema per filter type |
+| InputsOptionsRegexFilterExpression | error | check | **HAVE** | **GTR078** `regexp` filter `value` compiles |
+| InputsOptionsFiltersCheckReferences | error | check | **HAVE** | **GTR079** filter `ref`/`meta_ref` resolves (macro-using tools skipped) |
 | InputsDataFormat | warn | check | DETECT | no `format` → defaults to `data` (fix = risky, leave advisory) |
 
-**DETECT (the remaining ~9)** — group view:
+**Group view — the whole `inputs.py` correctness surface is now HAVE** (only
+`InputsDataFormat` stays DETECT, table above; the `InputsNum`/datasource info linters are
+SKIP):
 - *naming/identity:* **HAVE** — `InputsName` (GTR054), `InputsNameEmpty`/`InputsNameValid` (GTR055), `InputsNameDuplicate` (GTR056), `InputsNameDuplicateOutput` (GTR057)
 - *static select options:* **HAVE** — `InputsSelectOptionsDef`/`…DefConditional` (GTR058), `InputsSelectOptionValueMissing` (GTR059), `InputsSelectOptionDuplicateValue`/`…Text` (GTR060)
 - *dynamic select `<options>`:* **HAVE** — `InputsSelectOptionsMultiple` (GTR061), `…DefinesOptions` (GTR062), `…FromDatasetAndDatatable`/`…MetaFileKey` (GTR063), `InputsSelectDynamicOptions`/`…DeprecatedAttr` (GTR064)
 - *type/structure:* **HAVE** — `InputsMissing` (GTR072), `InputsTypeChildCombination` (GTR073), `InputsDataOptionsMultiple`/`…Attrib`/`…FilterAttribFiltersType`/`…FiltersType`/`…FiltersRef` (GTR074)
-- *option filters:* `InputsOptionsFiltersRequiredAttributes` · `InputsOptionsRemoveValueFilterRequiredAttributes` · `InputsOptionsFiltersAllowedAttributes` · `InputsOptionsRegexFilterExpression` · `InputsOptionsFiltersCheckReferences`
+- *option filters:* **HAVE** — `InputsOptionsFiltersRequiredAttributes`/`…RemoveValueFilterRequiredAttributes`/`…FiltersAllowedAttributes` (GTR077), `InputsOptionsRegexFilterExpression` (GTR078), `InputsOptionsFiltersCheckReferences` (GTR079)
 - *display/idiom:* **HAVE** — `InputsBoolDistinctValues`/`InputsBoolProblematic` (GTR075), `InputsSelectSingleCheckboxes`/`…MandatoryCheckboxes`/`…MultipleRadio`/`…OptionalRadio` (GTR076)
 - *validators:* **HAVE** — form: `ValidatorParamIncompatible`/`…AttribIncompatible` (GTR065), `ValidatorHasText`/`…HasNoText` (GTR066), `ValidatorExpression`/`…ExpressionFuture` (GTR067); required attributes: `ValidatorMinMax`/`…MetadataCheckSkip`/`…TableName`/`…MetadataName`/`…DatasetMetadataEqualValue`/`…OrJson` (GTR068)
 - *conditionals:* **HAVE** — `ConditionalParamType`/`…ParamTypeBool` (GTR069), `ConditionalParamIncompatibleAttributes` (GTR070), `ConditionalWhenMissing`/`…OptionMissing`/`…OptionMissingBoolean` (GTR071)

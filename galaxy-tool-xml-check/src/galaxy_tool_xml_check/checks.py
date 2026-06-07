@@ -2415,3 +2415,187 @@ class SelectDisplayConsistent(CheckRule):
                         f"select '{name}' display=radio is incompatible with "
                         "optional=true",
                     )
+
+
+# Galaxy's per-filter-type required attributes (planemo ``FILTER_REQUIRED_ATTRIBUTES``).
+# ``remove_value`` carries only ``type`` here; its real requirement is the one-of rule
+# in ``_remove_value_filter_ok``.
+_FILTER_REQUIRED_ATTRS: dict[str, tuple[str, ...]] = {
+    "data_meta": ("type", "ref", "key"),
+    "param_value": ("type", "ref", "column"),
+    "static_value": ("type", "column", "value"),
+    "regexp": ("type", "column", "value"),
+    "unique_value": ("type", "column"),
+    "multiple_splitter": ("type", "column"),
+    "attribute_value_splitter": ("type", "column"),
+    "add_value": ("type", "value"),
+    "remove_value": ("type",),
+    "sort_by": ("type", "column"),
+    "data_table": ("type", "column", "table_name", "data_table_column"),
+}
+
+# Required attributes plus the optional ones allowed (``FILTER_ALLOWED_ATTRIBUTES``).
+_FILTER_ALLOWED_ATTRS: dict[str, frozenset[str]] = {
+    "data_meta": frozenset(
+        {"type", "ref", "key", "column", "multiple", "separator"}
+    ),
+    "param_value": frozenset({"type", "ref", "column", "keep", "ref_attribute"}),
+    "static_value": frozenset({"type", "column", "value", "keep"}),
+    "regexp": frozenset({"type", "column", "value", "keep"}),
+    "unique_value": frozenset({"type", "column"}),
+    "multiple_splitter": frozenset({"type", "column", "separator"}),
+    "attribute_value_splitter": frozenset(
+        {"type", "column", "pair_separator", "name_val_separator"}
+    ),
+    "add_value": frozenset({"type", "value", "name", "index"}),
+    "remove_value": frozenset({"type", "value", "ref", "meta_ref", "key"}),
+    "sort_by": frozenset({"type", "column", "reverse_sort_order"}),
+    "data_table": frozenset(
+        {"type", "column", "table_name", "data_table_column", "keep"}
+    ),
+}
+
+
+def _iter_option_filters(
+    root: etree._Element, /
+) -> Iterable[tuple[str, etree._Element]]:
+    """Each ``<param>``'s ``<options>/<filter>`` with the param name.
+
+    Any named param carrying an ``<options>`` element (planemo iterates all params, not
+    only ``select``/``data``). Macro-injected filters are invisible on the raw tree.
+    """
+    for param, name in _iter_named_params(root):
+        if param.find("options") is None:
+            continue
+        for option_filter in param.findall("options/filter"):
+            yield name, option_filter
+
+
+def _remove_value_filter_ok(option_filter: etree._Element, /) -> bool:
+    """planemo's ``remove_value`` rule: exactly one of ``value`` alone, ``ref`` alone,
+    or ``meta_ref`` + ``key`` together."""
+    attrs = option_filter.attrib
+    value, ref = "value" in attrs, "ref" in attrs
+    meta_ref, key = "meta_ref" in attrs, "key" in attrs
+    return (
+        (value and not ref and not meta_ref and not key)
+        or (not value and ref and not meta_ref and not key)
+        or (not value and not ref and meta_ref and key)
+    )
+
+
+class OptionFilterAttributes(CheckRule):
+    """GTR077 — an ``<options>/<filter>`` must carry the attributes its type allows.
+
+    Reimplements planemo `InputsOptionsFiltersRequiredAttributes` (a filter type's
+    required attributes are present), `InputsOptionsRemoveValueFilterRequiredAttributes`
+    (a ``remove_value`` filter needs exactly one of ``value`` / ``ref`` /
+    ``meta_ref``+``key``), and `InputsOptionsFiltersAllowedAttributes` (no attribute
+    outside the type's allowed
+    set). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR077",
+        summary="An <options>/<filter> must carry the attributes its type allows.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for name, option_filter in _iter_option_filters(document.root):
+            ftype = option_filter.get("type")
+            if ftype is None or ftype not in _FILTER_REQUIRED_ATTRS:
+                continue
+            if ftype == "remove_value" and not _remove_value_filter_ok(option_filter):
+                yield _violation(
+                    document,
+                    option_filter,
+                    self.meta,
+                    f"parameter '{name}' remove_value filter needs exactly one of "
+                    "'value'; 'ref'; or 'meta_ref'+'key'",
+                )
+            for attr in _FILTER_REQUIRED_ATTRS[ftype]:
+                if attr not in option_filter.attrib:
+                    yield _violation(
+                        document,
+                        option_filter,
+                        self.meta,
+                        f"parameter '{name}' '{ftype}' filter is missing required "
+                        f"attribute '{attr}'",
+                    )
+            for attr in option_filter.attrib:
+                if attr not in _FILTER_ALLOWED_ATTRS[ftype]:
+                    yield _violation(
+                        document,
+                        option_filter,
+                        self.meta,
+                        f"parameter '{name}' '{ftype}' filter has unnecessary "
+                        f"attribute '{attr}'",
+                    )
+
+
+class OptionFilterExpression(CheckRule):
+    """GTR078 — a ``regexp`` ``<options>/<filter>``'s ``value`` must be a valid regex.
+
+    Reimplements planemo `InputsOptionsRegexFilterExpression`. Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR078",
+        summary="A regexp <options>/<filter> value must be a valid regular expression.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for name, option_filter in _iter_option_filters(document.root):
+            if option_filter.get("type") != "regexp":
+                continue
+            value = option_filter.get("value")
+            if value is not None and not _is_valid_regex(value):
+                yield _violation(
+                    document,
+                    option_filter,
+                    self.meta,
+                    f"parameter '{name}' regexp filter value {value!r} is not a valid "
+                    "regular expression",
+                )
+
+
+class OptionFilterReferences(CheckRule):
+    """GTR079 — an ``<options>/<filter>``'s ``ref``/``meta_ref`` must name a real param.
+
+    Reimplements planemo `InputsOptionsFiltersCheckReferences`. A macro-using tool is
+    **skipped** — the param-name set is incomplete on the raw tree, so a reference to a
+    macro-supplied param can't be proven missing (the GTR044 boundary). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR079",
+        summary="An <options>/<filter> ref/meta_ref must name a real parameter.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        if has_macros(root):
+            return
+        param_names = {name for _param, name in _iter_named_params(root)}
+        for name, option_filter in _iter_option_filters(root):
+            if option_filter.get("type") is None:
+                continue
+            for ref_attr in ("meta_ref", "ref"):
+                ref = option_filter.get(ref_attr)
+                if ref is not None and ref not in param_names:
+                    yield _violation(
+                        document,
+                        option_filter,
+                        self.meta,
+                        f"parameter '{name}' filter {ref_attr} '{ref}' refers to a "
+                        "non-existent parameter",
+                    )
