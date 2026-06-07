@@ -908,3 +908,20 @@ or gtr083"`.
   raw tree (~360 corpus FPs avoided by the guard); correspondence is still checked for
   names that resolve.
 - **Corpus** (`docs/corpus_check_stats.md`): GTR082 **7**, GTR083 **124**.
+
+## D28 (2026-06-06) — planemo-parity test discovered-datasets: GTR084
+
+**Date:** 2026-06-06. Eighteenth planemo-linter batch (`../../docs/planemo_linter_parity.md`)
+— the `tests.py` discovered-datasets slice, one rule over three linters. Reproduced-by:
+`uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py
+-k gtr084`.
+
+- **GTR084 `TestDiscoveredOutputsChecked`** — reimplements planemo
+  `TestsOutputCheckDiscovered` (a test ``<output>`` for an output with
+  ``<discover_datasets>`` needs ``count``/``min``/``max`` or ``<discovered_dataset>``),
+  `TestsOutputCollectionCheckDiscovered` (a ``<output_collection>`` needs
+  ``count``/``min``/``max`` or ``<element>``) and `TestsOutputCollectionCheckDiscoveredNested`
+  (a ``list:list``/``list:paired`` collection needs nested ``<element>`` or element children
+  with ``count``/``min``/``max``). Only resolved output names are checked (reuses
+  `_declared_output_map`), so a macro-supplied output under-reports — no extra guard needed.
+- **Corpus** (`docs/corpus_check_stats.md`): GTR084 **27**.
