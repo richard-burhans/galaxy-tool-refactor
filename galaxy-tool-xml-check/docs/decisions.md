@@ -890,3 +890,21 @@ galaxy-tool-xml-check/tests/test_checks.py -k "gtr080 or gtr081"`.
   mechanical `tests.py` linters (output correspondence, discovered, failure expectations,
   param-in-inputs) are follow-up sub-batches.
 - **Corpus** (`docs/corpus_check_stats.md`): GTR080 **1**, GTR081 **2** — low-noise guards.
+
+## D27 (2026-06-06) — planemo-parity test output correspondence: GTR082–GTR083
+
+**Date:** 2026-06-06. Seventeenth planemo-linter batch (`../../docs/planemo_linter_parity.md`)
+— the `tests.py` output-correspondence slice, as advisory checks. Reproduced-by: `uv run
+--package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k "gtr082
+or gtr083"`.
+
+- **GTR082 `TestOutputNamed`** — reimplements planemo `TestsOutputName` (a test `<output>`
+  must declare a `name`; `<output_collection>` names are XSD-required).
+- **GTR083 `TestOutputsCorrespond`** — reimplements planemo `TestsOutputDefined` (the name
+  is a declared output), `TestsOutputCorresponding` (a test `<output>` ↔ a `<data>`), and
+  `TestsOutputCollectionCorresponding` (a `<output_collection>` ↔ a `<collection>`), via
+  the shared `_declared_output_map` (planemo's `_collect_output_names`). The *unknown-name*
+  case is **skipped** for a macro-using tool — the declared-output set is incomplete on the
+  raw tree (~360 corpus FPs avoided by the guard); correspondence is still checked for
+  names that resolve.
+- **Corpus** (`docs/corpus_check_stats.md`): GTR082 **7**, GTR083 **124**.

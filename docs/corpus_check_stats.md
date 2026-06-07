@@ -91,3 +91,5 @@ Detect-only IUC best-practice checks. Advisory: `check` reports them but does no
 | GTR079 | check | 1 | 0.0% | 1 | An `<options>`/`<filter>` ref/meta_ref must name a real parameter. |
 | GTR080 | check | 1 | 0.0% | 1 | A `<test>`'s assertions must be well formed. |
 | GTR081 | check | 2 | 0.0% | 2 | A test output's attributes must agree with its compare mode. |
+| GTR082 | check | 7 | 0.1% | 7 | A test `<output>` must declare a name. |
+| GTR083 | check | 124 | 1.3% | 217 | A test output must name a declared output of the matching kind. |
