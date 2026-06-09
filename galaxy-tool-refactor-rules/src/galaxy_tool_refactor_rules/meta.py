@@ -28,9 +28,11 @@ class RuleMeta:
         since: Version in which this rule was introduced.
         until: Version in which this rule was removed, or ``None`` if active.
         cite: Optional reference URL or citation.
-        order: Application order; lower values run first. Used by the formatter
-            tier to sequence its rules; the codemod tier orders by its own
-            pipeline tuple and leaves this at the default.
+        order: Application order; lower values run first. Each family is ordered
+            independently by this value — the formatter tier sequences its
+            cosmetic rules, and the codemod tier sequences its canonical codemods
+            (the registry's apply phase sorts each family by ``order``). An
+            upgrade-only or report-only rule leaves it at the default.
         detect_only: Whether the rule only *reports* (a lint with no automatic
             fix), as opposed to the fixable fmt rules and codemods. The advisory
             check tier (``galaxy-tool-xml-check``) sets this ``True``; a
@@ -53,6 +55,14 @@ class RuleMeta:
             parent is a registry-level grouping (selectable, expands to its
             children), not itself a rule; this field is what the registry derives
             the groups from. See registry ``docs/decisions.md`` D10.
+        rulesets: The names of the rule-sets this rule belongs to (the catalog
+            lives in ``rulesets.py``). This is the maintainer-facing "mark which
+            rules belong to which set" mechanism: the registry groups rules by
+            these names into selectable sets, and the CLI ``--ruleset`` flag
+            selects the **union** of the named sets. The default empty set means
+            the rule is never independently selectable — e.g. an upgrade-only
+            codemod driven internally by ``UpgradeToLatest``. Every name used
+            here must appear in the ``rulesets.py`` catalog (guarded by a test).
     """
 
     code: str
@@ -64,3 +74,4 @@ class RuleMeta:
     detect_only: bool = False
     applies_to: frozenset[str] = frozenset({"tool"})
     parent: str | None = None
+    rulesets: frozenset[str] = frozenset()

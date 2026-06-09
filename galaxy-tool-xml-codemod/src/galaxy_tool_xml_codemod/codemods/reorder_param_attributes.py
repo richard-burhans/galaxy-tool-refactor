@@ -45,6 +45,8 @@ class ReorderParamAttributes(CodemodCommand):
         summary="Reorder every <param> element's attributes to the IUC convention.",
         since="0.0.1",
         cite="https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html",
+        order=60,
+        rulesets=frozenset({"default", "iuc", "strict"}),
     )
 
     def detect_Param(self, cursor: Cursor) -> Iterable[Change]:

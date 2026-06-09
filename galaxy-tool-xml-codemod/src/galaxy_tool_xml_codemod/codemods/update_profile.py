@@ -21,7 +21,7 @@ tool may not have. It is also a no-op when the tool validates at no profile
 
 Like ``FixTypos`` this is document-level and validation-driven, so it overrides
 ``apply`` rather than using the ``detect_<Tag>`` walk. It runs in
-``CANONICAL_CODEMODS`` after ``FixTypos`` (a repaired tool can then be labelled)
+``canonical_codemods()`` after ``FixTypos`` (a repaired tool can then be labelled)
 and before ``ReorderToolAttributes`` (which positions an added ``profile=``).
 See ``docs/decisions.md`` §13.
 """

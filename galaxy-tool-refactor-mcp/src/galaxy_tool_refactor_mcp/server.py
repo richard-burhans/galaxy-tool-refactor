@@ -3,9 +3,9 @@
 Each MCP tool is a small handler with agent-facing named arguments that delegates
 to the protocol-agnostic ``service`` adapter. The handlers are the **error
 boundary** (the MCP analogue of the CLI's): they translate the facade's typed
-``UnknownPreset`` / ``UnknownRuleCode`` and tier-1's ``ToolXmlSyntaxError`` into a
+``UnknownRuleset`` / ``UnknownRuleCode`` and tier-1's ``ToolXmlSyntaxError`` into a
 plain ``ValueError`` whose message FastMCP returns as a tool error, so a malformed
-tool or an unknown preset is a clean error result rather than a crashed server.
+tool or an unknown ruleset is a clean error result rather than a crashed server.
 
 Run it with the ``galaxy-tool-refactor-mcp`` console script (stdio transport).
 ``build_server()`` is factored out so tests can introspect the registered tools
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from galaxy_tool_refactor_registry.errors import UnknownPreset, UnknownRuleCode
+from galaxy_tool_refactor_registry.errors import UnknownRuleCode, UnknownRuleset
 from galaxy_tool_xml.binding import ToolXmlSyntaxError
 from mcp.server.fastmcp import FastMCP
 
@@ -36,7 +36,7 @@ def _guarded(produce: Callable[[], T], /) -> T:
     """Run *produce*, mapping the facade/parse errors to an agent-facing message."""
     try:
         return produce()
-    except (UnknownPreset, UnknownRuleCode) as error:
+    except (UnknownRuleset, UnknownRuleCode) as error:
         raise ValueError(str(error)) from error
     except ToolXmlSyntaxError as error:
         raise ValueError(f"invalid tool XML: {error}") from error
@@ -44,14 +44,14 @@ def _guarded(produce: Callable[[], T], /) -> T:
 
 def _format_tool(
     xml: str,
-    preset: str | None = None,
+    rulesets: list[str] | None = None,
     select: list[str] | None = None,
     ignore: list[str] | None = None,
 ) -> dict[str, object]:
-    """Apply a preset's fixable rules then format; return canonical XML + notes."""
+    """Apply a ruleset's fixable rules then format; return canonical XML + notes."""
     return _guarded(
         lambda: service.format_tool(
-            xml, preset=preset, select=select or (), ignore=ignore or ()
+            xml, rulesets=rulesets or (), select=select or (), ignore=ignore or ()
         )
     )
 
@@ -69,21 +69,21 @@ def _upgrade_tool(
 
 def _check_tool(
     xml: str,
-    preset: str | None = None,
+    rulesets: list[str] | None = None,
     select: list[str] | None = None,
     ignore: list[str] | None = None,
 ) -> dict[str, object]:
     """Report-only detect over the selected rules; never mutates the tool."""
     return _guarded(
         lambda: service.check_tool(
-            xml, preset=preset, select=select or (), ignore=ignore or ()
+            xml, rulesets=rulesets or (), select=select or (), ignore=ignore or ()
         )
     )
 
 
-def _list_presets() -> list[dict[str, object]]:
-    """The baked-in presets (name / codes / is_default / description)."""
-    return service.list_presets()
+def _list_rulesets() -> list[dict[str, object]]:
+    """The baked-in rulesets (name / codes / is_default / description)."""
+    return service.list_rulesets()
 
 
 def _list_rules(include_upgrade: bool = False) -> list[dict[str, object]]:
@@ -97,7 +97,7 @@ def build_server() -> FastMCP:
     server.add_tool(_format_tool, name="format_tool")
     server.add_tool(_upgrade_tool, name="upgrade_tool")
     server.add_tool(_check_tool, name="check_tool")
-    server.add_tool(_list_presets, name="list_presets")
+    server.add_tool(_list_rulesets, name="list_rulesets")
     server.add_tool(_list_rules, name="list_rules")
     return server
 

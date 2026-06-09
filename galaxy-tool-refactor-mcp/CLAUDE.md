@@ -15,7 +15,7 @@ sibling of the user-facing CLI.
 | 2 | structure | `galaxy-tool-xml-codemod` |
 | 3 | formatting | `galaxy-tool-xml-fmt` |
 | 3.5 | advisory checks | `galaxy-tool-xml-check` |
-| 3.6 | rule registry / presets | `galaxy-tool-refactor-registry` |
+| 3.6 | rule registry / rulesets | `galaxy-tool-refactor-registry` |
 | 4 | app / CLI | `galaxy-tool-refactor-cli` |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` *(this repo)* |
 
@@ -35,7 +35,7 @@ and `mcp` (FastMCP). The lower tiers do **not** depend on it.
   back; `write_path` is never passed. The XML `str` is encoded to `bytes` before
   the facade sees it, so it is parsed as content, never mistaken for a path.
 - **`server.py` is the error boundary.** Its handlers translate the facade's typed
-  `UnknownPreset` / `UnknownRuleCode` and tier-1's `ToolXmlSyntaxError` into a
+  `UnknownRuleset` / `UnknownRuleCode` and tier-1's `ToolXmlSyntaxError` into a
   plain `ValueError` whose message FastMCP returns as a tool error (the MCP
   analogue of the CLI's `click` boundary). `service.py` lets them propagate.
 - **FastMCP introspects handler signatures at runtime** (`eval_str=True`), so a
@@ -66,7 +66,7 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
 ## Useful references
 
 - `galaxy-tool-refactor-registry/src/galaxy_tool_refactor_registry/facade.py` —
-  the `run` / `upgrade` / `detect` / `list_presets` / `list_rules` entry points
+  the `run` / `upgrade` / `detect` / `list_rulesets` / `list_rules` entry points
   `service.py` wraps; `results.py` for the structured result shapes serialised.
 - `galaxy-tool-refactor-cli/src/galaxy_tool_refactor_cli/cli.py` — the sibling
   front-end over the same facade.

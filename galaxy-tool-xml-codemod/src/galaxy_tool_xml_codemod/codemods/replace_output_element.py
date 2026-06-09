@@ -59,6 +59,8 @@ class ReplaceOutputElement(CodemodCommand):
         ),
         since="0.0.1",
         cite=_IUC,
+        order=40,
+        rulesets=frozenset({"default", "iuc", "strict"}),
     )
 
     def detect_Output(self, cursor: Cursor) -> Iterable[Change]:

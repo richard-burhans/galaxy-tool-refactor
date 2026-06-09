@@ -17,7 +17,7 @@ is provably safe.
 
 ### MCP (tool calls)
 
-Five tools — `format_tool`, `upgrade_tool`, `check_tool`, `list_presets`, `list_rules` —
+Five tools — `format_tool`, `upgrade_tool`, `check_tool`, `list_rulesets`, `list_rules` —
 take the tool XML as a string and return JSON. Nothing is written to disk. See
 [usage/mcp](usage/mcp.md). The key signal for autonomy:
 
@@ -33,7 +33,7 @@ unattended versus surface to a human — the honest contract is in [soundness](s
 
 ```python
 from galaxy_tool_refactor_registry import facade, resolve
-det = facade.detect(tool_path, codes=resolve.resolve_codes(preset="strict"))
+det = facade.detect(tool_path, codes=resolve.resolve_codes(rulesets=["strict"]))
 for v in det.violations:
     ...  # v.code, v.line, v.message ; det.is_advisory(v)
 ```

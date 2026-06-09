@@ -12,8 +12,8 @@ galaxy-tool-refactor/
 ├── galaxy-tool-xml-codemod/  Tier 2 (structure)
 ├── galaxy-tool-xml-fmt/      Tier 3 (formatting)
 ├── galaxy-tool-xml-check/    Tier 3.5 (advisory detect-only checks)
-├── galaxy-tool-refactor-registry/ Tier 3.6 (unified rule registry + presets; library-first facade)
-├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + find-references + rename-param + presets/rules + normalize-macros)
+├── galaxy-tool-refactor-registry/ Tier 3.6 (unified rule registry + rulesets; library-first facade)
+├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + find-references + rename-param + rulesets/rules + normalize-macros)
 ├── galaxy-tool-refactor-mcp/ Tier 4 (MCP server over the registry facade; thin FastMCP adapter)
 ├── scripts/                  Shared maintainer scripts (not installed)
 │   ├── corpus_check.py         validate | fmt | codemod | rules | check subcommands
@@ -294,33 +294,33 @@ Tiers, each independently installable:
 |---|---|---|---|
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | `RuleMeta` descriptor + `render_rule_reference_table`. Dependency-free; shared by tiers 2 & 3 so the GTR registry spans both. |
 | 1 | **parsing & validation** | `galaxy-tool-xml` | `load_tool` / `parse_tool` / `validate_tool`, typed xsdata views. **No serializer.** |
-| 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework + bundled structural codemods (each carries a `RuleMeta` GTR code; see `catalog.coded_codemods()`) + `CANONICAL_CODEMODS` contract. |
+| 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework + bundled structural codemods (each carries a `RuleMeta` GTR code; see `catalog.coded_codemods()`) + `canonical_codemods()` contract. |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic rules (indent / blank line / empty-element shorthand) + the shared `cli_support` CLI engine. The only tier that serialises canonical output XML. |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice checks (`GTR` codes, `RuleMeta.detect_only`); read-only LBYL queries over tier 1 yielding `Violation`. Depends only on tiers 1 + 0.5. |
-| 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | Unified, code-addressable `RuleHandle` over all three families + named presets (`cosmetic`/`iuc`/`strict`) + `run`/`upgrade`/`detect`. **Library-first** (no click/exit; structured I/O; introspectable). Depends on 0.5/1/2/3/3.5; lower tiers don't depend on it. |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `find-references`, `rename-param`, `presets`, `rules`, `normalize-macros`. |
-| 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the registry facade (a sibling of the CLI). A thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`list_presets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) remain future. |
+| 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | Unified, code-addressable `RuleHandle` over all three families + named rulesets (`cosmetic`/`default`/`iuc`/`strict`) + `run`/`upgrade`/`detect`. **Library-first** (no click/exit; structured I/O; introspectable). Depends on 0.5/1/2/3/3.5; lower tiers don't depend on it. |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`. |
+| 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the registry facade (a sibling of the CLI). A thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`list_rulesets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) remain future. |
 
 **Orchestration lives in the registry facade (tier 3.6); the CLI is a thin
 front-end.** Each lower tier is consumable standalone; the facade composes them
-into one code-addressable rule set with presets and a library-first
+into one code-addressable rule set with rulesets and a library-first
 `run`/`upgrade`/`detect` API. The CLI (`galaxy-tool-refactor-cli`) depends on the
 facade (plus fmt's `cli_support` engine and tier-1 parsing) and owns eight
 commands:
 
-- `galaxy-tool-refactor format` — apply a preset's fixable rules (default `iuc` =
-  `CANONICAL_CODEMODS` + cosmetic) then serialise. Safe, idempotent; never changes
-  `profile=`. Advisory rules in a selection (`--preset strict`) are reported as
+- `galaxy-tool-refactor format` — apply a ruleset's fixable rules (the default
+  ruleset = `canonical_codemods()` + cosmetic) then serialise. Safe, idempotent; never changes
+  `profile=`. Advisory rules in a selection (`--ruleset strict`) are reported as
   notes, never applied. (No longer byte-identical to the pre-partition historical
   output: GTR020.1 — `SingleQuoteCommandVars` — now also single-quotes the
   *provably*-single-valued Cheetah vars in `<command>`, a behaviour-preserving fix;
   codemod `docs/decisions.md` §30.)
 - `galaxy-tool-refactor upgrade` — repair, then iterative profile upgrade, then
-  format. Opt-in, semantic. No `--preset` (presets are a format/check concept);
+  format. Opt-in, semantic. No `--ruleset` (rulesets are a format/check concept);
   `--select`/`--ignore` adjust its fixable rule set.
 - `galaxy-tool-refactor check` — report-only over the selected rules' detect
   phases. Fixable findings exit non-zero; advisory findings appear only
-  under `--preset strict` and are informational unless `--strict`.
+  under `--ruleset strict` and are informational unless `--strict`.
 - `galaxy-tool-refactor find-references NAME PATHS` — read-only query (not a rule):
   every Cheetah `$NAME` reference site across a tool **and its imported macro files**
   (cli `docs/decisions.md` §D8/§D10; tier-1 Cheetah reference model §18).
@@ -334,16 +334,17 @@ commands:
   is no longer left dangling (1.7% of corpus renames; `scripts.measure
   rename-macro-spread`). First Cheetah mutator (M5.3); tier-1 `cheetah_rename` §20 +
   `bundle` §21, cli `docs/decisions.md` §D9/§D10/§D11, registry D14.
-- `galaxy-tool-refactor presets` / `rules` — introspection of the baked-in
-  presets and rules.
+- `galaxy-tool-refactor rulesets` / `rules` — introspection of the baked-in
+  rulesets and rules.
 - `galaxy-tool-refactor normalize-macros` — opt-in, repo-scoped: lowercase literal
   `format`/`ftype` in `<macros>`-root files (the macro-library analog of 24.2
   normalization the per-tool `upgrade` can't reach). Writes files other than the one
   named, so it is never folded into `format`/`upgrade` (cli `docs/decisions.md` §D7).
 
-Selection is shared across `format`/`upgrade`/`check`: `--preset NAME`,
-`--select CODE…`, `--ignore CODE…` (ruff-style precedence `--ignore` ▸ `--select`
-▸ `--preset`; `--select` replaces the preset's set). Rules and presets are
+Selection is shared across `format`/`upgrade`/`check`: `--ruleset NAME`
+(repeatable / comma-separated — the union of the named sets), `--select CODE…`,
+`--ignore CODE…` (ruff-style precedence `--ignore` ▸ `--select`
+▸ `--ruleset`; `--select` replaces the ruleset's set). Rules and rulesets are
 developer-defined — no user-defined rules.
 
 `galaxy-tool-xml-fmt`'s own CLI is **cosmetic-only** and has no codemod
@@ -354,7 +355,7 @@ See `galaxy-tool-xml/docs/decisions.md` §9 for the three-tier
 rationale; `galaxy-tool-refactor-cli/docs/decisions.md` §D1,
 `galaxy-tool-xml-fmt/docs/decisions.md` §D12, and
 `galaxy-tool-xml-codemod/docs/decisions.md` §16 for the app tier, the
-fmt-CLI-cosmetic-only reversal, and the `CANONICAL_CODEMODS` /
+fmt-CLI-cosmetic-only reversal, and the `canonical_codemods()` /
 `AUTO_UPGRADE_CODEMODS` split; and
 `galaxy-tool-refactor-rules/docs/decisions.md` §D1 (+ codemod §15,
 fmt §D11) for the shared `RuleMeta` extraction and the cross-tier
@@ -362,7 +363,7 @@ GTR registry; and `docs/iuc_best_practices.md` (+ codemod §17) for the
 IUC best-practices coverage map and the `<tool>` element-order codemod
 (GTR013); and `galaxy-tool-refactor-registry/docs/decisions.md` D1–D4
 (+ cli `docs/decisions.md` D4, fmt §D15) for the rule-registry facade,
-presets, per-rule selection, and the move of orchestration below the CLI.
+rulesets, per-rule selection, and the move of orchestration below the CLI.
 For the per-profile upgrade map (what each profile bump requires, the
 structural-vs-semantic split, and the validity-as-oracle soundness boundary)
 see `docs/profile_upgrades.md` (+ codemod `docs/decisions.md` §22).

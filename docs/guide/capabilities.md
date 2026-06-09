@@ -6,8 +6,8 @@
 > this guide draws from here — so nothing elsewhere claims more than this table
 > allows. Regenerate with the `repo-explainer` skill.
 
-Sources are introspected, not recalled: rule/preset rows come from
-`galaxy-tool-refactor rules` / `presets`; command rows from the CLI/MCP surface;
+Sources are introspected, not recalled: rule/ruleset rows come from
+`galaxy-tool-refactor rules` / `rulesets`; command rows from the CLI/MCP surface;
 corpus numbers from the committed `docs/*_stats.md` artifacts.
 
 ## At a glance
@@ -31,16 +31,16 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 
 | Capability | Code | Status | Source |
 |---|---|---|---|
-| Canonical indentation / blank-line / empty-element formatting | GTR001, GTR003, GTR004 | ✅ Shipped | `cosmetic` preset |
-| Reorder `<param>` / root `<tool>` attributes to IUC convention | GTR002, GTR005 | ✅ Shipped | `iuc` preset |
-| Reorder `<tool>` child elements to IUC convention | GTR013 | ✅ Shipped | `iuc` preset |
-| Repair near-miss typos so an invalid tool validates | GTR006 | ✅ Shipped | `iuc` preset |
-| Normalize Python-style booleans (`True`→`true`) to `xs:boolean` | GTR017 | ✅ Shipped | `iuc` preset |
-| Wrap pure-text `<command>` / `<help>` in CDATA | GTR018, GTR019 | ✅ Shipped | `iuc` preset |
-| Single-quote the *provably*-single-valued Cheetah `$var`s in `<command>` | GTR020 | ✅ Shipped | `iuc` preset |
-| Trim accidental whitespace from a `<tool>` `name` / `<requirement>` `version` | GTR035 | ✅ Shipped | `iuc` preset; planemo-parity *fix* (`docs/examples/planemo_fixable_issues.md`) |
-| Replace a deprecated `<output type="data">` with `<data>` | GTR036 | ✅ Shipped | `iuc` preset; planemo-parity *fix* |
-| Drop a `<param>` `name` that its `argument` already implies | GTR037 | ✅ Shipped | `iuc` preset; planemo-parity *fix* |
+| Canonical indentation / blank-line / empty-element formatting | GTR001, GTR003, GTR004 | ✅ Shipped | `cosmetic` ruleset |
+| Reorder `<param>` / root `<tool>` attributes to IUC convention | GTR002, GTR005 | ✅ Shipped | `default` ruleset |
+| Reorder `<tool>` child elements to IUC convention | GTR013 | ✅ Shipped | `default` ruleset |
+| Repair near-miss typos so an invalid tool validates | GTR006 | ✅ Shipped | `default` ruleset |
+| Normalize Python-style booleans (`True`→`true`) to `xs:boolean` | GTR017 | ✅ Shipped | `default` ruleset |
+| Wrap pure-text `<command>` / `<help>` in CDATA | GTR018, GTR019 | ✅ Shipped | `default` ruleset |
+| Single-quote the *provably*-single-valued Cheetah `$var`s in `<command>` | GTR020 | ✅ Shipped | `default` ruleset |
+| Trim accidental whitespace from a `<tool>` `name` / `<requirement>` `version` | GTR035 | ✅ Shipped | `default` ruleset; planemo-parity *fix* (`docs/examples/planemo_fixable_issues.md`) |
+| Replace a deprecated `<output type="data">` with `<data>` | GTR036 | ✅ Shipped | `default` ruleset; planemo-parity *fix* |
+| Drop a `<param>` `name` that its `argument` already implies | GTR037 | ✅ Shipped | `default` ruleset; planemo-parity *fix* |
 
 ### Upgrade (profile bump + repair, opt-in & semantic)
 
@@ -68,27 +68,27 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 
 | Capability | Codes | Status | Source |
 |---|---|---|---|
-| IUC best-practice checks (tests, CDATA, id charset, version, requirements, error handling, EDAM, help, description, version pinning, citations, TODO-text) | GTR021–GTR033, GTR038, GTR039 | ✅ Shipped | `strict` preset |
-| Output-correctness checks (unique names, valid placeholder names, collection `type`, `format_source`/`format` exclusivity) — planemo-parity advisory | GTR040–GTR043 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| Tool-level correctness checks (`<command>` present/non-empty, valid `profile` format, package requirement names its package, tool-version whitespace) — planemo-parity advisory | GTR044–GTR047 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| Output presence/format/label checks (`<outputs>` present, each output defines a format, no shared explicit labels) — planemo-parity advisory | GTR048–GTR050 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| Embedded-expression validity (`<container>` identifier shape, output `<filter>` is valid Python, `<stdio>` `<regex>` compiles) — planemo-parity advisory | GTR051–GTR053 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| Input parameter naming/identity (param declares a name, name is a valid placeholder, names unique, no input/output name clash) — planemo-parity advisory | GTR054–GTR057 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| Static `select` option correctness (options defined one valid way, every option has a value, options distinct) — planemo-parity advisory | GTR058–GTR060 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| Dynamic `select` `<options>` correctness (single `<options>`, defines a source, coherent `from_dataset`/`from_data_table`/`meta_file_key`, no deprecated mechanism) — planemo-parity advisory | GTR061–GTR064 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| `<validator>` form (type/attribute compatible with the param, expr/regex carry valid text) — planemo-parity advisory | GTR065–GTR067 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| `<validator>` required attributes (each validator type carries its required `min`/`max`/`table_name`/`metadata_name`/… ) — planemo-parity advisory | GTR068 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| `<conditional>` correctness (test param is a `select`, not optional/multiple, `<when>` blocks match the options) — planemo-parity advisory | GTR069–GTR071 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| Input type/structure (tool has inputs, param child elements valid for the type, `data` param `<options>` metadata-filtering valid) — planemo-parity advisory | GTR072–GTR074 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| Input display/idiom (boolean truevalue/falsevalue sane, select `display` agrees with `multiple`/`optional`) — planemo-parity advisory | GTR075–GTR076 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| `<options>/<filter>` validity (attribute schema per filter type, `regexp` value compiles, `ref`/`meta_ref` resolves) — planemo-parity advisory | GTR077–GTR079 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| `<test>` assertion well-formedness (single assert blocks, `has_n`/`has_size` quantifiers, output `compare`-attribute compatibility) — planemo-parity advisory | GTR080–GTR081 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| `<test>` output correspondence (each test output is named and matches a declared `<data>`/`<collection>` of the right kind) — planemo-parity advisory | GTR082–GTR083 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| `<test>` discovered-dataset coverage (a test of a `discover_datasets` output asserts count/elements) — planemo-parity advisory | GTR084 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| `<test>` parameters & expectations (test params name real inputs, `expect_failure` coherence, `expect_num_outputs` for filtered outputs, tests assert something) — planemo-parity advisory | GTR085–GTR088 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
-| `<help>` reStructuredText validity (via `docutils`, like Galaxy; `format="markdown"` skipped) — planemo-parity advisory | GTR089 | ✅ Shipped | `strict` preset; `docs/planemo_linter_parity.md` |
+| IUC best-practice checks (tests, CDATA, id charset, version, requirements, error handling, EDAM, help, description, version pinning, citations, TODO-text) | GTR021–GTR033, GTR038, GTR039 | ✅ Shipped | `strict` ruleset |
+| Output-correctness checks (unique names, valid placeholder names, collection `type`, `format_source`/`format` exclusivity) — planemo-parity advisory | GTR040–GTR043 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| Tool-level correctness checks (`<command>` present/non-empty, valid `profile` format, package requirement names its package, tool-version whitespace) — planemo-parity advisory | GTR044–GTR047 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| Output presence/format/label checks (`<outputs>` present, each output defines a format, no shared explicit labels) — planemo-parity advisory | GTR048–GTR050 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| Embedded-expression validity (`<container>` identifier shape, output `<filter>` is valid Python, `<stdio>` `<regex>` compiles) — planemo-parity advisory | GTR051–GTR053 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| Input parameter naming/identity (param declares a name, name is a valid placeholder, names unique, no input/output name clash) — planemo-parity advisory | GTR054–GTR057 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| Static `select` option correctness (options defined one valid way, every option has a value, options distinct) — planemo-parity advisory | GTR058–GTR060 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| Dynamic `select` `<options>` correctness (single `<options>`, defines a source, coherent `from_dataset`/`from_data_table`/`meta_file_key`, no deprecated mechanism) — planemo-parity advisory | GTR061–GTR064 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| `<validator>` form (type/attribute compatible with the param, expr/regex carry valid text) — planemo-parity advisory | GTR065–GTR067 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| `<validator>` required attributes (each validator type carries its required `min`/`max`/`table_name`/`metadata_name`/… ) — planemo-parity advisory | GTR068 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| `<conditional>` correctness (test param is a `select`, not optional/multiple, `<when>` blocks match the options) — planemo-parity advisory | GTR069–GTR071 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| Input type/structure (tool has inputs, param child elements valid for the type, `data` param `<options>` metadata-filtering valid) — planemo-parity advisory | GTR072–GTR074 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| Input display/idiom (boolean truevalue/falsevalue sane, select `display` agrees with `multiple`/`optional`) — planemo-parity advisory | GTR075–GTR076 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| `<options>/<filter>` validity (attribute schema per filter type, `regexp` value compiles, `ref`/`meta_ref` resolves) — planemo-parity advisory | GTR077–GTR079 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| `<test>` assertion well-formedness (single assert blocks, `has_n`/`has_size` quantifiers, output `compare`-attribute compatibility) — planemo-parity advisory | GTR080–GTR081 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| `<test>` output correspondence (each test output is named and matches a declared `<data>`/`<collection>` of the right kind) — planemo-parity advisory | GTR082–GTR083 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| `<test>` discovered-dataset coverage (a test of a `discover_datasets` output asserts count/elements) — planemo-parity advisory | GTR084 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| `<test>` parameters & expectations (test params name real inputs, `expect_failure` coherence, `expect_num_outputs` for filtered outputs, tests assert something) — planemo-parity advisory | GTR085–GTR088 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
+| `<help>` reStructuredText validity (via `docutils`, like Galaxy; `format="markdown"` skipped) — planemo-parity advisory | GTR089 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
 | Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTR020, the residual stays advisory | GTR020.2 | ✅ Shipped | advisory; provable subset fixed (GTR020) |
-| Input `<param>` never referenced anywhere the tool uses it | GTR034 | ✅ Shipped | `strict` preset; 189/467 tools (`docs/corpus_check_stats.md`) |
+| Input `<param>` never referenced anywhere the tool uses it | GTR034 | ✅ Shipped | `strict` ruleset; 189/467 tools (`docs/corpus_check_stats.md`) |
 | Lone-`&` vs `&&` join | GTR032 | 🔭 Roadmap | registry labels it "not yet implemented" |
 
 ### Inspect & refactor parameters (queries, not rules)
@@ -105,9 +105,9 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 
 | Capability | Status | Source |
 |---|---|---|
-| Code-addressable rule registry + presets (`cosmetic`/`iuc`/`strict`) + `--select`/`--ignore` | ✅ Shipped | `galaxy-tool-refactor-registry` |
-| CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `presets` / `rules` / `normalize-macros` | ✅ Shipped | `galaxy-tool-refactor` |
-| MCP server for agents: `format_tool` / `upgrade_tool` / `check_tool` / `list_presets` / `list_rules` | ✅ Shipped | `galaxy-tool-refactor-mcp` (vision Goal 1) |
+| Code-addressable rule registry + rulesets (`cosmetic`/`default`/`iuc`/`strict`) + `--select`/`--ignore` | ✅ Shipped | `galaxy-tool-refactor-registry` |
+| CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` | ✅ Shipped | `galaxy-tool-refactor` |
+| MCP server for agents: `format_tool` / `upgrade_tool` / `check_tool` / `list_rulesets` / `list_rules` | ✅ Shipped | `galaxy-tool-refactor-mcp` (vision Goal 1) |
 | Corpus evidence base: 9,358 unique tools, standing measurements | ✅ Shipped | `docs/*_stats.md`, `scripts/measure.py` |
 | Behaviour-preservation proof ledger — every fixable rule adversarially audited; genuine breaks fixed (regression-pinned), over-claims documented | ✅ Shipped | `docs/behavior_preservation.md` (see `soundness.md`) |
 

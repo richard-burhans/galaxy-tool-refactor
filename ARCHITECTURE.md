@@ -33,12 +33,12 @@ load-bearing rule:
 |---|---|---|---|
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | `RuleMeta` descriptor, `Violation` diagnostic, `render_rule_reference_table`. Dependency-free; shared by every higher tier. |
 | 1 | **parsing & validation** | `galaxy-tool-xml` | `ToolDocument` / `MacroDocument` (mutable lxml tree = source of truth), `load_tool` / `parse_tool` / `validate_tool`, `newest_valid_profile`, profile resolution, typed xsdata views. **No serializer.** |
-| 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework, `Cursor` mutation primitives, `Change` + `apply_changes`, the bundled codemods, `CANONICAL_CODEMODS` / `AUTO_UPGRADE_CODEMODS` contracts. |
+| 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework, `Cursor` mutation primitives, `Change` + `apply_changes`, the bundled codemods, `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` contracts. |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic `Rule`s (indent / blank line / shorthand), the `Edit` union + `apply_edits`, `format_tool_document` + the net-diff `detect_tool_document`, the shared `cli_support` engine, the serializer. **The only tier that serialises canonical output XML.** |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice + planemo-parity checks (66; `CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
-| 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | `RuleHandle` (uniform adapter over all three families), the unified registry, named presets, ruff-style selection, and the **library-first** `run` / `upgrade` / `detect` facade. Composes 0.5/1/2/3/3.5. |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `presets` / `rules` / `normalize-macros`. CLI plumbing only. |
-| 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`list_presets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
+| 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | `RuleHandle` (uniform adapter over all three families), the unified registry, declarative rule-sets, ruff-style selection, and the **library-first** `run` / `upgrade` / `detect` facade. Composes 0.5/1/2/3/3.5. |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros`. CLI plumbing only. |
+| 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`list_rulesets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
 
 ### Dependency direction
 
@@ -49,7 +49,7 @@ load-bearing rule:
                                      │ consumes facade         │
    tier 3.6           ┌─────────────▼──────────────┐           │
                       │ registry  (RuleHandle,      │◀──────────┘
-                      │ presets, run/upgrade/detect)│
+                      │ rulesets, run/upgrade/detect)│
                       └──┬─────────┬─────────┬──────┘
                          │ composes│         │
         ┌────────────────▼┐  ┌─────▼──────┐  ┌▼──────────────┐
@@ -81,10 +81,15 @@ depending on each other — the seam that keeps the tiers uncoupled.
 
 - **`RuleMeta`** — `meta.py` — frozen descriptor every rule carries as
   `meta: ClassVar[RuleMeta]`. Fields: `code` (e.g. `"GTR001"`), `summary`,
-  `since` / `until` (documentary), `cite`, `order` (fmt application order;
-  codemods leave it default), `detect_only` (advisory vs fixable), `applies_to`
-  (a subset of `{"tool", "macro"}`; default `{"tool"}` — a rule runs on a macro
-  file only when it opts in).
+  `since` / `until` (documentary), `cite`, `order` (per-family application order —
+  both fmt rules and canonical codemods sort by it), `detect_only` (advisory vs
+  fixable), `applies_to` (a subset of `{"tool", "macro"}`; default `{"tool"}` — a
+  rule runs on a macro file only when it opts in), `parent` (partition-parent code,
+  e.g. `"GTR020"` for `GTR020.1`/`.2`), and `rulesets` (the named sets this rule
+  belongs to — the maintainer's membership declaration; catalog in `rulesets.py`).
+- **`Ruleset` catalog** — `rulesets.py` — the dependency-free `Ruleset(name,
+  description)` catalog + `DEFAULT_RULESET` that names the selectable sets;
+  membership is declared per-rule (above) and the registry derives `name → codes`.
 - **`Violation`** — `violation.py` — the per-occurrence detect result: `code`,
   `sourceline` (1-based, `0` if synthesised), `xpath`, `message`. Pure data — the
   location is a plain `int` + `str`, never an lxml handle. This is the **read-only
@@ -209,10 +214,12 @@ will change.
   difference is that a `Change` carries its mutation as a **closure over a Cursor
   call** rather than re-enumerating every mutation kind.
 - **Pipeline contracts** — `canonical.py`:
-  - `CANONICAL_CODEMODS` = `FixTypos` → `NormalizeBooleanValues` →
+  - `canonical_codemods()` = `FixTypos` → `NormalizeBooleanValues` →
     `ReorderParamAttributes` → `ReorderToolAttributes` → `ReorderToolChildren` →
     `WrapCommandCdata` → `WrapHelpCdata` → `SingleQuoteCommandVars` — the **safe,
-    idempotent** format-time pipeline. Never touches `profile=`. (`FixTypos` and
+    idempotent** format-time pipeline, **derived** from the codemods that declare
+    the `"default"` ruleset, ordered by `meta.order` (the hardcoded tuple is gone).
+    Never touches `profile=`. (`FixTypos` and
     `NormalizeBooleanValues` are validity-restoring no-ops unless the tool validates
     nowhere; the `Wrap…Cdata` codemods `GTR018.1`/`GTR019.1` wrap a pure-text
     `<command>`/`<help>` body in CDATA, and `SingleQuoteCommandVars` `GTR020.1`
@@ -233,7 +240,7 @@ will change.
   Galaxy already applies the new behaviour there). Members
   (`FixInterpreter` GTR016 @16.04, `FixOutputFormatInput` GTR015 @16.04,
   `FixFromWorkDirWhitespace` GTR014 @21.09) are upgrade-only — in `coded_codemods()`,
-  not `CANONICAL_CODEMODS`.
+  not `canonical_codemods()`.
 - **`catalog.coded_codemods()`** — `catalog.py` — *every* GTR-coded codemod
   (including the single-step `Upgrade19_01`…`Upgrade25_1` and `UpdateProfile` that
   `UpgradeToLatest` drives internally, and the runtime-gated GTR014/GTR015/GTR016), for
@@ -378,20 +385,24 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
   selectable.
   `_index()` asserts the GTR namespace is **collision-free** — a reused code
   fails loudly here.
-- **Presets** — `presets.py` — named, developer-defined rule subsets, derived from
-  the family registries (never a hand-maintained code list that can drift):
-  `cosmetic` (fmt rules only), `iuc` (canonical codemods + cosmetic; the
-  **default**, byte-identical to the standalone `format` pipeline — a regression
-  test pins the facade against the live `CANONICAL_CODEMODS` + fmt, so the two
-  stay in lockstep as canonical grows), `strict` (`iuc` + every advisory check).
-  No user-defined presets.
-- **Selection** — `resolve.py` — `resolve_codes(*, preset, select, ignore)` with
-  **ruff-style precedence `--ignore` ▸ `--select` ▸ `--preset`**: `--select`
-  *replaces* the preset's set (resets the base, not adds), then `--ignore`
-  subtracts. Unknown names raise typed `UnknownPreset` / `UnknownRuleCode`
-  (`errors.py`). `resolve_upgrade_codes` is the preset-less variant for `upgrade`.
+- **Rulesets** — `rulesets.py` — named rule subsets, **derived from per-rule
+  membership** (`RuleMeta.rulesets`, the tier-0.5 catalog of names+descriptions):
+  `ruleset_codes()` groups the registry by each rule's declared set, so the
+  mapping can never drift from the rules that exist. Seeded: `cosmetic` (fmt rules
+  only), `default` (canonical codemods + cosmetic; the **default**, byte-identical
+  to the standalone `format` pipeline — a regression test pins the facade against
+  the live `canonical_codemods()` + fmt), `iuc` (mirrors `default` for now), and
+  `strict` (`default` + every advisory check). A maintainer adds a ruleset by
+  tagging its member rules + a catalog entry; no user-defined rulesets. The
+  hardcoded `CANONICAL_CODEMODS` tuple is gone — membership lives on the rules.
+- **Selection** — `resolve.py` — `resolve_codes(*, rulesets, select, ignore)` with
+  **ruff-style precedence `--ignore` ▸ `--select` ▸ `--ruleset`**: the base is the
+  **union** of the named rulesets (default `{"default"}`); `--select` *replaces*
+  it (resets the base, not adds), then `--ignore` subtracts. Unknown names raise
+  typed `UnknownRuleset` / `UnknownRuleCode` (`errors.py`). `resolve_upgrade_codes`
+  is the ruleset-less variant for `upgrade`.
 - **`apply_selection`** — `apply.py` — applies a code set in `format`'s order:
-  codemods first (in `CANONICAL_CODEMODS` order), then the cosmetic fmt rules as
+  codemods first (by `meta.order`), then the cosmetic fmt rules as
   one batch through `format_tool_document_subset` (which serialises once).
   Advisory codes are skipped. Even a codemod-only selection ends in fmt — so
   **fmt stays the only serializer**.
@@ -408,9 +419,9 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
     crosses no *applicable* behaviour code (codemod §23).
   - `detect(source, *, codes) -> DetectResult` — report-only; fmt rules detected
     as one net-effect group, codemod/advisory rules per-code.
-  - `list_presets()` / `list_rules(*, include_upgrade=False)` — introspection.
+  - `list_rulesets()` / `list_rules(*, include_upgrade=False)` — introspection.
   - Results live in `results.py` (`FormatResult`, `UpgradeResult`, `DetectResult`,
-    `RuleInfo`, `PresetInfo`).
+    `RuleInfo`, `RulesetInfo`).
 - **`macro_profile.py`** — the Phase-3b imported-`@PROFILE@` upgrade. A tool whose
   `profile="@TOKEN@"` resolves to a token in an *imported* macro file can't be
   upgraded by editing the tool alone. `profile_token_site(document)` maps one tool
@@ -431,35 +442,36 @@ serializer. *(registry `docs/decisions.md` D1–D5.)*
 The user-facing `galaxy-tool-refactor` CLI (`cli.py`). **CLI plumbing only** — all
 rule orchestration is delegated to the facade; this package no longer imports the
 codemod / check tiers directly. Eight subcommands (`format`, `upgrade`, `check`,
-`find-references`, `rename-param`, `presets`, `rules`, `normalize-macros`) —
+`find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`) —
 `find-references` is a read-only query for a parameter's Cheetah `$var` reference sites
 (`galaxy_tool_xml.cheetah_refs`; cli `docs/decisions.md` §D8) and `rename-param` is its
 mutating sibling (the first Cheetah mutator, `galaxy_tool_xml.cheetah_rename`; cli §D9):
 
-- **`format`** — apply a preset's (or selection's) fixable rules then cosmetic
+- **`format`** — apply a ruleset's (or selection's) fixable rules then cosmetic
   formatting; never changes `profile=`. Advisory rules in a selection are reported
   as notes, never applied. Macro files are cosmetically formatted (kind-applicable
   rules only). Wraps `facade.run` inside `cli_support.run`.
 - **`upgrade`** — repair → iterative profile upgrade → format. Opt-in, semantic;
-  **no `--preset`** (`--select` / `--ignore` adjust its fixable set). Runs a
+  **no `--ruleset`** (`--select` / `--ignore` adjust its fixable set). Runs a
   whole-run phase first (`_upgrade_macro_profile_tokens`) that bumps agreed
   imported `@PROFILE@` tokens, then wraps `facade.upgrade` per file.
 - **`check`** — report-only linter; one `file:line  CODE  message` per finding.
   Fixable findings fail the run; advisory findings (the `detect_only` checks, under
-  `--preset strict`) are informational unless `--strict`. Wraps `facade.detect`.
-- **`presets` / `rules`** — introspection over `facade.list_presets` /
+  `--ruleset strict`) are informational unless `--strict`. Wraps `facade.detect`.
+- **`rulesets` / `rules`** — introspection over `facade.list_rulesets` /
   `list_rules`.
 - **`normalize-macros`** — opt-in, repo-scoped: lowercase literal `format` /
   `ftype` in `<macros>`-root files (`macro_datatype.normalize_macro_files`). Not in
   the per-tool pipeline — it writes files other than the one named (cli §D7).
 
-Selection (`--preset` / `--select` / `--ignore`) is shared across
-`format` / `upgrade` / `check` with the ruff-style precedence above. Exceptions
-from the facade (`UnknownPreset` / `UnknownRuleCode`) are caught here at the CLI
-boundary and re-raised as `click.BadParameter`.
+Selection (`--ruleset` / `--select` / `--ignore`) is shared across
+`format` / `upgrade` / `check` with the ruff-style precedence above (`--ruleset`
+unions the named sets). Exceptions from the facade (`UnknownRuleset` /
+`UnknownRuleCode`) are caught here at the CLI boundary and re-raised as
+`click.BadParameter`.
 
 **`galaxy-tool-refactor-mcp`:** an agent-facing MCP server over the same facade
-(discover rules/presets, run `format` / `upgrade` / `check` on supplied content).
+(discover rules/rulesets, run `format` / `upgrade` / `check` on supplied content).
 The facade's library-first shape is what makes it a thin adapter: a FastMCP
 binding (`server.py`) over a protocol-agnostic `service.py` (facade → JSON). Goal 1
 of the vision is shipped; agent-authored rules (Goal 2) remain future. *(cli
@@ -515,8 +527,8 @@ break.
    regress XSD validity; fmt is idempotent (`format(format(x)) == format(x)`).
    These are proven by corpus sweeps, and crashes are retained as regression
    fixtures.
-7. **Shared selection model.** `--preset` / `--select` / `--ignore` work
-   identically across `format` / `upgrade` / `check` (upgrade rejects `--preset`),
+7. **Shared selection model.** `--ruleset` / `--select` / `--ignore` work
+   identically across `format` / `upgrade` / `check` (upgrade rejects `--ruleset`),
    resolved once in `resolve.py`.
 8. **Macro handling is cosmetic-only in v1, with two content exceptions.** Macro
    files have no codemods (the codemods are `applies_to={"tool"}`), but two operations
@@ -550,7 +562,7 @@ natural places to look when reasoning about consistency.
   `_detect_advisory`. Both are correct; they are parallel runners for different
   callers.
 - **Cosmetic detect is net-effect, not per-rule.** A single-rule fmt subset can
-  report churn a coherent subset would cancel; only the shipped presets (full
+  report churn a coherent subset would cancel; only the shipped rulesets (full
   GTR001/003/004 trio) are guaranteed idempotent. The same order-sensitivity means
   the registry's `apply_selection` deliberately **batches** the selected fmt rules
   through `format_tool_document_subset` rather than calling each fmt
@@ -619,7 +631,7 @@ Each abstraction → its file → the decision record that justifies it.
 | `tool_cheetah_references` / `CheetahRef` (reference model) | `galaxy-tool-xml/src/.../cheetah_refs.py` | xml `docs/decisions.md` §18 |
 | `rename_param` / `rename_param_plan` / `RenameOutcome` / `RenamePlan` | `galaxy-tool-xml/src/.../cheetah_rename.py` | xml `docs/decisions.md` §20 |
 | `CodemodCommand`, `Cursor`, `Change` | `galaxy-tool-xml-codemod/src/.../codemod.py`, `cursor.py`, `change.py` | codemod `docs/decisions.md` §6, §19 |
-| `CANONICAL_CODEMODS` / `AUTO_UPGRADE_CODEMODS` | `galaxy-tool-xml-codemod/src/.../canonical.py` | codemod `docs/decisions.md` §16 |
+| `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` | `galaxy-tool-xml-codemod/src/.../canonical.py` | codemod `docs/decisions.md` §16, §36 |
 | upgrade codemods | `galaxy-tool-xml-codemod/src/.../upgrades.py`, `codemods/upgrade_*.py` | codemod `docs/decisions.md` §11–14 |
 | `PROFILE_UPGRADE_CODES` / `upgrade_codes_crossed` / `upgrade_codes_applicable` | `galaxy-tool-xml-codemod/src/.../profile_semantics.py` | codemod `docs/decisions.md` §22–23, §25 |
 | `RuntimeGatedFix` / `runtime_fixes_for` | `galaxy-tool-xml-codemod/src/.../codemods/_runtime_gated.py`, `runtime_fixes.py` | codemod `docs/decisions.md` §24 |
@@ -629,7 +641,7 @@ Each abstraction → its file → the decision record that justifies it.
 | `cli_support` engine | `galaxy-tool-xml-fmt/src/.../cli_support.py` | fmt `docs/decisions.md` §D12 |
 | `CheckRule`, `detect_violations` | `galaxy-tool-xml-check/src/.../rules.py`, `detect.py` | check `docs/decisions.md` §D1; `docs/iuc_best_practices.md` |
 | `RuleHandle`, registry | `galaxy-tool-refactor-registry/src/.../handle.py`, `registry.py` | registry `docs/decisions.md` D1–D2 |
-| presets, `resolve_codes`, `apply_selection` | `galaxy-tool-refactor-registry/src/.../presets.py`, `resolve.py`, `apply.py` | registry `docs/decisions.md` D3–D4 |
+| rulesets, `resolve_codes`, `apply_selection` | `galaxy-tool-refactor-registry/src/.../rulesets.py`, `resolve.py`, `apply.py` | registry `docs/decisions.md` D3–D4, D15 |
 | `run` / `upgrade` / `detect` facade | `galaxy-tool-refactor-registry/src/.../facade.py`, `results.py` | registry `docs/decisions.md` D1 |
 | imported-`@PROFILE@` upgrade | `galaxy-tool-refactor-registry/src/.../macro_profile.py` | registry `docs/decisions.md` D5 |
 | imported-macro `format`/`ftype` normalization | `galaxy-tool-refactor-registry/src/.../macro_datatype.py` | registry `docs/decisions.md` D8 |

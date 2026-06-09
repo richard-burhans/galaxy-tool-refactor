@@ -1,6 +1,6 @@
 """The full set of GTR-coded codemods, for documentation and registry use.
 
-Distinct from ``CANONICAL_CODEMODS`` (``canonical.py``): that tuple is the
+Distinct from ``canonical_codemods()`` (``canonical.py``): that tuple is the
 *ordered pipeline* fmt's CLI runs, and it omits the single-step ``upgrade_vN``
 codemods because ``UpgradeToLatest`` drives them internally. This catalog lists
 *every* codemod that carries a ``RuleMeta`` GTR code, so a cross-tier rule

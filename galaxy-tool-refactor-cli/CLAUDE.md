@@ -15,7 +15,7 @@ facade.
 | 2 | structure | `galaxy-tool-xml-codemod` |
 | 3 | formatting | `galaxy-tool-xml-fmt` |
 | 3.5 | advisory checks | `galaxy-tool-xml-check` |
-| 3.6 | rule registry / presets | `galaxy-tool-refactor-registry` |
+| 3.6 | rule registry / rulesets | `galaxy-tool-refactor-registry` |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` *(this repo)* |
 
 Rule orchestration lives in the tier-3.6 **registry facade**
@@ -24,8 +24,8 @@ Rule orchestration lives in the tier-3.6 **registry facade**
 longer imports the codemod / check tiers directly. It exposes the
 `galaxy-tool-refactor` CLI with eight subcommands:
 
-- `format` — apply a preset's fixable rules then cosmetic formatting. Default
-  preset `iuc` = `CANONICAL_CODEMODS` (repair + attribute / element order + the
+- `format` — apply a ruleset's fixable rules then cosmetic formatting. The default
+  ruleset = `canonical_codemods()` (repair + attribute / element order + the
   CDATA wraps + GTR020 command-var single-quoting) + cosmetic. Safe, idempotent,
   never changes `profile=`. (GTR020 shifts default-`format` bytes vs the pre-GTR020
   historical output — behaviour-preserving; codemod `docs/decisions.md` §30.)
@@ -33,13 +33,13 @@ longer imports the codemod / check tiers directly. It exposes the
   cosmetically formats macro-library files (`<macros>` root) — kind-applicable
   rules only (no codemods); selection governs tools (cli §D5).
 - `upgrade` — repair, then iterative profile upgrade, then cosmetic formatting.
-  Opt-in and semantic. No `--preset`; `--select`/`--ignore` adjust its rule set.
+  Opt-in and semantic. No `--ruleset`; `--select`/`--ignore` adjust its rule set.
   Also bumps an imported `@PROFILE@` token in place when every profile-using
   importer in the run agrees on the target, else reports+skips (cli §D6); the
   inline-token case is GTR007's job.
 - `check` — report-only linter (mutates nothing) over the selected rules' detect
-  phases: `file:line  CODE  message` per finding. Default (`iuc`) reports only
-  *fixable* GTR findings; `--preset strict` adds the *advisory* checks (marked
+  phases: `file:line  CODE  message` per finding. The default ruleset reports only
+  *fixable* GTR findings; `--ruleset strict` adds the *advisory* checks (marked
   `(advisory)`). Fixable findings exit non-zero; advisory are informational unless
   `--strict`. Macro files are checked for cosmetic (fixable) drift too.
 - `find-references` — read-only query (mutates nothing, not a rule): print every
@@ -54,7 +54,7 @@ longer imports the codemod / check tiers directly. It exposes the
   every importer in lockstep when they all agree); `--check` previews; `--backup` keeps
   `.bak`s. First Cheetah mutator (M5.3) over `cheetah_rename` / `bundle_rename`; see
   `docs/decisions.md` §D9, §D10, §D11.
-- `presets` / `rules` — introspection of the baked-in presets and rules.
+- `rulesets` / `rules` — introspection of the baked-in rulesets and rules.
 - `normalize-macros` — opt-in, repo-scoped pass that lowercases literal
   `format`/`ftype` in `<macros>`-root files (the macro-library analog of 24.2
   normalization the per-tool `upgrade` cannot reach). Rewrites files other than the
@@ -70,9 +70,10 @@ with a sole-owned `--repo-root` gate for the macro edits a rename makes (registr
 `galaxy-tool-xml/docs/decisions.md` §21). All four mutating commands accept `--backup`
 (`<file>.bak` before overwrite).
 
-Selection (`--preset` / `--select` / `--ignore`) is shared by
-`format`/`upgrade`/`check` (upgrade takes no `--preset`); precedence is ruff-style
-(`--ignore` ▸ `--select` ▸ `--preset`, where `--select` replaces the preset set).
+Selection (`--ruleset` / `--select` / `--ignore`) is shared by
+`format`/`upgrade`/`check` (upgrade takes no `--ruleset`); precedence is ruff-style
+(`--ignore` ▸ `--select` ▸ `--ruleset`, where `--select` replaces the ruleset set;
+`--ruleset` is repeatable / comma-separated and takes the union of the named sets).
 `format`/`upgrade` reuse fmt's `cli_support` engine (file walking,
 `--check`/`--diff`/`--quiet`, drift detection, summary), wrapping `facade.run` /
 `facade.upgrade` in the per-file transform; `check` runs its own report-only loop
@@ -105,10 +106,10 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
 ## Useful workspace references
 
 - `galaxy-tool-refactor-registry/src/galaxy_tool_refactor_registry/facade.py` —
-  the `run` / `upgrade` / `detect` / `list_presets` / `list_rules` entry points
+  the `run` / `upgrade` / `detect` / `list_rulesets` / `list_rules` entry points
   this CLI wraps; `resolve.py` for `resolve_codes` / `resolve_upgrade_codes`.
 - `galaxy-tool-xml-fmt/src/galaxy_tool_xml_fmt/cli_support.py` — the shared
   file-processing engine (`run`, `iter_targets`, `is_tool_root`,
   `TransformOutcome`).
 - `galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/canonical.py` — the
-  `CANONICAL_CODEMODS` / `AUTO_UPGRADE_CODEMODS` contracts the facade consumes.
+  `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` contracts the facade consumes.

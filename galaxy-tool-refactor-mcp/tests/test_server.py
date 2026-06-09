@@ -27,16 +27,16 @@ def test_build_server_registers_every_tool() -> None:
         "format_tool",
         "upgrade_tool",
         "check_tool",
-        "list_presets",
+        "list_rulesets",
         "list_rules",
     }
 
 
-def test_handler_maps_unknown_preset_to_plain_valueerror() -> None:
-    """The error boundary downgrades the typed UnknownPreset to a plain message."""
+def test_handler_maps_unknown_ruleset_to_plain_valueerror() -> None:
+    """The error boundary downgrades the typed UnknownRuleset to a plain message."""
     with pytest.raises(ValueError) as exc_info:
-        _format_tool(_TOOL, preset="does-not-exist")
-    # Not the UnknownPreset subclass — a clean message for the agent.
+        _format_tool(_TOOL, rulesets=["does-not-exist"])
+    # Not the UnknownRuleset subclass — a clean message for the agent.
     assert type(exc_info.value) is ValueError
 
 

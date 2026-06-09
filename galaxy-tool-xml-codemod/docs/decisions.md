@@ -1514,3 +1514,22 @@ galaxy_tool_xml_codemod.codemods.drop_redundant_param_name:DropRedundantParamNam
   a `<test><param>` is matched by name and is never touched. Joins `CANONICAL_CODEMODS`;
   idempotent (no `name` remains to match).
 - **Corpus.** 343 tools carry a redundant name (1,846 findings, `docs/corpus_check_stats.md`); the codemod sweep modifies **332** eligible tools, **0 non-idempotent, 0 post-validate-failed, 0 crashed** (`docs/corpus_rule_stats.md`); fmt pipeline idempotent. The highest-impact planemo-parity fix so far.
+
+## 36. `canonical_codemods()` — derive the canonical pipeline from ruleset membership
+
+The hardcoded `CANONICAL_CODEMODS` tuple is removed. The canonical/`format` pipeline is now
+**derived**: `canonical.canonical_codemods()` returns the codemods that declare the
+`"default"` ruleset (`RuleMeta.rulesets`, tier-0.5 D4), sorted by `meta.order`. Each
+canonical codemod carries an explicit `order=` (10, 20, … matching the historical tuple
+sequence) so application order survives the tuple's removal; the registry's apply phase
+sorts the codemod family by `meta.order` (registry D15). `AUTO_UPGRADE_CODEMODS` (the
+separate, opt-in upgrade pipeline — not ruleset-driven) is unchanged. The front-to-back
+order and the byte output are identical to before; `test_canonical.py` pins both the
+derivation (`= "default"`-ruleset codemods, `meta.order`-sorted) and the ordering
+constraints (repair-before-reorder, attributes-before-elements).
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-xml-codemod pytest galaxy-tool-xml-codemod/tests/test_canonical.py
+```

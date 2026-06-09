@@ -53,6 +53,7 @@ class OutputNamesUnique(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -81,6 +82,7 @@ class OutputNameValid(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -110,6 +112,7 @@ class CollectionTypeDeclared(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -139,6 +142,7 @@ class OutputFormatSourceExclusive(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -242,6 +246,7 @@ class OutputsPresent(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -268,6 +273,7 @@ class OutputFormatDefined(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -307,6 +313,7 @@ class OutputLabelsDistinct(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -358,6 +365,7 @@ class OutputFilterValid(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:

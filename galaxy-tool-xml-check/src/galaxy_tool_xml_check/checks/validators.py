@@ -188,6 +188,7 @@ class ValidatorTypeCompatible(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -225,6 +226,7 @@ class ValidatorTextPresence(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -264,6 +266,7 @@ class ValidatorExpressionValid(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -349,6 +352,7 @@ class ValidatorRequiredAttributes(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:

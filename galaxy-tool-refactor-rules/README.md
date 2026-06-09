@@ -10,7 +10,7 @@ a small, dependency-free "tier 0.5" package consumed by both higher tiers:
 | 2 | structure | `galaxy-tool-xml-codemod` |
 | 3 | formatting | `galaxy-tool-xml-fmt` |
 | 3.5 | advisory checks | `galaxy-tool-xml-check` |
-| 3.6 | rule registry / presets | `galaxy-tool-refactor-registry` |
+| 3.6 | rule registry / rulesets | `galaxy-tool-refactor-registry` |
 | 4 | app / CLI | `galaxy-tool-refactor-cli` |
 
 It provides:

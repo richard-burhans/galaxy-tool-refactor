@@ -34,6 +34,7 @@ class CanonicalIndent(Rule):
         cite="https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html",
         order=10,
         applies_to=frozenset({"tool", "macro"}),
+        rulesets=frozenset({"cosmetic", "default", "iuc", "strict"}),
     )
 
     def edits(self, tree: etree._ElementTree) -> Iterable[Edit]:

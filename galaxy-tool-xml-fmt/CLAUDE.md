@@ -15,7 +15,7 @@ and the shared tier-0.5 rules metadata):
 | 2 | **structure** | `galaxy-tool-xml-codemod` | structural mutations |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` *(this repo)* | cosmetic formatting (+ non-mutating `detect`); the only tier that serialises canonical output XML |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only IUC best-practice checks |
-| 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | unified rule registry + presets; library-first facade |
+| 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | unified rule registry + rulesets; library-first facade |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | composes the tiers via the facade (`format`/`upgrade`/`check`) |
 
 The fmt tool is opinionated like `black`: a single canonical
@@ -93,7 +93,7 @@ Run these from the **workspace root** (`galaxy-tool-refactor/`):
 - `galaxy-tool-xml/docs/decisions.md` §3 (representation), §9
   (three-tier vision)
 - `galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/canonical.py` —
-  the `CANONICAL_CODEMODS` / `AUTO_UPGRADE_CODEMODS` contracts the tier-3.6
+  the `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` contracts the tier-3.6
   registry facade runs (this package's CLI does not)
 - `galaxy-tool-refactor-registry/` — the tier-3.6 facade that composes
   codemod + fmt into `run` / `upgrade` / `detect` (it calls this package's

@@ -17,8 +17,8 @@ profile at or above the fix's introduction is *also* untouched — Galaxy alread
 applied the new behaviour, so rewriting it would change current behaviour rather than
 preserve it (codemod ``docs/decisions.md`` §24, the crossing-gate). Each fix mirrors
 a Galaxy ``must_fix`` upgrade code (see ``profile_semantics.PROFILE_UPGRADE_CODES``).
-These are **upgrade-only**: in ``coded_codemods()`` but not ``CANONICAL_CODEMODS``, so
-they never run under ``format`` / the ``iuc`` preset and never change ``profile=``.
+These are **upgrade-only**: in ``coded_codemods()`` but not ``canonical_codemods()``, so
+they never run under ``format`` / the ``default`` ruleset and never change ``profile=``.
 """
 
 from __future__ import annotations

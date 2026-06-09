@@ -105,3 +105,27 @@ and later the registry/codemod tiers).
   another document kind ever appears. See `galaxy-tool-xml-fmt/docs/decisions.md`
   §D16 for the fmt-side consumption (`format_macro_document` / `rules_for_kind`).
 
+
+## D4 (2026-06-09) — `RuleMeta.rulesets` + the `Ruleset` catalog
+
+### Decision
+
+Add `rulesets: frozenset[str] = frozenset()` to `RuleMeta` and a dependency-free
+`rulesets.py` (a `Ruleset(name, description)` catalog + `DEFAULT_RULESET`). This is the
+maintainer-facing "mark which rules belong to which set" mechanism: a rule declares its
+set membership on its own meta, and the registry tier (3.6) derives `name → codes` by
+grouping rules by these names (registry D15). The catalog holds the names + descriptions
+because that is a property of the *set*, not of any member; names are plain strings so a
+rule in any tier can declare membership without a heavier import. `order` is now used by
+**both** the fmt and codemod families (each ordered independently) — its docstring was
+corrected accordingly, since the canonical pipeline's order moved off the old hardcoded
+`CANONICAL_CODEMODS` tuple onto `meta.order`. Staying dependency-free is preserved (only
+`dataclasses`). The default empty `rulesets` means "never independently selectable" (e.g.
+an upgrade-only codemod driven by `UpgradeToLatest`).
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-rules pytest \
+  galaxy-tool-refactor-rules/tests/test_rulesets.py galaxy-tool-refactor-rules/tests/test_meta.py
+```

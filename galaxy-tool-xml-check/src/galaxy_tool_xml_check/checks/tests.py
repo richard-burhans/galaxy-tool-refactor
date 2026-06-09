@@ -58,6 +58,7 @@ class TestAssertionsWellFormed(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -114,6 +115,7 @@ class TestOutputCompareAttributes(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -159,6 +161,7 @@ class TestOutputNamed(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -190,6 +193,7 @@ class TestOutputsCorrespond(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -254,6 +258,7 @@ class TestDiscoveredOutputsChecked(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -373,6 +378,7 @@ class TestParamsInInputs(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -420,6 +426,7 @@ class TestExpectFailureCoherent(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -460,6 +467,7 @@ class TestExpectNumOutputs(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -499,6 +507,7 @@ class TestHasExpectations(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:

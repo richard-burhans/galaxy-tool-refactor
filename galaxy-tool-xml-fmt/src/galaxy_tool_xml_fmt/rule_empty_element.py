@@ -50,6 +50,7 @@ class EmptyElementShorthand(Rule):
         since="0.0.1",
         order=20,
         applies_to=frozenset({"tool", "macro"}),
+        rulesets=frozenset({"cosmetic", "default", "iuc", "strict"}),
     )
 
     def edits(self, tree: etree._ElementTree) -> Iterable[Edit]:

@@ -58,19 +58,21 @@ def test_select_parent_pulls_both_children() -> None:
 
 
 def test_ignore_one_child_drops_only_it() -> None:
-    strict = resolve_codes(preset="strict")
+    strict = resolve_codes(rulesets=["strict"])
     assert {"GTR020.1", "GTR020.2"} <= strict
-    assert resolve_codes(preset="strict", ignore=["GTR020.2"]) == strict - {"GTR020.2"}
-    assert resolve_codes(preset="strict", ignore=["GTR020"]) == strict - {
+    assert resolve_codes(rulesets=["strict"], ignore=["GTR020.2"]) == strict - {
+        "GTR020.2"
+    }
+    assert resolve_codes(rulesets=["strict"], ignore=["GTR020"]) == strict - {
         "GTR020.1",
         "GTR020.2",
     }
 
 
-def test_iuc_preset_has_fix_child_not_advisory_child() -> None:
-    iuc = resolve_codes(preset="iuc")
+def test_default_ruleset_has_fix_child_not_advisory_child() -> None:
+    default = resolve_codes(rulesets=["default"])
     for fix, advisory in _GROUPS.values():
-        assert fix in iuc and advisory not in iuc
+        assert fix in default and advisory not in default
 
 
 def test_single_quote_partition_is_sound() -> None:

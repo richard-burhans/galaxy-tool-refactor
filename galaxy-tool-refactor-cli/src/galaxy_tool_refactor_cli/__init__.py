@@ -13,7 +13,7 @@ with seven commands:
 - ``check`` — report-only linter over the selected rules' detect phases.
 - ``find-references`` — read-only query: a parameter's Cheetah ``$var`` reference
   sites across a tool's templated sections (cli §D8).
-- ``presets`` / ``rules`` — introspect the baked-in presets and rules.
+- ``rulesets`` / ``rules`` — introspect the baked-in rulesets and rules.
 - ``normalize-macros`` — opt-in, repo-scoped: lowercase literal ``format``/``ftype``
   in ``<macros>``-root files (never part of ``format``/``upgrade``; cli §D7).
 

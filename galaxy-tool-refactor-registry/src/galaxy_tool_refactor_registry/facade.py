@@ -23,6 +23,11 @@ import copy
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from galaxy_tool_refactor_rules.rulesets import (
+    DEFAULT_RULESET,
+    ruleset_description,
+    ruleset_names,
+)
 from galaxy_tool_xml.binding import Source, load_tool, newest_valid_profile
 from galaxy_tool_xml.cheetah_refs import tool_cheetah_references
 from galaxy_tool_xml.cheetah_rename import rename_param as _rename_in_tree
@@ -42,24 +47,19 @@ from galaxy_tool_xml_fmt.format import format_tool_document_subset
 
 from galaxy_tool_refactor_registry.adapters import fmt_rule_by_code
 from galaxy_tool_refactor_registry.apply import apply_selection
-from galaxy_tool_refactor_registry.presets import (
-    DEFAULT_PRESET,
-    preset_description,
-    preset_names,
-    presets,
-)
 from galaxy_tool_refactor_registry.registry import all_handles, registry
 from galaxy_tool_refactor_registry.results import (
     DetectResult,
     FindReferencesResult,
     FormatResult,
     ParamOccurrence,
-    PresetInfo,
     RenameParamResult,
     RuleInfo,
+    RulesetInfo,
     UpgradeResult,
     render_advisory_note,
 )
+from galaxy_tool_refactor_registry.rulesets import ruleset_codes
 
 if TYPE_CHECKING:
     from galaxy_tool_refactor_rules.violation import Violation
@@ -354,17 +354,17 @@ def upgrade(
     )
 
 
-def list_presets() -> list[PresetInfo]:
-    """Structured metadata for every preset (for the CLI and the MCP server)."""
-    preset_map = presets()
+def list_rulesets() -> list[RulesetInfo]:
+    """Structured metadata for every ruleset (for the CLI and the MCP server)."""
+    code_map = ruleset_codes()
     return [
-        PresetInfo(
+        RulesetInfo(
             name=name,
-            codes=tuple(sorted(preset_map[name])),
-            is_default=name == DEFAULT_PRESET,
-            description=preset_description(name),
+            codes=tuple(sorted(code_map[name])),
+            is_default=name == DEFAULT_RULESET,
+            description=ruleset_description(name) or "",
         )
-        for name in preset_names()
+        for name in ruleset_names()
     ]
 
 
@@ -376,15 +376,15 @@ def list_rules(*, include_upgrade: bool = False) -> list[RuleInfo]:
     rules appear.
     """
     handles = all_handles() if include_upgrade else registry()
-    preset_map = presets()
+    code_map = ruleset_codes()
     return [
         RuleInfo(
             code=code,
             summary=handles[code].meta.summary,
             family=handles[code].family,
             fixable=handles[code].fixable,
-            presets=tuple(
-                name for name in preset_names() if code in preset_map[name]
+            rulesets=tuple(
+                name for name in ruleset_names() if code in code_map[name]
             ),
             since=handles[code].meta.since,
             cite=handles[code].meta.cite,

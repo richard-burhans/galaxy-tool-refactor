@@ -36,6 +36,8 @@ class ReorderToolAttributes(CodemodCommand):
             " prefix."
         ),
         since="0.0.1",
+        order=70,
+        rulesets=frozenset({"default", "iuc", "strict"}),
     )
 
     def detect_Tool(self, cursor: Cursor) -> Iterable[Change]:

@@ -18,9 +18,9 @@ class UnknownRuleCode(ValueError):
         super().__init__(f"unknown rule code: {code!r}")
 
 
-class UnknownPreset(ValueError):
-    """A preset name passed to ``--preset`` is not a known preset."""
+class UnknownRuleset(ValueError):
+    """A ruleset name passed to ``--ruleset`` is not a known ruleset."""
 
     def __init__(self, name: str, /) -> None:
         self.name = name
-        super().__init__(f"unknown preset: {name!r}")
+        super().__init__(f"unknown ruleset: {name!r}")

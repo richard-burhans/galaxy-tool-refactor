@@ -56,6 +56,7 @@ class TestsPresent(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -76,6 +77,7 @@ class IdCharset(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -100,6 +102,7 @@ class VersionFormat(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -125,6 +128,7 @@ class RequirementsPresent(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -145,6 +149,7 @@ class ErrorHandling(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -170,6 +175,7 @@ class EdamXrefs(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -195,6 +201,7 @@ class HelpPresent(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -218,6 +225,7 @@ class DescriptionPresent(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -249,6 +257,7 @@ class CommandAndJoining(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -271,6 +280,7 @@ class RequirementVersionPinned(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -306,6 +316,7 @@ class CitationsPresent(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -341,6 +352,7 @@ class NoTodoText(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -381,6 +393,7 @@ class CommandPresent(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -411,6 +424,7 @@ class ProfileFormatValid(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -442,6 +456,7 @@ class RequirementNamePresent(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -476,6 +491,7 @@ class ToolVersionWhitespace(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -514,6 +530,7 @@ class ContainerShapeRecognized(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -553,6 +570,7 @@ class StdioRegexValid(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:

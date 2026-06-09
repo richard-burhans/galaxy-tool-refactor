@@ -2949,7 +2949,7 @@ def _rules_main(argv: list[str]) -> int:
 from galaxy_tool_refactor_rules.violation import Violation  # noqa: E402
 from galaxy_tool_xml_check.detect import all_checks  # noqa: E402
 from galaxy_tool_xml_check.detect import detect_violations as _detect_advisory  # noqa: E402
-from galaxy_tool_xml_codemod.canonical import CANONICAL_CODEMODS  # noqa: E402
+from galaxy_tool_xml_codemod.canonical import canonical_codemods  # noqa: E402
 from galaxy_tool_xml_codemod.module import Module  # noqa: E402
 from galaxy_tool_xml_fmt.cli_support import is_tool_root  # noqa: E402
 
@@ -2998,7 +2998,7 @@ def _check_rule_registry() -> dict[str, _CheckRuleStat]:
         registry[meta.code] = _CheckRuleStat(
             meta.code, "fmt", meta.detect_only, meta.summary
         )
-    for codemod_cls in CANONICAL_CODEMODS:
+    for codemod_cls in canonical_codemods():
         meta = codemod_cls.meta
         registry[meta.code] = _CheckRuleStat(
             meta.code, "codemod", meta.detect_only, meta.summary
@@ -3024,7 +3024,7 @@ def _check_detect(document: ToolDocument) -> list[Violation]:
     module = Module(document)
     violations = [
         change.to_violation()
-        for codemod_cls in CANONICAL_CODEMODS
+        for codemod_cls in canonical_codemods()
         for change in codemod_cls().detect(module)
     ]
     violations.extend(detect_tool_document(document))

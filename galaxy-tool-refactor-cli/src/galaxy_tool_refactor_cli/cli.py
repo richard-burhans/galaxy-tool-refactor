@@ -5,19 +5,19 @@ drift-detection engine (``galaxy_tool_xml_fmt.cli_support``) and differ only in
 which rules run before serialisation; ``check`` is a report-only linter that
 mutates nothing; ``find-references`` is a read-only query for a parameter's Cheetah
 ``$var`` reference sites and ``rename-param`` is its mutating sibling (rename a
-parameter across those sites); ``rules`` / ``presets`` print the available baked-in
-rules and presets; ``normalize-macros`` is a separate, opt-in pass over macro-library
+parameter across those sites); ``rules`` / ``rulesets`` print the available baked-in
+rules and rulesets; ``normalize-macros`` is a separate, opt-in pass over macro-library
 files. All rule orchestration is delegated to the tier-3.6 registry facade
 (``galaxy_tool_refactor_registry``); this module only does CLI plumbing.
 
-- ``format`` — apply a preset's (or a ``--select``/``--ignore`` selection's)
+- ``format`` — apply a ruleset's (or a ``--select``/``--ignore`` selection's)
   fixable rules then cosmetic formatting. Safe and idempotent; never changes
-  ``profile=``. Default preset ``iuc`` reproduces the historical behaviour.
+  ``profile=``. Default ruleset ``default`` reproduces the historical behaviour.
   Macro-library files (``<macros>`` root) are also cosmetically formatted
   (kind-applicable rules only — no codemods).
 - ``upgrade`` — repair, then iteratively upgrade ``profile=`` toward the latest
   (applying the registered migration each step), then format. Opt-in and
-  semantic; presets do not apply (``--select``/``--ignore`` adjust its rule set).
+  semantic; rulesets do not apply (``--select``/``--ignore`` adjust its rule set).
   Also bumps an imported ``@PROFILE@`` token in place when every profile-using
   importer in the run agrees on the target (else reports and skips); a
   ``profile="@TOKEN@"`` whose token is inline is handled per-file by GTR007.
@@ -34,7 +34,7 @@ files. All rule orchestration is delegated to the tier-3.6 registry facade
   ``<tests>`` mirror, plus the definition. Atomic per file (rewrites everything or skips
   with a reason); ``--check`` previews. Built on the faithful CDM lexer (M5.3); see
   ``docs/decisions.md`` §D9.
-- ``rules`` / ``presets`` — introspection: the baked-in rules and the presets.
+- ``rules`` / ``rulesets`` — introspection: the baked-in rules and the rulesets.
 - ``normalize-macros`` — opt-in, repo-scoped: lowercase literal ``format`` /
   ``ftype`` in ``<macros>``-root files (the macro-library analog of the 24.2
   normalization the per-tool ``upgrade`` cannot reach — a value defined in an
@@ -42,9 +42,10 @@ files. All rule orchestration is delegated to the tier-3.6 registry facade
   macro file affects every importer), so it is never folded into ``format`` /
   ``upgrade``; see ``galaxy-tool-xml-codemod/docs/macro-aware-normalization.md``.
 
-Selection (``--preset`` / ``--select`` / ``--ignore``) is shared by ``format``,
-``upgrade`` (no ``--preset``), and ``check``; precedence is ruff-style
-(``--ignore`` ▸ ``--select`` ▸ ``--preset``).
+Selection (``--ruleset`` / ``--select`` / ``--ignore``) is shared by ``format``,
+``upgrade`` (no ``--ruleset``), and ``check``; precedence is ruff-style
+(``--ignore`` ▸ ``--select`` ▸ ``--ruleset``, where ``--ruleset`` unions the named
+sets and ``--select`` replaces them).
 """
 
 from __future__ import annotations
@@ -63,7 +64,7 @@ from galaxy_tool_refactor_registry.bundle_rename import (
     rename_param_bundle,
     rename_param_consensus,
 )
-from galaxy_tool_refactor_registry.errors import UnknownPreset, UnknownRuleCode
+from galaxy_tool_refactor_registry.errors import UnknownRuleCode, UnknownRuleset
 from galaxy_tool_refactor_registry.macro_datatype import normalize_macro_files
 from galaxy_tool_refactor_registry.macro_profile import (
     apply_profile_token_plans,
@@ -139,19 +140,22 @@ _STRICT_OPTION = click.option(
     is_flag=True,
     help="Also fail (exit non-zero) on advisory findings, not just fixable ones.",
 )
-_PRESET_OPTION = click.option(
-    "--preset",
-    default=None,
+_RULESET_OPTION = click.option(
+    "--ruleset",
+    "rulesets",
+    multiple=True,
     metavar="NAME",
-    help="Named rule subset to apply/report (cosmetic | iuc | strict). "
-    "Default: iuc. See `galaxy-tool-refactor presets`.",
+    help="Rule-set(s) to apply/report — the UNION of the named sets "
+    "(cosmetic | default | iuc | strict). Repeatable or comma-separated, "
+    "e.g. --ruleset default,strict. Default: default. "
+    "See `galaxy-tool-refactor rulesets`.",
 )
 _SELECT_OPTION = click.option(
     "--select",
     "select",
     multiple=True,
     metavar="CODE",
-    help="Run only these rule codes (replaces the preset's set). "
+    help="Run only these rule codes (replaces the ruleset's set). "
     "Repeatable or comma-separated, e.g. --select GTR001,GTR003.",
 )
 _IGNORE_OPTION = click.option(
@@ -173,24 +177,34 @@ def _split_codes(values: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(codes)
 
 
+def _split_names(values: tuple[str, ...]) -> tuple[str, ...]:
+    """Flatten repeated / comma-separated ruleset names, lower-cased and stripped."""
+    names: list[str] = []
+    for value in values:
+        names.extend(
+            token.strip().lower() for token in value.split(",") if token.strip()
+        )
+    return tuple(names)
+
+
 def _resolve(
-    *, preset: str | None, select: tuple[str, ...], ignore: tuple[str, ...]
+    *, rulesets: tuple[str, ...], select: tuple[str, ...], ignore: tuple[str, ...]
 ) -> frozenset[str]:
     """Resolve a format/check selection, mapping facade errors to the CLI boundary."""
     try:
         return resolve_codes(
-            preset=preset,
+            rulesets=_split_names(rulesets),
             select=_split_codes(select),
             ignore=_split_codes(ignore),
         )
-    except (UnknownPreset, UnknownRuleCode) as error:
+    except (UnknownRuleset, UnknownRuleCode) as error:
         raise click.BadParameter(str(error)) from error
 
 
 def _resolve_upgrade(
     *, select: tuple[str, ...], ignore: tuple[str, ...]
 ) -> frozenset[str]:
-    """Resolve an upgrade selection (no preset), mapping facade errors to the CLI."""
+    """Resolve an upgrade selection (no ruleset), mapping facade errors to the CLI."""
     try:
         return resolve_upgrade_codes(
             select=_split_codes(select), ignore=_split_codes(ignore)
@@ -210,7 +224,7 @@ def main() -> None:
 @_DIFF_OPTION
 @_QUIET_OPTION
 @_BACKUP_OPTION
-@_PRESET_OPTION
+@_RULESET_OPTION
 @_SELECT_OPTION
 @_IGNORE_OPTION
 def format_command(
@@ -219,22 +233,22 @@ def format_command(
     diff: bool,
     quiet: bool,
     backup: bool,
-    preset: str | None,
+    rulesets: tuple[str, ...],
     select: tuple[str, ...],
     ignore: tuple[str, ...],
 ) -> None:
-    """Apply a preset's fixable rules then cosmetic formatting (never ``profile=``).
+    """Apply a ruleset's fixable rules then cosmetic formatting (never ``profile=``).
 
-    The default preset ``iuc`` applies the canonical codemods (typo repair,
+    The default ruleset ``default`` applies the canonical codemods (typo repair,
     attribute / element order) and the cosmetic rules — the historical ``format``
-    behaviour. Advisory rules in a selection (e.g. under ``--preset strict``) are
+    behaviour. Advisory rules in a selection (e.g. under ``--ruleset strict``) are
     reported as notes but never change a file. Macro-library files (``<macros>``
     root) are also **cosmetically** formatted (the kind-applicable rules — no
     codemods, which are tool-only; rule selection governs tools). PATHS may be
     files or directories (searched recursively for ``*.xml``); other XML is
     skipped.
     """
-    codes = _resolve(preset=preset, select=select, ignore=ignore)
+    codes = _resolve(rulesets=rulesets, select=select, ignore=ignore)
 
     def transform(document: ToolDocument) -> TransformOutcome:
         result = facade.run(document, codes=codes)
@@ -260,7 +274,7 @@ def format_command(
 @_DIFF_OPTION
 @_QUIET_OPTION
 @_BACKUP_OPTION
-@_PRESET_OPTION
+@_RULESET_OPTION
 @_SELECT_OPTION
 @_IGNORE_OPTION
 def upgrade_command(
@@ -269,7 +283,7 @@ def upgrade_command(
     diff: bool,
     quiet: bool,
     backup: bool,
-    preset: str | None,
+    rulesets: tuple[str, ...],
     select: tuple[str, ...],
     ignore: tuple[str, ...],
 ) -> None:
@@ -277,7 +291,7 @@ def upgrade_command(
 
     Opt-in and semantic. The profile upgrade always runs; ``--select`` / ``--ignore``
     adjust the *other* fixable rules (by default typo repair + cosmetic
-    formatting) — e.g. ``--ignore GTR006`` upgrades without typo repair. Presets
+    formatting) — e.g. ``--ignore GTR006`` upgrades without typo repair. Rulesets
     are a ``format``/``check`` concept and are **not** accepted here.
 
     A ``profile="@PROFILE@"`` whose token lives in an *imported* macro file is
@@ -299,11 +313,11 @@ def upgrade_command(
     automatically** once the reached profile crosses them (e.g. stripping
     whitespace from ``from_work_dir`` at 21.09); the rest are warn-only.
     """
-    if preset is not None:
+    if rulesets:
         raise click.BadParameter(
-            "--preset is not applicable to 'upgrade'; presets govern "
+            "--ruleset is not applicable to 'upgrade'; rulesets govern "
             "'format' / 'check'. Use --select / --ignore to adjust the rule set.",
-            param_hint="--preset",
+            param_hint="--ruleset",
         )
     codes = _resolve_upgrade(select=select, ignore=ignore)
 
@@ -407,21 +421,21 @@ def _check_summary(
 @_PATH_ARGUMENT
 @_QUIET_OPTION
 @_STRICT_OPTION
-@_PRESET_OPTION
+@_RULESET_OPTION
 @_SELECT_OPTION
 @_IGNORE_OPTION
 def check_command(
     paths: tuple[Path, ...],
     quiet: bool,
     strict: bool,
-    preset: str | None,
+    rulesets: tuple[str, ...],
     select: tuple[str, ...],
     ignore: tuple[str, ...],
 ) -> None:
     """Report where tools deviate from the selection, without changing them.
 
-    Runs the selected rules' detect phases (default preset ``iuc``): *fixable*
-    (GTR — what ``format`` would change) and, under ``--preset strict``, the
+    Runs the selected rules' detect phases (default ruleset ``default``): *fixable*
+    (GTR — what ``format`` would change) and, under ``--ruleset strict``, the
     *advisory* IUC best-practice checks (marked ``(advisory)``). Prints one
     ``file:line  CODE  message`` per finding. Exits non-zero on any *fixable*
     finding or error; advisory findings are informational unless ``--strict``.
@@ -430,7 +444,7 @@ def check_command(
     standard cosmetic checks. PATHS may be files or directories; other XML is
     skipped.
     """
-    codes = _resolve(preset=preset, select=select, ignore=ignore)
+    codes = _resolve(rulesets=rulesets, select=select, ignore=ignore)
     fixable = advisory = flagged = clean = skipped = errored = 0
     for target in iter_targets(paths):
         try:
@@ -776,10 +790,10 @@ def rename_param_command(
     sys.exit(1 if errored or (check and would_change) else 0)
 
 
-@main.command(name="presets")
-def presets_command() -> None:
-    """List the available presets and the rule codes each one selects."""
-    for info in facade.list_presets():
+@main.command(name="rulesets")
+def rulesets_command() -> None:
+    """List the available rulesets and the rule codes each one selects."""
+    for info in facade.list_rulesets():
         default = " (default)" if info.is_default else ""
         click.echo(f"{info.name}{default}: {info.description}")
         click.echo(f"  rules: {', '.join(info.codes)}")
@@ -792,12 +806,12 @@ def presets_command() -> None:
     help="Also list the upgrade-only codemods (not independently selectable).",
 )
 def rules_command(include_upgrade: bool) -> None:
-    """List the baked-in rules: code, family, fixable/advisory, and presets."""
+    """List the baked-in rules: code, family, fixable/advisory, and rulesets."""
     for info in facade.list_rules(include_upgrade=include_upgrade):
         kind = "fixable" if info.fixable else "advisory"
-        in_presets = ",".join(info.presets) if info.presets else "-"
+        in_rulesets = ",".join(info.rulesets) if info.rulesets else "-"
         click.echo(
-            f"{info.code}  [{info.family}/{kind}]  presets:{in_presets}  "
+            f"{info.code}  [{info.family}/{kind}]  rulesets:{in_rulesets}  "
             f"{info.summary}"
         )
 

@@ -4,7 +4,7 @@
 > `format` (fix), `upgrade` (bump profile safely), `check` (report), `find-references`
 > (locate a param's Cheetah `$var` uses across a tool **and its imported macros**),
 > `rename-param` (rename a param everywhere — tool **and its imported macros** —
-> atomically), `presets`/`rules` (introspect), `normalize-macros` (opt-in macro-library
+> atomically), `rulesets`/`rules` (introspect), `normalize-macros` (opt-in macro-library
 > fix). `format`/`upgrade`/`rename-param` support `--check` (and `format`/`upgrade`
 > `--diff`) to preview without writing; all four mutating commands take `--backup`
 > (`<file>.bak` before overwrite).
@@ -20,7 +20,7 @@ The eight commands:
 
 ```text
 check            Report where tools deviate from the selection, without changing them.
-format           Apply a preset's fixable rules then cosmetic formatting (never profile=).
+format           Apply a ruleset's fixable rules then cosmetic formatting (never profile=).
 upgrade          Repair and upgrade tools to the latest profile they can reach, then format.
 find-references  Report every Cheetah $var reference to a parameter across a tool AND its
                  imported macro files (read-only).
@@ -29,8 +29,8 @@ rename-param     Rename a parameter OLD->NEW across every Cheetah section, cross
                  macros, atomically. --repo-root proves a touched macro is sole-owned before
                  editing it (a shared macro is skipped + reported, or renamed across all its
                  importers in lockstep with --across-importers); --check previews.
-presets          List the available presets and the rule codes each one selects.
-rules            List the baked-in rules: code, family, fixable/advisory, presets.
+rulesets         List the available rulesets and the rule codes each one selects.
+rules            List the baked-in rules: code, family, fixable/advisory, rulesets.
 normalize-macros Lowercase literal format/ftype in <macros>-root files (opt-in, repo-scoped).
 ```
 
@@ -66,7 +66,7 @@ See [soundness](../soundness.md) for exactly what `upgrade` guarantees.
 ## Report only
 
 ```text
-$ galaxy-tool-refactor check --preset strict tools/qualimap/qualimap_macros.xml
+$ galaxy-tool-refactor check --ruleset strict tools/qualimap/qualimap_macros.xml
 tools/qualimap/qualimap_macros.xml:3   GTR001  Canonical 4-space indentation; no tabs.
 tools/qualimap/qualimap_macros.xml:16  GTR001  Canonical 4-space indentation; no tabs.
 …
@@ -79,14 +79,15 @@ informational unless you add `--strict`.
 ## Choosing rules (shared across format / upgrade / check)
 
 ```sh
-galaxy-tool-refactor check  --preset strict   tools/      # +advisory checks
+galaxy-tool-refactor check  --ruleset strict  tools/      # +advisory checks
 galaxy-tool-refactor format --select GTR001,GTR003 tool.xml  # only these rules
 galaxy-tool-refactor format --ignore GTR006   tool.xml      # everything-but typo repair
 ```
 
-Precedence is ruff-style: `--ignore` ▸ `--select` ▸ `--preset` (and `--select` replaces
-the preset's set). Presets: `cosmetic`, `iuc` (default), `strict` — see
-`galaxy-tool-refactor presets`.
+Precedence is ruff-style: `--ignore` ▸ `--select` ▸ `--ruleset` (and `--select` replaces
+the rulesets' set). `--ruleset` is repeatable / comma-separated and takes the union
+of the named sets. Rulesets: `cosmetic`, `default` (the default), `iuc`, `strict` — see
+`galaxy-tool-refactor rulesets`.
 
 <details>
 <summary>Directories, quiet mode, and exit codes</summary>

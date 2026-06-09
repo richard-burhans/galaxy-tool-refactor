@@ -87,14 +87,14 @@ class RuleInfo:
     summary: str
     family: str
     fixable: bool
-    presets: tuple[str, ...]
+    rulesets: tuple[str, ...]
     since: str
     cite: str | None = None
 
 
 @dataclass(frozen=True)
-class PresetInfo:
-    """Machine-readable metadata for one preset (``list_presets``)."""
+class RulesetInfo:
+    """Machine-readable metadata for one ruleset (``list_rulesets``)."""
 
     name: str
     codes: tuple[str, ...]
