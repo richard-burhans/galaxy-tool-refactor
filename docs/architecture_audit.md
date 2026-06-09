@@ -1,5 +1,178 @@
 # Architectural audit — galaxy-tool-refactor
 
+## Re-audit 2026-06-09 — post planemo-parity check wave (GTR038–GTR089, PRs #124–#144) + escalation
+
+**Verdict — healthy; boundaries hold, the abstraction absorbed the growth without strain.**
+This covers the largest tier-3.5 addition to date: the **planemo-parity advisory wave**, which
+roughly tripled `galaxy-tool-xml-check` — **52 new detect-only checks (`GTR038`–`GTR089`)**
+reimplementing every mechanically-reimplementable `galaxy.tool_util.lint` linter (outputs,
+the full `inputs.py` correctness surface, `tests.py`, validators, `<help>` RST), bringing the
+tier to **66 checks total**. Method: a single deep pass across the seven dimensions, grounded
+in source (`rules.py` / the `checks/` sub-package / `detect.py`, the registry adapters, the boundary tests),
+then a 7-finder / adversarial-refuter escalation (per-tier + per-dimension + a dedicated
+**documentation-adversary** lane tasked with disproving every present-tense doc claim).
+
+**No boundary violations, no High findings.** The wave landed *inside* the existing
+`CheckRule` ABC with zero changes to the cross-tier contracts: tier 3.5 still imports only
+tiers 1 + 0.5 (+ external `lxml`/`packaging`/`docutils`); the registry still pulls checks via
+the derived `all_checks()` enumeration (no hand-maintained second list); the collision guard,
+partition validator, `detect_only` test, and read-only-purity test all still hold and now
+cover 66 codes. The single real class of finding was **documentation drift** — four docs had
+frozen their description of the check tier at the pre-wave `GTR034` high-water mark. All four
+are fixed in this pass.
+
+### Dimension-by-dimension
+
+1. **Boundary integrity ✅** — `galaxy-tool-xml-check/pyproject.toml` declares only
+   `galaxy-tool-refactor-rules` (0.5), `galaxy-tool-xml` (1), `lxml`, `packaging`, and the new
+   `docutils>=0.21`; a grep of `src/` confirms imports match (no codemod/fmt/registry import).
+   `docutils` is genuinely used (`checks/help.py`, GTR089 only) and present in `uv.lock` —
+   not an unused declared coupling. Guarded by `test_tier_boundaries.py`.
+2. **Abstraction consistency ✅** — all 52 new rules subclass the same `CheckRule` ABC, declare
+   `meta: ClassVar[RuleMeta]` with `detect_only=True`, and implement one non-mutating
+   `detect()`. The `.1/.2` partition family is untouched and still sound. No new rule needed a
+   base-class change — strong evidence the abstraction was the right shape.
+3. **Naming / vocabulary drift ✅** — uniform PascalCase verb/noun class names across the wave
+   (`NoTodoText`, `CommandPresent`, `InputsPresent`, `HelpRstValid`, …); no drift from the
+   older `GTR021`–`GTR037` cohort. Shared helpers (`_param_name`, `_iter_named_params`,
+   `_select_params`, …) and lookup tables centralise logic rather than re-naming it per rule.
+4. **Contract-enforcement gaps ✅ (well-guarded)** — `test_detect.py` pins the registry at
+   `len == 66` with unique codes, `is_sorted_by_code`, `every_check_is_detect_only`, and a
+   no-mutation purity test. The hardcoded `66` is the *intended* tripwire: adding a check
+   without bumping it fails CI. The registry `_build_index()` raises on GTR-code collision and
+   `_validate_partitions()` enforces the dotted `.1/.2` split — both with planted-violation
+   tests.
+5. **Duplication / missed reuse ✅** — no rule duplicates another's detect logic; the
+   macro-skip soundness pattern is an intentional per-rule LBYL guard (`has_macros`), not a
+   copy-pasted block that *should* be a helper (each rule's guard condition differs).
+6. **Dead / reserved surface ✅** — `GTR032` (`CommandAndJoining`) remains a documented no-op
+   stub (~1 tool corpus-wide, D3) — accepted, not drift. No new stubs.
+7. **Doc / code agreement ⚠️→fixed** — see findings below; the four frozen-at-`GTR034` docs
+   were the entire finding surface, now corrected.
+
+### Findings
+
+**Documentation drift — the check tier's description was frozen at the pre-wave `GTR034`
+high-water mark in four places. All fixed this pass:**
+
+- **`ARCHITECTURE.md` §6 + the "Rule codes at a glance" table + the tier-stack one-liner —
+  Medium [fixed].** The Phase-1 baseline described only the flat IUC advisories and the `.2`
+  partitions, stopping at `GTR034`; it never mentioned the `GTR038`–`GTR089` wave. Added a
+  wave paragraph (grouped by source area, with the `has_macros` raw-tree soundness rule and
+  the `docutils` dependency), a `GTR038–GTR089` row to the rule-code table, a count to the
+  tier-stack row (66), and `D12–D30` + `planemo_linter_parity.md` to the §6 citation footer.
+- **`galaxy-tool-xml-check/CLAUDE.md` "Scope" — Medium [fixed].** Listed only the pre-wave
+  flat advisories + `.2` partitions. Added the planemo-parity-wave paragraph, the 66-check
+  total, the macro-skip note, and the `D12–D30` / `planemo_linter_parity.md` pointers; also
+  folded in `GTR034` (previously omitted from the flat-advisory list).
+- **`docs/iuc_best_practices.md` BUILT table — Low [fixed].** This doc is legitimately
+  *IUC-practice-scoped*, so the wave doesn't belong in its table — but a reader had no signal
+  the tier had grown. Added a scope note distinguishing the IUC slice from the planemo-parity
+  axis and pointing at `planemo_linter_parity.md` + `D12–D30`.
+
+**Resolved disagreement (recorded so it isn't re-litigated):** an exploration scout reported
+`galaxy-tool-xml-check/docs/decisions.md` stopped at **D21/GTR068** with `GTR069`–`089`
+undocumented. Reading the file directly disproved it: it reaches **D30 (GTR089)** and fully
+documents every wave group (D12–D30, each with corpus counts). The scout had truncated its
+read. No fix needed — the decision log is current.
+
+### Accepted / intentional (not drift) [accepted]
+
+- **~~Monolithic `checks.py` (~3,170 lines, 66 rules).~~** Was intentional (rules ordered by
+  GTR code, helpers before their users, no circular structure) and judged not a defect — but
+  **this PR applied the split** below at the maintainer's request. The classes now live in the
+  `checks/` sub-package; see "Applied follow-up".
+- **`try/except` in `_is_pep440` and `_rst_is_invalid` (GTR089).** Sanctioned third-party
+  boundary exceptions — `packaging.Version` and `docutils.core.publish_string` expose no LBYL
+  validity predicate. Consistent with the dignified-python carve-out.
+- **Hardcoded `len == 66` in `test_detect.py`.** A deliberate drift tripwire, not a stale
+  literal.
+- **Detect-only checks read the un-expanded tree**, so a practice met via a macro can still be
+  flagged; the per-rule `has_macros` guard suppresses only the *unsound* cases. Advisory
+  status keeps the residual false-positives tolerable.
+
+### Applied follow-up (this PR — maintainer asked to apply the escalation proposals)
+
+The escalation proposals were taken up after the audit, **but only after each was re-verified
+against the code** — which is exactly why one (N2) was ultimately **declined**: verification
+showed its premise was false, so applying it would have broken a cross-tier convention. Net:
+**three applied (N3/N4/N5), one declined (N2).**
+
+- **[applied] Split `checks.py` → `checks/` sub-package (N5).** Classes partitioned by
+  element/source area into `tool.py` / `partition.py` / `outputs.py` / `inputs.py` /
+  `validators.py` / `tests.py` / `help.py`, with cross-module helpers in `_shared.py`. Pure,
+  behaviour-preserving code-move (done mechanically via an AST splitter; `ruff --fix` pruned the
+  per-module import headers). The 81-test suite + mypy-strict + the `len == 66` tripwire all
+  pass unchanged → the move altered no behaviour. Shrinks the repo's largest file (was 3,169
+  lines) and localises future wave growth.
+- **[reverted — kept explicit list] `all_checks()` enumeration (N2).** The finding proposed
+  deriving the roster from `CheckRule.__subclasses__()`. Its justification — "tiers 2 + 3 already
+  auto-register" — was verified **false**: `coded_codemods()` (tier 2) and `all_rules()` (tier 3)
+  both use **explicit hardcoded lists**, so the explicit list is the *consistent* cross-tier
+  convention and the reflection form would make the check tier the lone outlier (and adds an
+  import-for-side-effect + stray-subclass-pollution fragility the explicit list avoids). It was
+  briefly applied as an informed override, then **reverted to keep the three rule families
+  consistent.** `all_checks()` stays an explicit list (now with grouped per-submodule imports);
+  the `test_detect.py` `len == 66` assertion remains the acknowledgement gate. **Net: N2 is the
+  one escalation finding intentionally declined — recorded so it isn't re-litigated.**
+- **[applied] `_select_params` memoised with `lru_cache(maxsize=1)` (N4).** A literal "single
+  multi-yield collector" would collapse seven GTR codes into one class (breaking the
+  one-class-per-code design the audit + refuter endorsed), so instead the generator became a
+  re-iterable tuple memoised for the current root only: the seven select checks (GTR058–GTR064)
+  now walk the param subtree once per `detect_violations` pass and reuse it six times.
+  `maxsize=1` bounds memory to one document and rules out `id`-reuse stale hits.
+- **[applied] fmt cosmetic-only property test (N3).** `test_framework.py::
+  test_format_preserves_structure_and_attributes` formats a structurally rich tool and asserts
+  the document-ordered element sequence, every tag, and every element's attributes (names,
+  values, order) are identical before/after — only whitespace/empty-element-shorthand may
+  change. Pins fmt's remit so a future structural cosmetic rule fails loudly.
+
+### Escalation (multi-agent adversarial verification)
+
+9 finders (4 tier-scoped + 5 cross-dimension, incl. a dedicated **documentation-adversary**
+lane tasked with disproving every present-tense doc claim/count/citation) → one adversarial
+refuter per finding → synthesis. **31 surviving findings; after dedup: 4 new (1 Medium, 3 Low),
+28 independent re-confirmations, 1 refuted.** No new High, and **no new boundary or
+abstraction finding** — the planemo-parity wave was absorbed without architectural strain. The
+escalation's main value was corroboration: the dependency-free, tier-boundary, partition-
+soundness, and derived-enumeration contracts were each independently re-derived by 2–4 separate
+scouts and all held at 66 checks.
+
+**New findings:**
+- **N1 — stale citation in the 2026-06-03 log entry — Medium [fixed].** Line ~325 cited the
+  retired `GTR031` check at "71.5% in `corpus_check_stats.md`"; that code/number no longer
+  exist in the (2026-06-06-regenerated) file — the advisory is now `GTR020.2` at 54.0%.
+  Annotated as a superseded snapshot (the pedagogical point — measure ≠ check-firing-rate —
+  still stands). The documentation-adversary lane found this; the 2026-06-05 pass had fixed the
+  *codemod*-doc references to the retired codes but missed this audit-prose line.
+- **N2 — `all_checks()` is a 66-entry hand-maintained list that could be `CheckRule.__subclasses__()` — Low [reverted / declined].**
+  The finding claimed "tiers 2 + 3 already auto-register"; verification showed that is **false**
+  (both use explicit lists), so deriving the check roster would make it the lone outlier. Briefly
+  applied, then reverted to keep the three rule families consistent; the explicit list + `len == 66`
+  gate stay. The one escalation finding intentionally declined. See "Applied follow-up".
+- **N3 — fmt cosmetic-only scope is enforced by construction (the `Edit` union cannot rename
+  tags / reorder children) but not by an explicit property test — Low [applied].** Added a
+  structure-preservation property test (`test_framework.py`). See "Applied follow-up".
+- **N4 — GTR058–GTR064 each re-walk `_select_params` (7×) — Low [applied, scoped down].**
+  Refuter-downgraded (low-frequency small walks; per-rule isolation is intentional). Applied as
+  an `lru_cache(maxsize=1)` memoisation that keeps all seven per-code rules intact rather than
+  the finding's code-collapsing "single collector". See "Applied follow-up".
+
+**Refuted (do not re-litigate):** "GTR077–079 should be consolidated" — each shares the
+`_iter_option_filters` iterator but has genuinely distinct per-rule validation; consolidation
+would obscure, not clarify. (Plus minor mislabels the refuters corrected in passing: the
+`GTR020.2` class is `SingleQuotedCheetah` not "UnquotedVar"; the derived-enumeration N1-gap fix
+was 2026-05-31 not -06-01; the immutability guards are the unit tests, not the corpus sweep.)
+
+**Independent re-confirmations (recorded so they aren't re-litigated):** tier-0.5 dependency-
+freedom (`test_dependency_free.py`); no upward/sibling imports in tiers 2/3.5
+(`test_tier_boundaries.py`); fmt sole serializer (`test_serializer_allowlist.py`); partition
+predicates defined once in tier 1 and shared by the `.1`/`.2` halves (`test_partition.py`);
+`detect_only`/no-mutation/collision/`len == 66` all guarded; presets + upgrade-only set derived,
+not hand-listed; CLI/MCP carry zero hardcoded rule codes. All re-validated at 66 checks.
+
+---
+
 ## Re-audit 2026-06-05 — post Cheetah-mutation subsystem (PRs #95/#96/#98/#99/#100/#101) + escalation
 
 **Verdict — healthy; boundaries hold, the new tier-1 abstractions are coherent.** This
@@ -217,8 +390,12 @@ on integration.**
   (0.5/1/2/3/3.5/3.6/4); tier 4 has two *packages* (CLI + MCP). "Eight tiers" would be an
   error; "eight packages" is the package count.
 - `iuc_best_practices.md`'s **73.2%** unquoted-`$var` figure is the `command-unquoted-var`
-  *measure*, a deliberately different metric from the GTR031 *check* firing rate (71.5% in
-  `corpus_check_stats.md`); the doc cites it correctly.
+  *measure*, a deliberately different metric from the then-`GTR031` *check* firing rate
+  (71.5% in `corpus_check_stats.md` at the time of this entry); the doc cites it correctly.
+  *(2026-06-09 note: `GTR031` was subsequently split into the `GTR020.1` fix + `GTR020.2`
+  advisory; the advisory's firing rate is now `GTR020.2` at 54.0% in the regenerated
+  `corpus_check_stats.md`. The 73.2%-vs-check-rate point stands; only the code/number are
+  superseded.)*
 
 Three workflow-refuted (macro_profile_ownership measurement-semantics; capabilities ~73%
 artifact-exists; a dated check-tier `decisions.md` record) are not re-litigated.

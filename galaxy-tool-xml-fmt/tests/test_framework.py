@@ -90,3 +90,51 @@ def test_format_tool_document_does_not_import_codemod_package(
     assert not any(
         name.startswith("galaxy_tool_xml_codemod") for name in sys.modules
     )
+
+
+_STRUCTURED_TOOL = b"""<?xml version='1.0' encoding='UTF-8'?>
+<tool id="t" name="T" version="0.1.0" profile="21.09">
+    <description>desc</description>
+    <requirements>
+        <requirement type="package" version="1.0">alpha</requirement>
+        <requirement type="package" version="2.0">beta</requirement>
+    </requirements>
+    <command detect_errors="exit_code"><![CDATA[echo hi]]></command>
+    <inputs>
+        <param name="a" type="select" label="A">
+            <option value="x">X</option>
+            <option value="y" selected="true">Y</option>
+        </param>
+    </inputs>
+    <outputs>
+        <data name="out" format="txt"></data>
+    </outputs>
+    <help>help text</help>
+</tool>
+"""
+
+
+def test_format_preserves_structure_and_attributes(
+    make_doc: Callable[[bytes], ToolDocument],
+) -> None:
+    """Property: cosmetic formatting is structure-preserving.
+
+    The ``Edit`` union can only set ``.text`` / ``.tail`` (whitespace trivia) or
+    clear a whitespace-only ``.text`` — it cannot rename a tag, reorder children,
+    or touch attributes. So formatting must leave the document-ordered element
+    sequence, every element's tag, and its attributes (names, values, *order*)
+    identical; only inter-element whitespace and empty-element shorthand may
+    change. This pins that contract so a future cosmetic rule that edits structure
+    fails loudly rather than silently exceeding fmt's remit (audit N3).
+    """
+    formatted = format_tool_document(make_doc(_STRUCTURED_TOOL))
+
+    parser = etree.XMLParser(strip_cdata=False)
+    before = list(etree.fromstring(_STRUCTURED_TOOL, parser=parser).iter())
+    after = list(etree.fromstring(formatted, parser=parser).iter())
+
+    assert len(after) == len(before)
+    for original, result in zip(before, after, strict=True):
+        assert result.tag == original.tag
+        assert list(result.attrib.items()) == list(original.attrib.items())
+        assert (result.text or "").strip() == (original.text or "").strip()

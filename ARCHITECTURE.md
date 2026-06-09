@@ -35,7 +35,7 @@ load-bearing rule:
 | 1 | **parsing & validation** | `galaxy-tool-xml` | `ToolDocument` / `MacroDocument` (mutable lxml tree = source of truth), `load_tool` / `parse_tool` / `validate_tool`, `newest_valid_profile`, profile resolution, typed xsdata views. **No serializer.** |
 | 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework, `Cursor` mutation primitives, `Change` + `apply_changes`, the bundled codemods, `CANONICAL_CODEMODS` / `AUTO_UPGRADE_CODEMODS` contracts. |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic `Rule`s (indent / blank line / shorthand), the `Edit` union + `apply_edits`, `format_tool_document` + the net-diff `detect_tool_document`, the shared `cli_support` engine, the serializer. **The only tier that serialises canonical output XML.** |
-| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice checks (`CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
+| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice + planemo-parity checks (66; `CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | `RuleHandle` (uniform adapter over all three families), the unified registry, named presets, ruff-style selection, and the **library-first** `run` / `upgrade` / `detect` facade. Composes 0.5/1/2/3/3.5. |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `presets` / `rules` / `normalize-macros`. CLI plumbing only. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`list_presets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
@@ -301,9 +301,15 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   an `GTR` code); its single method `detect(document) -> Iterable[Violation]` is a
   non-mutating LBYL tree query.
 - **`all_checks()` / `detect_violations(document)`** — `detect.py` — the
-  enumerated check set (sorted by code) and the aggregate runner (findings sorted
-  by line). Mirrors codemod's `coded_codemods()` and fmt's `all_rules()`.
-- **The checks** — `checks.py` — flat advisories `GTR021`, `GTR023`–`GTR029`,
+  enumerated check set (an explicit list, sorted by code) and the aggregate runner
+  (findings sorted by line). Mirrors codemod's `coded_codemods()` and fmt's
+  `all_rules()` — the same explicit-list convention across all three rule families;
+  `test_detect.py` pins the count (66) as the acknowledgement gate when the roster
+  grows.
+- **The checks** — the `checks/` sub-package (split by element/source area:
+  `tool.py`, `partition.py`, `outputs.py`, `inputs.py`, `validators.py`,
+  `tests.py`, `help.py`, with cross-module helpers in `_shared.py`) — flat
+  advisories `GTR021`, `GTR023`–`GTR029`,
   `GTR033` are presence/shape queries (tests, id charset, version format,
   requirements, error handling, EDAM xrefs, help, description, requirement pinning).
   **Three are the advisory `.2` half of a partition practice** (registry D10, check
@@ -315,6 +321,22 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   — its anti-pattern is ~1 tool corpus-wide (D3). **GTR034** (`UnusedParam`) is a
   *reference-usage* advisory (not presence/shape): an `<inputs>` `<param>` never
   referenced anywhere the tool uses it, via the tier-1 all-text identifier scan.
+- **The planemo-parity wave — `GTR038`–`GTR089`** (52 rules, across the `checks/`
+  submodules) — a
+  reimplementation of every *mechanically-reimplementable* planemo (`galaxy.tool_util.lint`)
+  linter as a detect-only advisory, grouped by Galaxy source area: citations/TODO
+  (`GTR038`–`GTR039`), output correctness (`GTR040`–`GTR050`), embedded-expression
+  validity (`GTR051`–`GTR053`), the whole `inputs.py` correctness surface — naming,
+  static + dynamic select options, validators, conditionals, type/structure,
+  display/idiom, option-filters (`GTR054`–`GTR079`) — the `tests.py` surface
+  (`GTR080`–`GTR088`), and `<help>` reStructuredText validity (`GTR089`, the one
+  rule needing a new `docutils` dependency). The whole tier is now **66 checks**
+  (`GTR018.2`/`GTR019.2`/`GTR020.2` + the flat IUC advisories above + this wave). A
+  recurring soundness rule across the wave: a check that would mis-fire when a
+  `<macro>` injects the construct it inspects skips that tool (the tier-1
+  `has_macros` raw-tree guard) — `detect()` reads the **un-expanded** tree.
+  Per-group rationale + corpus counts: check `docs/decisions.md` D12–D30; the full
+  planemo→GTR map: `docs/planemo_linter_parity.md`.
 - **`command_text.py`** (in **tier 1**, `galaxy_tool_xml.command_text`) — the
   read-only lexer `GTR020.2` reads `<command>` text through: a single character scan
   tracking `'…'` / `"…"` quote state **across newlines** and skipping Cheetah
@@ -329,7 +351,8 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
 **Contract:** detect-only, LBYL, no mutation, no dependency on the mutating tiers.
 Findings are advisory — informational unless the user opts into `--strict`.
 *(check `docs/decisions.md` D1; GTR020.2/GTR032 data-backed in D3–D5; the partition
-`.2` residual restriction in D9; coverage map in `docs/iuc_best_practices.md`.)*
+`.2` residual restriction in D9; the planemo-parity wave in D12–D30; IUC coverage map
+in `docs/iuc_best_practices.md`; full planemo→GTR map in `docs/planemo_linter_parity.md`.)*
 
 ---
 
@@ -634,7 +657,8 @@ Each abstraction → its file → the decision record that justifies it.
 | GTR018.1 / .2 | `WrapCommandCdata` (fix) + command-CDATA residual (advisory) | codemod + check | **partition** GTR018 (§29, registry D10) |
 | GTR019.1 / .2 | `WrapHelpCdata` (fix) + help-CDATA residual (advisory) | codemod + check | **partition** GTR019 (§29) |
 | GTR020.1 / .2 | `SingleQuoteCommandVars` (fix) + single-quote residual (advisory) | codemod + check | **partition** GTR020 (§30, check D9) |
-| GTR021, GTR023–029, GTR033 | `TestsPresent` … (presence/shape) | `galaxy-tool-xml-check/.../checks.py` | check (flat advisory) |
-| GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks.py` | check (advisory, reserved no-op stub — D3) |
-| GTR033 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks.py` | check (advisory — D7) |
-| GTR034 | `UnusedParam` | `galaxy-tool-xml-check/.../checks.py` | check (advisory — reference-usage) |
+| GTR021, GTR023–029 | `TestsPresent` … (presence/shape) | `galaxy-tool-xml-check/.../checks/tool.py` | check (flat advisory) |
+| GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory, reserved no-op stub — D3) |
+| GTR033 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory — D7) |
+| GTR034 | `UnusedParam` | `galaxy-tool-xml-check/.../checks/inputs.py` | check (advisory — reference-usage) |
+| GTR038–GTR089 | planemo-parity wave (`NoTodoText`, `CommandPresent`, `InputsPresent`, `HelpRstValid`, … 52 input/output/test/validator/help checks) | `galaxy-tool-xml-check/.../checks/` (`tool`/`outputs`/`inputs`/`validators`/`tests`/`help`) | check (advisory — planemo parity, D12–D30) |
