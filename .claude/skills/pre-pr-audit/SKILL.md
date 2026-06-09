@@ -115,7 +115,7 @@ Sweep for things the change silently invalidated:
 ## Step 6 — Mechanical gate + ship
 
 ```bash
-bash scripts/qa_gate.sh        # ruff + mypy strict ×7 + pytest ×7
+bash scripts/qa_gate.sh        # ruff + mypy strict ×8 + pytest ×8
 ```
 
 Only once Steps 1–5 are clean **and** the gate is green:

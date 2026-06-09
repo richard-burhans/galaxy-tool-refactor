@@ -5,6 +5,11 @@ rationale. Mirrors the conventions of the sibling packages' `docs/decisions.md`.
 
 ## D1 (2026-06-03) — The MCP server: a thin FastMCP adapter over the facade (vision Goal 1)
 
+> **Renamed since (PR #146, registry D15):** presets became **rulesets** — the tool
+> is now `list_rulesets`, the argument `ruleset`, the typed error `UnknownRuleset`.
+> This entry keeps the original vocabulary as a historical record; the shipped
+> surface is `server.py` / `service.py`.
+
 ### Decision
 
 `galaxy-tool-refactor-mcp` becomes a real tier-4 package — an MCP server exposing

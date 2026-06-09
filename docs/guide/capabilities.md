@@ -37,7 +37,8 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Repair near-miss typos so an invalid tool validates | GTR006 | ✅ Shipped | `default` ruleset |
 | Normalize Python-style booleans (`True`→`true`) to `xs:boolean` | GTR017 | ✅ Shipped | `default` ruleset |
 | Wrap pure-text `<command>` / `<help>` in CDATA | GTR018, GTR019 | ✅ Shipped | `default` ruleset |
-| Single-quote the *provably*-single-valued Cheetah `$var`s in `<command>` | GTR020 | ✅ Shipped | `default` ruleset |
+| Single-quote the *provably*-single-valued Cheetah `$var`s in `<command>` | GTR020.1 | ✅ Shipped | `default` ruleset |
+| Repair deterministically-fixable invalid `<help>` reStructuredText (short title underlines, missing blank lines) behind a behaviour-preserving gate | GTR089.1 | ✅ Shipped | `default` ruleset; planemo-parity *fix* (`HelpInvalidRST`) |
 | Trim accidental whitespace from a `<tool>` `name` / `<requirement>` `version` | GTR035 | ✅ Shipped | `default` ruleset; planemo-parity *fix* (`docs/examples/planemo_fixable_issues.md`) |
 | Replace a deprecated `<output type="data">` with `<data>` | GTR036 | ✅ Shipped | `default` ruleset; planemo-parity *fix* |
 | Drop a `<param>` `name` that its `argument` already implies | GTR037 | ✅ Shipped | `default` ruleset; planemo-parity *fix* |
@@ -86,8 +87,8 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | `<test>` output correspondence (each test output is named and matches a declared `<data>`/`<collection>` of the right kind) — planemo-parity advisory | GTR082–GTR083 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
 | `<test>` discovered-dataset coverage (a test of a `discover_datasets` output asserts count/elements) — planemo-parity advisory | GTR084 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
 | `<test>` parameters & expectations (test params name real inputs, `expect_failure` coherence, `expect_num_outputs` for filtered outputs, tests assert something) — planemo-parity advisory | GTR085–GTR088 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
-| `<help>` reStructuredText validity (via `docutils`, like Galaxy; `format="markdown"` skipped) — planemo-parity advisory | GTR089 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
-| Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTR020, the residual stays advisory | GTR020.2 | ✅ Shipped | advisory; provable subset fixed (GTR020) |
+| `<help>` reStructuredText validity (via `docutils`, like Galaxy; `format="markdown"` skipped) — reports the invalid RST the GTR089.1 repair can't safely fix | GTR089.2 | ✅ Shipped | `strict` ruleset; deterministically-fixable subset auto-repaired by GTR089.1; `docs/planemo_linter_parity.md` |
+| Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTR020.1, the residual stays advisory | GTR020.2 | ✅ Shipped | advisory; provable subset fixed (GTR020.1) |
 | Input `<param>` never referenced anywhere the tool uses it | GTR034 | ✅ Shipped | `strict` ruleset; 189/467 tools (`docs/corpus_check_stats.md`) |
 | Lone-`&` vs `&&` join | GTR032 | 🔭 Roadmap | registry labels it "not yet implemented" |
 

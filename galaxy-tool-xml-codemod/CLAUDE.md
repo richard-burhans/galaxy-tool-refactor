@@ -36,9 +36,12 @@ stays tool-only until a macro-subject codemod needs it — see ``docs/decisions.
 contracts in ``canonical.py``:
 
 - ``canonical_codemods()`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
-  ``RepairHelpRst`` → ``ReorderParamAttributes`` → ``ReorderToolAttributes`` →
-  ``ReorderToolChildren`` → ``WrapCommandCdata`` → ``WrapHelpCdata`` →
-  ``SingleQuoteCommandVars`` (the safe canonical/format pipeline;
+  ``RepairHelpRst`` → ``TrimAttributeWhitespace`` → ``ReplaceOutputElement`` →
+  ``DropRedundantParamName`` → ``ReorderParamAttributes`` →
+  ``ReorderToolAttributes`` → ``ReorderToolChildren`` → ``WrapCommandCdata`` →
+  ``WrapHelpCdata`` → ``SingleQuoteCommandVars`` (the safe canonical/format
+  pipeline; ``TrimAttributeWhitespace`` / ``ReplaceOutputElement`` /
+  ``DropRedundantParamName`` = GTR035–GTR037, the planemo-parity fixes;
   ``ReorderToolChildren`` = GTR013, IUC #52 element order, validity-safe because
   ``<tool>`` is ``xs:all``; ``WrapCommandCdata`` / ``WrapHelpCdata`` =
   GTR018.1/GTR019.1, IUC #34/#42, wrap a pure-text ``<command>``/``<help>`` body in

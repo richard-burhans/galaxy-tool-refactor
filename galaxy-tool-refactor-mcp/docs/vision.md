@@ -11,13 +11,13 @@ rules" — still governs; Goal 2 is the relaxation path if/when desired.
 The MCP server (this package) wraps the `galaxy-tool-refactor-registry`
 facade so coding agents can:
 
-- **Discover** what the tool can do: `list_presets()` → preset names +
+- **Discover** what the tool can do: `list_rulesets()` → ruleset names +
   descriptions, `list_rules()` → code / summary / family / fixable-vs-advisory /
-  which presets include each rule. These map directly onto MCP tool descriptions
-  and enum-valued arguments, so an agent learns the available presets/rules at
+  which rulesets include each rule. These map directly onto MCP tool descriptions
+  and enum-valued arguments, so an agent learns the available rulesets/rules at
   runtime instead of hardcoding them.
 - **Run** `format` / `upgrade` / `check` over content the agent supplies (raw
-  XML, not necessarily a path), with a chosen preset or explicit
+  XML, not necessarily a path), with a chosen ruleset or explicit
   `--select`/`--ignore` code set, and receive **structured results**
   (`FormatResult` / `UpgradeResult` / `DetectResult`: formatted bytes, the
   `Violation`s found, upgrade steps applied, advisory notes).
@@ -64,7 +64,7 @@ Open questions to resolve **later** (do not solve now; just avoid foreclosing):
 ## Design constraints this places on the registry facade (honored today)
 
 - Library-first: no `click` / `sys.exit` / stdout-scraping in the call path.
-- Structured results and structured introspection (`list_presets`/`list_rules`).
+- Structured results and structured introspection (`list_rulesets`/`list_rules`).
 - Content-or-path input; never writes to disk unless a `write_path` is given.
 - The `RuleHandle` is the uniform, code-addressable unit an MCP tool or a plugin
   loader can enumerate and invoke without knowing which tier a rule came from.

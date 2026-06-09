@@ -35,8 +35,12 @@ See `galaxy_tool_xml_check.checks` and the IUC coverage map at
 `../docs/iuc_best_practices.md`. **`GTR020.2`** (single-quote Cheetah `$var`) is
 implemented — it reads `<command>` text through the read-only `command_text.py`
 lexer (quote/directive-aware, across newlines; the lexer lives in tier 1,
-`galaxy_tool_xml.command_text`, so the GTR020 codemod shares it) and reports one
+`galaxy_tool_xml.command_text`, so the GTR020.1 codemod shares it) and reports one
 advisory per fully-unquoted shell-line `$var`. Its *provable* subset is now
-auto-fixed by the GTR020 codemod (`docs/decisions.md` D8). **`GTR032`** (`&&`-vs-lone-`&`) remains a
+auto-fixed by the GTR020.1 codemod (`docs/decisions.md` D8). **`GTR089.2`**
+(`HelpRstResidual`) is the advisory half of the GTR089 partition: it reports the
+invalid `<help>` reStructuredText the `GTR089.1` repair codemod can't safely fix,
+through the same tier-1 predicate (`galaxy_tool_xml.rst`; `docs/decisions.md`
+D31). **`GTR032`** (`&&`-vs-lone-`&`) remains a
 reserved no-op stub — its anti-pattern is ~1 tool corpus-wide (`docs/decisions.md`
 D3); the GTR020.2-ships / GTR032-deferred split is data-backed in D3–D5.

@@ -25,6 +25,13 @@ planemo *tells you what's wrong*; galaxy-tool-refactor can also *make the fix* a
 different emphases (planemo is broad across artifact types; this project goes deep on
 tool-XML structure and profile upgrades).
 
+The detection overlap is *deliberate*: the `check` tier reimplements the
+mechanically-reimplementable `planemo lint` tool-XML linters — the generated
+[parity table](../planemo_linter_parity.md) maps all 146 planemo linters to their
+GTR coverage rule-by-rule — and the CLI accepts **planemo linter names as rule
+aliases** (`--select HelpMissing`, case-insensitive), so a planemo user can select
+rules by the names they already know.
+
 ## How they fit together
 
 - A maintainer can keep using planemo for testing and deployment, and reach for

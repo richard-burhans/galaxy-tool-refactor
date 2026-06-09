@@ -105,3 +105,26 @@ def test_cdata_partition_is_sound() -> None:
     mixed = load_tool(_tool(command="<command>echo <a/> hi</command>"))
     assert len(fix.detect(wrappable)) == 1 and advisory.detect(wrappable) == []
     assert fix.detect(mixed) == [] and len(advisory.detect(mixed)) == 1
+
+
+def test_help_rst_partition_is_sound() -> None:
+    """Per help body, exactly one of {fix GTR089.1, advisory GTR089.2} fires:
+    a deterministically-repairable invalid body (short title underline) is the
+    fix's; an unrepairable one (unclosed inline markup — ``repair_help_rst``
+    returns ``None``) is the advisory residual's."""
+    handles = all_handles()
+    fix, advisory = handles["GTR089.1"], handles["GTR089.2"]
+    fixable = load_tool(
+        _tool(
+            command="<command>echo hi</command>"
+            "<help>Section Title\n=====\n\nbody text here\n</help>"
+        )
+    )
+    residual = load_tool(
+        _tool(
+            command="<command>echo hi</command>"
+            "<help>text with **unclosed strong\n</help>"
+        )
+    )
+    assert len(fix.detect(fixable)) == 1 and advisory.detect(fixable) == []
+    assert fix.detect(residual) == [] and len(advisory.detect(residual)) == 1

@@ -122,6 +122,12 @@ all three detect tiers (codemod + fmt + check); orchestration stays here.
 
 ## D4 (2026-05-30) — CLI consumes the registry facade; `--preset` / `--select` / `--ignore`
 
+> **Renamed since (PR #146, registry D15):** presets became **rulesets** —
+> `--preset` → `--ruleset`, the `presets` subcommand → `rulesets`,
+> `list_presets()` → `list_rulesets()`, and the default named set is now
+> `default`. This entry (and later "preset" mentions in this log) keep the
+> original vocabulary as a historical record.
+
 ### Decision
 
 Rule orchestration moved out of the CLI into the tier-3.6 registry facade
