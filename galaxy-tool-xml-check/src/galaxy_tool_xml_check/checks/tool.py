@@ -57,6 +57,7 @@ class TestsPresent(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"TestsMissing"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -78,6 +79,7 @@ class IdCharset(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"ToolIDValid"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -103,6 +105,7 @@ class VersionFormat(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"ToolVersionPEP404"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -150,6 +153,7 @@ class ErrorHandling(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"StdIOAbsence"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -176,6 +180,7 @@ class EdamXrefs(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"BioToolsValid", "EDAMTermsValid"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -202,6 +207,7 @@ class HelpPresent(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"HelpEmpty", "HelpMissing"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -281,6 +287,7 @@ class RequirementVersionPinned(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"RequirementVersionMissing"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -317,6 +324,7 @@ class CitationsPresent(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"CitationsMissing", "CitationsNoText"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -353,6 +361,7 @@ class NoTodoText(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"CommandTODO", "HelpTODO"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -394,6 +403,7 @@ class CommandPresent(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"CommandEmpty", "CommandMissing"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -425,6 +435,7 @@ class ProfileFormatValid(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"ToolProfileInvalid"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -457,6 +468,7 @@ class RequirementNamePresent(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"RequirementNameMissing"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -492,6 +504,7 @@ class ToolVersionWhitespace(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"ToolVersionWhitespace"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -531,6 +544,7 @@ class ContainerShapeRecognized(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"ContainerImageShape"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -571,6 +585,7 @@ class StdioRegexValid(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"StdIORegex"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:

@@ -129,3 +129,24 @@ an upgrade-only codemod driven by `UpgradeToLatest`).
 uv run --package galaxy-tool-refactor-rules pytest \
   galaxy-tool-refactor-rules/tests/test_rulesets.py galaxy-tool-refactor-rules/tests/test_meta.py
 ```
+
+## D5 (2026-06-09) — `RuleMeta.planemo_linters` (the planemo-name alias)
+
+### Decision
+
+Add `planemo_linters: frozenset[str] = frozenset()` to `RuleMeta`: the planemo
+(`galaxy.tool_util.lint`) linter class names a rule covers (e.g. GTR028 →
+`{"HelpMissing", "HelpEmpty"}`). One GTR rule may cover several planemo linters —
+planemo splits some single practices across linter classes, and our rule is the
+natural unit (a survey found 21 of 25 such bundles are one practice). Formalizing
+the mapping (previously only in docstrings + the hand-maintained parity table) on
+the rule makes it the single source of truth: the registry (D16) derives a
+`planemo name → GTR code` index for name-based selection and **generates** the
+parity table from it. Empty for our own rules with no planemo equivalent (the
+cosmetic fmt rules, the XSD-restoring repairs). Dependency-free (just strings).
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-rules pytest galaxy-tool-refactor-rules/tests/test_meta.py
+```

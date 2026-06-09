@@ -96,6 +96,7 @@ def _rule_info_to_dict(info: RuleInfo, /) -> dict[str, object]:
         "family": info.family,
         "fixable": info.fixable,
         "rulesets": list(info.rulesets),
+        "planemo_linters": list(info.planemo_linters),
         "since": info.since,
         "cite": info.cite,
     }

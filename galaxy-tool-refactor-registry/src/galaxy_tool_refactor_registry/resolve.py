@@ -3,8 +3,10 @@
 Precedence is ruff-style: ``--ignore`` ▸ ``--select`` ▸ ``--ruleset``. Concretely,
 the base is the **union** of the named rulesets (or the default ruleset when none
 are named); ``--select`` *replaces* that base (an explicit selection resets it, not
-adds to it); then ``--ignore`` subtracts. Unknown ruleset names / rule codes raise
-the typed ``UnknownRuleset`` / ``UnknownRuleCode`` (LBYL: validated before any work).
+adds to it); then ``--ignore`` subtracts. A ``--select`` / ``--ignore`` token may be
+a GTR code, a partition-parent code, or a **planemo linter name** (case-insensitive,
+resolved to the covering GTR code(s)). Unknown ruleset names / tokens raise the typed
+``UnknownRuleset`` / ``UnknownRuleCode`` (LBYL: validated before any work).
 """
 
 from __future__ import annotations
@@ -16,15 +18,33 @@ from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 
 from galaxy_tool_refactor_registry.adapters import fmt_rules
 from galaxy_tool_refactor_registry.errors import UnknownRuleCode, UnknownRuleset
+from galaxy_tool_refactor_registry.planemo import planemo_index
 from galaxy_tool_refactor_registry.registry import expand_codes, known_codes
 from galaxy_tool_refactor_registry.rulesets import ruleset_codes
 
 
-def _validate_codes(codes: Iterable[str], /) -> None:
+def _expand_selection(tokens: Iterable[str], /) -> frozenset[str]:
+    """Expand ``--select`` / ``--ignore`` *tokens* to concrete GTR codes.
+
+    Each token is a real GTR code, a partition-parent code (expands to its
+    sub-rules), or a planemo linter name (case-insensitive → the covering GTR
+    code(s); a bundled rule is reached by any of its names). Unknown tokens raise
+    ``UnknownRuleCode``.
+    """
     known = known_codes()
-    for code in codes:
-        if code not in known:
-            raise UnknownRuleCode(code)
+    index = planemo_index()
+    out: set[str] = set()
+    for token in tokens:
+        # GTR codes match case-insensitively (canonical form is upper); planemo
+        # linter names match case-insensitively (index keyed lower-cased). The
+        # original token is preserved for the error message.
+        if token.upper() in known:
+            out |= expand_codes(frozenset({token.upper()}))
+        elif token.lower() in index:
+            out |= index[token.lower()]
+        else:
+            raise UnknownRuleCode(token)
+    return frozenset(out)
 
 
 def resolve_codes(
@@ -55,16 +75,15 @@ def resolve_codes(
     for name in names:
         if name not in code_map:
             raise UnknownRuleset(name)
-    _validate_codes((*select, *ignore))
     # A partition-parent code (e.g. GTR020) selects/ignores the whole practice; a
-    # dotted child (GTR020.2) targets just that half. Ruleset sets already hold the
-    # child codes, so only the user-supplied select/ignore need expanding.
+    # dotted child (GTR020.2) targets just that half; a planemo name resolves to the
+    # covering GTR code(s). Ruleset sets already hold the concrete child codes.
     base = (
-        expand_codes(frozenset(select))
+        _expand_selection(select)
         if select
         else frozenset().union(*(code_map[name] for name in names))
     )
-    return base - expand_codes(frozenset(ignore))
+    return base - _expand_selection(ignore)
 
 
 def upgrade_base_codes() -> frozenset[str]:
@@ -90,6 +109,5 @@ def resolve_upgrade_codes(
     """
     select = tuple(select)
     ignore = tuple(ignore)
-    _validate_codes((*select, *ignore))
-    base = expand_codes(frozenset(select)) if select else upgrade_base_codes()
-    return base - expand_codes(frozenset(ignore))
+    base = _expand_selection(select) if select else upgrade_base_codes()
+    return base - _expand_selection(ignore)

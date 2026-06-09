@@ -20,7 +20,8 @@ galaxy-tool-refactor/
 │   ├── fetch_schemas.py        download release XSDs
 │   ├── fetch_toolshed.py       clone Toolshed repos
 │   ├── measure.py              ad-hoc corpus queries
-│   └── regenerate.py           regenerate per-version xsdata models
+│   ├── regenerate.py           regenerate per-version xsdata models
+│   └── gen_planemo_parity.py   regenerate the GTR coverage table (docs/planemo_linter_parity.md)
 ├── docs/
 │   └── corpus_data/            per-tool JSON/TSV from corpus sweeps
 ├── corpus_sources.json       list of GitHub repos to clone (committed seed list)
@@ -106,6 +107,7 @@ uv run python -m scripts.corpus_check check [--source github|toolshed|combined] 
 uv run python -m scripts.fetch_schemas         # download release XSDs
 uv run python -m scripts.fetch_toolshed        # clone Toolshed repos
 uv run python -m scripts.regenerate            # regenerate per-version models
+uv run python -m scripts.gen_planemo_parity    # regenerate the GTR coverage table in docs/planemo_linter_parity.md (from rule metadata; freshness-tested)
 uv run python -m scripts.measure               # ad-hoc corpus queries (--list)
 
 # Macro organisation across the corpus (inline vs imported macro files,

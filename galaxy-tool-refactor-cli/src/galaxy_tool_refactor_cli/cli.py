@@ -168,12 +168,14 @@ _IGNORE_OPTION = click.option(
 
 
 def _split_codes(values: tuple[str, ...]) -> tuple[str, ...]:
-    """Flatten repeated / comma-separated code options, upper-cased and stripped."""
+    """Flatten repeated / comma-separated select/ignore tokens, stripped.
+
+    Case is preserved (the resolver matches GTR codes and planemo linter names
+    case-insensitively) so an error message echoes the token the user typed.
+    """
     codes: list[str] = []
     for value in values:
-        codes.extend(
-            token.strip().upper() for token in value.split(",") if token.strip()
-        )
+        codes.extend(token.strip() for token in value.split(",") if token.strip())
     return tuple(codes)
 
 
@@ -806,13 +808,18 @@ def rulesets_command() -> None:
     help="Also list the upgrade-only codemods (not independently selectable).",
 )
 def rules_command(include_upgrade: bool) -> None:
-    """List the baked-in rules: code, family, fixable/advisory, and rulesets."""
+    """List the baked-in rules: code, family, fixable/advisory, rulesets, planemo.
+
+    The ``planemo:`` field lists the planemo (``galaxy.tool_util.lint``) linter(s)
+    each rule covers — those names also work in ``--select`` / ``--ignore``.
+    """
     for info in facade.list_rules(include_upgrade=include_upgrade):
         kind = "fixable" if info.fixable else "advisory"
         in_rulesets = ",".join(info.rulesets) if info.rulesets else "-"
+        planemo = ",".join(info.planemo_linters) if info.planemo_linters else "-"
         click.echo(
             f"{info.code}  [{info.family}/{kind}]  rulesets:{in_rulesets}  "
-            f"{info.summary}"
+            f"planemo:{planemo}  {info.summary}"
         )
 
 

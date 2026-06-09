@@ -63,6 +63,14 @@ class RuleMeta:
             the rule is never independently selectable — e.g. an upgrade-only
             codemod driven internally by ``UpgradeToLatest``. Every name used
             here must appear in the ``rulesets.py`` catalog (guarded by a test).
+        planemo_linters: The names of the planemo (``galaxy.tool_util.lint``)
+            linter classes this rule covers, e.g. ``{"HelpMissing", "HelpEmpty"}``.
+            One GTR rule may cover several planemo linters (planemo splits some
+            single practices across linter classes). The registry derives a
+            ``planemo name → GTR code`` index from this so a planemo user can
+            select/find a rule by its planemo name (``--select HelpMissing``) and
+            so the parity table can be generated. Empty for our own rules with no
+            planemo equivalent (the cosmetic fmt rules, the XSD-restoring repairs).
     """
 
     code: str
@@ -75,3 +83,4 @@ class RuleMeta:
     applies_to: frozenset[str] = frozenset({"tool"})
     parent: str | None = None
     rulesets: frozenset[str] = frozenset()
+    planemo_linters: frozenset[str] = frozenset()

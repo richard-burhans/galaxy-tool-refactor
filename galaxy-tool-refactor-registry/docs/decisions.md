@@ -590,3 +590,40 @@ uv run --package galaxy-tool-refactor-registry pytest \
   galaxy-tool-refactor-registry/tests/test_ruleset_membership.py
 uv run galaxy-tool-refactor rulesets
 ```
+
+## D16 (2026-06-09) — Planemo aliases: name-based selection + generated parity table
+
+### Decision
+
+Build a **planemo-linter alias** over the per-rule `RuleMeta.planemo_linters` (rules
+D5) so a planemo user can address a rule by its planemo name, without splitting our
+rules to match planemo's decomposition (a survey found only 4 of 25 bundles are
+genuine split-candidates; splitting the other 21 would manufacture mutually-exclusive
+rules). Deferred the 4 splits.
+
+- **`planemo.py` — `planemo_index()`** derives `planemo name (lower-cased) → frozenset[GTR
+  codes]` from `all_handles()`. Case-insensitive; a bundled rule is reached by any of
+  its names.
+- **Selection by name.** `resolve._expand_selection` expands each `--select`/`--ignore`
+  token: a GTR code (case-insensitive; canonical upper), a partition parent (expands),
+  or a planemo name (→ covering codes); else `UnknownRuleCode`. A bundled name selects
+  the whole covering GTR (lossy exactly for the 4 split-candidates — documented). The
+  CLI no longer upper-cases tokens (so an error echoes what the user typed).
+- **Reporting.** `RuleInfo` gains `planemo_linters`; `list_rules` populates it; the CLI
+  `rules` command shows a `planemo:` field; MCP `list_rules` includes it.
+- **Generated parity table.** `parity.render_parity_table()` renders the GTR coverage
+  table of `docs/planemo_linter_parity.md` from metadata (planemo coverage, detect/fix,
+  tier, narrowest ruleset, `meta.summary`); `scripts/gen_planemo_parity.py` writes it
+  between BEGIN/END markers; `test_planemo_parity_table.py` pins the committed block.
+  Only the prose preamble + the HAVE/SKIP/n-a accounting stay hand-written. The one
+  hand-known exception is GTR032's `detect = —` (the reserved no-op stub, check D3).
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-registry pytest \
+  galaxy-tool-refactor-registry/tests/test_planemo_aliases.py \
+  galaxy-tool-refactor-registry/tests/test_planemo_parity_table.py
+uv run galaxy-tool-refactor rules | grep planemo
+uv run python -m scripts.gen_planemo_parity
+```

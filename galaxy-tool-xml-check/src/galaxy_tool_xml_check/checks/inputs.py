@@ -144,6 +144,7 @@ class ParamNamePresent(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"InputsName"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -176,6 +177,7 @@ class ParamNameValid(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"InputsNameEmpty", "InputsNameValid"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -206,6 +208,7 @@ class ParamNamesUnique(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"InputsNameDuplicate"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -233,6 +236,7 @@ class InputOutputNamesDistinct(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"InputsNameDuplicateOutput"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -291,6 +295,12 @@ class SelectOptionsDefined(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {
+                "InputsSelectOptionsDef",
+                "InputsSelectOptionsDefConditional",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -339,6 +349,7 @@ class SelectOptionValuePresent(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"InputsSelectOptionValueMissing"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -369,6 +380,12 @@ class SelectOptionsDistinct(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {
+                "InputsSelectOptionDuplicateText",
+                "InputsSelectOptionDuplicateValue",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -436,6 +453,7 @@ class SelectOptionsSingle(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"InputsSelectOptionsMultiple"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -466,6 +484,7 @@ class SelectOptionsHaveSource(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"InputsSelectOptionsDefinesOptions"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -505,6 +524,12 @@ class SelectOptionsSourceCoherent(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {
+                "InputsSelectOptionsFromDatasetAndDatatable",
+                "InputsSelectOptionsMetaFileKey",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -547,6 +572,12 @@ class SelectOptionsNotDeprecated(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {
+                "InputsSelectDynamicOptions",
+                "InputsSelectOptionsDeprecatedAttr",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -609,6 +640,7 @@ class ConditionalTestParamType(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"ConditionalParamType", "ConditionalParamTypeBool"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -646,6 +678,7 @@ class ConditionalTestParamAttributes(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"ConditionalParamIncompatibleAttributes"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -682,6 +715,13 @@ class ConditionalWhensMatchOptions(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {
+                "ConditionalOptionMissing",
+                "ConditionalOptionMissingBoolean",
+                "ConditionalWhenMissing",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -767,6 +807,7 @@ class InputsPresent(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"InputsMissing"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -798,6 +839,7 @@ class ParamTypeChildCombination(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"InputsTypeChildCombination"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -832,6 +874,7 @@ class DataOptionsValid(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"InputsDataOptionsMultiple"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -907,6 +950,12 @@ class BooleanValuesDistinct(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {
+                "InputsBoolDistinctValues",
+                "InputsBoolProblematic",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -959,6 +1008,14 @@ class SelectDisplayConsistent(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {
+                "InputsSelectMandatoryCheckboxes",
+                "InputsSelectMultipleRadio",
+                "InputsSelectOptionalRadio",
+                "InputsSelectSingleCheckboxes",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -1089,6 +1146,13 @@ class OptionFilterAttributes(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {
+                "InputsOptionsFiltersAllowedAttributes",
+                "InputsOptionsFiltersRequiredAttributes",
+                "InputsOptionsRemoveValueFilterRequiredAttributes",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -1137,6 +1201,7 @@ class OptionFilterExpression(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"InputsOptionsRegexFilterExpression"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -1169,6 +1234,7 @@ class OptionFilterReferences(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"InputsOptionsFiltersCheckReferences"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:

@@ -59,6 +59,14 @@ class TestAssertionsWellFormed(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {
+                "TestsAssertsHasNQuant",
+                "TestsAssertsHasSizeOrValueQuant",
+                "TestsAssertsHasSizeQuant",
+                "TestsAssertsMultiple",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -116,6 +124,7 @@ class TestOutputCompareAttributes(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"TestsOutputCompareAttrib"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -162,6 +171,7 @@ class TestOutputNamed(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"TestsOutputName"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -194,6 +204,13 @@ class TestOutputsCorrespond(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {
+                "TestsOutputCollectionCorresponding",
+                "TestsOutputCorresponding",
+                "TestsOutputDefined",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -259,6 +276,13 @@ class TestDiscoveredOutputsChecked(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {
+                "TestsOutputCheckDiscovered",
+                "TestsOutputCollectionCheckDiscovered",
+                "TestsOutputCollectionCheckDiscoveredNested",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -379,6 +403,7 @@ class TestParamsInInputs(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"TestsParamInInputs"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -427,6 +452,12 @@ class TestExpectFailureCoherent(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {
+                "TestsExpectNumOutputsFailing",
+                "TestsOutputFailing",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -468,6 +499,7 @@ class TestExpectNumOutputs(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"TestsExpectNumOutputs"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -508,6 +540,7 @@ class TestHasExpectations(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"TestsHasExpectations", "TestsValid"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:

@@ -54,6 +54,7 @@ class OutputNamesUnique(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"OutputsNameDuplicated"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -83,6 +84,7 @@ class OutputNameValid(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"OutputsNameInvalidCheetah"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -113,6 +115,7 @@ class CollectionTypeDeclared(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"OutputsCollectionType"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -143,6 +146,7 @@ class OutputFormatSourceExclusive(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"OutputsFormatSourceIncomp"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -247,6 +251,7 @@ class OutputsPresent(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"OutputsMissing"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -274,6 +279,7 @@ class OutputFormatDefined(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"OutputsFormat"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -314,6 +320,12 @@ class OutputLabelsDistinct(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {
+                "OutputsLabelDuplicatedFilter",
+                "OutputsLabelDuplicatedNoFilter",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -366,6 +378,7 @@ class OutputFilterValid(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"OutputsFilterExpression"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
