@@ -44,7 +44,7 @@ it can prove safe. **It does not blindly preserve behaviour** — read
 ### 3. `check` — a best-practice report
 
 ```text
-$ galaxy-tool-refactor check --preset strict tools/qualimap/qualimap_macros.xml
+$ galaxy-tool-refactor check --ruleset strict tools/qualimap/qualimap_macros.xml
 tools/qualimap/qualimap_macros.xml:3   GTR001  Canonical 4-space indentation; no tabs.
 …
 4 fixable finding(s) in 1 file(s).
@@ -56,7 +56,7 @@ Advisory (IUC) findings — missing tests, no version pins, no error handling �
 
 ## In a pull request
 
-- **Authors:** run `format` then `check --preset strict` before you open the PR — land it
+- **Authors:** run `format` then `check --ruleset strict` before you open the PR — land it
   already tidy, and see the advisory gaps a reviewer would flag.
 - **Reviewers:** run `check` on the diff to separate "mechanical nits a bot can fix" from
   "judgement calls that need a human." The mechanical layer stops eating review time.

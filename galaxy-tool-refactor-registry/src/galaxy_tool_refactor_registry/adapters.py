@@ -1,12 +1,12 @@
 """Wrap each rule family into a uniform ``RuleHandle``.
 
 Three builders, one per family, plus the family class enumerations the registry
-and apply phase consume. The *selectable* codemods are exactly
-``CANONICAL_CODEMODS`` (typo repair + the reorderers — the safe, format-time
-rules); the remaining GTR codemods are the upgrade-only steps
-(``UpdateProfile`` + the per-version ``Upgrade*`` + the ``UpgradeToLatest``
-orchestrator) which are internal to the ``upgrade`` pipeline and not
-independently selectable — they are exposed for introspection only.
+and apply phase consume. The *selectable* codemods are those that declare at least
+one ruleset (``RuleMeta.rulesets`` — typo repair + the reorderers + the CDATA/quote
+fixes, the safe format-time rules); the remaining GTR codemods declare no ruleset
+and are the upgrade-only steps (``UpdateProfile`` + the per-version ``Upgrade*`` +
+the ``UpgradeToLatest`` orchestrator) which are internal to the ``upgrade`` pipeline
+and not independently selectable — they are exposed for introspection only.
 """
 
 from __future__ import annotations
@@ -14,7 +14,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from galaxy_tool_xml_check.detect import all_checks
-from galaxy_tool_xml_codemod.canonical import CANONICAL_CODEMODS
 from galaxy_tool_xml_codemod.catalog import coded_codemods
 from galaxy_tool_xml_codemod.module import Module
 from galaxy_tool_xml_fmt.detect import detect_tool_document_subset
@@ -31,14 +30,13 @@ if TYPE_CHECKING:
 
 
 def selectable_codemods() -> tuple[type[CodemodCommand], ...]:
-    """Codemods a user may select — the canonical (format-time) pipeline set."""
-    return CANONICAL_CODEMODS
+    """Codemods a user may select — those that declare at least one ruleset."""
+    return tuple(cls for cls in coded_codemods() if cls.meta.rulesets)
 
 
 def upgrade_only_codemods() -> tuple[type[CodemodCommand], ...]:
-    """The GTR codemods internal to ``upgrade`` (not independently selectable)."""
-    canonical = set(CANONICAL_CODEMODS)
-    return tuple(cls for cls in coded_codemods() if cls not in canonical)
+    """The GTR codemods internal to ``upgrade`` (no ruleset → not selectable)."""
+    return tuple(cls for cls in coded_codemods() if not cls.meta.rulesets)
 
 
 def fmt_rules() -> tuple[type[Rule], ...]:

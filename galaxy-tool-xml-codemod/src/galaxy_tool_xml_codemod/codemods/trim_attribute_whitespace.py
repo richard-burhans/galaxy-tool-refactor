@@ -21,7 +21,7 @@ residual), reported but not auto-fixed. See ``docs/decisions.md`` §33 and
 
 Idempotent by construction: after a trim the value equals its ``strip()``, so a re-run
 finds nothing. Validity-preserving (the attributes stay strings). Joins
-``CANONICAL_CODEMODS`` — safe, ``profile=``-preserving, runs under ``format`` / ``iuc``.
+``canonical_codemods()`` — safe, ``profile=``-preserving, runs under ``format``.
 """
 
 from __future__ import annotations
@@ -53,6 +53,8 @@ class TrimAttributeWhitespace(CodemodCommand):
         ),
         since="0.0.1",
         cite=_IUC,
+        order=30,
+        rulesets=frozenset({"default", "iuc", "strict"}),
     )
 
     def detect_Tool(self, cursor: Cursor) -> Iterable[Change]:

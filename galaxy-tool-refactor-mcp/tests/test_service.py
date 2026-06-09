@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from galaxy_tool_refactor_registry.errors import UnknownPreset, UnknownRuleCode
+from galaxy_tool_refactor_registry.errors import UnknownRuleCode, UnknownRuleset
 from galaxy_tool_xml.binding import ToolXmlSyntaxError
 from galaxy_tool_xml.profiles import latest_profile
 
@@ -37,9 +37,9 @@ def test_format_tool_returns_canonical_xml() -> None:
     assert isinstance(result["notes"], list)
 
 
-def test_format_tool_unknown_preset_raises() -> None:
-    with pytest.raises(UnknownPreset):
-        service.format_tool(_MESSY, preset="does-not-exist")
+def test_format_tool_unknown_ruleset_raises() -> None:
+    with pytest.raises(UnknownRuleset):
+        service.format_tool(_MESSY, rulesets=["does-not-exist"])
 
 
 def test_format_tool_unknown_select_code_raises() -> None:
@@ -57,7 +57,7 @@ def test_check_tool_reports_violations() -> None:
 
 
 def test_check_tool_strict_marks_advisory() -> None:
-    result = service.check_tool(_MESSY, preset="strict")
+    result = service.check_tool(_MESSY, rulesets=["strict"])
     advisory_codes = result["advisory_codes"]
     assert isinstance(advisory_codes, list)
     # Strict adds the advisory checks; an advisory finding is marked advisory
@@ -76,12 +76,12 @@ def test_upgrade_tool_bumps_profile() -> None:
     assert result["behavior_preserving"] in (True, False, None)
 
 
-def test_list_presets_includes_default() -> None:
-    presets = service.list_presets()
-    assert presets
-    names = {p["name"] for p in presets}
-    assert "iuc" in names
-    assert any(p["is_default"] for p in presets)
+def test_list_rulesets_includes_default() -> None:
+    rulesets = service.list_rulesets()
+    assert rulesets
+    names = {r["name"] for r in rulesets}
+    assert "default" in names
+    assert any(r["is_default"] for r in rulesets)
 
 
 def test_list_rules_has_codes_and_families() -> None:

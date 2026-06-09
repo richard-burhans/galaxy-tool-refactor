@@ -22,7 +22,7 @@ load-bearing:
 
 ``profile=`` is never written — only spellings change; the sibling
 ``UpdateProfile`` codemod owns the declared profile. ``FixTypos`` runs first in
-``CANONICAL_CODEMODS``. See ``docs/decisions.md`` §11 (this codemod) and §13
+``canonical_codemods()``. See ``docs/decisions.md`` §11 (this codemod) and §13
 (canonical ordering).
 """
 
@@ -120,6 +120,8 @@ class FixTypos(CodemodCommand):
         code="GTR006",
         summary="Repair near-miss spelling typos so a globally-invalid tool validates.",
         since="0.0.1",
+        order=10,
+        rulesets=frozenset({"default", "iuc", "strict"}),
     )
 
     def detect(self, module: Module, /) -> Iterator[Change]:

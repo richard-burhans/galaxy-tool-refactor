@@ -4,7 +4,7 @@ The three rule families have different native shapes: a codemod
 (``CodemodCommand``) yields ``Change``s and mutates an lxml tree via a ``Module``;
 an fmt ``Rule`` yields ``Edit``s applied to a tree; an advisory ``CheckRule``
 yields ``Violation``s and never fixes. A ``RuleHandle`` wraps any of them behind a
-single interface so the registry, the presets, and the facade can treat every
+single interface so the registry, the rulesets, and the facade can treat every
 baked-in rule the same way and address it by its ``RuleMeta.code``.
 
 The handle is pure data plus closures (mirroring tier-2's ``Change.mutate``

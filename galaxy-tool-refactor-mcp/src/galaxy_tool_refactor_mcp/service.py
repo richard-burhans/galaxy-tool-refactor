@@ -1,7 +1,7 @@
 """The protocol-agnostic adapter: registry facade → JSON-serialisable ``dict``s.
 
 This is the substance of the MCP server, with **no ``mcp`` import** — it takes
-agent-friendly inputs (XML as a ``str``, preset name, code lists) and returns
+agent-friendly inputs (XML as a ``str``, ruleset names, code lists) and returns
 plain JSON-able structures by calling the tier-3.6 facade. ``server`` wraps these
 as MCP tools. Keeping the logic here means it is unit-testable without a transport
 and the FastMCP binding stays a thin shell (the vision's "thin adapter").
@@ -9,7 +9,7 @@ and the FastMCP binding stays a thin shell (the vision's "thin adapter").
 XML content arrives as a ``str`` and is encoded to ``bytes`` before the facade
 sees it, so it is always parsed as *content*, never mistaken for a path. Nothing
 here writes to disk — agents supply content and get content back. Selection /
-parse errors propagate as the facade's typed ``UnknownPreset`` /
+parse errors propagate as the facade's typed ``UnknownRuleset`` /
 ``UnknownRuleCode`` and tier-1's ``ToolXmlSyntaxError``; the *server* is the error
 boundary that turns them into MCP error responses (mirroring the CLI).
 """
@@ -27,8 +27,8 @@ if TYPE_CHECKING:
     from galaxy_tool_refactor_registry.results import (
         DetectResult,
         FormatResult,
-        PresetInfo,
         RuleInfo,
+        RulesetInfo,
         UpgradeResult,
     )
     from galaxy_tool_refactor_rules.violation import Violation
@@ -80,7 +80,7 @@ def _detect_result_to_dict(result: DetectResult, /) -> dict[str, object]:
     }
 
 
-def _preset_info_to_dict(info: PresetInfo, /) -> dict[str, object]:
+def _ruleset_info_to_dict(info: RulesetInfo, /) -> dict[str, object]:
     return {
         "name": info.name,
         "codes": list(info.codes),
@@ -95,7 +95,7 @@ def _rule_info_to_dict(info: RuleInfo, /) -> dict[str, object]:
         "summary": info.summary,
         "family": info.family,
         "fixable": info.fixable,
-        "presets": list(info.presets),
+        "rulesets": list(info.rulesets),
         "since": info.since,
         "cite": info.cite,
     }
@@ -105,12 +105,12 @@ def format_tool(
     xml: str,
     /,
     *,
-    preset: str | None = None,
+    rulesets: Sequence[str] = (),
     select: Sequence[str] = (),
     ignore: Sequence[str] = (),
 ) -> dict[str, object]:
-    """Apply a preset's fixable rules then format; return the canonical XML + notes."""
-    codes = resolve_codes(preset=preset, select=select, ignore=ignore)
+    """Apply a ruleset's fixable rules then format; return the canonical XML + notes."""
+    codes = resolve_codes(rulesets=rulesets, select=select, ignore=ignore)
     return _format_result_to_dict(facade.run(xml.encode("utf-8"), codes=codes))
 
 
@@ -130,18 +130,18 @@ def check_tool(
     xml: str,
     /,
     *,
-    preset: str | None = None,
+    rulesets: Sequence[str] = (),
     select: Sequence[str] = (),
     ignore: Sequence[str] = (),
 ) -> dict[str, object]:
     """Report-only detect over the selected rules; never mutates the tool."""
-    codes = resolve_codes(preset=preset, select=select, ignore=ignore)
+    codes = resolve_codes(rulesets=rulesets, select=select, ignore=ignore)
     return _detect_result_to_dict(facade.detect(xml.encode("utf-8"), codes=codes))
 
 
-def list_presets() -> list[dict[str, object]]:
-    """The baked-in presets (name / codes / is_default / description)."""
-    return [_preset_info_to_dict(info) for info in facade.list_presets()]
+def list_rulesets() -> list[dict[str, object]]:
+    """The baked-in rulesets (name / codes / is_default / description)."""
+    return [_ruleset_info_to_dict(info) for info in facade.list_rulesets()]
 
 
 def list_rules(*, include_upgrade: bool = False) -> list[dict[str, object]]:

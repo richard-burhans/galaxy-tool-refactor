@@ -14,11 +14,11 @@ from galaxy_tool_refactor_registry import facade, resolve
 tool = Path("tools/bandage/bandage_info.xml")
 
 # format: apply the fixable selection + cosmetic rules
-fmt = facade.run(tool, codes=resolve.resolve_codes(preset="iuc"))
+fmt = facade.run(tool, codes=resolve.resolve_codes(rulesets=["default"]))
 canonical_xml: bytes = fmt.formatted        # advisory findings in fmt.advisory
 
 # detect: report-only over the selection (never mutates)
-det = facade.detect(tool, codes=resolve.resolve_codes(preset="strict"))
+det = facade.detect(tool, codes=resolve.resolve_codes(rulesets=["strict"]))
 for v in det.violations:                    # v.code, v.line, v.message
     print(v.code, det.is_advisory(v))
 
@@ -41,16 +41,17 @@ print(up.behavior_preserving)               # True / False / None — see soundn
 | `DetectResult` (`detect`) | `violations: list[Violation]`, `advisory_codes`, `is_advisory(v)` |
 | `UpgradeResult` (`upgrade`) | `formatted: bytes`, `steps_applied`, `missing_upgrade`, `behavior_preserving`, `advisory` |
 
-Rule selection is shared: `resolve.resolve_codes(preset=…, select=…, ignore=…)` for
-`run`/`detect`; `resolve.resolve_upgrade_codes(select=…, ignore=…)` for `upgrade`
-(no preset — upgrade is semantic). Precedence: `ignore` ▸ `select` ▸ `preset`.
+Rule selection is shared: `resolve.resolve_codes(rulesets=…, select=…, ignore=…)` for
+`run`/`detect` (the base is the union of the named rulesets);
+`resolve.resolve_upgrade_codes(select=…, ignore=…)` for `upgrade`
+(no ruleset — upgrade is semantic). Precedence: `ignore` ▸ `select` ▸ `rulesets`.
 
 ## Introspection
 
 ```python
 for info in facade.list_rules():            # include_upgrade=True adds GTR007/014–016
-    print(info.code, info.family, info.fixable, info.presets)
-for p in facade.list_presets():
+    print(info.code, info.family, info.fixable, info.rulesets)
+for p in facade.list_rulesets():
     print(p.name, p.is_default, p.codes)
 ```
 

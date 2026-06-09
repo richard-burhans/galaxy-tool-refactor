@@ -546,3 +546,47 @@ conservative sole-owned gate.
 uv run --package galaxy-tool-refactor-registry pytest \
   galaxy-tool-refactor-registry/tests/test_bundle_rename.py -k consensus
 ```
+
+## D15 (2026-06-09) — Presets → declarative rulesets (per-rule membership)
+
+### Decision
+
+Replace the centralized preset system with **declarative rule-sets** whose membership is
+declared on each rule, and remove the hardcoded `CANONICAL_CODEMODS` tuple. A maintainer
+marks which sets a rule belongs to right on the rule; the registry derives `name → codes`.
+
+- **Membership lives on the rule.** `RuleMeta` (tier 0.5) gains
+  `rulesets: frozenset[str]`; each fmt rule / canonical codemod / advisory check declares
+  its set(s). The tier-0.5 `rulesets.py` catalog owns the *names + descriptions* (the one
+  property of a set, not of any member) and `DEFAULT_RULESET = "default"`.
+- **Derivation, not a second list.** `rulesets.ruleset_codes()` groups the registry by
+  `handle.meta.rulesets` — it can't drift from the rules that exist. The old `presets.py`
+  (which enumerated families + the `CANONICAL_CODEMODS` tuple) is gone.
+- **`CANONICAL_CODEMODS` retired.** Membership *and order* moved onto the rules:
+  `canonical.canonical_codemods()` is now derived (codemods declaring `"default"`, sorted
+  by `meta.order`), and `apply.py` orders the codemod phase by `meta.order` instead of a
+  tuple index. `selectable_codemods()` = codemods with a non-empty `rulesets`;
+  `upgrade_only_codemods()` = those with none.
+- **Union selection.** `resolve_codes(*, rulesets, select, ignore)` takes the **union** of
+  the named sets as its base (default `{"default"}`); `--select` replaces, `--ignore`
+  subtracts (precedence unchanged). `UnknownPreset` → `UnknownRuleset`;
+  `PresetInfo`/`list_presets` → `RulesetInfo`/`list_rulesets`. The CLI flag is
+  `--ruleset` (repeatable / comma-separated), the introspection command is `rulesets`.
+- **Behaviour preserved.** Seeded membership reproduces the old preset sets exactly:
+  `cosmetic` = fmt rules; `default` = canonical codemods + cosmetic (the old `iuc`, still
+  the no-arg `format` set — the byte-identity regression test holds); `iuc` mirrors
+  `default` for now (a placeholder to be reshaped per-rule later); `strict` = `default` +
+  every advisory check. The default selection name changed `iuc` → `default`; the bytes
+  did not.
+- **Guarded.** `test_ruleset_membership.py` pins: every declared name is in the catalog,
+  every selectable rule declares ≥1 ruleset, upgrade-only codemods declare none, and no
+  catalog ruleset is empty. Rule/rules decisions: tier-0.5 D4, codemod §36.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-registry pytest \
+  galaxy-tool-refactor-registry/tests/test_rulesets_resolve.py \
+  galaxy-tool-refactor-registry/tests/test_ruleset_membership.py
+uv run galaxy-tool-refactor rulesets
+```

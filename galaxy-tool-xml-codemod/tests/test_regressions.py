@@ -1,4 +1,4 @@
-"""Replay retained regression fixtures through ``CANONICAL_CODEMODS``.
+"""Replay retained regression fixtures through ``canonical_codemods()``.
 
 Every subdirectory under ``tests/data/regressions/`` is a tool that
 ``scripts/corpus_check.py codemod`` previously found non-idempotent,
@@ -23,7 +23,7 @@ from lxml import etree
 
 from galaxy_tool_xml_codemod.canonical import (
     AUTO_UPGRADE_CODEMODS,
-    CANONICAL_CODEMODS,
+    canonical_codemods,
 )
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.eligibility import corpus_test_profile
@@ -49,12 +49,12 @@ def _fixture_paths() -> list[Path]:
     ids=lambda path: path.parent.name,
 )
 def test_canonical_codemods_are_idempotent_on_fixture(tool_path: Path) -> None:
-    """Applying ``CANONICAL_CODEMODS`` twice must yield identical bytes."""
+    """Applying ``canonical_codemods()`` twice must yield identical bytes."""
     module = parse_module(tool_path)
-    for codemod_cls in CANONICAL_CODEMODS:
+    for codemod_cls in canonical_codemods():
         codemod_cls().apply(module)
     once = etree.tostring(module.document.tree)
-    for codemod_cls in CANONICAL_CODEMODS:
+    for codemod_cls in canonical_codemods():
         codemod_cls().apply(module)
     twice = etree.tostring(module.document.tree)
     assert once == twice
@@ -93,7 +93,7 @@ def test_canonical_codemods_preserve_validity_on_fixture(tool_path: Path) -> Non
     if profile is None:
         pytest.skip("fixture is ineligible under the codemod-sweep policy")
     module = parse_module(tool_path)
-    for codemod_cls in CANONICAL_CODEMODS:
+    for codemod_cls in canonical_codemods():
         codemod_cls().apply(module)
     assert validate_tool(module.document, profile=profile).valid
 

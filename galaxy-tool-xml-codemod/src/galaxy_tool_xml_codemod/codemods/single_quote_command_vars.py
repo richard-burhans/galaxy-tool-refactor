@@ -90,6 +90,8 @@ class SingleQuoteCommandVars(CodemodCommand):
         ),
         since="0.0.1",
         cite=_IUC,
+        order=110,
+        rulesets=frozenset({"default", "iuc", "strict"}),
     )
 
     def __init__(self, *, certifier: EditCertifier | None = None) -> None:

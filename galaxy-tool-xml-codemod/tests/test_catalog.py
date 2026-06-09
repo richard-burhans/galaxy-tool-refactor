@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from galaxy_tool_xml_codemod.canonical import CANONICAL_CODEMODS
+from galaxy_tool_xml_codemod.canonical import canonical_codemods
 from galaxy_tool_xml_codemod.catalog import coded_codemods
 
 _EXPECTED_CODES = {
@@ -50,7 +50,7 @@ def test_catalog_is_sorted_by_code() -> None:
 
 def test_every_canonical_codemod_is_in_the_catalog() -> None:
     catalog = set(coded_codemods())
-    assert set(CANONICAL_CODEMODS) <= catalog
+    assert set(canonical_codemods()) <= catalog
 
 
 def test_every_codemod_is_tool_only() -> None:

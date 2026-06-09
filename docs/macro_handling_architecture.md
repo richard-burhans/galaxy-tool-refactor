@@ -183,7 +183,7 @@ recurring theme is the **single-file (raw-tree) model**, rediscovered from many 
 3. `MacroModule`/`parse_macro_module` shipped without a consumer (defer-until-consumer, §20).
 4. Codemods carry no `applies_to` (tool-only via type signature, not a ClassVar).
 5. `RuleHandle` adapters tool-only; macros handled outside the registry (cosmetic-only v1).
-6. Rule selection (`--select`/`--ignore`/`--preset`) doesn't apply to macro files.
+6. Rule selection (`--select`/`--ignore`/`--ruleset`) doesn't apply to macro files.
 7. `format`'s macro formatting is bundle-unaware (import-graph deferred to its consumer).
 8. Detector fidelity: 3 Galaxy transcription bugs deliberately not mirrored; 2 codes
    approximated — all documented (`profile_semantics` docstring, §25).

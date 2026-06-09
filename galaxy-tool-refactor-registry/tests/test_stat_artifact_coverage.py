@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from galaxy_tool_xml_check.detect import all_checks
-from galaxy_tool_xml_codemod.canonical import CANONICAL_CODEMODS
+from galaxy_tool_xml_codemod.canonical import canonical_codemods
 from galaxy_tool_xml_codemod.catalog import coded_codemods
 from galaxy_tool_xml_fmt.format import all_rules
 
@@ -65,7 +65,7 @@ def _coded_codemod_rules() -> frozenset[tuple[str, str]]:
 
 
 def _canonical_codemod_rules() -> frozenset[tuple[str, str]]:
-    return frozenset((c.meta.code, c.meta.summary) for c in CANONICAL_CODEMODS)
+    return frozenset((c.meta.code, c.meta.summary) for c in canonical_codemods())
 
 
 def _advisory_check_rules() -> frozenset[tuple[str, str]]:
@@ -85,7 +85,7 @@ class StatArtifact:
 
 # The single registration point — page -> regen command -> covered rule set.
 # Mirrors what each generator in scripts/corpus_check.py iterates:
-#   check  -> all_rules() + CANONICAL_CODEMODS + all_checks()  (_check_rule_registry)
+#   check  -> all_rules() + canonical_codemods() + all_checks()  (_check_rule_registry)
 #   rules  -> all_rules() + coded_codemods()                   (per-rule isolation)
 #   fmt    -> all_rules() + coded_codemods()                   (the GTR glossary)
 STAT_ARTIFACTS: tuple[StatArtifact, ...] = (

@@ -11,21 +11,21 @@ The facade is **library-first** (structured args in, structured results out, no
 disk writes unless asked, introspectable), so the server is a *thin adapter*:
 
 - **`service.py`** — protocol-agnostic. Pure functions that take XML as a `str`
-  (plus preset / `select` / `ignore`) and return JSON-able `dict`s by calling the
+  (plus `rulesets` / `select` / `ignore`) and return JSON-able `dict`s by calling the
   facade. No `mcp` import; fully unit-tested.
 - **`server.py`** — the FastMCP binding. A small handler per tool delegates to
-  `service`, and is the error boundary (facade `UnknownPreset` / `UnknownRuleCode`
+  `service`, and is the error boundary (facade `UnknownRuleset` / `UnknownRuleCode`
   and tier-1 `ToolXmlSyntaxError` → a clean MCP tool error).
 
 ## Tools
 
 | MCP tool | What it does |
 |---|---|
-| `format_tool` | Apply a preset's fixable rules then format; returns canonical XML + advisory notes. |
+| `format_tool` | Apply a ruleset's fixable rules then format; returns canonical XML + advisory notes. |
 | `upgrade_tool` | Profile-upgrade then format; returns upgraded XML, steps applied, the behavior-preserving verdict, and notes. |
 | `check_tool` | Report-only detect over the selected rules; returns the findings (each flagged fixable vs advisory). |
-| `list_presets` | The baked-in presets (name / codes / is_default / description). |
-| `list_rules` | The baked-in rules (code / summary / family / fixable / presets). |
+| `list_rulesets` | The baked-in rulesets (name / codes / is_default / description). |
+| `list_rules` | The baked-in rules (code / summary / family / fixable / rulesets). |
 
 Agents supply content and receive content — the server **never writes to disk**.
 
@@ -35,8 +35,8 @@ Agents supply content and receive content — the server **never writes to disk*
 uv run galaxy-tool-refactor-mcp   # serves over stdio
 ```
 
-Point an MCP client (e.g. a coding agent) at that command. `list_presets` /
-`list_rules` let the agent discover the available presets and rule codes at
+Point an MCP client (e.g. a coding agent) at that command. `list_rulesets` /
+`list_rules` let the agent discover the available rulesets and rule codes at
 runtime instead of hardcoding them.
 
 See [`docs/decisions.md`](docs/decisions.md) D1 for the design, and

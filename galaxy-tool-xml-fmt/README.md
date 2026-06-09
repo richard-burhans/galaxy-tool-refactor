@@ -12,7 +12,7 @@ The **formatting** tier of the Galaxy refactoring architecture:
 | 2 | **structure** | `galaxy-tool-xml-codemod` | structural refactors |
 | 3 | **formatting** | **`galaxy-tool-xml-fmt`** *(this repo)* | cosmetic formatter |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only checks |
-| 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | unified rules + presets (facade) |
+| 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | unified rules + rulesets (facade) |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | composes the tiers via the facade (`format` / `upgrade` / `check`) |
 
 ## Status
@@ -68,7 +68,7 @@ from `galaxy_tool_xml_fmt.format`). The function mutates the
 document's lxml tree in place with the cosmetic rules above and
 returns the canonical-form bytes. **No structural mutations** — to
 apply the canonical structural pipeline programmatically, run
-`galaxy_tool_xml_codemod.canonical.CANONICAL_CODEMODS` against the
+`galaxy_tool_xml_codemod.canonical.canonical_codemods()` against the
 document yourself before calling `format_tool_document`, or use the
 tier-4 `galaxy-tool-refactor format` command, which does exactly that.
 

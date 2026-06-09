@@ -3,7 +3,7 @@
 ``format_tool_document`` applies fmt's cosmetic rules (indentation,
 blank lines, empty-element shorthand) and serialises. It does **not**
 perform structural canonicalisation — that's tier 2 (``galaxy-tool-xml-codemod``)'s
-``CANONICAL_CODEMODS``. This package has no dependency on the codemod
+``canonical_codemods()``. This package has no dependency on the codemod
 package; minimal installs (xml + fmt) get cosmetic-only formatting. The
 ``galaxy-tool-refactor`` app (``galaxy-tool-refactor-cli``) composes the
 codemod and fmt tiers for the full canonical / upgrade workflows.
@@ -65,7 +65,7 @@ def format_tool_document(document: ToolDocument) -> bytes:
     mutated in-place; callers that need the original tree should pass a copy.
     **No structural canonicalisation** — for the full canonical pipeline use the
     ``galaxy-tool-refactor format`` app command, or apply
-    ``galaxy_tool_xml_codemod.canonical.CANONICAL_CODEMODS`` yourself first.
+    ``galaxy_tool_xml_codemod.canonical.canonical_codemods()`` yourself first.
 
     Args:
         document: A parsed Galaxy tool document.
@@ -101,7 +101,7 @@ def format_tool_document_subset(
 
     This is the per-rule seam the rule-selection facade
     (``galaxy-tool-refactor-registry``) uses. A coherent subset (the shipped
-    presets always include the full GTR001/GTR003/GTR004 trio) is idempotent;
+    rulesets always include the full GTR001/GTR003/GTR004 trio) is idempotent;
     an arbitrary single-rule subset is the caller's responsibility — running
     one whitespace rule without the others can leave non-canonical trivia.
 

@@ -16,7 +16,7 @@ depend on directly; the app tier (4) reaches it transitively through the facade:
 | 2 | structure | `galaxy-tool-xml-codemod` |
 | 3 | formatting | `galaxy-tool-xml-fmt` |
 | 3.5 | advisory checks | `galaxy-tool-xml-check` |
-| 3.6 | rule registry / presets | `galaxy-tool-refactor-registry` |
+| 3.6 | rule registry / rulesets | `galaxy-tool-refactor-registry` |
 | 4 | app / CLI | `galaxy-tool-refactor-cli` |
 
 It owns the shared rule **metadata + diagnostics** vocabulary — three things:

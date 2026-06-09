@@ -52,6 +52,8 @@ class ReorderToolChildren(CodemodCommand):
         summary="Reorder <tool> child elements to the IUC convention.",
         since="0.0.1",
         cite="https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html",
+        order=80,
+        rulesets=frozenset({"default", "iuc", "strict"}),
     )
 
     def detect_Tool(self, cursor: Cursor) -> Iterable[Change]:

@@ -79,6 +79,8 @@ class NormalizeBooleanValues(CodemodCommand):
             "canonical xs:boolean so a globally-invalid tool validates."
         ),
         since="0.0.1",
+        order=20,
+        rulesets=frozenset({"default", "iuc", "strict"}),
     )
 
     def detect(self, module: Module, /) -> Iterator[Change]:

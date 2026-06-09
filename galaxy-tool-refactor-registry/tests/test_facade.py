@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from galaxy_tool_xml.binding import load_tool
-from galaxy_tool_xml_codemod.canonical import CANONICAL_CODEMODS
+from galaxy_tool_xml_codemod.canonical import canonical_codemods
 from galaxy_tool_xml_codemod.module import Module
 from galaxy_tool_xml_fmt.format import format_tool_document
 from galaxy_tool_xml_fmt.serializer import to_bytes
@@ -16,41 +16,41 @@ from galaxy_tool_refactor_registry.resolve import resolve_codes
 
 
 def _today_format(source: bytes) -> bytes:
-    """Reproduce the direct ``CANONICAL_CODEMODS`` + cosmetic pipeline for comparison.
+    """Reproduce the direct canonical + cosmetic pipeline for comparison.
 
-    Re-derives from the *live* ``CANONICAL_CODEMODS`` tuple, so this pins that the
+    Re-derives from the *live* ``canonical_codemods()`` set, so this pins that the
     facade reproduces the direct pipeline — not a frozen historical byte string
-    (GTR020 joining the tuple shifted both sides together; codemod §30).
+    (GTR020 joining the set shifted both sides together; codemod §30).
     """
     document = load_tool(source)
     module = Module(document)
-    for codemod_cls in CANONICAL_CODEMODS:
+    for codemod_cls in canonical_codemods():
         codemod_cls().apply(module)
     return format_tool_document(document)
 
 
-def test_iuc_preset_is_byte_identical_to_today_format(sample_bytes: bytes) -> None:
-    """The regression guard: default (iuc) run == the direct canonical pipeline."""
+def test_default_ruleset_is_byte_identical_to_today_format(sample_bytes: bytes) -> None:
+    """The regression guard: default run == the direct canonical pipeline."""
     out = facade.run(sample_bytes, codes=resolve_codes()).formatted
     assert out == _today_format(sample_bytes)
 
 
-def test_cosmetic_preset_skips_structural_reorder(sample_bytes: bytes) -> None:
-    """cosmetic does not reorder <param> attributes; iuc does."""
-    cosmetic_codes = resolve_codes(preset="cosmetic")
+def test_cosmetic_ruleset_skips_structural_reorder(sample_bytes: bytes) -> None:
+    """cosmetic does not reorder <param> attributes; default does."""
+    cosmetic_codes = resolve_codes(rulesets=["cosmetic"])
     cosmetic = facade.run(sample_bytes, codes=cosmetic_codes).formatted
-    iuc = facade.run(sample_bytes, codes=resolve_codes()).formatted
-    assert cosmetic != iuc
+    default = facade.run(sample_bytes, codes=resolve_codes()).formatted
+    assert cosmetic != default
     # The param keeps its source attribute order under cosmetic-only.
     param = cosmetic.partition(b"<param")[2]
     assert param.index(b"value=") < param.index(b"type=") < param.index(b"name=")
 
 
-def test_strict_reports_advisory_but_same_bytes_as_iuc(sample_bytes: bytes) -> None:
+def test_strict_reports_advisory_but_same_bytes_as_default(sample_bytes: bytes) -> None:
     """Advisory rules report (notes) but never change the formatted bytes."""
-    iuc = facade.run(sample_bytes, codes=resolve_codes()).formatted
-    strict = facade.run(sample_bytes, codes=resolve_codes(preset="strict"))
-    assert strict.formatted == iuc
+    default = facade.run(sample_bytes, codes=resolve_codes()).formatted
+    strict = facade.run(sample_bytes, codes=resolve_codes(rulesets=["strict"]))
+    assert strict.formatted == default
     assert strict.advisory  # several checks fire on this skeletal tool
     assert all(v.code in advisory_codes() for v in strict.advisory)
     assert all(note.endswith("(advisory)") for note in strict.notes)
@@ -93,7 +93,7 @@ def test_run_mutates_passed_document_in_place(sample_bytes: bytes) -> None:
 
 
 def test_detect_splits_fixable_and_advisory(sample_bytes: bytes) -> None:
-    result = facade.detect(sample_bytes, codes=resolve_codes(preset="strict"))
+    result = facade.detect(sample_bytes, codes=resolve_codes(rulesets=["strict"]))
     assert result.violations
     fixable = [v for v in result.violations if not result.is_advisory(v)]
     advisory = [v for v in result.violations if result.is_advisory(v)]
@@ -106,7 +106,7 @@ def test_detect_splits_fixable_and_advisory(sample_bytes: bytes) -> None:
 def test_detect_does_not_mutate(sample_bytes: bytes) -> None:
     document = load_tool(sample_bytes)
     before = to_bytes(document.tree)
-    facade.detect(document, codes=resolve_codes(preset="strict"))
+    facade.detect(document, codes=resolve_codes(rulesets=["strict"]))
     assert to_bytes(document.tree) == before
 
 
@@ -309,22 +309,22 @@ def test_upgrade_already_latest_is_preserving_but_emits_no_pass_note() -> None:
     assert _pass_notes(result) == []  # nothing advanced -> no story to tell
 
 
-def test_introspection_lists_presets_and_rules() -> None:
-    presets_info = facade.list_presets()
-    names = {p.name for p in presets_info}
-    assert names == {"cosmetic", "iuc", "strict"}
-    assert any(p.is_default and p.name == "iuc" for p in presets_info)
+def test_introspection_lists_rulesets_and_rules() -> None:
+    rulesets_info = facade.list_rulesets()
+    names = {r.name for r in rulesets_info}
+    assert names == {"cosmetic", "default", "iuc", "strict"}
+    assert any(r.is_default and r.name == "default" for r in rulesets_info)
 
     rules = facade.list_rules()
     codes = {r.code for r in rules}
     assert "GTR012" not in codes  # upgrade-only excluded by default
     with_upgrade = {r.code for r in facade.list_rules(include_upgrade=True)}
     assert "GTR012" in with_upgrade
-    # Each fixable rule is in at least one preset; advisory rules in strict.
-    iuc_rule = next(r for r in rules if r.code == "GTR002")
-    assert "iuc" in iuc_rule.presets and iuc_rule.fixable
+    # Each fixable rule is in at least one ruleset; advisory rules in strict only.
+    default_rule = next(r for r in rules if r.code == "GTR002")
+    assert "default" in default_rule.rulesets and default_rule.fixable
     adv_rule = next(r for r in rules if r.code == "GTR021")
-    assert adv_rule.presets == ("strict",) and not adv_rule.fixable
+    assert adv_rule.rulesets == ("strict",) and not adv_rule.fixable
 
 
 _REFS_TOOL = (

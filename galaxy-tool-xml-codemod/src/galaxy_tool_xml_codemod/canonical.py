@@ -10,8 +10,9 @@ and *in what order*; the app consumes these tuples.
 Two pipelines, separated because profile upgrade is semantic and opt-in while
 canonicalisation is safe and idempotent:
 
-``CANONICAL_CODEMODS`` — the structural canonical pipeline (the app's ``format``
-command, run before fmt's cosmetic rules). Front-to-back:
+``canonical_codemods()`` — the structural canonical pipeline (the app's ``format``
+command, run before fmt's cosmetic rules), derived from the codemods that declare
+the ``"default"`` ruleset, ordered by ``meta.order``. Front-to-back:
 
 1. ``FixTypos`` — repair near-miss spelling typos. A no-op unless the tool
    validates at no profile, so it only acts on broken tools; running it first
@@ -62,49 +63,34 @@ harmless.
 
 from __future__ import annotations
 
+from functools import cache
+
+from galaxy_tool_xml_codemod.catalog import coded_codemods
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
-from galaxy_tool_xml_codemod.codemods.drop_redundant_param_name import (
-    DropRedundantParamName,
-)
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.codemods.normalize_boolean_values import (
     NormalizeBooleanValues,
 )
-from galaxy_tool_xml_codemod.codemods.reorder_param_attributes import (
-    ReorderParamAttributes,
-)
-from galaxy_tool_xml_codemod.codemods.reorder_tool_attributes import (
-    ReorderToolAttributes,
-)
-from galaxy_tool_xml_codemod.codemods.reorder_tool_children import (
-    ReorderToolChildren,
-)
-from galaxy_tool_xml_codemod.codemods.replace_output_element import (
-    ReplaceOutputElement,
-)
-from galaxy_tool_xml_codemod.codemods.single_quote_command_vars import (
-    SingleQuoteCommandVars,
-)
-from galaxy_tool_xml_codemod.codemods.trim_attribute_whitespace import (
-    TrimAttributeWhitespace,
-)
-from galaxy_tool_xml_codemod.codemods.wrap_command_cdata import WrapCommandCdata
-from galaxy_tool_xml_codemod.codemods.wrap_help_cdata import WrapHelpCdata
 from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 
-CANONICAL_CODEMODS: tuple[type[CodemodCommand], ...] = (
-    FixTypos,
-    NormalizeBooleanValues,
-    TrimAttributeWhitespace,
-    ReplaceOutputElement,
-    DropRedundantParamName,
-    ReorderParamAttributes,
-    ReorderToolAttributes,
-    ReorderToolChildren,
-    WrapCommandCdata,
-    WrapHelpCdata,
-    SingleQuoteCommandVars,
-)
+
+@cache
+def canonical_codemods() -> tuple[type[CodemodCommand], ...]:
+    """The structural canonical/``format`` pipeline — **derived, not hardcoded**.
+
+    Every codemod that declares the ``"default"`` ruleset, ordered by ``meta.order``.
+    Membership and application order now live on each codemod's ``RuleMeta``
+    (``rulesets`` / ``order``), so this is computed from the rules rather than being
+    a second hand-maintained source of truth. The front-to-back order it yields is
+    the one documented above (``FixTypos`` → … → ``SingleQuoteCommandVars``).
+    """
+    return tuple(
+        sorted(
+            (cls for cls in coded_codemods() if "default" in cls.meta.rulesets),
+            key=lambda cls: cls.meta.order,
+        )
+    )
+
 
 AUTO_UPGRADE_CODEMODS: tuple[type[CodemodCommand], ...] = (
     FixTypos,

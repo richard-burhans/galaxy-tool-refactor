@@ -281,9 +281,9 @@ def test_check_formatted_file_has_no_fixable_findings(tmp_path: Path) -> None:
     assert "GTR" not in result.output  # no rule findings left to report
 
 
-def test_check_default_preset_omits_advisory(tmp_path: Path) -> None:
-    # Default preset is iuc (fixable only); advisory checks are opt-in via
-    # --preset strict, so a canonical tool reports nothing under the default.
+def test_check_default_ruleset_omits_advisory(tmp_path: Path) -> None:
+    # Default ruleset is 'default' (fixable only); advisory checks are opt-in via
+    # --ruleset strict, so a canonical tool reports nothing under the default.
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
     CliRunner().invoke(main, ["format", str(file)])
     result = CliRunner().invoke(main, ["check", str(file)])
@@ -291,11 +291,11 @@ def test_check_default_preset_omits_advisory(tmp_path: Path) -> None:
     assert not any(code in result.output for code in advisory_codes())
 
 
-def test_check_strict_preset_shows_advisory_without_failing(tmp_path: Path) -> None:
+def test_check_strict_ruleset_shows_advisory_without_failing(tmp_path: Path) -> None:
     # A canonical tool that merely lacks tests/requirements/help: advisory only.
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
     CliRunner().invoke(main, ["format", str(file)])
-    result = CliRunner().invoke(main, ["check", "--preset", "strict", str(file)])
+    result = CliRunner().invoke(main, ["check", "--ruleset", "strict", str(file)])
     assert result.exit_code == 0, result.output
     assert any(code in result.output for code in advisory_codes())
     assert "(advisory)" in result.output
@@ -306,7 +306,7 @@ def test_check_strict_flag_fails_on_advisory(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
     CliRunner().invoke(main, ["format", str(file)])
     result = CliRunner().invoke(
-        main, ["check", "--preset", "strict", "--strict", str(file)]
+        main, ["check", "--ruleset", "strict", "--strict", str(file)]
     )
     assert result.exit_code == 1, result.output
 
@@ -361,9 +361,9 @@ def test_group_help_lists_check() -> None:
     assert "check" in result.output
 
 
-def test_format_cosmetic_preset_does_not_reorder_params(tmp_path: Path) -> None:
+def test_format_cosmetic_ruleset_does_not_reorder_params(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
-    result = CliRunner().invoke(main, ["format", "--preset", "cosmetic", str(file)])
+    result = CliRunner().invoke(main, ["format", "--ruleset", "cosmetic", str(file)])
     assert result.exit_code == 0, result.output
     param = file.read_bytes().partition(b"<param")[2]
     # cosmetic-only: the source attribute order (value, type, name) is preserved.
@@ -381,9 +381,9 @@ def test_format_ignore_drops_a_rule(tmp_path: Path) -> None:
     assert param.index(b"value=") < param.index(b"type=") < param.index(b"name=")
 
 
-def test_format_strict_preset_emits_advisory_notes(tmp_path: Path) -> None:
+def test_format_strict_ruleset_emits_advisory_notes(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
-    result = CliRunner().invoke(main, ["format", "--preset", "strict", str(file)])
+    result = CliRunner().invoke(main, ["format", "--ruleset", "strict", str(file)])
     assert result.exit_code == 0, result.output
     assert "(advisory)" in result.output  # advisory findings surfaced as notes
 
@@ -396,24 +396,24 @@ def test_unknown_code_is_clean_error(tmp_path: Path) -> None:
     assert "Traceback" not in result.output
 
 
-def test_unknown_preset_is_clean_error(tmp_path: Path) -> None:
+def test_unknown_ruleset_is_clean_error(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
-    result = CliRunner().invoke(main, ["check", "--preset", "nope", str(file)])
+    result = CliRunner().invoke(main, ["check", "--ruleset", "nope", str(file)])
     assert result.exit_code != 0
     assert "nope" in result.output
 
 
-def test_upgrade_rejects_preset(tmp_path: Path) -> None:
+def test_upgrade_rejects_ruleset(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _valid_tool(profile="24.1"))
-    result = CliRunner().invoke(main, ["upgrade", "--preset", "iuc", str(file)])
+    result = CliRunner().invoke(main, ["upgrade", "--ruleset", "default", str(file)])
     assert result.exit_code != 0
-    assert "preset" in result.output.lower()
+    assert "ruleset" in result.output.lower()
 
 
-def test_presets_subcommand_lists_presets() -> None:
-    result = CliRunner().invoke(main, ["presets"])
+def test_rulesets_subcommand_lists_rulesets() -> None:
+    result = CliRunner().invoke(main, ["rulesets"])
     assert result.exit_code == 0, result.output
-    assert "iuc (default)" in result.output
+    assert "default (default)" in result.output
     assert "cosmetic" in result.output
     assert "strict" in result.output
 

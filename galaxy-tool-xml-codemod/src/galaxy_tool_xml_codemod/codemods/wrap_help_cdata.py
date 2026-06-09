@@ -32,6 +32,8 @@ class WrapHelpCdata(CodemodCommand):
         summary="Wrap a pure-text <help> body in CDATA (IUC #42).",
         since="0.0.1",
         cite="https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html",
+        order=100,
+        rulesets=frozenset({"default", "iuc", "strict"}),
     )
 
     def detect_Help(self, cursor: Cursor) -> Iterable[Change]:

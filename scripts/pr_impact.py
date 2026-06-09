@@ -74,20 +74,22 @@ _BASELINES = ("base", "first")
 @cache
 def _cosmetic_codes() -> frozenset[str]:
     """The cosmetic-only fmt rule set — the canonical-space noise-canceller."""
-    return resolve_codes(preset="cosmetic")
+    return resolve_codes(rulesets=["cosmetic"])
 
 
 @cache
 def _strict_codes() -> frozenset[str]:
     """The widest detect net: canonical codemods + cosmetic + advisory checks."""
-    return resolve_codes(preset="strict")
+    return resolve_codes(rulesets=["strict"])
 
 
 @cache
 def _iuc_fixable_codes() -> tuple[str, ...]:
-    """The fixable rule codes in the ``iuc`` preset, sorted (for isolation runs)."""
+    """The fixable rule codes in the default ruleset, sorted (for isolation runs)."""
     reg = registry()
-    return tuple(sorted(code for code in resolve_codes(preset="iuc") if reg[code].fixable))
+    return tuple(
+        sorted(code for code in resolve_codes(rulesets=["default"]) if reg[code].fixable)
+    )
 
 
 def _canonical_bytes(path: Path, /) -> bytes:
@@ -209,7 +211,7 @@ def _fix_coincidences(
         return []
 
     cosmetic = _cosmetic_codes()
-    our_iuc = facade_run(before_path, codes=resolve_codes(preset="iuc")).formatted
+    our_iuc = facade_run(before_path, codes=resolve_codes(rulesets=["default"])).formatted
     our_upgrade = facade_upgrade(before_path, codes=resolve_upgrade_codes()).formatted
     full_reproduce = our_iuc == head_canon or our_upgrade == head_canon
 

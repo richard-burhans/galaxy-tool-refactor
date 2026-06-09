@@ -23,6 +23,7 @@ def test_rule_meta_defaults() -> None:
     assert meta.detect_only is False
     assert meta.applies_to == frozenset({"tool"})
     assert meta.parent is None
+    assert meta.rulesets == frozenset()
 
 
 def test_rule_meta_partition_child_carries_parent() -> None:

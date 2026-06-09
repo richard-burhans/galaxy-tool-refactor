@@ -51,6 +51,7 @@ class UnusedParam(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -142,6 +143,7 @@ class ParamNamePresent(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -173,6 +175,7 @@ class ParamNameValid(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -202,6 +205,7 @@ class ParamNamesUnique(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -228,6 +232,7 @@ class InputOutputNamesDistinct(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -285,6 +290,7 @@ class SelectOptionsDefined(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -332,6 +338,7 @@ class SelectOptionValuePresent(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -361,6 +368,7 @@ class SelectOptionsDistinct(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -427,6 +435,7 @@ class SelectOptionsSingle(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -456,6 +465,7 @@ class SelectOptionsHaveSource(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -494,6 +504,7 @@ class SelectOptionsSourceCoherent(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -535,6 +546,7 @@ class SelectOptionsNotDeprecated(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -596,6 +608,7 @@ class ConditionalTestParamType(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -632,6 +645,7 @@ class ConditionalTestParamAttributes(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -667,6 +681,7 @@ class ConditionalWhensMatchOptions(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -751,6 +766,7 @@ class InputsPresent(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -781,6 +797,7 @@ class ParamTypeChildCombination(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -814,6 +831,7 @@ class DataOptionsValid(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -888,6 +906,7 @@ class BooleanValuesDistinct(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -939,6 +958,7 @@ class SelectDisplayConsistent(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -1068,6 +1088,7 @@ class OptionFilterAttributes(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -1115,6 +1136,7 @@ class OptionFilterExpression(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -1146,6 +1168,7 @@ class OptionFilterReferences(CheckRule):
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
+        rulesets=frozenset({"strict"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:

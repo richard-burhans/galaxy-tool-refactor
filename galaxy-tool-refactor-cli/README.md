@@ -11,36 +11,36 @@ facade (`galaxy-tool-refactor-registry`).
 | 2 | structure | `galaxy-tool-xml-codemod` |
 | 3 | formatting | `galaxy-tool-xml-fmt` |
 | 3.5 | advisory checks | `galaxy-tool-xml-check` |
-| 3.6 | rule registry / presets | `galaxy-tool-refactor-registry` |
+| 3.6 | rule registry / rulesets | `galaxy-tool-refactor-registry` |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` *(this package)* |
 
 Rule orchestration lives in the registry facade; this package depends on it
 (plus fmt's `cli_support` engine and tier-1 parsing) and exposes eight commands
-(`format`, `upgrade`, `check`, `find-references`, `rename-param`, `presets`, `rules`,
+(`format`, `upgrade`, `check`, `find-references`, `rename-param`, `rulesets`, `rules`,
 `normalize-macros`):
 
 ```bash
-# Safe, idempotent: apply a preset's fixable rules + cosmetic formatting.
-# Default preset `iuc` = structural canonicalisation + cosmetic; never profile=.
+# Safe, idempotent: apply a ruleset's fixable rules + cosmetic formatting.
+# Default ruleset = structural canonicalisation + cosmetic; never profile=.
 galaxy-tool-refactor format tool.xml
-galaxy-tool-refactor format --preset cosmetic tool.xml   # whitespace only
+galaxy-tool-refactor format --ruleset cosmetic tool.xml  # whitespace only
 galaxy-tool-refactor format --ignore GTR002 tool.xml     # all but param-reorder
 galaxy-tool-refactor format tools/                       # also formats <macros> files
 
 # Opt-in, semantic: repair typos, then upgrade profile= to the latest reachable
 # version (applying each step's structural migration), then format. Reports the
-# steps applied and warns if a tool stalls. No --preset; --select/--ignore tune it.
+# steps applied and warns if a tool stalls. No --ruleset; --select/--ignore tune it.
 galaxy-tool-refactor upgrade tool.xml
 
 # Report-only linter: one `file:line  CODE  message` per finding, mutating
-# nothing. Default (`iuc`) reports the fixable GTR rules; `--preset strict` adds
+# nothing. The default ruleset reports the fixable GTR rules; `--ruleset strict` adds
 # the advisory checks (marked `(advisory)`). Exits non-zero on any fixable
 # finding; advisory findings are informational unless --strict.
 galaxy-tool-refactor check tool.xml
-galaxy-tool-refactor check --preset strict tool.xml
+galaxy-tool-refactor check --ruleset strict tool.xml
 
 # Introspection.
-galaxy-tool-refactor presets
+galaxy-tool-refactor rulesets
 galaxy-tool-refactor rules
 
 # Opt-in, repo-scoped: lowercase literal format/ftype in <macros>-root files (the
@@ -49,10 +49,11 @@ galaxy-tool-refactor rules
 galaxy-tool-refactor normalize-macros macros/            # --check to preview
 ```
 
-`format`/`upgrade`/`check` share rule selection — `--preset NAME`,
+`format`/`upgrade`/`check` share rule selection — `--ruleset NAME`
+(repeatable / comma-separated — the union of the named sets),
 `--select CODE…`, `--ignore CODE…` (ruff-style precedence: `--ignore` ▸
-`--select` ▸ `--preset`; `--select` replaces the preset's set; `upgrade` takes no
-`--preset`). `format`/`upgrade` also honour `--check` (detect drift, exit
+`--select` ▸ `--ruleset`; `--select` replaces the rulesets' set; `upgrade` takes no
+`--ruleset`). `format`/`upgrade` also honour `--check` (detect drift, exit
 non-zero, don't write — distinct from the `check` *command*), `--diff`, and
 `--quiet`; `check` honours `--quiet` and `--strict`. The typical modernization
 flow is `upgrade` then `format`.

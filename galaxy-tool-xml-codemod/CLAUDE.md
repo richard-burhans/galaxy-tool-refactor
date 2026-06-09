@@ -15,7 +15,7 @@ and the shared tier-0.5 rules metadata):
 | 2 | **structure** | `galaxy-tool-xml-codemod` *(this repo)* | structural mutations (attribute order, element shape) |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | whitespace / indentation / shorthand; the only tier that serialises canonical output XML |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only IUC best-practice checks |
-| 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | unified rule registry + presets; library-first facade |
+| 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | unified rule registry + rulesets; library-first facade |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | composes the tiers via the facade (`format`/`upgrade`/`check`) |
 
 This package supplies the **structural-refactor framework**: a
@@ -35,7 +35,7 @@ stays tool-only until a macro-subject codemod needs it — see ``docs/decisions.
 §20), and the bundled codemods exposed via two ordered pipeline
 contracts in ``canonical.py``:
 
-- ``CANONICAL_CODEMODS`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
+- ``canonical_codemods()`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
   ``ReorderParamAttributes`` → ``ReorderToolAttributes`` →
   ``ReorderToolChildren`` → ``WrapCommandCdata`` → ``WrapHelpCdata`` →
   ``SingleQuoteCommandVars`` (the safe canonical/format pipeline;
@@ -64,7 +64,7 @@ empirically from ``corpus_check codemod`` discovery sweeps; see
 **Tier independence:** this package does not depend on fmt. The
 orchestration — running these pipelines and writing output through fmt's
 serializer — lives in the tier-3.6 registry facade
-(``galaxy-tool-refactor-registry``), which consumes ``CANONICAL_CODEMODS``
+(``galaxy-tool-refactor-registry``), which consumes ``canonical_codemods()``
 (its ``run`` / the app's ``format``) and ``AUTO_UPGRADE_CODEMODS`` (its
 ``upgrade``); the tier-4 app CLI (``galaxy-tool-refactor-cli``) is a thin
 front-end over that facade. fmt's own CLI is cosmetic-only and does not
@@ -128,9 +128,10 @@ Run these from the **workspace root** (`galaxy-tool-refactor/`):
   stats), §9 (three-tier vision)
 - `galaxy-tool-xml/docs/codemod-architecture.md` — the original tier-2 design
 - `galaxy-tool-refactor-registry/src/galaxy_tool_refactor_registry/apply.py` —
-  the tier-3.6 facade that runs ``CANONICAL_CODEMODS`` order (consumed by
-  ``run`` / the app's ``format``); `presets.py` derives the `iuc` preset from it
-- `canonical.py` — the public ``CANONICAL_CODEMODS`` and
+  the tier-3.6 facade that runs ``canonical_codemods()`` order (consumed by
+  ``run`` / the app's ``format``); `rulesets.py` derives the `default` ruleset from
+  per-rule ``RuleMeta.rulesets`` membership
+- `canonical.py` — the public ``canonical_codemods()`` and
   ``AUTO_UPGRADE_CODEMODS`` pipeline contracts the registry facade consumes
 - `codemods/` — bundled codemod implementations (verb-noun module names)
 - `eligibility.py` — corpus-sweep profile-selection policy

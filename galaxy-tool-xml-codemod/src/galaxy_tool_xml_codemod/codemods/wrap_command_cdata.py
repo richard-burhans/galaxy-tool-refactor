@@ -32,6 +32,8 @@ class WrapCommandCdata(CodemodCommand):
         summary="Wrap a pure-text <command> body in CDATA (IUC #34).",
         since="0.0.1",
         cite="https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html",
+        order=90,
+        rulesets=frozenset({"default", "iuc", "strict"}),
     )
 
     def detect_Command(self, cursor: Cursor) -> Iterable[Change]:

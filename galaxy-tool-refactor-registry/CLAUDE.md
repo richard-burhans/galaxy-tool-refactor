@@ -6,7 +6,7 @@ Guidance for Claude Code working in this repository.
 
 `galaxy-tool-refactor-registry` is the **rule-registry facade** tier (tier 3.6)
 of the Galaxy tool refactoring framework: a unified, code-addressable view over
-every baked-in rule, named presets, per-rule enable/disable, and a library-first
+every baked-in rule, named rulesets, per-rule enable/disable, and a library-first
 `run`/`upgrade`/`detect` API.
 
 | Tier | Layer | Package |
@@ -16,7 +16,7 @@ every baked-in rule, named presets, per-rule enable/disable, and a library-first
 | 2 | structure | `galaxy-tool-xml-codemod` |
 | 3 | formatting | `galaxy-tool-xml-fmt` |
 | 3.5 | advisory checks | `galaxy-tool-xml-check` |
-| 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` *(this repo)* |
+| 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` *(this repo)* |
 | 4 | app / CLI | `galaxy-tool-refactor-cli` |
 | 4 | MCP server | `galaxy-tool-refactor-mcp` |
 
@@ -41,23 +41,23 @@ the CLI and the MCP server (`galaxy-tool-refactor-mcp`) sit on top of it.
   (validity-gated, internal to `UpgradeToLatest`) and GTR014–GTR016 (runtime-gated,
   applied by `upgrade`) — appear only in `all_handles()` /
   `list_rules(include_upgrade=True)`.
-- **Apply ordering reproduces `format`.** Codemods in `CANONICAL_CODEMODS` order,
-  then cosmetic fmt in `meta.order`. The `iuc` preset reproduces the direct
-  `CANONICAL_CODEMODS` + cosmetic pipeline (a regression test pins facade ==
-  pipeline). Note this tracks the *live* `CANONICAL_CODEMODS`: when GTR020.1 joined
+- **Apply ordering reproduces `format`.** Codemods in `canonical_codemods()` order,
+  then cosmetic fmt in `meta.order`. The `default` ruleset reproduces the direct
+  `canonical_codemods()` + cosmetic pipeline (a regression test pins facade ==
+  pipeline). Note this tracks the *live* `canonical_codemods()`: when GTR020.1 joined
   it, default-`format` output shifted vs the pre-partition historical bytes (codemod
   `docs/decisions.md` §30) — the facade-vs-pipeline pin still holds.
-- **Presets and rules are developer-defined.** No user-defined rules/presets.
+- **Rulesets and rules are developer-defined.** No user-defined rules/rulesets.
 
 ## Coding standards
 
 Hand-written code follows **dignified-python** (vendored at the workspace root
 `.claude/skills/dignified-python/`): LBYL over try/except (the facade has no
-exception handling — it raises typed `UnknownRuleCode`/`UnknownPreset` from
+exception handling — it raises typed `UnknownRuleCode`/`UnknownRuleset` from
 `errors.py`, which the CLI catches at its boundary); `pathlib` with explicit
 `encoding` for text I/O; keyword-only args after the first; absolute imports, no
 re-exports, no `__all__`; no import-time side effects (`@cache` for the
-registry/preset tables). `optimized-python` is a secondary reference;
+registry/ruleset tables). `optimized-python` is a secondary reference;
 dignified-python governs on conflict. New code lands tests-first.
 
 ## Commands
@@ -76,19 +76,20 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
   the family class enumerations.
 - `registry.py` — `@cache`d `code -> RuleHandle` index (duplicate-code guard);
   `registry` / `all_handles` / `by_code` / `known_codes` / `advisory_codes`.
-- `presets.py` — preset code sets (single source of truth), `DEFAULT_PRESET`.
+- `rulesets.py` — derives ruleset code sets from per-rule `RuleMeta.rulesets`
+  membership, `DEFAULT_RULESET`.
 - `resolve.py` — `resolve_codes` / `resolve_upgrade_codes` (ignore ▸ select ▸
-  preset; select replaces).
+  ruleset; select replaces; named rulesets union).
 - `apply.py` — `apply_selection` (phase-ordered apply).
 - `facade.py` — `run` / `upgrade` / `detect` / `find_references` / `rename_param`
   (the mutating sibling of `find_references`; deep-copies + serialises on success, see
-  `docs/decisions.md` D11) / `list_presets` / `list_rules`.
+  `docs/decisions.md` D11) / `list_rulesets` / `list_rules`.
 - `macro_profile.py` — Phase-3b imported-`@PROFILE@` upgrade: `profile_token_site`
   (one tool → defining file + target), the pure `plan_from_sites` (per-file
   importer agreement), and `apply_profile_token_plans` (bump the agreed files'
   tokens via `format_macro_document`, skip the rest). See `docs/decisions.md` D5.
 - `results.py` — the structured result + introspection dataclasses.
-- `errors.py` — `UnknownRuleCode` / `UnknownPreset`.
+- `errors.py` — `UnknownRuleCode` / `UnknownRuleset`.
 
 ## Useful references
 

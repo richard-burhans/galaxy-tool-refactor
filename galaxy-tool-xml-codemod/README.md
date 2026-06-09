@@ -10,7 +10,7 @@ The **structure** tier of the Galaxy refactoring architecture:
 | 2 | **structure** | **`galaxy-tool-xml-codemod`** *(this repo)* | structural refactors |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | cosmetic `black`-like formatter |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only checks |
-| 3.6 | **rule registry / presets** | `galaxy-tool-refactor-registry` | unified rules + presets (facade) |
+| 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | unified rules + rulesets (facade) |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | composes the tiers via the facade (`format` / `upgrade` / `check`) |
 
 ## Status
@@ -20,7 +20,7 @@ M1–M3.5 shipped: framework primitives (`Module`, `Cursor`,
 as regression fixtures), and two ordered pipeline contracts run by the
 tier-4 app (`galaxy-tool-refactor-cli`):
 
-- **`CANONICAL_CODEMODS`** = `FixTypos → NormalizeBooleanValues →
+- **`canonical_codemods()`** = `FixTypos → NormalizeBooleanValues →
   ReorderParamAttributes → ReorderToolAttributes → ReorderToolChildren` — the
   safe canonical/format pipeline (the app's `format` command). Never changes
   `profile=`.
@@ -61,10 +61,10 @@ implemented — see `PLAN.md`.
 from pathlib import Path
 
 from galaxy_tool_xml_codemod.parse import parse_module
-from galaxy_tool_xml_codemod.canonical import CANONICAL_CODEMODS
+from galaxy_tool_xml_codemod.canonical import canonical_codemods
 
 module = parse_module(Path("tool.xml"))
-for codemod_cls in CANONICAL_CODEMODS:
+for codemod_cls in canonical_codemods():
     codemod_cls().apply(module)
 # module.document.tree now reflects the canonical structural form
 ```
@@ -85,7 +85,7 @@ for codemod_cls in CANONICAL_CODEMODS:
 | `codemods.reorder_param_attributes.ReorderParamAttributes` | IUC `<param>` attribute order. |
 | `codemods.reorder_tool_attributes.ReorderToolAttributes` | Documented `<tool>` attribute prefix. |
 | `codemods.reorder_tool_children.ReorderToolChildren` | IUC `<tool>` child-element order (#52). |
-| `canonical.CANONICAL_CODEMODS` | Ordered canonical/format pipeline (the app's `format` command). |
+| `canonical.canonical_codemods()` | Ordered canonical/format pipeline (the app's `format` command). |
 | `canonical.AUTO_UPGRADE_CODEMODS` | Ordered opt-in upgrade pipeline (the app's `upgrade` command). |
 | `catalog.coded_codemods` | Every GTR-coded codemod, sorted by code (for the rule registry). |
 | `eligibility.corpus_test_profile` | Codemod-sweep validation-profile policy (sweep default). |
@@ -104,7 +104,7 @@ uv run --package galaxy-tool-xml-codemod pytest galaxy-tool-xml-codemod/tests/
 Neither `galaxy-tool-xml-fmt`'s library nor its CLI depends on this
 package — fmt is cosmetic-only. Orchestration lives one tier up: the
 `galaxy-tool-refactor` app CLI (`galaxy-tool-refactor-cli`) hard-depends
-on this package and on fmt, runs `CANONICAL_CODEMODS` (its `format`
+on this package and on fmt, runs `canonical_codemods()` (its `format`
 command) or `AUTO_UPGRADE_CODEMODS` (its `upgrade` command), and writes
 the result through fmt's serializer.
 

@@ -18,7 +18,7 @@ corpus.
 
 Acts only on a ``<param>`` under ``<inputs>`` (an input *definition*): a
 ``<test><param>`` is matched by name and must keep it. Idempotent (after the drop there
-is no ``name`` to match). Joins ``CANONICAL_CODEMODS``. See ``docs/decisions.md`` §35
+is no ``name`` to match). Joins ``canonical_codemods()``. See ``docs/decisions.md`` §35
 and ``../../docs/planemo_linter_parity.md``.
 """
 
@@ -65,6 +65,8 @@ class DropRedundantParamName(CodemodCommand):
         ),
         since="0.0.1",
         cite=_IUC,
+        order=50,
+        rulesets=frozenset({"default", "iuc", "strict"}),
     )
 
     def detect_Param(self, cursor: Cursor) -> Iterable[Change]:

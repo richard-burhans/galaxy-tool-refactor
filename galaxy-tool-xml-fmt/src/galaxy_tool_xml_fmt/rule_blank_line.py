@@ -34,6 +34,7 @@ class BlankLineBetweenSections(Rule):
         summary="One blank line between top-level children of <tool>.",
         since="0.0.1",
         order=90,
+        rulesets=frozenset({"cosmetic", "default", "iuc", "strict"}),
     )
 
     def edits(self, tree: etree._ElementTree) -> Iterable[Edit]:
