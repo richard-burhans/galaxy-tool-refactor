@@ -1147,3 +1147,49 @@ in any filter — the single largest residual bail (~5.6% of corpus rename attem
 uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_cheetah_rename.py -k filter
 uv run python -m scripts.measure rename-coverage
 ```
+
+## 23. `<help>` reStructuredText — validity + surgical repair (`rst`, docutils)
+
+**Date:** 2026-06-09. New module `galaxy_tool_xml.rst` + a `docutils>=0.21` base
+dependency. The shared predicate behind the **GTR089 fix/advisory partition** (codemod
+§37, check D31): `rst_is_invalid` (the validity test) and `repair_help_rst` (the
+deterministic, gated repair). This is the RST analogue of the Cheetah work (§19–§22) —
+a hostile-format mutator for the *other* embedded language in a tool, `<help>`.
+
+Galaxy renders a `<help>` body as reStructuredText to HTML **server-side**
+(`galaxy.util.rst_to_html`); a body with `format="markdown"` renders client-side instead
+and is out of scope. `rst_is_invalid` matches Galaxy's `rst_to_html(error=True)`: publish
+through docutils with a `warning_stream` that raises on the first reporter message and
+`halt_level` lifted so that stream is the trigger. (This predicate moved here verbatim
+from the check tier, which now imports it — so the check tier no longer declares docutils
+directly; it is transitive through tier 1.)
+
+### Decisions
+
+- **Surgical, line-anchored repair — never parse-and-reserialise.** docutils has **no
+  faithful RST writer** (its writers target HTML/LaTeX/XML) and its nodes carry **no source
+  offsets** (only a reporter `line`). So — exactly the constraint that forced the Cheetah
+  lexer — repair edits the *source text* anchored on the reporter's line number, and is
+  proven safe rather than reconstructed.
+- **Class-keyed recipes, not corpus-keyed.** Each fixable error class maps to one
+  deterministic recipe (title-underline-too-short → extend the underline run to the title
+  width; "ends without a blank line" family → insert a blank line before the reported
+  dedent). General by construction — it repairs any tool exhibiting the class, not just
+  corpus instances (no overfit).
+- **A strong behaviour-preservation gate is what makes it canonical-safe.** A repaired
+  round is kept only if it (a) strictly reduces serious (level ≥ 2) messages, (b)
+  introduces no new error class, **and** (c) leaves the docutils doctree structurally
+  identical *modulo the removed system messages* (`_structural_signature`). Edits are
+  vetted individually before the batch is re-gated, so one bad edit can't poison a fixable
+  round. Anything failing the gate returns `None` (the codemod no-ops; the residual stays
+  GTR089.2). This correctly **vetoes** the tempting "drop a trailing transition" fix:
+  docutils renders a trailing `----` as an `<hr>`, so dropping it changes rendered output.
+- **Macro-bearing help (`@TOKEN@`) is left alone** — the literal token is what docutils
+  sees, not the expanded value, so no edit there is provably safe.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_rst.py
+uv run python -m scripts.measure help-rst-errors   # the fixable-class population
+```

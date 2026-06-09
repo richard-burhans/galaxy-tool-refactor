@@ -1533,3 +1533,44 @@ constraints (repair-before-reorder, attributes-before-elements).
 ```sh
 uv run --package galaxy-tool-xml-codemod pytest galaxy-tool-xml-codemod/tests/test_canonical.py
 ```
+
+## 37. `RepairHelpRst` (GTR089.1) — repair deterministically-fixable invalid `<help>` RST
+
+**Date:** 2026-06-09. The **fixable `.1` half** of the GTR089 partition (the advisory
+residual `GTR089.2` is the renamed check, check D31). The RST analogue of the Cheetah
+mutators: it repairs invalid `<help>` reStructuredText behind a behaviour-preserving gate.
+Joins `canonical_codemods()` (declares the `"default"` ruleset, `order=25`) — after the
+repairs (`FixTypos` 10, `NormalizeBooleanValues` 20), before the reorders and, crucially,
+before `WrapHelpCdata` (100) so the repaired text is re-canonicalised into CDATA.
+
+### Decisions
+
+- **Validation-driven, like `FixTypos`/`NormalizeBooleanValues`.** Overrides `apply`;
+  `detect` is `coarse_detect`. A no-op unless the `<help>` body is invalid RST and the
+  shared tier-1 `repair_help_rst` returns a repair — so on valid help (the vast majority)
+  it costs one `rst_is_invalid` probe and changes nothing. Idempotent (a repaired tool is
+  valid → next run no-ops).
+- **The fix/advisory boundary is one tier-1 function.** Both this codemod and `GTR089.2`
+  call `galaxy_tool_xml.rst` (`rst_is_invalid` / `repair_help_rst`); the gate and recipes
+  live there (tier-1 §23), so the partition can't drift and the check tier stays
+  codemod-independent.
+- **Canonical-safe because the gate is strong.** RST repair is the first content-mutating
+  canonical codemod over `<help>` prose; it ships in the default `format` only because the
+  tier-1 gate keeps a fix solely when the rendered doctree is unchanged modulo the removed
+  error (so `format` output can change on a tool with fixable broken help — the
+  facade-vs-pipeline pin still holds). Macro-bearing / `format="markdown"` help is skipped;
+  CDATA wrapping is preserved (`Cursor.set_text(..., cdata=is_cdata_wrapped(help))`).
+- **Harness faithfulness fix (found by the sweep).** The retained-fixture round-trip in
+  `scripts/corpus_check.py codemod` and `tests/test_regressions.py` used a bare
+  `etree.tostring` (ASCII default), which escapes non-ASCII as numeric character references
+  — and inside a CDATA body those are *not* interpreted, so an emoji/en-dash help table
+  (`tools-iuc/fastqe`) round-tripped to corrupted literal `&#…;` text and read as spurious
+  non-idempotence. Both now serialise as UTF-8 (the real pipeline's `to_bytes`), matching
+  the fmt sweep; the codemod is idempotent under the real serialiser.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-xml-codemod pytest galaxy-tool-xml-codemod/tests/test_repair_help_rst.py
+uv run python -m scripts.corpus_check codemod galaxy_tool_xml_codemod.codemods.repair_help_rst:RepairHelpRst
+```

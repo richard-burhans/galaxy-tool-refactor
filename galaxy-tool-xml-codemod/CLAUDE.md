@@ -36,7 +36,7 @@ stays tool-only until a macro-subject codemod needs it — see ``docs/decisions.
 contracts in ``canonical.py``:
 
 - ``canonical_codemods()`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
-  ``ReorderParamAttributes`` → ``ReorderToolAttributes`` →
+  ``RepairHelpRst`` → ``ReorderParamAttributes`` → ``ReorderToolAttributes`` →
   ``ReorderToolChildren`` → ``WrapCommandCdata`` → ``WrapHelpCdata`` →
   ``SingleQuoteCommandVars`` (the safe canonical/format pipeline;
   ``ReorderToolChildren`` = GTR013, IUC #52 element order, validity-safe because
@@ -46,9 +46,12 @@ contracts in ``canonical.py``:
   ``SingleQuoteCommandVars`` = GTR020.1, IUC #36, single-quote the *provably*-
   single-valued Cheetah vars in ``<command>`` — behaviour-preserving but the first
   canonical codemod to shift default-``format`` bytes vs the pre-partition output,
-  ``docs/decisions.md`` §30. The three ``Wrap…``/``SingleQuote…`` codemods are the
-  fixable ``.1`` half of a partition practice — their advisory ``.2`` residual lives
-  in the check tier; registry ``docs/decisions.md`` D10).
+  ``docs/decisions.md`` §30; ``RepairHelpRst`` = GTR089.1, repair
+  deterministically-fixable invalid ``<help>`` reStructuredText behind a
+  render-equivalence gate, ``docs/decisions.md`` §37. The four
+  ``Wrap…``/``SingleQuote…``/``RepairHelpRst`` codemods are the fixable ``.1`` half of
+  a partition practice — their advisory ``.2`` residual lives in the check tier;
+  registry ``docs/decisions.md`` D10).
 - ``AUTO_UPGRADE_CODEMODS`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
   ``UpgradeToLatest`` (the opt-in profile-upgrade pipeline).
 

@@ -53,10 +53,14 @@ def test_canonical_codemods_are_idempotent_on_fixture(tool_path: Path) -> None:
     module = parse_module(tool_path)
     for codemod_cls in canonical_codemods():
         codemod_cls().apply(module)
-    once = etree.tostring(module.document.tree)
+    # UTF-8, matching the real pipeline's serialiser (fmt ``to_bytes``): a bare
+    # ``etree.tostring`` defaults to ASCII and escapes non-ASCII as numeric char
+    # references, which corrupt inside a CDATA body on the round-trip (where
+    # char-refs are not interpreted) and read as spurious non-idempotence.
+    once = etree.tostring(module.document.tree, encoding="utf-8")
     for codemod_cls in canonical_codemods():
         codemod_cls().apply(module)
-    twice = etree.tostring(module.document.tree)
+    twice = etree.tostring(module.document.tree, encoding="utf-8")
     assert once == twice
 
 
@@ -75,10 +79,10 @@ def test_auto_upgrade_codemods_are_idempotent_on_fixture(tool_path: Path) -> Non
     module = parse_module(tool_path)
     for codemod_cls in AUTO_UPGRADE_CODEMODS:
         codemod_cls().apply(module)
-    once = etree.tostring(module.document.tree)
+    once = etree.tostring(module.document.tree, encoding="utf-8")
     for codemod_cls in AUTO_UPGRADE_CODEMODS:
         codemod_cls().apply(module)
-    twice = etree.tostring(module.document.tree)
+    twice = etree.tostring(module.document.tree, encoding="utf-8")
     assert once == twice
 
 

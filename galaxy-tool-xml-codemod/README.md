@@ -20,10 +20,13 @@ M1–M3.5 shipped: framework primitives (`Module`, `Cursor`,
 as regression fixtures), and two ordered pipeline contracts run by the
 tier-4 app (`galaxy-tool-refactor-cli`):
 
-- **`canonical_codemods()`** = `FixTypos → NormalizeBooleanValues →
-  ReorderParamAttributes → ReorderToolAttributes → ReorderToolChildren` — the
-  safe canonical/format pipeline (the app's `format` command). Never changes
-  `profile=`.
+- **`canonical_codemods()`** = `FixTypos → NormalizeBooleanValues → RepairHelpRst →
+  TrimAttributeWhitespace → ReplaceOutputElement → DropRedundantParamName →
+  ReorderParamAttributes → ReorderToolAttributes → ReorderToolChildren →
+  WrapCommandCdata → WrapHelpCdata → SingleQuoteCommandVars` — the safe
+  canonical/format pipeline (the app's `format` command), **derived** from the codemods
+  declaring the `"default"` ruleset and ordered by `meta.order` (no hardcoded tuple,
+  §36). Never changes `profile=`.
 - **`AUTO_UPGRADE_CODEMODS`** = `FixTypos → NormalizeBooleanValues →
   UpgradeToLatest` — the opt-in profile-upgrade pipeline (the app's `upgrade`
   command).
@@ -44,8 +47,10 @@ The codemods:
 - `ReorderToolChildren` — IUC `<tool>` child-element order (best-practice #52);
   validity-safe because the `<tool>` content model is order-free (`xs:all`).
 
-Every bundled codemod carries a `RuleMeta` GTR code (GTR002, GTR005–GTR013);
-`catalog.coded_codemods()` enumerates them. See `docs/decisions.md` §15–17.
+Every bundled codemod carries a `RuleMeta` GTR code; `catalog.coded_codemods()` is the
+authoritative enumeration (the prose list above is illustrative — `format` also runs the
+planemo-parity fixers GTR035–037 and the partition `.1` fixers GTR018.1/019.1/020.1 and
+GTR089.1 `RepairHelpRst`). See `docs/decisions.md` §15–37.
 
 The upgrade registry is grown empirically: the `corpus_check codemod`
 sweep reports `STICKING POINT` versions still needing an `upgrade_vN`, and
@@ -77,6 +82,7 @@ for codemod_cls in canonical_codemods():
 | `codemod.CodemodCommand` | Base for user-authored codemods (tag-PascalCase dispatch). |
 | `codemods.fix_typos.FixTypos` | Repair near-miss typos until a globally-invalid tool validates (canonical, runs first). |
 | `codemods.normalize_boolean_values.NormalizeBooleanValues` | Normalize Python-style boolean values (`True`/`Yes`/…) to `xs:boolean` until a globally-invalid tool validates (canonical, GTR017). |
+| `codemods.repair_help_rst.RepairHelpRst` | Repair deterministically-fixable invalid `<help>` reStructuredText behind a render-equivalence gate (canonical, GTR089.1; the fix half of the GTR089 partition). |
 | `upgrades.UpgradeToLatest` | In `AUTO_UPGRADE_CODEMODS`. Loop UpdateProfile + single-step upgrades to reach the latest profile. |
 | `codemods.update_profile.UpdateProfile` | Declare the newest profile the tool validates at, bump-up-only. Building block run *inside* `UpgradeToLatest` — not itself a pipeline member. |
 | `upgrades.UPGRADE_CODEMODS` | Registry: sticking version → its single-step upgrade codemod. |

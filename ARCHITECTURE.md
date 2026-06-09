@@ -177,6 +177,15 @@ schema, and expose a typed view — **without ever serialising**.
     `pal2nal` case, 9 sites across 3 files). Pure mutation + per-member outcome with a
     `not-found` carve-out; the *shared-macro* safety lives one tier up in the registry
     gate (xml §21).
+- **reStructuredText subsystem** — `rst.py`, the analogue of the Cheetah layer for the
+  *other* embedded language in a tool: the `<help>` body (Galaxy renders it as RST to
+  HTML server-side). `rst_is_invalid(text)` is the validity predicate (matches Galaxy's
+  `rst_to_html(error=True)`); `repair_help_rst(text) -> str | None` is a **surgical,
+  line-anchored** repair (docutils has no faithful RST writer and no source offsets, so —
+  as with Cheetah — it edits the source text, never parse-and-reserialise) behind a strong
+  render-equivalence gate. It is the shared seam of the **GTR089 partition**: the
+  `GTR089.1` fix (tier 2) and `GTR089.2` advisory residual (tier 3.5) both call it. Adds a
+  `docutils` base dependency (xml §23; codemod §37; check D31).
 
 **Contract:** the lxml tree is the single representation; tier 1 emits no XML.
 *(xml `docs/decisions.md` §3 representation, §9 three-tier vision, §10 corpus
@@ -217,7 +226,7 @@ will change.
   difference is that a `Change` carries its mutation as a **closure over a Cursor
   call** rather than re-enumerating every mutation kind.
 - **Pipeline contracts** — `canonical.py`:
-  - `canonical_codemods()` = `FixTypos` → `NormalizeBooleanValues` →
+  - `canonical_codemods()` = `FixTypos` → `NormalizeBooleanValues` → `RepairHelpRst` →
     `ReorderParamAttributes` → `ReorderToolAttributes` → `ReorderToolChildren` →
     `WrapCommandCdata` → `WrapHelpCdata` → `SingleQuoteCommandVars` — the **safe,
     idempotent** format-time pipeline, **derived** from the codemods that declare
@@ -225,9 +234,11 @@ will change.
     Never touches `profile=`. (`FixTypos` and
     `NormalizeBooleanValues` are validity-restoring no-ops unless the tool validates
     nowhere; the `Wrap…Cdata` codemods `GTR018.1`/`GTR019.1` wrap a pure-text
-    `<command>`/`<help>` body in CDATA, and `SingleQuoteCommandVars` `GTR020.1`
-    single-quotes the provable command vars — all behaviour-preserving, codemod
-    §29/§30. Each is the fixable `.1` half of a partition practice, D10.)
+    `<command>`/`<help>` body in CDATA, `SingleQuoteCommandVars` `GTR020.1`
+    single-quotes the provable command vars, and `RepairHelpRst` `GTR089.1` repairs
+    deterministically-fixable invalid `<help>` RST behind a render-equivalence gate — all
+    behaviour-preserving, codemod §29/§30/§37. Each is the fixable `.1` half of a partition
+    practice, D10.)
   - `AUTO_UPGRADE_CODEMODS` = `FixTypos` → `NormalizeBooleanValues` →
     `UpgradeToLatest` — the **opt-in, semantic** profile-upgrade pipeline
     (repair-before-upgrade).
@@ -322,10 +333,11 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   advisories `GTR021`, `GTR023`–`GTR029`,
   `GTR033` are presence/shape queries (tests, id charset, version format,
   requirements, error handling, EDAM xrefs, help, description, requirement pinning).
-  **Three are the advisory `.2` half of a partition practice** (registry D10, check
-  D9): `GTR018.2` / `GTR019.2` (the `<command>` / `<help>` CDATA *residual* — the
-  mixed-content the `GTR018.1` / `GTR019.1` fix can't wrap) and `GTR020.2` (the
-  *non-provable* unquoted `$var` the `GTR020.1` fix can't safely quote). Each reuses
+  **Four are the advisory `.2` half of a partition practice** (registry D10, check
+  D9/D31): `GTR018.2` / `GTR019.2` (the `<command>` / `<help>` CDATA *residual* — the
+  mixed-content the `GTR018.1` / `GTR019.1` fix can't wrap), `GTR020.2` (the
+  *non-provable* unquoted `$var` the `GTR020.1` fix can't safely quote), and `GTR089.2`
+  (the invalid `<help>` RST the `GTR089.1` repair can't safely fix). Each reuses
   the shared tier-1 predicate its fix uses, so the partition is sound.
   **GTR032** (`CommandAndJoining`, `&&`-vs-lone-`&`) remains a reserved no-op stub
   — its anti-pattern is ~1 tool corpus-wide (D3). **GTR034** (`UnusedParam`) is a
@@ -339,13 +351,14 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   validity (`GTR051`–`GTR053`), the whole `inputs.py` correctness surface — naming,
   static + dynamic select options, validators, conditionals, type/structure,
   display/idiom, option-filters (`GTR054`–`GTR079`) — the `tests.py` surface
-  (`GTR080`–`GTR088`), and `<help>` reStructuredText validity (`GTR089`, the one
-  rule needing a new `docutils` dependency). The whole tier is now **66 checks**
-  (`GTR018.2`/`GTR019.2`/`GTR020.2` + the flat IUC advisories above + this wave). A
-  recurring soundness rule across the wave: a check that would mis-fire when a
+  (`GTR080`–`GTR088`), and `<help>` reStructuredText validity (`GTR089`, which carries
+  the `docutils` dependency — now split into the `GTR089.1` repair + `GTR089.2` residual
+  partition, with the predicate in tier 1, xml §23). The whole tier is now **66 checks**
+  (`GTR018.2`/`GTR019.2`/`GTR020.2`/`GTR089.2` + the flat IUC advisories above + this
+  wave). A recurring soundness rule across the wave: a check that would mis-fire when a
   `<macro>` injects the construct it inspects skips that tool (the tier-1
   `has_macros` raw-tree guard) — `detect()` reads the **un-expanded** tree.
-  Per-group rationale + corpus counts: check `docs/decisions.md` D12–D30; the full
+  Per-group rationale + corpus counts: check `docs/decisions.md` D12–D31; the full
   planemo→GTR map: `docs/planemo_linter_parity.md`.
 - **`command_text.py`** (in **tier 1**, `galaxy_tool_xml.command_text`) — the
   read-only lexer `GTR020.2` reads `<command>` text through: a single character scan
@@ -682,4 +695,4 @@ Each abstraction → its file → the decision record that justifies it.
 | GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory, reserved no-op stub — D3) |
 | GTR033 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory — D7) |
 | GTR034 | `UnusedParam` | `galaxy-tool-xml-check/.../checks/inputs.py` | check (advisory — reference-usage) |
-| GTR038–GTR089 | planemo-parity wave (`NoTodoText`, `CommandPresent`, `InputsPresent`, `HelpRstValid`, … 52 input/output/test/validator/help checks) | `galaxy-tool-xml-check/.../checks/` (`tool`/`outputs`/`inputs`/`validators`/`tests`/`help`) | check (advisory — planemo parity, D12–D30) |
+| GTR038–GTR089 | planemo-parity wave (`NoTodoText`, `CommandPresent`, `InputsPresent`, `HelpRstResidual`, … 52 input/output/test/validator/help checks; GTR089 split into the `.1` repair + `.2` residual partition) | `galaxy-tool-xml-check/.../checks/` (`tool`/`outputs`/`inputs`/`validators`/`tests`/`help`) | check (advisory — planemo parity, D12–D31) |

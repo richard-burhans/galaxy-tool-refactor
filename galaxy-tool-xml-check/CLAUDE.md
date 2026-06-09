@@ -36,23 +36,27 @@ reports them but does not fail on them by default.
 attribute / structure queries). The **flat** IUC advisories are `GTR021`,
 `GTR023`–`GTR029`, `GTR033` (package `<requirement>`s pin a version, D7) plus the
 `GTR032` (`&&`-vs-lone-`&`) no-op stub (~1 tool corpus-wide, D3) and `GTR034`
-(unused `<param>`, D11). **Three are the advisory `.2` half of a partition
-practice** (D9; registry D10): `GTR018.2` / `GTR019.2` (the `<command>` / `<help>`
-CDATA mixed-content residual) and `GTR020.2` (the non-provable unquoted-`$var`
+(unused `<param>`, D11). **Four are the advisory `.2` half of a partition
+practice** (D9/D31; registry D10): `GTR018.2` / `GTR019.2` (the `<command>` / `<help>`
+CDATA mixed-content residual), `GTR020.2` (the non-provable unquoted-`$var`
 residual, via the **read-only `command_text` lexer** in **tier 1**
-`galaxy_tool_xml.command_text`). Each `.2` reuses the same tier-1 predicate its
-fixable sibling (`GTR018.1` / `GTR019.1` / `GTR020.1`, codemod tier) uses, so the
+`galaxy_tool_xml.command_text`), and `GTR089.2` (`HelpRstResidual` — the invalid
+`<help>` RST the repair can't safely fix, via the tier-1 `galaxy_tool_xml.rst`
+predicate). Each `.2` reuses the same tier-1 predicate its fixable sibling
+(`GTR018.1` / `GTR019.1` / `GTR020.1` / `GTR089.1`, codemod tier) uses, so the
 partition is sound and the check never depends on the codemod tier.
 
 On top of those, the tier hosts the **planemo-parity wave `GTR038`–`GTR089`** (52
 rules) — a reimplementation of every mechanically-reimplementable
 `galaxy.tool_util.lint` linter, grouped by source area (citations/TODO, outputs,
 embedded expressions, the full `inputs.py` correctness surface, `tests.py`, and
-`<help>` RST validity via `docutils`). The tier is now **66 checks total**. Each
+`<help>` RST validity via the tier-1 `galaxy_tool_xml.rst` predicate — `GTR089`, now
+split into the `GTR089.1` repair + `GTR089.2` residual partition, so docutils is a
+tier-1 dep, not declared here). The tier is now **66 checks total**. Each
 wave check that a `<macro>` could spoof skips that tool via the tier-1 `has_macros`
 raw-tree guard (`detect()` reads the un-expanded tree). The authoritative
 planemo→GTR map is `../docs/planemo_linter_parity.md`; per-group rationale + corpus
-counts are in `docs/decisions.md` **D12–D30**. See `../docs/iuc_best_practices.md`
+counts are in `docs/decisions.md` **D12–D31**. See `../docs/iuc_best_practices.md`
 for the IUC coverage map and D3–D11 for the command-text + requirement-pinning +
 partition-residual + unused-param decisions.
 

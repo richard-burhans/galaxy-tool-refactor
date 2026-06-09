@@ -8,10 +8,19 @@ can happen in Markdown, which — unlike RST — has faithful, source-mapped par
 **Verdict (lead).** *Chase the auto-fix of invalid RST* — a **general, class-based repair** of the
 deterministically-fixable docutils error classes, shipped as a **`GTR089.1` partition-fix** (the
 fixable `.1` half; GTR089 stays the advisory `.2` residual), mirroring GTR018/019/020. It repairs
-**~62 corpus tools today (32 % of the 193 invalid)** *and any novel tool* exhibiting those classes.
+the corpus's deterministically-fixable invalid help *and any novel tool* exhibiting those classes.
 **RST→Markdown** is a strong *secondary* (75 % convert with no fix; the gateway to tractable help
 codemods) but is **behaviour-changing → opt-in/upgrade-style**, deferred. **Normalize is not
 recommended** (no canonical RST style; changes rendering; low value).
+
+> **SHIPPED (2026-06-09).** `RepairHelpRst` (**GTR089.1**) is live in the default `format`
+> pipeline; the old `GTR089` advisory became the **GTR089.2** residual. A corpus `format` sweep
+> repairs **54 tools** (`scripts.corpus_check codemod …RepairHelpRst`: 8607 idempotent, 0
+> non-idempotent, 0 validity breaks). That is **below** the ~62 *raw fully-fixable* estimate
+> below because the shipped **render-equivalence gate** is stricter than the raw class match — it
+> vetoes any edit that changes the rendered doctree, e.g. dropping a trailing `----` transition
+> (docutils renders it as an `<hr>`). Code: tier-1 `galaxy_tool_xml.rst` (§23), codemod §37,
+> check D31. The "Design sketch" below is the plan that was executed.
 
 ---
 
@@ -114,7 +123,7 @@ chain.
 
 ---
 
-## Design sketch (the build — a follow-up plan, NOT in this investigation)
+## Design sketch (the build — SHIPPED 2026-06-09; this is the plan that was executed)
 
 - **Tier 1** — a `help_text` accessor (none today; help is `root.find("help").text`) + an
   `rst_repair` module: per-class, line-anchored surgical edits with the docutils re-validation bail.
