@@ -115,7 +115,8 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR086 | TestsExpectNumOutputsFailing, TestsOutputFailing | ✓ | ✗ | check | strict | An expect_failure test must not assert outputs. |
 | GTR087 | TestsExpectNumOutputs | ✓ | ✗ | check | strict | A test should set expect_num_outputs when outputs are filtered. |
 | GTR088 | TestsHasExpectations, TestsValid | ✓ | ✗ | check | strict | A test should assert outputs or expectations. |
-| GTR089 | HelpInvalidRST | ✓ | ✗ | check | strict | A `<help>` body should be valid reStructuredText. |
+| GTR089.1 | HelpInvalidRST | ✓ | ✓ | codemod | default | Repair deterministically-fixable invalid `<help>` reStructuredText (short title underlines, missing blank lines) behind a behaviour-preserving gate. |
+| GTR089.2 | HelpInvalidRST | ✓ | ✗ | check | strict | A `<help>` body should be valid reStructuredText (the non-fixable residual). |
 <!-- END GENERATED -->
 
 The remaining unmapped planemo linters (the ~80 correctness checks + the advisory-by-design

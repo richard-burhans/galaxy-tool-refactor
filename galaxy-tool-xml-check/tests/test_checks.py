@@ -888,13 +888,18 @@ def test_gtr088_test_has_expectations() -> None:
     assert "GTR088" not in _codes(_tool())  # default sets expect_num_outputs
 
 
-def test_gtr089_help_rst_valid() -> None:
+def test_gtr089_2_help_rst_residual() -> None:
     bad = "<help><![CDATA[See `missing`_ for details.]]></help>"
-    assert "GTR089" in _codes(_tool(help_=bad))  # undefined RST reference target
-    assert "GTR089" not in _codes(_tool())  # default help is valid RST
+    # An undefined reference target has no deterministic fix -> stays the residual.
+    assert "GTR089.2" in _codes(_tool(help_=bad))
+    assert "GTR089.2" not in _codes(_tool())  # default help is valid RST
     # markdown help is not RST and is skipped even if it isn't valid RST
     markdown = '<help format="markdown"><![CDATA[See `missing`_]]></help>'
-    assert "GTR089" not in _codes(_tool(help_=markdown))
+    assert "GTR089.2" not in _codes(_tool(help_=markdown))
+    # A *fixable* invalid body (short title underline) is GTR089.1's job, not the
+    # residual: the auto-fix can reach it, so GTR089.2 stays silent.
+    fixable = "<help><![CDATA[Section Title\n=====\n\nbody text here\n]]></help>"
+    assert "GTR089.2" not in _codes(_tool(help_=fixable))
 
 
 def test_iuc006_no_error_handling() -> None:

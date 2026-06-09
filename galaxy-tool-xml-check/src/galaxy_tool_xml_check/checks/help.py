@@ -3,15 +3,12 @@
 
 from __future__ import annotations
 
-import contextlib
-import io
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, ClassVar
 
-import docutils.core
-import docutils.utils
 from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_refactor_rules.violation import Violation
+from galaxy_tool_xml.rst import has_macro_token, repair_help_rst, rst_is_invalid
 
 from galaxy_tool_xml_check.rules import CheckRule
 
@@ -24,59 +21,26 @@ from galaxy_tool_xml_check.checks._shared import (
 )
 
 
-class _RaisingWarningStream:
-    """A docutils ``warning_stream`` that raises on the first real reporter message.
+class HelpRstResidual(CheckRule):
+    """GTR089.2 — a ``<help>`` body should be valid reStructuredText (the residual).
 
-    Mirrors Galaxy's ``rst_to_html`` ``FakeStream(error=True)``: any non-whitespace
-    output (a warning or worse) aborts the parse, marking the RST invalid.
-    """
-
-    def write(self, message: str) -> None:
-        if message and not message.isspace():
-            raise ValueError(message)
-
-
-def _rst_is_invalid(text: str, /) -> bool:
-    """Whether *text* is invalid reStructuredText (docutils — Galaxy's ``rst_invalid``).
-
-    Publishes through docutils with a ``warning_stream`` that raises on any reported
-    message and ``halt_level`` lifted so that stream is the trigger — matching
-    ``galaxy.util.rst_to_html(error=True)``. docutils exposes no LBYL validity
-    predicate, so the broad ``except`` is the sanctioned third-party boundary (cf.
-    ``_is_pep440``);
-    stderr is redirected so a noisy role/directive can't leak past the check.
-    """
-    overrides = {
-        "warning_stream": _RaisingWarningStream(),
-        "halt_level": docutils.utils.Reporter.SEVERE_LEVEL + 1,
-        "doctitle_xform": False,
-        "output_encoding": "unicode",
-    }
-    try:
-        with contextlib.redirect_stderr(io.StringIO()):
-            docutils.core.publish_string(
-                text, writer="html4css1", settings_overrides=overrides
-            )
-    except Exception:
-        return True
-    return False
-
-
-class HelpRstValid(CheckRule):
-    """GTR089 — a ``<help>`` body should be valid reStructuredText.
-
-    Reimplements planemo `HelpInvalidRST` (`galaxy.tool_util.linters.help`), which runs
-    the help through Galaxy's ``rst_to_html`` and reports any docutils warning/error.
-    Help with ``format="markdown"`` is skipped (RST is the default). A
-    whole-help-via-macro tool has
-    no literal ``<help>`` text and is skipped; a help body embedding a ``@…@`` token is
-    still validated — the token is inert text (corpus-verified the RST errors are
-    structural, not token-caused). Detect-only.
+    The advisory ``.2`` half of the GTR089 partition (registry ``docs/decisions.md``
+    D10). It reports the invalid RST the GTR089.1 codemod (``RepairHelpRst``) *cannot*
+    safely auto-fix: non-fixable error classes (unexpected indentation, unclosed inline
+    markup, …), the residual of a mixed body, and macro-bearing help (which the fix
+    leaves alone). Both halves call the same tier-1 predicate
+    (``galaxy_tool_xml.rst``: ``rst_is_invalid`` / ``repair_help_rst``), so the
+    fix/advisory boundary can't drift. Reimplements planemo `HelpInvalidRST`
+    (`galaxy.tool_util.linters.help`). Help with ``format="markdown"`` and
+    whole-help-via-macro tools are skipped. Detect-only.
     """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTR089",
-        summary="A <help> body should be valid reStructuredText.",
+        code="GTR089.2",
+        parent="GTR089",
+        summary=(
+            "A <help> body should be valid reStructuredText (the non-fixable residual)."
+        ),
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
@@ -91,10 +55,13 @@ class HelpRstValid(CheckRule):
         text = help_element.text
         if not text or not text.strip():
             return
-        if _rst_is_invalid(text):
+        # GTR089.1 leaves macro-bearing help alone, so it stays the residual here;
+        # otherwise report only what survives the behaviour-preserving repair.
+        repaired = None if has_macro_token(text) else repair_help_rst(text)
+        if rst_is_invalid(repaired if repaired is not None else text):
             yield _violation(
                 document,
                 help_element,
                 self.meta,
-                "help is not valid reStructuredText",
+                "help is not valid reStructuredText (the auto-fix can't reach this)",
             )

@@ -40,11 +40,13 @@ false alarms:
 
 ## Verdict summary
 
-19 fixable rules audited — **11 hold, 8 refuted**. Of the refuted: **5 fixed**
-(GTR018.1, GTR019.1, GTR020.1, GTR004, GTR016), **1 open** (GTR001 — doc-tighten,
-zero corpus incidence), and **2 where the adversarial refutation itself overreached**
-and there is no bug to fix (GTR006, GTR009 — both confirmed against Galaxy source /
-the rule's contract; doc-clarify only).
+19 fixable rules audited in the 2026-06-04 adversarial pass — **11 hold, 8 refuted**.
+Of the refuted: **5 fixed** (GTR018.1, GTR019.1, GTR020.1, GTR004, GTR016), **1 open**
+(GTR001 — doc-tighten, zero corpus incidence), and **2 where the adversarial refutation
+itself overreached** and there is no bug to fix (GTR006, GTR009 — both confirmed against
+Galaxy source / the rule's contract; doc-clarify only). One rule shipped later carries its
+claim by construction rather than via that pass: **GTR089.1 RepairHelpRst** (2026-06-09)
+holds on the strength of its tier-1 render-equivalence gate (below).
 
 | Rule | Codemod / fmt | Claim | Verdict | Basis |
 |---|---|---|---|---|
@@ -67,6 +69,7 @@ the rule's contract; doc-clarify only).
 | GTR018.1 | WrapCommandCdata | runtime | **REFUTED → FIXED** | body with `\r` → CDATA can't carry `&#13;` → CR lost, non-idempotent (PR #112) |
 | GTR019.1 | WrapHelpCdata | runtime | **REFUTED → FIXED** | same `\r`-through-CDATA bug (shared `cdata_wrappable` predicate) (PR #112) |
 | GTR020.1 | SingleQuoteCommandVars | runtime | **REFUTED → FIXED** | quoted multi-flag `select` values (PR #110) |
+| GTR089.1 | RepairHelpRst | runtime (rendered help) | hold | repair kept only when the docutils doctree is unchanged modulo the removed error (strong gate); macro/markdown help skipped |
 
 \* GTR006 and GTR009 are cases where the adversarial refutation **overreached** — on
 re-verification against Galaxy source / the rule's contract there is no behaviour
@@ -98,6 +101,15 @@ refutation pass's own evidence affirmed the invariant. Concise basis:
   gate `< 21.09 <= reached`.
 - **GTR015** (format=input→format_source; codemod §24): runtime-equivalent on the
   single-top-level-data-input subset, format_source-guarded, profile unchanged.
+- **GTR089.1 RepairHelpRst** (codemod §37; tier-1 `rst` §23): repairs invalid `<help>`
+  reStructuredText, but the claim is on the *rendered* help (Galaxy renders RST to HTML
+  server-side). The tier-1 gate keeps a repaired round only when it strictly reduces
+  serious docutils messages, adds no new error class, **and** leaves the doctree
+  structurally identical modulo the removed system messages — i.e. the edit changed
+  nothing but the error. Edits are vetted individually before the batch is re-gated; an
+  ungated case returns `None` (no-op). The gate correctly **vetoes** the trailing-transition
+  fix (a `----` renders as an `<hr>`). Macro-bearing (`@TOKEN@`) and `format="markdown"`
+  help are skipped; CDATA wrapping is preserved.
 
 ## Refuted — counterexamples, root cause, remediation
 

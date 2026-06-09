@@ -34,6 +34,7 @@ from galaxy_tool_xml_codemod.codemods.reorder_tool_attributes import (
 from galaxy_tool_xml_codemod.codemods.reorder_tool_children import (
     ReorderToolChildren,
 )
+from galaxy_tool_xml_codemod.codemods.repair_help_rst import RepairHelpRst
 from galaxy_tool_xml_codemod.codemods.replace_output_element import (
     ReplaceOutputElement,
 )
@@ -70,6 +71,7 @@ def coded_codemods() -> tuple[type[CodemodCommand], ...]:
         FixOutputFormatInput,
         FixInterpreter,
         NormalizeBooleanValues,
+        RepairHelpRst,
         WrapCommandCdata,
         WrapHelpCdata,
         SingleQuoteCommandVars,

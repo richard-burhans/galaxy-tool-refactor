@@ -976,3 +976,37 @@ galaxy-tool-xml-check/tests/test_checks.py -k gtr089`.
   are identical).
 - **Corpus** (`docs/corpus_check_stats.md`): GTR089 **220** (2.4% of tools; of ~8,671 RST
   help bodies), with 35 `format="markdown"` help bodies skipped.
+
+## D31 (2026-06-09) — GTR089 split into the fix/advisory partition: GTR089.1 + GTR089.2
+
+**Date:** 2026-06-09. GTR089 becomes the fourth partition practice (after GTR018/019/020;
+registry D10): a fixable `.1` codemod + an advisory `.2` residual sharing one tier-1
+predicate. `HelpRstValid` (`GTR089`) is renamed `HelpRstResidual` (`GTR089.2`,
+`parent="GTR089"`); the new `RepairHelpRst` (`GTR089.1`, codemod §37) auto-repairs the
+deterministically-fixable invalid RST. Reproduced-by: `uv run --package
+galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k gtr089`.
+
+- **The check no longer parses RST itself.** Its standalone `_rst_is_invalid` /
+  `_RaisingWarningStream` moved to tier 1 (`galaxy_tool_xml.rst`, §23); the check imports
+  `rst_is_invalid` / `repair_help_rst` / `has_macro_token` from there. So the **direct
+  `docutils` dependency is dropped** from this tier (it is now transitive through tier 1),
+  and the `docutils.*` mypy override is removed — the check tier's only external deps are
+  again lxml/packaging.
+- **GTR089.2 is the residual, not the whole.** It reports help that is *still* invalid
+  after the behaviour-preserving repair: `rst_is_invalid(repair_help_rst(text) or text)`
+  for non-macro help. A fully-fixable tool is now silent under GTR089.2 (GTR089.1 handles
+  it in `format`); only the non-fixable / mixed / macro residual is reported. Macro-bearing
+  help is still **validated** (reported if invalid) exactly as before — the macro guard only
+  suppresses the *repair* attempt (the unprovable-macro case), not the validity check, so
+  D30's no-`@`-guard rationale stands.
+- **Still 66 checks** — a rename + reparent, not an addition. GTR089.2 stays
+  `rulesets={"strict"}` (advisory); GTR089.1 joins `{default, iuc, strict}` (fixable).
+- **Corpus** (`docs/corpus_check_stats.md`): in the unified `check` sweep (every parseable
+  tool), GTR089.1 flags **63** tools and GTR089.2 reports the **177**-tool residual — down
+  from the **220** the undivided GTR089 flagged (D30). Of the 63 GTR089.1 touches, **43**
+  are repaired all the way to *valid* RST (220 − 177); the other ~20 are mixed bodies it
+  partially repairs (a fixable error removed) whose remaining non-fixable errors keep them
+  in the residual — exactly the partition's intent. (The narrower codemod-eligible `format`
+  sweep — `scripts.corpus_check codemod …RepairHelpRst`, gated on the codemod's own
+  eligibility, 8607 tools — modifies **54**, all idempotent with 0 validity breaks; the
+  delta to 63 is the wider parseable population the `check` sweep covers.)

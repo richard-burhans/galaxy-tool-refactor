@@ -2109,7 +2109,12 @@ def _codemod_exercise(path: Path, codemod: CodemodCommand) -> _CodemodOutcome:
     Idempotence is checked by re-parsing the codemod's serialised
     output between the two passes (matching ``_fmt_exercise``) — a
     weaker in-memory equality check would miss codemods whose output
-    round-trips to a different tree.
+    round-trips to a different tree. Serialisation uses fmt's UTF-8
+    ``to_bytes`` (the real pipeline's serialiser), not a bare
+    ``etree.tostring`` — the latter defaults to ASCII and escapes
+    non-ASCII as numeric character references, which inside a CDATA
+    body (where char-refs are not interpreted) corrupt on the
+    round-trip and read as spurious non-idempotence.
     """
     try:
         parsed = parse_tool(path)
@@ -2128,13 +2133,13 @@ def _codemod_exercise(path: Path, codemod: CodemodCommand) -> _CodemodOutcome:
         # carries the source path — needed for macro ``<import>``
         # resolution. A re-parse from bytes loses that path.
         document_one = parse_module(path)
-        before_bytes = etree.tostring(document_one.document.tree)
+        before_bytes = to_bytes(document_one.document.tree)
         # Detect phase first: non-mutating, so it reads the pristine tree. Its
         # change list is the lint report; apply must change the tool exactly
         # when detect reported something (the parity invariant below).
         detected = len(list(codemod.detect(document_one)))
         codemod.apply(document_one)
-        pass1_bytes = etree.tostring(document_one.document.tree)
+        pass1_bytes = to_bytes(document_one.document.tree)
         # Did the codemod actually change anything? (atomic no-ops — e.g.
         # FixTypos that found no repair, UpdateProfile on an already-correct
         # profile — leave the bytes identical.)
@@ -2159,7 +2164,7 @@ def _codemod_exercise(path: Path, codemod: CodemodCommand) -> _CodemodOutcome:
         # has no source path so we don't validate it directly.
         document_two = parse_module(pass1_bytes)
         codemod.apply(document_two)
-        pass2_bytes = etree.tostring(document_two.document.tree)
+        pass2_bytes = to_bytes(document_two.document.tree)
         if pass1_bytes != pass2_bytes:
             sig = f"non-idempotent:{type(codemod).__name__}"
             return _CodemodOutcome(

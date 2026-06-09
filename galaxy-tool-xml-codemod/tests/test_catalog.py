@@ -26,6 +26,7 @@ _EXPECTED_CODES = {
     "GTR035",  # TrimAttributeWhitespace (name + requirement version)
     "GTR036",  # ReplaceOutputElement (<output type="data"> -> <data>)
     "GTR037",  # DropRedundantParamName (name == argument-derived)
+    "GTR089.1",  # RepairHelpRst (fix half of the GTR089 partition)
 }
 
 

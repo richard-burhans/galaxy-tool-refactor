@@ -16,6 +16,10 @@ dependencies = [
     # default for find-references / GTR020 / rename, not an opt-in. internal API -> ranged pin.
     "galaxy-util[template]>=24,<27",
     "packaging>=23",       # version comparison; only a transitive dep of galaxy-util otherwise
+    # docutils: reStructuredText validity + the surgical <help> RST repair
+    # (galaxy_tool_xml.rst) — the shared predicate behind the GTR089 fix/advisory
+    # partition. Galaxy renders <help> RST via galaxy.util.rst_to_html (docutils).
+    "docutils>=0.21",
 ]
 
 [project.optional-dependencies]
@@ -96,5 +100,5 @@ exclude = "src/galaxy_tool_xml/models/(v[0-9].*|any_tool\\.py)"
 # lxml, galaxy-util, bashlex (the shell-oracle extra), and Cheetah/CT3 (the faithful
 # lexer, a base dependency) ship no type information.
 [[tool.mypy.overrides]]
-module = ["lxml.*", "galaxy.*", "bashlex.*", "Cheetah.*"]
+module = ["lxml.*", "galaxy.*", "bashlex.*", "Cheetah.*", "docutils.*"]
 ignore_missing_imports = true

@@ -16,7 +16,7 @@ from __future__ import annotations
 from functools import cache
 from typing import TYPE_CHECKING
 
-from galaxy_tool_xml_check.checks.help import HelpRstValid
+from galaxy_tool_xml_check.checks.help import HelpRstResidual
 from galaxy_tool_xml_check.checks.inputs import (
     BooleanValuesDistinct,
     ConditionalTestParamAttributes,
@@ -177,7 +177,7 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         TestExpectNumOutputs,
         TestHasExpectations,
         # help
-        HelpRstValid,
+        HelpRstResidual,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 
