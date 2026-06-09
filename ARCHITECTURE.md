@@ -31,7 +31,7 @@ load-bearing rule:
 
 | Tier | Layer | Package | Owns |
 |---|---|---|---|
-| 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | `RuleMeta` descriptor, `Violation` diagnostic, `render_rule_reference_table`. Dependency-free; shared by every higher tier. |
+| 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | `RuleMeta` descriptor, `Violation` diagnostic, the `Ruleset` catalog, `render_rule_reference_table`. Dependency-free; shared by every higher tier. |
 | 1 | **parsing & validation** | `galaxy-tool-xml` | `ToolDocument` / `MacroDocument` (mutable lxml tree = source of truth), `load_tool` / `parse_tool` / `validate_tool`, `newest_valid_profile`, profile resolution, typed xsdata views. **No serializer.** |
 | 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework, `Cursor` mutation primitives, `Change` + `apply_changes`, the bundled codemods, `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` contracts. |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic `Rule`s (indent / blank line / shorthand), the `Edit` union + `apply_edits`, `format_tool_document` + the net-diff `detect_tool_document`, the shared `cli_support` engine, the serializer. **The only tier that serialises canonical output XML.** |
@@ -227,6 +227,7 @@ will change.
   call** rather than re-enumerating every mutation kind.
 - **Pipeline contracts** — `canonical.py`:
   - `canonical_codemods()` = `FixTypos` → `NormalizeBooleanValues` → `RepairHelpRst` →
+    `TrimAttributeWhitespace` → `ReplaceOutputElement` → `DropRedundantParamName` →
     `ReorderParamAttributes` → `ReorderToolAttributes` → `ReorderToolChildren` →
     `WrapCommandCdata` → `WrapHelpCdata` → `SingleQuoteCommandVars` — the **safe,
     idempotent** format-time pipeline, **derived** from the codemods that declare
@@ -422,7 +423,7 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
 - **Planemo aliases** — `planemo.py` (`planemo_index()`, the derived `planemo name
   → GTR codes` map) + `parity.py` (`render_parity_table()` — the generated GTR
   coverage table of `docs/planemo_linter_parity.md`). Both derive from each rule's
-  `meta.planemo_linters`; a freshness test pins the committed table.
+  `meta.planemo_linters`; a freshness test pins the committed table. (Registry D16.)
 - **`apply_selection`** — `apply.py` — applies a code set in `format`'s order:
   codemods first (by `meta.order`), then the cosmetic fmt rules as
   one batch through `format_tool_document_subset` (which serialises once).
@@ -539,8 +540,9 @@ break.
    (fix) + `GTR020.2` (advisory), under parent `GTR020`. The parent is a
    registry-level grouping (selectable — `--select GTR020` expands to both — but not
    itself a rule); each `.2` advisory's detect is restricted to the *complement* of
-   its `.1` fix via a shared tier-1 predicate, so the two partition cleanly. Three
-   practices use this: GTR018 / GTR019 (CDATA) and GTR020 (quoting). Registry D10.
+   its `.1` fix via a shared tier-1 predicate, so the two partition cleanly. Four
+   practices use this: GTR018 / GTR019 (CDATA), GTR020 (quoting), and GTR089
+   (help-RST repair). Registry D10.
 5. **Dataclass-result convention.** Entry points return result dataclasses
    (`ParseResult`, `ValidationResult`, `FormatResult`, …) and don't raise on domain
    failures. Exceptions are reserved for the CLI boundary (chained `from e`) and
@@ -652,6 +654,8 @@ Each abstraction → its file → the decision record that justifies it.
 | `cheetah_spans` / `CheetahSpan` (faithful CT3 lexer) | `galaxy-tool-xml/src/.../cheetah_cdm.py` | xml `docs/decisions.md` §19 |
 | `tool_cheetah_references` / `CheetahRef` (reference model) | `galaxy-tool-xml/src/.../cheetah_refs.py` | xml `docs/decisions.md` §18 |
 | `rename_param` / `rename_param_plan` / `RenameOutcome` / `RenamePlan` | `galaxy-tool-xml/src/.../cheetah_rename.py` | xml `docs/decisions.md` §20 |
+| `ToolBundle` / `load_bundle` / `rename_param_in_bundle` | `galaxy-tool-xml/src/.../bundle.py` | xml `docs/decisions.md` §21 |
+| `rst_is_invalid` / `repair_help_rst` (help-RST predicate + repair) | `galaxy-tool-xml/src/.../rst.py` | xml `docs/decisions.md` §23 |
 | `CodemodCommand`, `Cursor`, `Change` | `galaxy-tool-xml-codemod/src/.../codemod.py`, `cursor.py`, `change.py` | codemod `docs/decisions.md` §6, §19 |
 | `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` | `galaxy-tool-xml-codemod/src/.../canonical.py` | codemod `docs/decisions.md` §16, §36 |
 | upgrade codemods | `galaxy-tool-xml-codemod/src/.../upgrades.py`, `codemods/upgrade_*.py` | codemod `docs/decisions.md` §11–14 |
@@ -663,7 +667,9 @@ Each abstraction → its file → the decision record that justifies it.
 | `cli_support` engine | `galaxy-tool-xml-fmt/src/.../cli_support.py` | fmt `docs/decisions.md` §D12 |
 | `CheckRule`, `detect_violations` | `galaxy-tool-xml-check/src/.../rules.py`, `detect.py` | check `docs/decisions.md` §D1; `docs/iuc_best_practices.md` |
 | `RuleHandle`, registry | `galaxy-tool-refactor-registry/src/.../handle.py`, `registry.py` | registry `docs/decisions.md` D1–D2 |
+| `Ruleset` catalog (names + descriptions) | `galaxy-tool-refactor-rules/src/.../rulesets.py` | rules `docs/decisions.md` §D4 |
 | rulesets, `resolve_codes`, `apply_selection` | `galaxy-tool-refactor-registry/src/.../rulesets.py`, `resolve.py`, `apply.py` | registry `docs/decisions.md` D3–D4, D15 |
+| planemo aliases + parity table | `galaxy-tool-refactor-registry/src/.../planemo.py`, `parity.py` | registry `docs/decisions.md` D16 |
 | `run` / `upgrade` / `detect` facade | `galaxy-tool-refactor-registry/src/.../facade.py`, `results.py` | registry `docs/decisions.md` D1 |
 | imported-`@PROFILE@` upgrade | `galaxy-tool-refactor-registry/src/.../macro_profile.py` | registry `docs/decisions.md` D5 |
 | imported-macro `format`/`ftype` normalization | `galaxy-tool-refactor-registry/src/.../macro_datatype.py` | registry `docs/decisions.md` D8 |
@@ -691,8 +697,9 @@ Each abstraction → its file → the decision record that justifies it.
 | GTR018.1 / .2 | `WrapCommandCdata` (fix) + command-CDATA residual (advisory) | codemod + check | **partition** GTR018 (§29, registry D10) |
 | GTR019.1 / .2 | `WrapHelpCdata` (fix) + help-CDATA residual (advisory) | codemod + check | **partition** GTR019 (§29) |
 | GTR020.1 / .2 | `SingleQuoteCommandVars` (fix) + single-quote residual (advisory) | codemod + check | **partition** GTR020 (§30, check D9) |
+| GTR089.1 / .2 | `RepairHelpRst` (fix) + `HelpRstResidual` (advisory) | codemod + check | **partition** GTR089 (xml §23, codemod §37, check D31) |
 | GTR021, GTR023–029 | `TestsPresent` … (presence/shape) | `galaxy-tool-xml-check/.../checks/tool.py` | check (flat advisory) |
 | GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory, reserved no-op stub — D3) |
 | GTR033 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory — D7) |
 | GTR034 | `UnusedParam` | `galaxy-tool-xml-check/.../checks/inputs.py` | check (advisory — reference-usage) |
-| GTR038–GTR089 | planemo-parity wave (`NoTodoText`, `CommandPresent`, `InputsPresent`, `HelpRstResidual`, … 52 input/output/test/validator/help checks; GTR089 split into the `.1` repair + `.2` residual partition) | `galaxy-tool-xml-check/.../checks/` (`tool`/`outputs`/`inputs`/`validators`/`tests`/`help`) | check (advisory — planemo parity, D12–D31) |
+| GTR038–GTR089 | planemo-parity wave (`NoTodoText`, `CommandPresent`, `InputsPresent`, … 52 input/output/test/validator/help checks; GTR089 is the partition row above) | `galaxy-tool-xml-check/.../checks/` (`tool`/`outputs`/`inputs`/`validators`/`tests`/`help`) | check (advisory — planemo parity, D12–D31) |

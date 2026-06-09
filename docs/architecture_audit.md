@@ -1,6 +1,197 @@
 # Architectural audit — galaxy-tool-refactor
 
-## Re-audit 2026-06-09 — post planemo-parity check wave (GTR038–GTR089, PRs #124–#144) + escalation
+## Re-audit 2026-06-09b — post declarative rulesets + planemo aliases + help-RST repair (PRs #146–#150) + escalation
+
+**Audited commit:** `e34a479` (HEAD at audit time). This record establishes the
+audited-commit convention (skill Phase 0): the next audit diffs `e34a479..HEAD`.
+
+**Verdict — healthy; no boundary violations, no High findings.** A delta audit over the
+five PRs since the previous record (same-day): **#146** moved rule-set membership into
+declarative per-rule metadata (`RuleMeta.rulesets` + the tier-0.5 `Ruleset` catalog,
+replacing both the registry's hardcoded preset sets and the hardcoded
+`CANONICAL_CODEMODS` list), **#147/#148** added the planemo-alias surface (derived
+`planemo_index()`, planemo-name `--select`/`--ignore` tokens, the generated parity
+table), **#149/#150** shipped the help-RST work (three research measures; then
+`GTR089.1 RepairHelpRst` — the fourth `.1`/`.2` partition, with the predicate + repair
+in tier-1 `rst.py` and `docutils` promoted to a tier-1 base dependency). The
+architecture absorbed all three shapes without strain; the finding surface was again
+documentation drift, plus two contract-enforcement gaps opened by #146's
+hardcoding-to-derivation move. Method: single deep pass, delta-weighted, then a
+9-finder / adversarial-refuter escalation (4 delta-scoped tier scouts + 5
+cross-dimension scouts incl. a documentation-adversary lane) — see the Escalation
+section, which **corrected two of the single pass's own claims**. *Process note:
+resumed across a session cut-over — the baseline refresh and most safe fixes landed
+in the first session; this record, the planemo-alias guide sweep, and the escalation
+in the second.*
+
+### Dimension-by-dimension
+
+1. **Boundary integrity ✅** — tier 0.5 gained the `Ruleset` catalog but stays
+   stdlib-only (import sweep clean; `test_dependency_free.py` still guards it).
+   `docutils` is declared exactly where it is imported — tier-1 `pyproject.toml`
+   (`rst.py`); the check tier *dropped* its own declaration with an explanatory
+   comment when GTR089's predicate moved down to tier 1, so #150 left no dangling
+   dependency. The registry's new `planemo.py`/`parity.py` import only downward.
+2. **Abstraction consistency ✅** — GTR089.1/.2 instantiates the partition pattern
+   exactly as GTR018/019/020 do: one tier-1 predicate (`rst_is_invalid`), the fix in
+   tier 2 (`RepairHelpRst`, in the default pipeline behind the render-equivalence
+   gate), the residual advisory in tier 3.5 (`HelpRstResidual`), and the registry
+   `_validate_partitions()` covering the new pair. Ruleset membership is now declared
+   per-rule and *derived* everywhere it is consumed (registry ruleset sets **and**
+   `canonical_codemods()`) — one convention, no second copy.
+3. **Naming / vocabulary drift ✅ (three stragglers [fixed])** — the "preset"
+   vocabulary is fully retired from *src*; in docs the single pass caught the MCP
+   `docs/vision.md` (`list_presets` → `list_rulesets`, Low **[fixed]**) but
+   **over-claimed "fully retired from src + docs"** — the escalation found two more
+   in the dated decision logs (MCP D1, CLI D4; see Escalation M4/L1, both annotated
+   **[fixed]**). Sub-rule labels in docs normalized to the partition halves they
+   mean (`GTR020` → `GTR020.1` where the fix half is meant; capabilities/check-README)
+   **[fixed]**.
+4. **Contract-enforcement gaps — two, both [fixed]:**
+   - **Canonical-roster acknowledgement gate — Medium [fixed].** #146 replaced the
+     hardcoded `CANONICAL_CODEMODS` with derivation from `meta.rulesets`/`meta.order`,
+     and the existing test re-derives the same way — tautological. That silently
+     dropped the repo's explicit-list convention (cf. the N2 decline, previous
+     record): an accidental retag or order edit would sail through. Added
+     `test_canonical_front_to_back_roster_is_pinned` (the literal 12-code
+     front-to-back pin = the deliberate-change gate) and
+     `test_canonical_orders_are_unique` (a duplicate `meta.order` would silently
+     tie-break on listing order) to `test_canonical.py`.
+   - **Placeholder ruleset descriptions — Low [fixed].** `Ruleset("default",
+     description="default")` / `("iuc", "iuc")` — user-facing through the `rulesets`
+     CLI command and MCP `list_rulesets`. Wrote real descriptions and added the
+     guard `assert description != name` to `test_rulesets.py`.
+5. **Duplication / missed reuse ✅** — RST validity/repair logic exists once (tier-1
+   `rst.py`) and is shared by both partition halves; the parity table and the alias
+   index both derive from per-rule `meta.planemo_linters` — no second hand-maintained
+   planemo map anywhere.
+6. **Dead / reserved surface — one [fixed]** — `rst.py`'s `_apply_line_edits` carried
+   a `"delete"` op that no planner path emits (leftover from a pre-merge repair
+   design). Removed; the planner docstring now names only the two real ops
+   (`replace`, `insert_before`).
+7. **Doc / code agreement ⚠️→fixed** — the main finding surface; see below.
+
+### Findings — documentation drift (all [fixed])
+
+- **Roster enumerations missing GTR035–GTR037 — Medium [fixed] ×3.** The
+  `canonical_codemods()` front-to-back enumerations in `ARCHITECTURE.md`, the codemod
+  `CLAUDE.md`, and `canonical.py`'s own module docstring all listed 9 of the 12
+  pipeline members — the planemo-parity fixes (`TrimAttributeWhitespace` /
+  `ReplaceOutputElement` / `DropRedundantParamName`) never made it in, and #150's
+  edit added `RepairHelpRst` on top without noticing. All three now list the full
+  12-stage order (and the new pin test makes the *next* omission impossible to miss).
+  Added "roster enumerations" to the skill's standard doc sweep.
+- **GTR089 partition under-documented — Medium [fixed] ×4.** `ARCHITECTURE.md` said
+  "three practices use this" (now four) and lacked the GTR089.1/.2 row, the `rst.py`
+  and `bundle.py` ledger rows, and the `Ruleset`/planemo ledger rows;
+  `docs/guide/capabilities.md` had no GTR089.1 fix row and still labelled the
+  advisory GTR089 (not `.2`); `docs/iuc_best_practices.md` didn't mention the
+  partition and cited `D12–D30` (now D31); the check README lacked GTR089.2.
+- **The planemo-alias feature (#147) was invisible in the guide — Medium [fixed].**
+  `docs/guide/vs-planemo.md` — the audience doc whose whole job is the planemo
+  relationship — mentioned neither the **110/146** linter coverage, the generated
+  [parity table](planemo_linter_parity.md), nor name-based selection;
+  `docs/guide/usage/cli.md`'s selection section didn't document planemo-name tokens.
+  Both updated (claims verified against `resolve.py`/`planemo.py` and the parity
+  summary table).
+- **Skill self-drift (meta) [fixed].** The architecture-audit `SKILL.md` gained
+  Phase 0 (delta scoping against the recorded audited commit), the
+  skills-as-unguarded-docs sweep target, and the roster-enumeration sweep target;
+  the Phase-0 "(see Conventions)" pointer initially dangled — the Conventions
+  bullet it references is now written. And the canonical example of the
+  skills-sweep target re-proved itself: the pre-pr-audit `SKILL.md` Step-6 comment
+  still said "×7" (eight packages) — the catch had been *recorded* in the
+  architecture-audit skill but the fix never applied; fixed during this PR's
+  pre-PR audit.
+
+### Accepted / intentional (not drift) [accepted]
+
+- **`iuc` mirrors `default`.** A reserved divergence point, not duplication; its new
+  description says so explicitly.
+- **15 early exploratory measure slugs not individually listed in `CLAUDE.md`**
+  (`tool-id-vs-path`, `validity-distribution`, `macro-usage`, …). Documented
+  collectively via `scripts.measure --list`; every *decision-backing* slug (including
+  #149's three `help-rst-*` measures) is individually documented. Longstanding, not
+  delta drift — don't re-flag.
+
+### Escalation (multi-agent adversarial verification)
+
+9 finders (4 delta-scoped tier scouts + 5 cross-dimension scouts incl. a dedicated
+documentation-adversary lane) → one adversarial refuter per finding → synthesis.
+**11 candidates, 10 survived, 1 refuted; after dedup: 4 new Medium + 4 Low, 0 High,
+no boundary or abstraction finding.** Every applied item below was **re-verified
+against source by the main pass before applying** (the standing lesson). The
+escalation's distinctive value was **two corrections to the single pass itself** (M3,
+M4) — the second audit in a row where the documentation-adversary lane out-found the
+tier scouts.
+
+**New findings, applied [fixed]:**
+
+- **M1 — the GTR089.1/.2 partition had no partition-soundness test — Medium [fixed]
+  (2 independent scouts).** `test_partition.py` had per-partition soundness tests for
+  GTR020 and GTR018 but none for the new GTR089 pair; nothing *tested* the
+  shared-predicate claim ("the boundary can't drift", `checks/help.py`). Added
+  `test_help_rst_partition_is_sound`: a repairable body (short title underline) →
+  fix fires / advisory silent; an unrepairable one (unclosed inline markup,
+  `repair_help_rst` → `None`) → fix silent / advisory fires. Verified the fixtures
+  against tier-1 `test_rst.py` before writing.
+- **M2 — `--select`/`--ignore` `--help` text omitted planemo linter names — Medium
+  [fixed].** `resolve.py` accepts them (tested, guide-documented) but the primary UX
+  surface still said "rule codes" with GTR-only examples (`cli.py`). Both help
+  strings now say "GTR codes or planemo linter names" with a `HelpMissing` example.
+- **M4 + L1 — "preset" survived in the dated decision logs — Medium/Low [fixed by
+  annotation].** MCP `decisions.md` D1 (`list_presets`, `UnknownPreset`, "preset"
+  ×5) and CLI `decisions.md` D4 (+ later mentions) predate #146. Per the repo's
+  superseded-snapshot convention these are *historical records*, so each got a dated
+  "**Renamed since (PR #146, registry D15)**" annotation mapping old → new tokens
+  rather than a rewrite. **This corrects the single pass's §3 "fully retired from
+  src + docs" claim** — its sweep had excluded `decisions.md` files.
+
+**New findings, scoped to the safe part [fixed] with the rest left as [proposal]:**
+
+- **M3 — the planemo-coverage figure 110/146 is unreconciled with rule metadata —
+  Medium.** The parity Summary's hand-maintained **HAVE = 110** counts *linters*
+  across slash-bundled table rows, while `meta.planemo_linters` yields **103 unique
+  alias names** (re-derived live; `planemo_index()` agrees). Part of the gap is
+  legitimate (XSD is covered by tier-1 validation, not a rule → correctly alias-free)
+  but at least `CitationsNoValid` / `ToolIDWhitespace` are marked HAVE with no alias,
+  and the single pass **propagated the unpinned 110 into `docs/guide/vs-planemo.md`**.
+  **[fixed]:** the guide claim is de-coupled from the hand count (it now cites the
+  parity table's rule-by-rule map of all 146 linters, no propagated number).
+  **[proposal]:** reconcile properly — decide per missing linter whether to add the
+  metadata alias (this *changes selection behaviour*: `--select CitationsNoValid`
+  would start resolving) or to annotate it as alias-free coverage, then pin the
+  Summary count with a test against `planemo_index()` + an explicit alias-free
+  allowlist. Needs per-linter judgment; not applied.
+
+**Low, recorded with no action:**
+
+- **L2 — `planemo_index()` completeness** — the index is *derived*, so it cannot go
+  stale (verifier-corrected framing); a typo'd alias already surfaces because the
+  byte-pinned parity table regenerates from the same metadata, making the typo
+  visible in the table diff. A stronger guard means vendoring planemo's canonical
+  linter-name list → **[proposal]**, folded into M3's reconciliation.
+- **L3 — parity freshness test "brittleness"** — refuter killed the sub-claims (the
+  render includes all codes; the sort is stable); the residual (broken renderer +
+  same-change regeneration) is genuinely low. **[accepted]**, no action.
+- **L4 — adapter ruleset-membership asymmetry** (`adapters.py` filters codemods by
+  truthy `meta.rulesets`; fmt/check adapters don't) — real observation, but the
+  recommended guard **already shipped in #146**
+  (`test_every_selectable_rule_declares_a_ruleset`). **[accepted]**, recorded so the
+  next audit doesn't re-flag it.
+
+**Re-confirmations:** a scout independently re-derived the duplicate-`meta.order`
+tie-break risk and concluded the single pass's two new pin tests are the right and
+sufficient guard — independent convergence on the #146 derivation move being sound.
+No scout proposed a boundary or High finding anywhere.
+
+**Refuted (do not re-litigate):** "ruleset-derivation has no orphaned-membership
+guard" — `test_every_declared_ruleset_name_is_in_the_catalog` (shipped in #146)
+asserts every rule's `meta.rulesets ⊆ ruleset_names()`, exactly covering the claimed
+silent-drop.
+
+**QA gate:** green (`bash scripts/qa_gate.sh` — ruff + mypy-strict + pytest ×8) after
+the applied fixes, re-run after the escalation follow-ups.
 
 **Verdict — healthy; boundaries hold, the abstraction absorbed the growth without strain.**
 This covers the largest tier-3.5 addition to date: the **planemo-parity advisory wave**, which

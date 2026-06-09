@@ -47,8 +47,17 @@ _CATALOG: tuple[Ruleset, ...] = (
         name="cosmetic",
         description="Cosmetic whitespace only (indent, blank lines, shorthand).",
     ),
-    Ruleset(name="default", description="default"),
-    Ruleset(name="iuc", description="iuc"),
+    Ruleset(
+        name="default",
+        description="The opinionated canonical formatter: structural repair + "
+        "attribute/element order + CDATA/quoting/help-RST fixes + cosmetic "
+        "formatting (the default).",
+    ),
+    Ruleset(
+        name="iuc",
+        description="Mirrors 'default' today; reserved for IUC-specific "
+        "divergence.",
+    ),
     Ruleset(
         name="strict",
         description="Everything in 'default' plus the advisory best-practice "

@@ -87,7 +87,9 @@ galaxy-tool-refactor format --ignore GTR006   tool.xml      # everything-but typ
 Precedence is ruff-style: `--ignore` ▸ `--select` ▸ `--ruleset` (and `--select` replaces
 the rulesets' set). `--ruleset` is repeatable / comma-separated and takes the union
 of the named sets. Rulesets: `cosmetic`, `default` (the default), `iuc`, `strict` — see
-`galaxy-tool-refactor rulesets`.
+`galaxy-tool-refactor rulesets`. A `--select`/`--ignore` token may also be a **planemo
+linter name** (`--select HelpMissing`, case-insensitive) — it resolves to the covering
+GTR code(s); see the [parity table](../../planemo_linter_parity.md).
 
 <details>
 <summary>Directories, quiet mode, and exit codes</summary>

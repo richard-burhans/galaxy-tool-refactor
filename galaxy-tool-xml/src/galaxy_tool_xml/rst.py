@@ -150,7 +150,7 @@ def _plan_edits(text: str, /) -> list[tuple[int, str, str]]:
     """Plan the line edits for the fixable serious messages in *text*.
 
     Each edit is ``(line_index, op, payload)`` — ``op`` in
-    ``{"delete", "replace", "insert_before"}``. Only classes with a deterministic
+    ``{"replace", "insert_before"}``. Only classes with a deterministic
     recipe are planned; everything else is left for the GTR089.2 advisory residual.
     """
     lines = text.split("\n")
@@ -174,9 +174,7 @@ def _apply_line_edits(text: str, edits: list[tuple[int, str, str]], /) -> str:
     """Apply *edits* to *text*, highest line first (so earlier edits don't shift)."""
     lines = text.split("\n")
     for idx, op, payload in sorted(edits, key=lambda edit: edit[0], reverse=True):
-        if op == "delete":
-            del lines[idx]
-        elif op == "replace":
+        if op == "replace":
             lines[idx] = payload
         elif op == "insert_before":
             lines.insert(idx, payload)

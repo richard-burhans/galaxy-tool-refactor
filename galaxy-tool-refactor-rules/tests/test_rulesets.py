@@ -35,6 +35,9 @@ def test_descriptions_resolve_for_every_name() -> None:
         description = ruleset_description(name)
         assert description is not None
         assert description != ""
+        # A description equal to the name is a placeholder, not a description
+        # (the user-facing `rulesets` command / MCP `list_rulesets` shows it).
+        assert description != name
 
 
 def test_unknown_ruleset_description_is_none() -> None:

@@ -29,6 +29,25 @@ workflow", or ultracode is on).
 
 ---
 
+## Phase 0 — Scope the delta since the last audit
+
+The audit doc records the **commit hash it audited** (see Conventions). Start by
+diffing against it:
+
+```bash
+git log <last-audited-commit>..HEAD --stat --oneline
+```
+
+Weight the whole audit toward what changed — new modules, moved dependencies,
+renamed/split rule codes, rewritten doc sections. A re-audit weeks after a clean
+one is mostly a delta audit; the full-suite sweeps below still run, but the deep
+reading concentrates on the changed surface. (If the audit doc predates this
+convention or the delta is enormous, fall back to a full pass.) Launch one or two
+read-only Explore agents to map the delta's abstraction/public-surface changes
+before opening files yourself — then **verify their claims in source**.
+
+---
+
 ## Phase 1 — Baseline (`ARCHITECTURE.md`)
 
 Write (or refresh) a conceptual map of the major abstractions and the contracts
@@ -111,6 +130,14 @@ present-tense claim / count / status marker / number against the code:
 - **Measurements** — `scripts/measure.py` registered slugs ↔ the `CLAUDE.md` measure list
   must agree (no undocumented slug, no documented-but-removed slug; new behaviour like a
   parity check is described).
+- **The skills themselves** (`.claude/skills/*/SKILL.md`) — they carry present-tense repo
+  claims (package counts, gate scope, tier vocabulary, worked-example tables) and **no
+  guard test covers them**; sweep them like any other doc. (A real catch: the pre-pr-audit
+  skill said "pytest ×7" after the workspace grew to eight packages.)
+- **Pipeline / roster enumerations** — any doc that spells out an ordered member list
+  (e.g. a `canonical_codemods()` front-to-back enumeration in `ARCHITECTURE.md`, a package
+  `CLAUDE.md`/`README`, or the defining module's own docstring) rots when membership
+  changes; cross-check each against the live derived value, not against each other.
 
 **Known false-positive traps (don't re-flag):** corpus-`check`-backed stats pages
 (`corpus_stats`, `combined`, `toolshed`, `corpus_format`, `corpus_check`, `corpus_rule`)
@@ -123,6 +150,9 @@ re-running the standing measurement, never hand-edited.
 
 ### Conventions
 
+- **Record the audited commit.** Each audit record names the commit hash it audited
+  (`**Audited commit:** \`<short-hash>\``), so the next run's Phase 0 can diff
+  `<hash>..HEAD` instead of reconstructing the delta from PR numbers.
 - **Severity:** High = a violated invariant or correctness hazard; Medium = a latent
   inconsistency that will bite a maintainer; Low = cosmetic / doc / test-coverage.
 - **Tag every finding:** `[fixed]` (applied this pass), `[proposal]` (structural or

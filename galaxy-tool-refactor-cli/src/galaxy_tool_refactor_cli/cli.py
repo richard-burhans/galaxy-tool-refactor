@@ -155,15 +155,17 @@ _SELECT_OPTION = click.option(
     "select",
     multiple=True,
     metavar="CODE",
-    help="Run only these rule codes (replaces the ruleset's set). "
-    "Repeatable or comma-separated, e.g. --select GTR001,GTR003.",
+    help="Run only these rules — GTR codes or planemo linter names "
+    "(replaces the ruleset's set). Repeatable or comma-separated, "
+    "e.g. --select GTR001,HelpMissing.",
 )
 _IGNORE_OPTION = click.option(
     "--ignore",
     "ignore",
     multiple=True,
     metavar="CODE",
-    help="Drop these rule codes from the selection. Repeatable or comma-separated.",
+    help="Drop these rules — GTR codes or planemo linter names — from the "
+    "selection. Repeatable or comma-separated.",
 )
 
 

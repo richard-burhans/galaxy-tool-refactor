@@ -35,6 +35,41 @@ def test_canonical_is_the_default_ruleset_ordered_by_meta() -> None:
     assert list(canonical_codemods()) == expected
 
 
+def test_canonical_front_to_back_roster_is_pinned() -> None:
+    """The derived pipeline's exact roster + order, pinned literally.
+
+    The derivation test above moves with the metadata, so it cannot catch an
+    accidental retag (a codemod gaining/losing ``"default"``) or an order edit.
+    This literal pin is the acknowledgement gate: growing or reordering the
+    pipeline must update it deliberately (the repo's explicit-list convention).
+    """
+    assert [cls.meta.code for cls in canonical_codemods()] == [
+        "GTR006",  # FixTypos
+        "GTR017",  # NormalizeBooleanValues
+        "GTR089.1",  # RepairHelpRst
+        "GTR035",  # TrimAttributeWhitespace
+        "GTR036",  # ReplaceOutputElement
+        "GTR037",  # DropRedundantParamName
+        "GTR002",  # ReorderParamAttributes
+        "GTR005",  # ReorderToolAttributes
+        "GTR013",  # ReorderToolChildren
+        "GTR018.1",  # WrapCommandCdata
+        "GTR019.1",  # WrapHelpCdata
+        "GTR020.1",  # SingleQuoteCommandVars
+    ]
+
+
+def test_canonical_orders_are_unique() -> None:
+    """No two default-ruleset codemods share a ``meta.order``.
+
+    A duplicate order would make the derived pipeline's tie-break the implicit
+    ``coded_codemods()`` listing order — deterministic but silent; fail loudly
+    instead.
+    """
+    orders = [cls.meta.order for cls in canonical_codemods()]
+    assert len(orders) == len(set(orders))
+
+
 def test_canonical_set_includes_both_attribute_reorder_codemods() -> None:
     """Both structural attribute-reorder codemods are in the canonical set."""
     assert ReorderParamAttributes in canonical_codemods()

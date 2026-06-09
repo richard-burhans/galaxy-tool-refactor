@@ -22,19 +22,29 @@ the ``"default"`` ruleset, ordered by ``meta.order``. Front-to-back:
    schema-boolean attributes. Like ``FixTypos`` a no-op unless the tool validates
    nowhere; behaviour-preserving and the sibling repair ``FixTypos`` cannot reach
    (the lenient model accepts ``True``).
-3. ``ReorderParamAttributes`` / ``ReorderToolAttributes`` — tidy attribute order
+3. ``RepairHelpRst`` — repair the deterministically-fixable invalid ``<help>``
+   reStructuredText (GTR089.1, the fixable half of the GTR089 partition) behind
+   tier 1's behaviour-preserving gate. A no-op on valid or macro-bearing help;
+   what it can't reach stays the ``GTR089.2`` advisory residual. See
+   ``docs/decisions.md`` §37.
+4. ``TrimAttributeWhitespace`` / ``ReplaceOutputElement`` /
+   ``DropRedundantParamName`` — the planemo-parity fixes (GTR035–GTR037):
+   value-level repairs that settle attribute *content* before the reorders tidy
+   attribute *order*.
+5. ``ReorderParamAttributes`` / ``ReorderToolAttributes`` — tidy attribute order
    once the tree is settled.
-4. ``ReorderToolChildren`` — reorder the root ``<tool>``'s child elements to the
+6. ``ReorderToolChildren`` — reorder the root ``<tool>``'s child elements to the
    IUC convention (element-level tidying after attribute-level). Validity-safe:
    the schema's ``<tool>`` content model is order-free (``xs:all``).
-5. ``WrapCommandCdata`` / ``WrapHelpCdata`` — wrap a pure-text ``<command>`` /
+7. ``WrapCommandCdata`` / ``WrapHelpCdata`` — wrap a pure-text ``<command>`` /
    ``<help>`` body in ``<![CDATA[…]]>`` (IUC #34/#42). Behaviour-preserving — lxml
    exposes the entity-unescaped text, so only the serialised bytes change, not the
    value Galaxy runs/renders. Content-level tidying, so it runs after the
    structural reorders; independent of them (it never touches child order). See
    ``docs/decisions.md`` §29.
-6. ``SingleQuoteCommandVars`` — single-quote the *provably*-single-valued unquoted
-   Cheetah ``$var``\\ s in ``<command>`` (GTR020, the GTR020.2 single-quote practice).
+8. ``SingleQuoteCommandVars`` — single-quote the *provably*-single-valued unquoted
+   Cheetah ``$var``\\ s in ``<command>`` (GTR020.1, the fixable half of the GTR020
+   partition).
    Acts only on references whose value can never contain whitespace for a working
    tool (bare single-token params, ``$__…__`` path built-ins, space-free attrs),
    so it is behaviour-preserving like the CDATA wraps. It runs **after**
