@@ -5669,6 +5669,353 @@ def _run_help_formats(args: argparse.Namespace) -> None:
     _report_help_formats(_measure_help_formats(corpus_root=args.corpus_root))
 
 
+# --- reStructuredText <help> investigation (R1/R2/R3) ---------------------------
+#
+# Backs docs/upgrade_research/restructuredtext_codemods.md: feasibility of RST
+# codemods on <help> — auto-fix invalid RST, normalize RST, and convert valid RST
+# -> Markdown (the gateway to doing advanced help codemods in Markdown, which —
+# unlike RST — has faithful, source-mapped parsers). docutils gives a doctree but
+# NO faithful RST writer and NO character offsets, so parse->mutate->reserialise RST
+# is out; these measures size what's actually fixable / convertible in the corpus.
+#
+# Markdown target = markdown-it ^14 "default" preset (CommonMark + tables +
+# strikethrough), html:false (raw HTML not rendered) — Galaxy renders tool help
+# markdown via configurationMarkdown.ts `MarkdownIt({html:false}).render`.
+
+# Markdown-it/CommonMark-expressible docutils node types (the RST->MD-convertible
+# shape). Tables are tracked SEPARATELY (RST grid tables don't map to GFM tables).
+_MD_CONVERTIBLE_NODES = frozenset({
+    "document", "section", "title", "subtitle", "paragraph", "Text", "inline",
+    "emphasis", "strong", "literal", "literal_block",
+    "bullet_list", "enumerated_list", "list_item",
+    "block_quote", "transition", "reference", "target", "image",
+})
+# Transient nodes that only appear because the RST is invalid — gone after a fix,
+# so they don't count against convertibility.
+_RST_TRANSIENT_NODES = frozenset({"system_message", "problematic"})
+_MACRO_TOKEN = re.compile(r"@[A-Z0-9_]+@")
+_RST_EXAMPLE_CAP = 8
+
+
+def _iter_corpus_rst_help(corpus_root: Path) -> Iterable[tuple[str, str]]:
+    """Yield ``(tool_id, help_text)`` for each unique tool whose ``<help>`` is RST.
+
+    Skips tools with no ``<help>``, ``format="markdown"``, or a help body carrying a
+    macro token (``@…@``) — the same exclusions GTR089 applies (we can't expand
+    macros here; an un-expanded ``@TOKEN@`` is not valid RST on its own).
+    """
+    seen: set[str] = set()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        help_elem = root.find("help")
+        if help_elem is None:
+            continue
+        if (help_elem.get("format") or "").strip().lower() == "markdown":
+            continue
+        text = help_elem.text
+        if not text or not text.strip():
+            continue
+        if _MACRO_TOKEN.search(text):
+            continue
+        yield (root.get("id") or path.name, text)
+
+
+def _rst_doctree(text: str) -> object | None:
+    """Parse RST to a docutils doctree, capturing (never raising on) messages."""
+    import contextlib
+    import io
+
+    import docutils.core
+
+    overrides = {
+        "report_level": 1,
+        "halt_level": 5,
+        "input_encoding": "unicode",
+        "doctitle_xform": False,
+        "warning_stream": io.StringIO(),
+    }
+    try:
+        with contextlib.redirect_stderr(io.StringIO()):
+            return docutils.core.publish_doctree(text, settings_overrides=overrides)
+    except Exception:
+        return None
+
+
+def _rst_messages(doctree: object) -> list[tuple[int, str]]:
+    """Return ``(level, message_class)`` for each docutils system message."""
+    import docutils.nodes
+
+    out: list[tuple[int, str]] = []
+    for node in doctree.findall(docutils.nodes.system_message):  # type: ignore[attr-defined]
+        first = node.astext().splitlines()[0] if node.astext() else ""
+        first = re.sub(r"^<string>:\d+: \([^)]*\) ", "", first)  # drop loc/level prefix
+        first = re.sub(r'"[^"]*"', '"X"', first)  # quoted names
+        first = re.sub(r"`[^`]*`", "`X`", first)
+        first = re.sub(r"\b\d+\b", "N", first)  # numbers
+        out.append((int(node["level"]), first.strip()))
+    return out
+
+
+def _rst_node_types(doctree: object) -> set[str]:
+    """The set of docutils node type names present in *doctree*."""
+    return {type(node).__name__ for node in doctree.findall()}  # type: ignore[attr-defined]
+
+
+# --- measurement: help-rst-errors (R1) ------------------------------------------
+
+# docutils message classes judged DETERMINISTICALLY fixable by a narrow surgical
+# edit anchored on the reporter's line number — the "chase what we can fix" target
+# (a future GTR089.1 partition-fix). Each maps to a recipe in the findings doc:
+# title underlines extend; a trailing transition is dropped; a "block ends without
+# a blank line; unexpected unindent" inserts the missing blank line. The ambiguous
+# residual (Unexpected indentation, unclosed inline markup, section nesting) is NOT
+# here — it stays the GTR089 advisory.
+_FIXABLE_RST_CLASSES = frozenset({
+    "Title underline too short.",
+    "Title overline too short.",
+    "Missing matching underline for section title overline.",
+    "Transition at the end of the document.",
+    "Block quote ends without a blank line; unexpected unindent.",
+    "Definition list ends without a blank line; unexpected unindent.",
+    "Bullet list ends without a blank line; unexpected unindent.",
+    "Enumerated list ends without a blank line; unexpected unindent.",
+    "Option list ends without a blank line; unexpected unindent.",
+    "Literal block ends without a blank line; unexpected unindent.",
+    "Explicit markup ends without a blank line; unexpected unindent.",
+    "Line block ends without a blank line.",
+})
+
+
+@dataclass
+class _HelpRstErrorsResult:
+    """docutils system-message distribution across corpus RST ``<help>`` bodies."""
+
+    n_rst_tools: int
+    n_parse_fail: int
+    n_invalid: int  # >= 1 message at level >= 2 (the GTR089 "invalid" threshold)
+    n_info_only: int  # only sub-threshold (level-1 INFO) messages
+    n_fully_fixable: int  # invalid tools whose EVERY serious error is fixable
+    class_buckets: list[tuple[str, int, int]]  # (class, occurrences, tools_flagged)
+    level_hist: list[tuple[int, int]]
+
+
+def _measure_help_rst_errors(*, corpus_root: Path) -> _HelpRstErrorsResult:
+    """Bucket the RST validity errors in corpus ``<help>`` by message class."""
+    n = n_fail = n_invalid = n_info_only = n_fixable = 0
+    occ: Counter[str] = Counter()
+    tools_per_class: defaultdict[str, set[int]] = defaultdict(set)
+    levels: Counter[int] = Counter()
+    for idx, (_tool_id, text) in enumerate(_iter_corpus_rst_help(corpus_root)):
+        n += 1
+        doctree = _rst_doctree(text)
+        if doctree is None:
+            n_fail += 1
+            continue
+        messages = _rst_messages(doctree)
+        serious = [(lvl, cls) for lvl, cls in messages if lvl >= 2]
+        if serious:
+            n_invalid += 1
+            if all(cls in _FIXABLE_RST_CLASSES for _lvl, cls in serious):
+                n_fixable += 1
+        elif messages:
+            n_info_only += 1
+        for lvl, cls in serious:
+            levels[lvl] += 1
+            occ[cls] += 1
+            tools_per_class[cls].add(idx)
+    class_buckets = [
+        (cls, count, len(tools_per_class[cls])) for cls, count in occ.most_common()
+    ]
+    return _HelpRstErrorsResult(
+        n_rst_tools=n,
+        n_parse_fail=n_fail,
+        n_invalid=n_invalid,
+        n_info_only=n_info_only,
+        n_fully_fixable=n_fixable,
+        class_buckets=class_buckets,
+        level_hist=sorted(levels.items()),
+    )
+
+
+def _report_help_rst_errors(m: _HelpRstErrorsResult) -> None:
+    total = m.n_rst_tools or 1
+    invalid = m.n_invalid or 1
+    print("\n=== help-rst-errors ===")
+    print(f"RST <help> tools (deduped, non-macro):   {m.n_rst_tools}")
+    print(f"  docutils parse failures:               {m.n_parse_fail}")
+    print(f"  invalid (>=1 msg level>=2, ~GTR089):   {m.n_invalid} "
+          f"({m.n_invalid / total * 100:.1f}%)")
+    print(f"  ...fully fixable (all errors in the    {m.n_fully_fixable} "
+          f"({m.n_fully_fixable / invalid * 100:.1f}% of invalid)")
+    print("     deterministic-fix class set):")
+    print(f"  info-only (sub-threshold level 1):     {m.n_info_only}")
+    print("  level histogram (serious messages): "
+          + ", ".join(f"L{lvl}:{c}" for lvl, c in m.level_hist))
+    print("  top error classes (occurrences / tools; * = deterministically fixable):")
+    for cls, occ_n, tools in m.class_buckets[:20]:
+        mark = " *" if cls in _FIXABLE_RST_CLASSES else "  "
+        print(f"    {occ_n:5d} / {tools:4d}{mark} {cls[:76]}")
+
+
+def _run_help_rst_errors(args: argparse.Namespace) -> None:
+    _report_help_rst_errors(_measure_help_rst_errors(corpus_root=args.corpus_root))
+
+
+# --- measurement: help-rst-features (R2) ----------------------------------------
+
+
+@dataclass
+class _HelpRstFeaturesResult:
+    """RST node-type inventory across corpus ``<help>`` (sizes MD-convertibility)."""
+
+    n_rst_tools: int
+    n_parse_fail: int
+    n_convertible_shape: int  # node types (minus transient) within the MD whitelist
+    n_uses_table: int
+    node_type_tools: list[tuple[str, int]]  # node type -> tools using it
+    blocking_features: list[tuple[str, int]]  # non-convertible node -> tools using it
+
+
+def _measure_help_rst_features(*, corpus_root: Path) -> _HelpRstFeaturesResult:
+    """Tally docutils node types across corpus RST ``<help>`` bodies."""
+    n = n_fail = n_convertible = n_table = 0
+    node_tools: Counter[str] = Counter()
+    blocking: Counter[str] = Counter()
+    for _tool_id, text in _iter_corpus_rst_help(corpus_root):
+        n += 1
+        doctree = _rst_doctree(text)
+        if doctree is None:
+            n_fail += 1
+            continue
+        types = _rst_node_types(doctree)
+        for t in types:
+            node_tools[t] += 1
+        if "table" in types:
+            n_table += 1
+        non_convertible = types - _RST_TRANSIENT_NODES - _MD_CONVERTIBLE_NODES
+        if not non_convertible:
+            n_convertible += 1
+        for t in non_convertible:
+            blocking[t] += 1
+    return _HelpRstFeaturesResult(
+        n_rst_tools=n,
+        n_parse_fail=n_fail,
+        n_convertible_shape=n_convertible,
+        n_uses_table=n_table,
+        node_type_tools=node_tools.most_common(),
+        blocking_features=blocking.most_common(),
+    )
+
+
+def _report_help_rst_features(m: _HelpRstFeaturesResult) -> None:
+    total = m.n_rst_tools or 1
+    print("\n=== help-rst-features ===")
+    print(f"RST <help> tools (deduped, non-macro):   {m.n_rst_tools}")
+    print(f"  parse failures:                        {m.n_parse_fail}")
+    print(f"  MD-convertible shape (whitelist only): {m.n_convertible_shape} "
+          f"({m.n_convertible_shape / total * 100:.1f}%)")
+    print(f"  uses an RST table:                     {m.n_uses_table}")
+    print("  node types by tools-using (top 25):")
+    for t, c in m.node_type_tools[:25]:
+        print(f"    {c:5d}  {t}")
+    print("  blocking (non-CommonMark) features by tools-using:")
+    for t, c in m.blocking_features[:20]:
+        print(f"    {c:5d}  {t}")
+
+
+def _run_help_rst_features(args: argparse.Namespace) -> None:
+    _report_help_rst_features(_measure_help_rst_features(corpus_root=args.corpus_root))
+
+
+# --- measurement: help-rst-to-markdown (R3) -------------------------------------
+
+
+@dataclass
+class _HelpRstToMarkdownResult:
+    """RST -> Markdown convertibility 2x2 (valid/invalid x simple/complex shape)."""
+
+    n_rst_tools: int
+    n_parse_fail: int
+    pandoc_available: bool
+    valid_convertible: int  # already convertible: no fix needed
+    invalid_convertible: int  # fix-then-convert candidates (the pipeline's payoff)
+    valid_complex: int
+    invalid_complex: int
+    blocking_among_valid: list[tuple[str, int]]
+
+
+def _measure_help_rst_to_markdown(*, corpus_root: Path) -> _HelpRstToMarkdownResult:
+    """Cross-tab corpus RST ``<help>`` by {valid, invalid} x {convertible, complex}."""
+    import shutil
+
+    n = n_fail = vc = ic = vx = ix = 0
+    blocking_valid: Counter[str] = Counter()
+    for _tool_id, text in _iter_corpus_rst_help(corpus_root):
+        n += 1
+        doctree = _rst_doctree(text)
+        if doctree is None:
+            n_fail += 1
+            continue
+        types = _rst_node_types(doctree)
+        valid = not any(lvl >= 2 for lvl, _cls in _rst_messages(doctree))
+        non_convertible = types - _RST_TRANSIENT_NODES - _MD_CONVERTIBLE_NODES
+        convertible = not non_convertible
+        if valid and convertible:
+            vc += 1
+        elif (not valid) and convertible:
+            ic += 1
+        elif valid:
+            vx += 1
+            for t in non_convertible:
+                blocking_valid[t] += 1
+        else:
+            ix += 1
+    return _HelpRstToMarkdownResult(
+        n_rst_tools=n,
+        n_parse_fail=n_fail,
+        pandoc_available=shutil.which("pandoc") is not None,
+        valid_convertible=vc,
+        invalid_convertible=ic,
+        valid_complex=vx,
+        invalid_complex=ix,
+        blocking_among_valid=blocking_valid.most_common(),
+    )
+
+
+def _report_help_rst_to_markdown(m: _HelpRstToMarkdownResult) -> None:
+    total = m.n_rst_tools or 1
+    print("\n=== help-rst-to-markdown ===")
+    print(f"RST <help> tools (deduped, non-macro):   {m.n_rst_tools}")
+    print(f"  parse failures:                        {m.n_parse_fail}")
+    print(f"  pandoc available on PATH:              {m.pandoc_available}")
+    print("  convertibility 2x2 (rows: validity; cols: MD-convertible shape):")
+    print(f"    valid   + convertible:  {m.valid_convertible:5d} "
+          f"({m.valid_convertible / total * 100:.1f}%)  <- convert today, no fix")
+    print(f"    invalid + convertible:  {m.invalid_convertible:5d} "
+          f"({m.invalid_convertible / total * 100:.1f}%)  <- fix-then-convert payoff")
+    print(f"    valid   + complex:      {m.valid_complex:5d} "
+          f"({m.valid_complex / total * 100:.1f}%)  <- bail (non-CommonMark feature)")
+    print(f"    invalid + complex:      {m.invalid_complex:5d} "
+          f"({m.invalid_complex / total * 100:.1f}%)")
+    print("  features blocking conversion among VALID tools:")
+    for t, c in m.blocking_among_valid[:15]:
+        print(f"    {c:5d}  {t}")
+
+
+def _run_help_rst_to_markdown(args: argparse.Namespace) -> None:
+    _report_help_rst_to_markdown(
+        _measure_help_rst_to_markdown(corpus_root=args.corpus_root)
+    )
+
+
 # --- measurement: macro-format-residual -----------------------------------------
 #
 # Sizes the population the imported-macro `format`/`ftype` normalization pass
@@ -6158,6 +6505,9 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "interpreter-bucket-split": _run_interpreter_buckets,
     "output-format-input": _run_output_format_input,
     "help-formats": _run_help_formats,
+    "help-rst-errors": _run_help_rst_errors,
+    "help-rst-features": _run_help_rst_features,
+    "help-rst-to-markdown": _run_help_rst_to_markdown,
     "macro-format-residual": _run_macro_format_residual,
     "macro-token-datatype-residual": _run_macro_token_residual,
 }
