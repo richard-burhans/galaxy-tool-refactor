@@ -10,8 +10,21 @@ doc's ``BEGIN/END`` markers; a freshness test pins the committed block to this o
 
 from __future__ import annotations
 
+import re
+
 from galaxy_tool_refactor_registry.adapters import upgrade_only_codemods
 from galaxy_tool_refactor_registry.registry import all_handles
+
+# A rule summary like "declare <requirements>" carries bare XML tags; in a markdown
+# table cell the renderer treats ``<requirements>`` as an (unknown) HTML tag and drops
+# it. Backtick-quote each ``<…>`` run so it renders literally. (Summaries are plain
+# text — none contain backticks — so this is unambiguous; pinned by a test.)
+_TAG = re.compile(r"<[^>]+>")
+
+
+def _quote_tags(text: str, /) -> str:
+    """Wrap each bare ``<…>`` XML tag in *text* in backticks for markdown."""
+    return _TAG.sub(lambda m: f"`{m.group(0)}`", text)
 
 # The narrowest-first ruleset order (the sets nest: cosmetic ⊂ default = iuc ⊂ strict).
 _NARROW_ORDER = ("cosmetic", "default", "iuc", "strict")
@@ -45,6 +58,6 @@ def render_parity_table() -> str:
         ruleset = next((name for name in _NARROW_ORDER if name in meta.rulesets), "—")
         rows.append(
             f"| {code} | {planemo} | {detect} | {fix} | {tier} | {ruleset} "
-            f"| {meta.summary} |"
+            f"| {_quote_tags(meta.summary)} |"
         )
     return "\n".join(rows)
