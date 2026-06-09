@@ -18,102 +18,108 @@ The **ruleset** column shows the *narrowest* named set a rule belongs to; the se
 the upgrade-only rules, which are not ruleset-selectable (the `upgrade` command applies them).
 Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisions.md` D15.
 
+> The table below is **generated** from rule metadata by `uv run python -m
+> scripts.gen_planemo_parity` (a freshness test keeps it in sync) — do not hand-edit
+> between the markers. Each rule's planemo coverage comes from `RuleMeta.planemo_linters`;
+> `—` = our own rule with no planemo equivalent (the cosmetic rules + the XSD-restoring
+> repairs GTR006/GTR017). The planemo names also work in `--select` / `--ignore`.
+
+<!-- BEGIN GENERATED: GTR coverage table (scripts/gen_planemo_parity.py) -->
 | GTR | planemo linter(s) covered | detect | fix | tier | ruleset | description |
 |---|---|:--:|:--:|---|---|---|
-| GTR001 | — | ✓ | ✓ | fmt | cosmetic | canonical 4-space indentation |
-| GTR002 | — | ✓ | ✓ | codemod | default | reorder `<param>` attributes to IUC order |
-| GTR003 | — | ✓ | ✓ | fmt | cosmetic | one blank line between top-level `<tool>` children |
-| GTR004 | — | ✓ | ✓ | fmt | cosmetic | collapse empty-with-whitespace leaves to `<foo/>` (skips content-bearing) |
-| GTR005 | — | ✓ | ✓ | codemod | default | reorder root `<tool>` attributes |
-| GTR006 | (XSD) | ✓ | ✓ | codemod | default | repair near-miss typos so an invalid tool validates |
-| GTR007 | ToolProfile\* | ✓ | ✓ | upgrade | — | bump an inline `@PROFILE@` / `profile=` to newest valid |
-| GTR008 | — | ✓ | ✓ | upgrade | — | 19.01→19.05 migration (name unnamed outputs) |
-| GTR009 | — | ✓ | ✓ | upgrade | — | 24.0→24.1 (hoist identical collection filters) |
-| GTR010 | ValidDatatypes (case) | ✓ | ✓ | upgrade | — | 24.1→24.2 format/ftype lowercase-token normalize |
-| GTR011 | — | ✓ | ✓ | upgrade | — | 25.1→26.0 (drop obsolete `<trackster_conf>`) |
-| GTR012 | — | ✓ | ✓ | upgrade | — | orchestrator: loop to newest reachable profile |
-| GTR013 | **XMLOrder** | ✓ | ✓ | codemod | default | reorder `<tool>` child elements (planemo only flags) |
-| GTR014 | — | ✓ | ✓ | upgrade | — | `from_work_dir` strip (<21.09 crossing) |
-| GTR015 | **OutputsFormatInput** | ✓ | ✓ | upgrade | — | `format="input"`→`format_source` (single data input) |
-| GTR016 | **CommandInterpreterDeprecated** | ✓ | ✓ | codemod | default | inline a deprecated `interpreter=` (planemo only flags) |
-| GTR017 | (XSD) | ✓ | ✓ | codemod | default | normalize Python-style booleans to `xs:boolean` |
-| GTR018.1 | — | ✓ | ✓ | codemod | default | wrap a pure-text `<command>` in CDATA |
-| GTR018.2 | — | ✓ | ✗ | check | strict | `<command>` CDATA residual (mixed-content / `]]>` / `\r`) |
-| GTR019.1 | — | ✓ | ✓ | codemod | default | wrap a pure-text `<help>` in CDATA |
-| GTR019.2 | — | ✓ | ✗ | check | strict | `<help>` CDATA residual |
-| GTR020.1 | — | ✓ | ✓ | codemod | default | single-quote provably-single-valued `<command>` Cheetah vars |
-| GTR020.2 | — | ✓ | ✗ | check | strict | unquoted-`$var` non-provable residual |
-| GTR021 | **TestsMissing** | ✓ | ✗ | check | strict | tool should ship a functional `<test>` |
-| GTR023 | **ToolIDValid** | ✓ | ✗ | check | strict | tool id charset (lowercase / `_.+-`) |
-| GTR024 | **ToolVersionPEP404** | ✓ | ✗ | check | strict | version should be PEP 440 (or a `@…@` macro) |
-| GTR025 | — | ✓ | ✗ | check | strict | tool should declare `<requirements>` |
-| GTR026 | **StdIOAbsence** | ✓ | ✗ | check | strict | declare error handling (`detect_errors`/`<stdio>`) |
-| GTR027 | **EDAMTermsValid**, BioToolsValid | ✓ | ✗ | check | strict | declare EDAM topics/operations or `<xrefs>` |
-| GTR028 | **HelpMissing**, HelpEmpty | ✓ | ✗ | check | strict | provide non-empty `<help>` |
-| GTR029 | — | ✓ | ✗ | check | strict | provide a non-empty `<description>` |
-| GTR032 | — | — | ✗ | check | strict | lone `&` vs `&&` (no-op stub; needs a shell parser) |
-| GTR033 | **RequirementVersionMissing** | ✓ | ✗ | check | strict | package `<requirement>`s should pin a version |
-| GTR034 | — | ✓ | ✗ | check | strict | input `<param>` never referenced |
-| GTR035 | **ToolNameWhitespace**, **RequirementVersionWhitespace** | ✓ | ✓ | codemod | default | trim accidental whitespace (name / requirement version) |
-| GTR036 | **OutputsOutput** | ✓ | ✓ | codemod | default | `<output type="data">` → `<data>` |
-| GTR037 | **InputsNameRedundantArgument** | ✓ | ✓ | codemod | default | drop a `<param>` `name` its `argument` implies |
-| GTR038 | CitationsMissing, CitationsNoText | ✓ | ✗ | check | strict | tool should declare a non-empty `<citation>` |
-| GTR039 | CommandTODO, HelpTODO | ✓ | ✗ | check | strict | `<command>`/`<help>` should not contain `TODO` placeholder text |
-| GTR040 | **OutputsNameDuplicated** | ✓ | ✗ | check | strict | output `<data>`/`<collection>` names must be unique |
-| GTR041 | OutputsNameInvalidCheetah | ✓ | ✗ | check | strict | output `name` must be a valid Cheetah placeholder |
-| GTR042 | OutputsCollectionType | ✓ | ✗ | check | strict | output `<collection>` should declare a structure `type` |
-| GTR043 | OutputsFormatSourceIncomp | ✓ | ✗ | check | strict | output should not set both `format_source` and `format`/`ext` |
-| GTR044 | **CommandMissing**, CommandEmpty | ✓ | ✗ | check | strict | tool should define a non-empty `<command>` |
-| GTR045 | ToolProfileInvalid | ✓ | ✗ | check | strict | declared `profile` must be a valid `<year>.<minor>` version |
-| GTR046 | **RequirementNameMissing** | ✓ | ✗ | check | strict | a package `<requirement>` must name its package |
-| GTR047 | ToolVersionWhitespace | ✓ | ✗ | check | strict | tool `version` should not be wrapped in whitespace (advisory-by-design — identity) |
-| GTR048 | **OutputsMissing** | ✓ | ✗ | check | strict | tool should define an `<outputs>` section |
-| GTR049 | **OutputsFormat** | ✓ | ✗ | check | strict | each output should define its datatype format |
-| GTR050 | OutputsLabelDuplicated\* | ✓ | ✗ | check | strict | outputs should not share an *explicit* `label` (low-noise narrowing) |
-| GTR051 | **ContainerImageShape** | ✓ | ✗ | check | strict | a `<container>` identifier should match a recognized shape |
-| GTR052 | **OutputsFilterExpression** | ✓ | ✗ | check | strict | an output `<filter>` should be a valid Python expression |
-| GTR053 | **StdIORegex** | ✓ | ✗ | check | strict | a `<stdio>` `<regex match>` should be a valid regular expression |
-| GTR054 | InputsName | ✓ | ✗ | check | strict | an input `<param>` must declare a `name` or `argument` |
-| GTR055 | InputsNameEmpty, InputsNameValid | ✓ | ✗ | check | strict | an input `<param>` name must be a valid Cheetah placeholder |
-| GTR056 | InputsNameDuplicate | ✓ | ✗ | check | strict | input `<param>` names must be unique within their scope |
-| GTR057 | InputsNameDuplicateOutput | ✓ | ✗ | check | strict | an output name must not duplicate an input param name |
-| GTR058 | InputsSelectOptionsDef, …DefConditional | ✓ | ✗ | check | strict | a `select` must define options exactly one valid way |
-| GTR059 | InputsSelectOptionValueMissing | ✓ | ✗ | check | strict | a static `select` `<option>` must carry a `value` |
-| GTR060 | InputsSelectOptionDuplicateValue, …Text | ✓ | ✗ | check | strict | a `select`'s static options should be distinct |
-| GTR061 | InputsSelectOptionsMultiple | ✓ | ✗ | check | strict | a `select` may have at most one `<options>` element |
-| GTR062 | InputsSelectOptionsDefinesOptions | ✓ | ✗ | check | strict | a dynamic `<options>` must define an option source |
-| GTR063 | InputsSelectOptionsFromDatasetAndDatatable, …MetaFileKey | ✓ | ✗ | check | strict | a dynamic `<options>` source combination must be coherent |
-| GTR064 | InputsSelectDynamicOptions, …DeprecatedAttr | ✓ | ✗ | check | strict | a `select` should not use a deprecated options mechanism |
-| GTR065 | ValidatorParamIncompatible, …AttribIncompatible | ✓ | ✗ | check | strict | a `<validator>` must be compatible with its param type + attributes |
-| GTR066 | ValidatorHasText, ValidatorHasNoText | ✓ | ✗ | check | strict | a `<validator>` body should match its type (expr/regex carry text) |
-| GTR067 | ValidatorExpression, …ExpressionFuture | ✓ | ✗ | check | strict | an `expression`/`regex` `<validator>` body must be valid |
-| GTR068 | ValidatorMinMax, …MetadataCheckSkip, …TableName, …MetadataName, …DatasetMetadataEqualValue, …OrJson | ✓ | ✗ | check | strict | a `<validator>` must carry the attributes its type requires |
-| GTR069 | ConditionalParamType, …ParamTypeBool | ✓ | ✗ | check | strict | a `<conditional>`'s first `<param>` should be a `select` |
-| GTR070 | ConditionalParamIncompatibleAttributes | ✓ | ✗ | check | strict | a `<conditional>` test param must not be optional/multiple |
-| GTR071 | ConditionalWhenMissing, …OptionMissing, …OptionMissingBoolean | ✓ | ✗ | check | strict | a `<conditional>`'s `<when>` blocks must match the test options |
-| GTR072 | InputsMissing | ✓ | ✗ | check | strict | most tools should define input parameters |
-| GTR073 | InputsTypeChildCombination | ✓ | ✗ | check | strict | a `<param>` child element must be valid for the param type |
-| GTR074 | InputsDataOptionsMultiple, …Attrib, …FilterAttribFiltersType, …FiltersType, …FiltersRef | ✓ | ✗ | check | strict | a `data` param's `<options>` (metadata filtering) must be valid |
-| GTR075 | InputsBoolDistinctValues, InputsBoolProblematic | ✓ | ✗ | check | strict | a `boolean` param's truevalue/falsevalue must be distinct and sane |
-| GTR076 | InputsSelectSingleCheckboxes, …MandatoryCheckboxes, …MultipleRadio, …OptionalRadio | ✓ | ✗ | check | strict | a select's `display` must agree with `multiple`/`optional` |
-| GTR077 | InputsOptionsFiltersRequiredAttributes, …RemoveValueFilterRequiredAttributes, …FiltersAllowedAttributes | ✓ | ✗ | check | strict | an `<options>/<filter>` must carry the attributes its type allows |
-| GTR078 | InputsOptionsRegexFilterExpression | ✓ | ✗ | check | strict | a `regexp` `<options>/<filter>` value must be a valid regex |
-| GTR079 | InputsOptionsFiltersCheckReferences | ✓ | ✗ | check | strict | an `<options>/<filter>` ref/meta_ref must name a real param |
-| GTR080 | TestsAssertsMultiple, …HasNQuant, …HasSizeQuant, …HasSizeOrValueQuant | ✓ | ✗ | check | strict | a `<test>`'s assertions must be well formed |
-| GTR081 | TestsOutputCompareAttrib | ✓ | ✗ | check | strict | a test output's attributes must agree with its `compare` mode |
-| GTR082 | TestsOutputName | ✓ | ✗ | check | strict | a test `<output>` must declare a name |
-| GTR083 | TestsOutputDefined, …Corresponding, …CollectionCorresponding | ✓ | ✗ | check | strict | a test output must name a declared output of the matching kind |
-| GTR084 | TestsOutputCheckDiscovered, …CollectionCheckDiscovered, …Nested | ✓ | ✗ | check | strict | a test of a discovering output must assert on the discovered datasets |
-| GTR085 | TestsParamInInputs | ✓ | ✗ | check | strict | a test `<param>` must name a tool input |
-| GTR086 | TestsOutputFailing, TestsExpectNumOutputsFailing | ✓ | ✗ | check | strict | an `expect_failure` test must not assert outputs |
-| GTR087 | TestsExpectNumOutputs | ✓ | ✗ | check | strict | a test should set `expect_num_outputs` for filtered outputs |
-| GTR088 | TestsHasExpectations (TestsValid subsumed) | ✓ | ✗ | check | strict | a test should assert outputs or expectations |
-| GTR089 | **HelpInvalidRST** | ✓ | ✗ | check | strict | a `<help>` body should be valid reStructuredText (docutils) |
+| GTR001 | — | ✓ | ✓ | fmt | cosmetic | Canonical 4-space indentation; no tabs. |
+| GTR002 | — | ✓ | ✓ | codemod | default | Reorder every <param> element's attributes to the IUC convention. |
+| GTR003 | — | ✓ | ✓ | fmt | cosmetic | One blank line between top-level children of <tool>. |
+| GTR004 | — | ✓ | ✓ | fmt | cosmetic | Collapse empty-with-whitespace leaves to <foo/> form. |
+| GTR005 | — | ✓ | ✓ | codemod | default | Reorder the root <tool> element's attributes to the documented prefix. |
+| GTR006 | — | ✓ | ✓ | codemod | default | Repair near-miss spelling typos so a globally-invalid tool validates. |
+| GTR007 | — | ✓ | ✓ | upgrade | — | Set profile= to the newest profile the tool validates at (bump-up-only). |
+| GTR008 | — | ✓ | ✓ | upgrade | — | Upgrade a tool stuck at profile 19.01 toward 19.05 (name output <data>). |
+| GTR009 | — | ✓ | ✓ | upgrade | — | Upgrade a tool stuck at profile 24.0 toward 24.1 (hoist collection filters). |
+| GTR010 | ValidDatatypes | ✓ | ✓ | upgrade | — | Upgrade a tool stuck at profile 24.1 toward 24.2 (normalize format). |
+| GTR011 | — | ✓ | ✓ | upgrade | — | Upgrade a tool stuck at profile 25.1 toward 26.0 (drop <trackster_conf>). |
+| GTR012 | — | ✓ | ✓ | upgrade | — | Iteratively upgrade a tool toward the latest profile. |
+| GTR013 | XMLOrder | ✓ | ✓ | codemod | default | Reorder <tool> child elements to the IUC convention. |
+| GTR014 | — | ✓ | ✓ | upgrade | — | Strip surrounding whitespace from <data from_work_dir> (literal at profile >= 21.09). |
+| GTR015 | OutputsFormatInput | ✓ | ✓ | upgrade | — | Replace output <data format="input"> with format_source for a tool with a single top-level data input. |
+| GTR016 | CommandInterpreterDeprecated | ✓ | ✓ | upgrade | — | Inline a deprecated <command interpreter=I>script ...</command> as <command>I '$__tool_directory__/script' ...</command> (single-token interpreter, literal-script first token). |
+| GTR017 | — | ✓ | ✓ | codemod | default | Normalize Python-style boolean attribute values (True/Yes/…) to canonical xs:boolean so a globally-invalid tool validates. |
+| GTR018.1 | — | ✓ | ✓ | codemod | default | Wrap a pure-text <command> body in CDATA (IUC #34). |
+| GTR018.2 | — | ✓ | ✗ | check | strict | <command> CDATA residual the fix can't reach (mixed-content / ]]>). |
+| GTR019.1 | — | ✓ | ✓ | codemod | default | Wrap a pure-text <help> body in CDATA (IUC #42). |
+| GTR019.2 | — | ✓ | ✗ | check | strict | <help> CDATA residual the fix can't reach (mixed-content / ]]>). |
+| GTR020.1 | — | ✓ | ✓ | codemod | default | Single-quote provably-single-valued Cheetah variables in <command> (bare single-token params, $__…__ path built-ins, space-free attrs). |
+| GTR020.2 | — | ✓ | ✗ | check | strict | Single-quote <command> Cheetah vars: the non-provable residual. |
+| GTR021 | TestsMissing | ✓ | ✗ | check | strict | Tool should ship at least one functional <test>. |
+| GTR023 | ToolIDValid | ✓ | ✗ | check | strict | Tool id should use lowercase letters, digits, and '_.+-'. |
+| GTR024 | ToolVersionPEP404 | ✓ | ✗ | check | strict | Tool version should be PEP 440 or a @...@ version macro. |
+| GTR025 | — | ✓ | ✗ | check | strict | Tool should declare <requirements>. |
+| GTR026 | StdIOAbsence | ✓ | ✗ | check | strict | Tool should declare error handling (detect_errors or <stdio>). |
+| GTR027 | BioToolsValid, EDAMTermsValid | ✓ | ✗ | check | strict | Tool should declare EDAM topics/operations or <xrefs>. |
+| GTR028 | HelpEmpty, HelpMissing | ✓ | ✗ | check | strict | Tool should provide non-empty <help>. |
+| GTR029 | — | ✓ | ✗ | check | strict | Tool should provide a non-empty <description>. |
+| GTR032 | — | — | ✗ | check | strict | Join shell commands with && not a lone & (not yet implemented). |
+| GTR033 | RequirementVersionMissing | ✓ | ✗ | check | strict | Package <requirement>s should pin a version. |
+| GTR034 | — | ✓ | ✗ | check | strict | Input <param> is never referenced in the tool. |
+| GTR035 | RequirementVersionWhitespace, ToolNameWhitespace | ✓ | ✓ | codemod | default | Trim accidental leading/trailing whitespace from a <tool> 'name' and a <requirement> 'version' (the behaviour-preserving subset; a <tool> 'id'/'version' are identity-significant and left for the advisory check). |
+| GTR036 | OutputsOutput | ✓ | ✓ | codemod | default | Replace a deprecated <outputs><output type="data"> with <data> (collection / expression outputs are left for the advisory check). |
+| GTR037 | InputsNameRedundantArgument | ✓ | ✓ | codemod | default | Drop a <param> 'name' that equals the name Galaxy derives from its 'argument' (redundant; argument implies the same name). |
+| GTR038 | CitationsMissing, CitationsNoText | ✓ | ✗ | check | strict | Tool should declare a non-empty <citation> (doi/bibtex). |
+| GTR039 | CommandTODO, HelpTODO | ✓ | ✗ | check | strict | <command>/<help> should not contain 'TODO' placeholder text. |
+| GTR040 | OutputsNameDuplicated | ✓ | ✗ | check | strict | Output <data>/<collection> names must be unique. |
+| GTR041 | OutputsNameInvalidCheetah | ✓ | ✗ | check | strict | Output name should be a valid Cheetah placeholder. |
+| GTR042 | OutputsCollectionType | ✓ | ✗ | check | strict | Output <collection> should declare a structure 'type'. |
+| GTR043 | OutputsFormatSourceIncomp | ✓ | ✗ | check | strict | An output should not set both format_source and format/ext. |
+| GTR044 | CommandEmpty, CommandMissing | ✓ | ✗ | check | strict | Tool should define a non-empty <command>. |
+| GTR045 | ToolProfileInvalid | ✓ | ✗ | check | strict | A declared profile should be a valid <year>.<minor> version. |
+| GTR046 | RequirementNameMissing | ✓ | ✗ | check | strict | A package <requirement> must name its package. |
+| GTR047 | ToolVersionWhitespace | ✓ | ✗ | check | strict | Tool version should not be wrapped in whitespace. |
+| GTR048 | OutputsMissing | ✓ | ✗ | check | strict | Tool should define an <outputs> section. |
+| GTR049 | OutputsFormat | ✓ | ✗ | check | strict | Each output should define its datatype format. |
+| GTR050 | OutputsLabelDuplicatedFilter, OutputsLabelDuplicatedNoFilter | ✓ | ✗ | check | strict | Outputs should not share an explicit label. |
+| GTR051 | ContainerImageShape | ✓ | ✗ | check | strict | A <container> identifier should match a recognized shape. |
+| GTR052 | OutputsFilterExpression | ✓ | ✗ | check | strict | An output <filter> should be a valid Python expression. |
+| GTR053 | StdIORegex | ✓ | ✗ | check | strict | A <stdio> <regex match> should be a valid regular expression. |
+| GTR054 | InputsName | ✓ | ✗ | check | strict | An input <param> must declare a name or argument. |
+| GTR055 | InputsNameEmpty, InputsNameValid | ✓ | ✗ | check | strict | An input <param> name must be a valid Cheetah placeholder. |
+| GTR056 | InputsNameDuplicate | ✓ | ✗ | check | strict | Input <param> names must be unique within their scope. |
+| GTR057 | InputsNameDuplicateOutput | ✓ | ✗ | check | strict | An output name must not duplicate an input parameter name. |
+| GTR058 | InputsSelectOptionsDef, InputsSelectOptionsDefConditional | ✓ | ✗ | check | strict | A select parameter must define its options exactly one valid way. |
+| GTR059 | InputsSelectOptionValueMissing | ✓ | ✗ | check | strict | A static select <option> must carry a value. |
+| GTR060 | InputsSelectOptionDuplicateText, InputsSelectOptionDuplicateValue | ✓ | ✗ | check | strict | A select's static options should have distinct values and text. |
+| GTR061 | InputsSelectOptionsMultiple | ✓ | ✗ | check | strict | A select may have at most one <options> element. |
+| GTR062 | InputsSelectOptionsDefinesOptions | ✓ | ✗ | check | strict | A dynamic <options> element must define an option source. |
+| GTR063 | InputsSelectOptionsFromDatasetAndDatatable, InputsSelectOptionsMetaFileKey | ✓ | ✗ | check | strict | A dynamic <options> source combination must be coherent. |
+| GTR064 | InputsSelectDynamicOptions, InputsSelectOptionsDeprecatedAttr | ✓ | ✗ | check | strict | A select should not use a deprecated options mechanism. |
+| GTR065 | ValidatorAttribIncompatible, ValidatorParamIncompatible | ✓ | ✗ | check | strict | A <validator> must be compatible with its param type and attributes. |
+| GTR066 | ValidatorHasNoText, ValidatorHasText | ✓ | ✗ | check | strict | A <validator> body should match its type (expr/regex carry text). |
+| GTR067 | ValidatorExpression, ValidatorExpressionFuture | ✓ | ✗ | check | strict | An expression/regex <validator> body must be valid. |
+| GTR068 | ValidatorDatasetMetadataEqualValue, ValidatorMetadataCheckSkip, ValidatorMetadataName, ValidatorMinMax, ValidatorTableName | ✓ | ✗ | check | strict | A <validator> must carry the attributes its type requires. |
+| GTR069 | ConditionalParamType, ConditionalParamTypeBool | ✓ | ✗ | check | strict | A conditional's first <param> should be a select. |
+| GTR070 | ConditionalParamIncompatibleAttributes | ✓ | ✗ | check | strict | A conditional's test param must not be optional or multiple. |
+| GTR071 | ConditionalOptionMissing, ConditionalOptionMissingBoolean, ConditionalWhenMissing | ✓ | ✗ | check | strict | A conditional's <when> blocks must match the test-param options. |
+| GTR072 | InputsMissing | ✓ | ✗ | check | strict | Most tools should define input parameters. |
+| GTR073 | InputsTypeChildCombination | ✓ | ✗ | check | strict | A <param> child element must be valid for the param type. |
+| GTR074 | InputsDataOptionsMultiple | ✓ | ✗ | check | strict | A data param's <options> (metadata filtering) must be valid. |
+| GTR075 | InputsBoolDistinctValues, InputsBoolProblematic | ✓ | ✗ | check | strict | A boolean param's truevalue/falsevalue must be distinct and sane. |
+| GTR076 | InputsSelectMandatoryCheckboxes, InputsSelectMultipleRadio, InputsSelectOptionalRadio, InputsSelectSingleCheckboxes | ✓ | ✗ | check | strict | A select's display must agree with multiple/optional. |
+| GTR077 | InputsOptionsFiltersAllowedAttributes, InputsOptionsFiltersRequiredAttributes, InputsOptionsRemoveValueFilterRequiredAttributes | ✓ | ✗ | check | strict | An <options>/<filter> must carry the attributes its type allows. |
+| GTR078 | InputsOptionsRegexFilterExpression | ✓ | ✗ | check | strict | A regexp <options>/<filter> value must be a valid regular expression. |
+| GTR079 | InputsOptionsFiltersCheckReferences | ✓ | ✗ | check | strict | An <options>/<filter> ref/meta_ref must name a real parameter. |
+| GTR080 | TestsAssertsHasNQuant, TestsAssertsHasSizeOrValueQuant, TestsAssertsHasSizeQuant, TestsAssertsMultiple | ✓ | ✗ | check | strict | A <test>'s assertions must be well formed. |
+| GTR081 | TestsOutputCompareAttrib | ✓ | ✗ | check | strict | A test output's attributes must agree with its compare mode. |
+| GTR082 | TestsOutputName | ✓ | ✗ | check | strict | A test <output> must declare a name. |
+| GTR083 | TestsOutputCollectionCorresponding, TestsOutputCorresponding, TestsOutputDefined | ✓ | ✗ | check | strict | A test output must name a declared output of the matching kind. |
+| GTR084 | TestsOutputCheckDiscovered, TestsOutputCollectionCheckDiscovered, TestsOutputCollectionCheckDiscoveredNested | ✓ | ✗ | check | strict | A discovering output's test must assert on the discovered datasets. |
+| GTR085 | TestsParamInInputs | ✓ | ✗ | check | strict | A test <param> must name a tool input. |
+| GTR086 | TestsExpectNumOutputsFailing, TestsOutputFailing | ✓ | ✗ | check | strict | An expect_failure test must not assert outputs. |
+| GTR087 | TestsExpectNumOutputs | ✓ | ✗ | check | strict | A test should set expect_num_outputs when outputs are filtered. |
+| GTR088 | TestsHasExpectations, TestsValid | ✓ | ✗ | check | strict | A test should assert outputs or expectations. |
+| GTR089 | HelpInvalidRST | ✓ | ✗ | check | strict | A <help> body should be valid reStructuredText. |
+<!-- END GENERATED -->
 
-**Bold** planemo linters are ones planemo *only reports* and we *fix* (or, for the
-checks, detect with our own rule). The remaining unmapped planemo linters (the ~80
-correctness checks + the advisory-by-design ones) are in the per-module tables below;
-each becomes a new GTR row here as it's built.
+The remaining unmapped planemo linters (the ~80 correctness checks + the advisory-by-design
+ones) are in the per-module tables below; each becomes a new GTR row here as it's built.
 
 ## Method & source
 

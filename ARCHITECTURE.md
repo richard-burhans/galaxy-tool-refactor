@@ -85,8 +85,11 @@ depending on each other — the seam that keeps the tiers uncoupled.
   both fmt rules and canonical codemods sort by it), `detect_only` (advisory vs
   fixable), `applies_to` (a subset of `{"tool", "macro"}`; default `{"tool"}` — a
   rule runs on a macro file only when it opts in), `parent` (partition-parent code,
-  e.g. `"GTR020"` for `GTR020.1`/`.2`), and `rulesets` (the named sets this rule
-  belongs to — the maintainer's membership declaration; catalog in `rulesets.py`).
+  e.g. `"GTR020"` for `GTR020.1`/`.2`), `rulesets` (the named sets this rule belongs
+  to — the maintainer's membership declaration; catalog in `rulesets.py`), and
+  `planemo_linters` (the planemo `galaxy.tool_util.lint` linter class names this rule
+  covers — the alias the registry indexes for name-based selection + parity-table
+  generation; empty for our own rules).
 - **`Ruleset` catalog** — `rulesets.py` — the dependency-free `Ruleset(name,
   description)` catalog + `DEFAULT_RULESET` that names the selectable sets;
   membership is declared per-rule (above) and the registry derives `name → codes`.
@@ -398,9 +401,15 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
 - **Selection** — `resolve.py` — `resolve_codes(*, rulesets, select, ignore)` with
   **ruff-style precedence `--ignore` ▸ `--select` ▸ `--ruleset`**: the base is the
   **union** of the named rulesets (default `{"default"}`); `--select` *replaces*
-  it (resets the base, not adds), then `--ignore` subtracts. Unknown names raise
-  typed `UnknownRuleset` / `UnknownRuleCode` (`errors.py`). `resolve_upgrade_codes`
+  it (resets the base, not adds), then `--ignore` subtracts. A `--select`/`--ignore`
+  token is a GTR code, a partition-parent code, **or a planemo linter name**
+  (case-insensitive → the covering GTR code(s)). Unknown names raise typed
+  `UnknownRuleset` / `UnknownRuleCode` (`errors.py`). `resolve_upgrade_codes`
   is the ruleset-less variant for `upgrade`.
+- **Planemo aliases** — `planemo.py` (`planemo_index()`, the derived `planemo name
+  → GTR codes` map) + `parity.py` (`render_parity_table()` — the generated GTR
+  coverage table of `docs/planemo_linter_parity.md`). Both derive from each rule's
+  `meta.planemo_linters`; a freshness test pins the committed table.
 - **`apply_selection`** — `apply.py` — applies a code set in `format`'s order:
   codemods first (by `meta.order`), then the cosmetic fmt rules as
   one batch through `format_tool_document_subset` (which serialises once).

@@ -81,6 +81,7 @@ class HelpRstValid(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"HelpInvalidRST"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:

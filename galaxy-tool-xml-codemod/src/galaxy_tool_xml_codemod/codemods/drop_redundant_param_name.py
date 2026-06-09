@@ -67,6 +67,7 @@ class DropRedundantParamName(CodemodCommand):
         cite=_IUC,
         order=50,
         rulesets=frozenset({"default", "iuc", "strict"}),
+        planemo_linters=frozenset({"InputsNameRedundantArgument"}),
     )
 
     def detect_Param(self, cursor: Cursor) -> Iterable[Change]:

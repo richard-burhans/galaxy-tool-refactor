@@ -428,6 +428,32 @@ def test_rules_subcommand_lists_rules() -> None:
     assert "GTR012" in with_upgrade.output
 
 
+def test_rules_subcommand_shows_planemo_names() -> None:
+    result = CliRunner().invoke(main, ["rules"])
+    assert result.exit_code == 0, result.output
+    assert "planemo:HelpEmpty,HelpMissing" in result.output  # GTR028 bundle
+
+
+def test_select_by_planemo_name_matches_the_covering_code(tmp_path: Path) -> None:
+    # `--select <planemo name>` selects exactly the covering GTR rule.
+    file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
+    by_name = CliRunner().invoke(
+        main, ["check", "--strict", "--select", "HelpMissing", str(file)]
+    )
+    by_code = CliRunner().invoke(
+        main, ["check", "--strict", "--select", "GTR028", str(file)]
+    )
+    assert by_name.output == by_code.output
+    assert "GTR028" in by_name.output
+
+
+def test_unknown_planemo_name_is_clean_error(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
+    result = CliRunner().invoke(main, ["check", "--select", "NotALinter", str(file)])
+    assert result.exit_code != 0
+    assert "NotALinter" in result.output
+
+
 # --- normalize-macros (Phase 2a: macro-library format/ftype normalization) ---------
 
 

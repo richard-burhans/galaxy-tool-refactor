@@ -72,6 +72,7 @@ class FixInterpreter(RuntimeGatedFix):
         ),
         since="0.0.1",
         cite="https://github.com/galaxyproject/galaxy/pull/1688",
+        planemo_linters=frozenset({"CommandInterpreterDeprecated"}),
     )
 
     introduced_profile: ClassVar[str] = "16.04"

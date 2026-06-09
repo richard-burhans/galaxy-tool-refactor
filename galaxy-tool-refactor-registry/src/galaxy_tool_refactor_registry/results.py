@@ -88,6 +88,7 @@ class RuleInfo:
     family: str
     fixable: bool
     rulesets: tuple[str, ...]
+    planemo_linters: tuple[str, ...]
     since: str
     cite: str | None = None
 

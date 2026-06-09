@@ -189,6 +189,12 @@ class ValidatorTypeCompatible(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {
+                "ValidatorAttribIncompatible",
+                "ValidatorParamIncompatible",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -227,6 +233,7 @@ class ValidatorTextPresence(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"ValidatorHasNoText", "ValidatorHasText"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -267,6 +274,7 @@ class ValidatorExpressionValid(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"ValidatorExpression", "ValidatorExpressionFuture"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -353,6 +361,15 @@ class ValidatorRequiredAttributes(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {
+                "ValidatorDatasetMetadataEqualValue",
+                "ValidatorMetadataCheckSkip",
+                "ValidatorMetadataName",
+                "ValidatorMinMax",
+                "ValidatorTableName",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:

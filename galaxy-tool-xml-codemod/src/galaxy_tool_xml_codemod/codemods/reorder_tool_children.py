@@ -54,6 +54,7 @@ class ReorderToolChildren(CodemodCommand):
         cite="https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html",
         order=80,
         rulesets=frozenset({"default", "iuc", "strict"}),
+        planemo_linters=frozenset({"XMLOrder"}),
     )
 
     def detect_Tool(self, cursor: Cursor) -> Iterable[Change]:

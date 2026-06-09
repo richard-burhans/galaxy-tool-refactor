@@ -55,6 +55,12 @@ class TrimAttributeWhitespace(CodemodCommand):
         cite=_IUC,
         order=30,
         rulesets=frozenset({"default", "iuc", "strict"}),
+        planemo_linters=frozenset(
+            {
+                "RequirementVersionWhitespace",
+                "ToolNameWhitespace",
+            }
+        ),
     )
 
     def detect_Tool(self, cursor: Cursor) -> Iterable[Change]:

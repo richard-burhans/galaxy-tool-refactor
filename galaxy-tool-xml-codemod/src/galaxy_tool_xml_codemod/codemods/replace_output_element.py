@@ -61,6 +61,7 @@ class ReplaceOutputElement(CodemodCommand):
         cite=_IUC,
         order=40,
         rulesets=frozenset({"default", "iuc", "strict"}),
+        planemo_linters=frozenset({"OutputsOutput"}),
     )
 
     def detect_Output(self, cursor: Cursor) -> Iterable[Change]:

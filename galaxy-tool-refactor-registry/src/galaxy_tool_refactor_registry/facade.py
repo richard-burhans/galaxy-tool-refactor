@@ -386,6 +386,7 @@ def list_rules(*, include_upgrade: bool = False) -> list[RuleInfo]:
             rulesets=tuple(
                 name for name in ruleset_names() if code in code_map[name]
             ),
+            planemo_linters=tuple(sorted(handles[code].meta.planemo_linters)),
             since=handles[code].meta.since,
             cite=handles[code].meta.cite,
         )
