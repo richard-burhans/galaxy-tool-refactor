@@ -207,6 +207,17 @@ uv run python -m scripts.measure output-format-input
 # server-side, markdown renders client-side; both supported):
 uv run python -m scripts.measure help-formats
 
+# reStructuredText <help> codemod feasibility (backs
+# docs/upgrade_research/restructuredtext_codemods.md; docutils-dependent, not in CI).
+# help-rst-errors buckets docutils validity errors + sizes the deterministically-fixable
+# subset (the GTR089.1 auto-fix target: ~62 tools / 32% of invalid); help-rst-features
+# inventories RST node types + the non-CommonMark blockers; help-rst-to-markdown reports
+# the RST->Markdown convertibility 2x2 (valid+convertible 74.5%). Markdown target =
+# markdown-it ^14 default preset (CommonMark+tables+strikethrough, html:false):
+uv run python -m scripts.measure help-rst-errors
+uv run python -m scripts.measure help-rst-features
+uv run python -m scripts.measure help-rst-to-markdown
+
 # Cheetah complexity of <command> + inline <configfile> (directive/variable-shape/
 # hazard distribution; heuristic regex, not a Cheetah parse). Backs
 # docs/upgrade_research/cheetah_variable_rewriting.md. Writes

@@ -31,6 +31,9 @@ from scripts.measure import (
     _measure_command_language,
     _measure_element_cardinality,
     _measure_help_formats,
+    _measure_help_rst_errors,
+    _measure_help_rst_features,
+    _measure_help_rst_to_markdown,
     _measure_interpreter_buckets,
     _measure_iuc011_fixability,
     _measure_macro_expansion_detection_gap,
@@ -1685,3 +1688,72 @@ def test_measure_macro_token_residual_detects_imported_token(tmp_path: Path) -> 
     assert result.residual_tools == 1
     assert result.imported_involved == 1
     assert result.inline_only == 0
+
+
+# --- RST <help> investigation measures (help-rst-errors/features/to-markdown) ----
+
+
+@pytest.fixture()
+def rst_help_corpus(tmp_path: Path) -> Path:
+    """Synthetic corpus exercising the RST-help eligibility + classification."""
+    repo = tmp_path / "owner" / "help-repo"
+    repo.mkdir(parents=True)
+
+    def _tool(name: str, help_attr: str, body: str) -> None:
+        (repo / name).write_text(
+            f"<tool id='{name}'><help{help_attr}>{body}</help></tool>",
+            encoding="utf-8",
+        )
+
+    # valid RST, only CommonMark-expressible nodes -> valid + convertible
+    _tool("valid.xml", "", "\nTitle\n=====\n\nA paragraph with **bold**.\n\n- a\n- b\n")
+    # invalid RST (unclosed inline strong = WARNING/level-2), otherwise simple shape
+    _tool("invalid.xml", "", "\nsome **unclosed strong text\n")
+    # valid RST using a definition list (no CommonMark equivalent) -> valid + complex
+    _tool("complex.xml", "", "\nterm\n   the definition\n")
+    # invalid RST, deterministically fixable (transition at end of document)
+    _tool("fixable.xml", "", "\nA paragraph.\n\n----\n")
+    # excluded: markdown format
+    _tool("markdown.xml", " format='markdown'", "\n# A heading\n")
+    # excluded: macro token in the body
+    _tool("macro.xml", "", "\n@HELP_OVERVIEW@\n")
+    # excluded: no <help> at all
+    (repo / "nohelp.xml").write_text("<tool id='nohelp'/>", encoding="utf-8")
+    return tmp_path
+
+
+def test_help_rst_errors_classifies_and_excludes(rst_help_corpus: Path) -> None:
+    result = _measure_help_rst_errors(corpus_root=rst_help_corpus)
+    # markdown / macro / no-help bodies are excluded; 4 RST bodies remain.
+    assert result.n_rst_tools == 4
+    assert result.n_parse_fail == 0
+    assert result.n_invalid == 2  # unclosed-strong + transition-at-end
+    # only the transition tool's errors are all in the deterministic-fix set.
+    assert result.n_fully_fixable == 1
+    classes = {cls for cls, _occ, _tools in result.class_buckets}
+    assert any("strong" in cls for cls in classes)
+    assert "Transition at the end of the document." in classes
+
+
+def test_help_rst_features_flags_definition_list(rst_help_corpus: Path) -> None:
+    result = _measure_help_rst_features(corpus_root=rst_help_corpus)
+    assert result.n_rst_tools == 4
+    # valid, invalid (problematic ignored), and transition are convertible; complex not.
+    assert result.n_convertible_shape == 3
+    blocking = {name for name, _count in result.blocking_features}
+    assert "definition_list" in blocking
+
+
+def test_help_rst_to_markdown_2x2(rst_help_corpus: Path) -> None:
+    result = _measure_help_rst_to_markdown(corpus_root=rst_help_corpus)
+    assert result.n_rst_tools == 4
+    assert result.valid_convertible == 1  # the simple valid tool
+    assert result.invalid_convertible == 2  # unclosed-strong + transition (both simple)
+    assert result.valid_complex == 1  # the definition-list tool
+    assert result.invalid_complex == 0
+
+
+def test_help_rst_measures_empty_corpus(tmp_path: Path) -> None:
+    assert _measure_help_rst_errors(corpus_root=tmp_path).n_rst_tools == 0
+    assert _measure_help_rst_features(corpus_root=tmp_path).n_rst_tools == 0
+    assert _measure_help_rst_to_markdown(corpus_root=tmp_path).n_rst_tools == 0
