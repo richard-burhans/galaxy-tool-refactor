@@ -3,8 +3,12 @@
 ``all_checks()`` is the enumerated set of active ``CheckRule`` classes (sorted by
 IUC code); ``detect_violations(document)`` runs every check and returns the
 findings sorted by source line. Mirrors the codemod tier's ``coded_codemods()``
-and the fmt tier's ``all_rules()`` so the cross-tier rule registry spans this
-tier too.
+and the fmt tier's ``all_rules()`` — an explicit list, so the cross-tier rule
+registry spans this tier with the same convention (adding a check means editing
+this list, which ``test_detect.py`` pins by count as the acknowledgement gate).
+
+The concrete checks live in the ``checks`` sub-package, split by element/source
+area into themed submodules.
 """
 
 from __future__ import annotations
@@ -12,46 +16,22 @@ from __future__ import annotations
 from functools import cache
 from typing import TYPE_CHECKING
 
-from galaxy_tool_xml_check.checks import (
+from galaxy_tool_xml_check.checks.help import HelpRstValid
+from galaxy_tool_xml_check.checks.inputs import (
     BooleanValuesDistinct,
-    CitationsPresent,
-    CollectionTypeDeclared,
-    CommandAndJoining,
-    CommandCdata,
-    CommandPresent,
     ConditionalTestParamAttributes,
     ConditionalTestParamType,
     ConditionalWhensMatchOptions,
-    ContainerShapeRecognized,
     DataOptionsValid,
-    DescriptionPresent,
-    EdamXrefs,
-    ErrorHandling,
-    HelpCdata,
-    HelpPresent,
-    HelpRstValid,
-    IdCharset,
     InputOutputNamesDistinct,
     InputsPresent,
-    NoTodoText,
     OptionFilterAttributes,
     OptionFilterExpression,
     OptionFilterReferences,
-    OutputFilterValid,
-    OutputFormatDefined,
-    OutputFormatSourceExclusive,
-    OutputLabelsDistinct,
-    OutputNamesUnique,
-    OutputNameValid,
-    OutputsPresent,
     ParamNamePresent,
     ParamNamesUnique,
     ParamNameValid,
     ParamTypeChildCombination,
-    ProfileFormatValid,
-    RequirementNamePresent,
-    RequirementsPresent,
-    RequirementVersionPinned,
     SelectDisplayConsistent,
     SelectOptionsDefined,
     SelectOptionsDistinct,
@@ -60,8 +40,24 @@ from galaxy_tool_xml_check.checks import (
     SelectOptionsSingle,
     SelectOptionsSourceCoherent,
     SelectOptionValuePresent,
+    UnusedParam,
+)
+from galaxy_tool_xml_check.checks.outputs import (
+    CollectionTypeDeclared,
+    OutputFilterValid,
+    OutputFormatDefined,
+    OutputFormatSourceExclusive,
+    OutputLabelsDistinct,
+    OutputNamesUnique,
+    OutputNameValid,
+    OutputsPresent,
+)
+from galaxy_tool_xml_check.checks.partition import (
+    CommandCdata,
+    HelpCdata,
     SingleQuotedCheetah,
-    StdioRegexValid,
+)
+from galaxy_tool_xml_check.checks.tests import (
     TestAssertionsWellFormed,
     TestDiscoveredOutputsChecked,
     TestExpectFailureCoherent,
@@ -71,14 +67,32 @@ from galaxy_tool_xml_check.checks import (
     TestOutputNamed,
     TestOutputsCorrespond,
     TestParamsInInputs,
+)
+from galaxy_tool_xml_check.checks.tool import (
+    CitationsPresent,
+    CommandAndJoining,
+    CommandPresent,
+    ContainerShapeRecognized,
+    DescriptionPresent,
+    EdamXrefs,
+    ErrorHandling,
+    HelpPresent,
+    IdCharset,
+    NoTodoText,
+    ProfileFormatValid,
+    RequirementNamePresent,
+    RequirementsPresent,
+    RequirementVersionPinned,
+    StdioRegexValid,
     TestsPresent,
     ToolVersionWhitespace,
-    UnusedParam,
+    VersionFormat,
+)
+from galaxy_tool_xml_check.checks.validators import (
     ValidatorExpressionValid,
     ValidatorRequiredAttributes,
     ValidatorTextPresence,
     ValidatorTypeCompatible,
-    VersionFormat,
 )
 from galaxy_tool_xml_check.rules import CheckRule
 
@@ -91,8 +105,8 @@ if TYPE_CHECKING:
 def all_checks() -> tuple[type[CheckRule], ...]:
     """Return every active advisory check class, sorted by ``meta.code``."""
     classes: list[type[CheckRule]] = [
+        # tool-level (presence/shape, command, citations/TODO)
         TestsPresent,
-        CommandCdata,
         IdCharset,
         VersionFormat,
         RequirementsPresent,
@@ -100,27 +114,31 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         EdamXrefs,
         HelpPresent,
         DescriptionPresent,
-        HelpCdata,
-        SingleQuotedCheetah,
         CommandAndJoining,
         RequirementVersionPinned,
-        UnusedParam,
         CitationsPresent,
         NoTodoText,
-        OutputNamesUnique,
-        OutputNameValid,
-        CollectionTypeDeclared,
-        OutputFormatSourceExclusive,
         CommandPresent,
         ProfileFormatValid,
         RequirementNamePresent,
         ToolVersionWhitespace,
+        ContainerShapeRecognized,
+        StdioRegexValid,
+        # partition .2 advisory residuals
+        CommandCdata,
+        HelpCdata,
+        SingleQuotedCheetah,
+        # outputs
+        OutputNamesUnique,
+        OutputNameValid,
+        CollectionTypeDeclared,
+        OutputFormatSourceExclusive,
         OutputsPresent,
         OutputFormatDefined,
         OutputLabelsDistinct,
-        ContainerShapeRecognized,
         OutputFilterValid,
-        StdioRegexValid,
+        # inputs (params, select, options, type/display, conditionals, filters)
+        UnusedParam,
         ParamNamePresent,
         ParamNameValid,
         ParamNamesUnique,
@@ -132,10 +150,6 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         SelectOptionsHaveSource,
         SelectOptionsSourceCoherent,
         SelectOptionsNotDeprecated,
-        ValidatorTypeCompatible,
-        ValidatorTextPresence,
-        ValidatorExpressionValid,
-        ValidatorRequiredAttributes,
         ConditionalTestParamType,
         ConditionalTestParamAttributes,
         ConditionalWhensMatchOptions,
@@ -147,6 +161,12 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         OptionFilterAttributes,
         OptionFilterExpression,
         OptionFilterReferences,
+        # validators
+        ValidatorTypeCompatible,
+        ValidatorTextPresence,
+        ValidatorExpressionValid,
+        ValidatorRequiredAttributes,
+        # tests
         TestAssertionsWellFormed,
         TestOutputCompareAttributes,
         TestOutputNamed,
@@ -156,6 +176,7 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         TestExpectFailureCoherent,
         TestExpectNumOutputs,
         TestHasExpectations,
+        # help
         HelpRstValid,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))

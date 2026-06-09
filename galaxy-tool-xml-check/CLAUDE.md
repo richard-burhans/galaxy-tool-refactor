@@ -19,10 +19,13 @@ never mutate.
 | 4 | app / CLI | `galaxy-tool-refactor-cli` |
 
 It owns the GTR-coded **detect-only** rules (`RuleMeta.detect_only=True`): a
-`CheckRule` ABC (`rules.py`), the concrete checks (`checks.py`), and the registry
-+ runner (`detect.py` — `all_checks()` / `detect_violations()`). Each check is an
-LBYL tree query over a tier-1 `ToolDocument` that yields the shared tier-0.5
-`Violation`.
+`CheckRule` ABC (`rules.py`), the concrete checks (the `checks/` sub-package,
+split by element/source area into `tool` / `partition` / `outputs` / `inputs` /
+`validators` / `tests` / `help` submodules + cross-module `_shared` helpers), and
+the registry + runner (`detect.py` — `all_checks()` is an explicit list, mirroring
+the codemod tier's `coded_codemods()` and fmt's `all_rules()`; `detect_violations()`).
+Each check is an LBYL tree query over a tier-1 `ToolDocument` that yields the shared
+tier-0.5 `Violation`.
 
 **Tier independence.** Depends ONLY on tier 1 + tier 0.5 — never on the mutating
 tiers (codemod/fmt) or the app. The advisory tier is a sibling the app composes,

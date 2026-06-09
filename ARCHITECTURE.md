@@ -301,9 +301,15 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   an `GTR` code); its single method `detect(document) -> Iterable[Violation]` is a
   non-mutating LBYL tree query.
 - **`all_checks()` / `detect_violations(document)`** — `detect.py` — the
-  enumerated check set (sorted by code) and the aggregate runner (findings sorted
-  by line). Mirrors codemod's `coded_codemods()` and fmt's `all_rules()`.
-- **The checks** — `checks.py` — flat advisories `GTR021`, `GTR023`–`GTR029`,
+  enumerated check set (an explicit list, sorted by code) and the aggregate runner
+  (findings sorted by line). Mirrors codemod's `coded_codemods()` and fmt's
+  `all_rules()` — the same explicit-list convention across all three rule families;
+  `test_detect.py` pins the count (66) as the acknowledgement gate when the roster
+  grows.
+- **The checks** — the `checks/` sub-package (split by element/source area:
+  `tool.py`, `partition.py`, `outputs.py`, `inputs.py`, `validators.py`,
+  `tests.py`, `help.py`, with cross-module helpers in `_shared.py`) — flat
+  advisories `GTR021`, `GTR023`–`GTR029`,
   `GTR033` are presence/shape queries (tests, id charset, version format,
   requirements, error handling, EDAM xrefs, help, description, requirement pinning).
   **Three are the advisory `.2` half of a partition practice** (registry D10, check
@@ -315,7 +321,8 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   — its anti-pattern is ~1 tool corpus-wide (D3). **GTR034** (`UnusedParam`) is a
   *reference-usage* advisory (not presence/shape): an `<inputs>` `<param>` never
   referenced anywhere the tool uses it, via the tier-1 all-text identifier scan.
-- **The planemo-parity wave — `GTR038`–`GTR089`** (52 rules, `checks.py`) — a
+- **The planemo-parity wave — `GTR038`–`GTR089`** (52 rules, across the `checks/`
+  submodules) — a
   reimplementation of every *mechanically-reimplementable* planemo (`galaxy.tool_util.lint`)
   linter as a detect-only advisory, grouped by Galaxy source area: citations/TODO
   (`GTR038`–`GTR039`), output correctness (`GTR040`–`GTR050`), embedded-expression
@@ -650,8 +657,8 @@ Each abstraction → its file → the decision record that justifies it.
 | GTR018.1 / .2 | `WrapCommandCdata` (fix) + command-CDATA residual (advisory) | codemod + check | **partition** GTR018 (§29, registry D10) |
 | GTR019.1 / .2 | `WrapHelpCdata` (fix) + help-CDATA residual (advisory) | codemod + check | **partition** GTR019 (§29) |
 | GTR020.1 / .2 | `SingleQuoteCommandVars` (fix) + single-quote residual (advisory) | codemod + check | **partition** GTR020 (§30, check D9) |
-| GTR021, GTR023–029 | `TestsPresent` … (presence/shape) | `galaxy-tool-xml-check/.../checks.py` | check (flat advisory) |
-| GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks.py` | check (advisory, reserved no-op stub — D3) |
-| GTR033 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks.py` | check (advisory — D7) |
-| GTR034 | `UnusedParam` | `galaxy-tool-xml-check/.../checks.py` | check (advisory — reference-usage) |
-| GTR038–GTR089 | planemo-parity wave (`NoTodoText`, `CommandPresent`, `InputsPresent`, `HelpRstValid`, … 52 input/output/test/validator/help checks) | `galaxy-tool-xml-check/.../checks.py` | check (advisory — planemo parity, D12–D30) |
+| GTR021, GTR023–029 | `TestsPresent` … (presence/shape) | `galaxy-tool-xml-check/.../checks/tool.py` | check (flat advisory) |
+| GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory, reserved no-op stub — D3) |
+| GTR033 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory — D7) |
+| GTR034 | `UnusedParam` | `galaxy-tool-xml-check/.../checks/inputs.py` | check (advisory — reference-usage) |
+| GTR038–GTR089 | planemo-parity wave (`NoTodoText`, `CommandPresent`, `InputsPresent`, `HelpRstValid`, … 52 input/output/test/validator/help checks) | `galaxy-tool-xml-check/.../checks/` (`tool`/`outputs`/`inputs`/`validators`/`tests`/`help`) | check (advisory — planemo parity, D12–D30) |

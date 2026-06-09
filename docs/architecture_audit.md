@@ -8,7 +8,7 @@ roughly tripled `galaxy-tool-xml-check` — **52 new detect-only checks (`GTR038
 reimplementing every mechanically-reimplementable `galaxy.tool_util.lint` linter (outputs,
 the full `inputs.py` correctness surface, `tests.py`, validators, `<help>` RST), bringing the
 tier to **66 checks total**. Method: a single deep pass across the seven dimensions, grounded
-in source (`rules.py` / `checks.py` / `detect.py`, the registry adapters, the boundary tests),
+in source (`rules.py` / the `checks/` sub-package / `detect.py`, the registry adapters, the boundary tests),
 then a 7-finder / adversarial-refuter escalation (per-tier + per-dimension + a dedicated
 **documentation-adversary** lane tasked with disproving every present-tense doc claim).
 
@@ -26,7 +26,7 @@ are fixed in this pass.
 1. **Boundary integrity ✅** — `galaxy-tool-xml-check/pyproject.toml` declares only
    `galaxy-tool-refactor-rules` (0.5), `galaxy-tool-xml` (1), `lxml`, `packaging`, and the new
    `docutils>=0.21`; a grep of `src/` confirms imports match (no codemod/fmt/registry import).
-   `docutils` is genuinely used (`checks.py:24-25`, GTR089 only) and present in `uv.lock` —
+   `docutils` is genuinely used (`checks/help.py`, GTR089 only) and present in `uv.lock` —
    not an unused declared coupling. Guarded by `test_tier_boundaries.py`.
 2. **Abstraction consistency ✅** — all 52 new rules subclass the same `CheckRule` ABC, declare
    `meta: ClassVar[RuleMeta]` with `detect_only=True`, and implement one non-mutating
@@ -78,9 +78,10 @@ read. No fix needed — the decision log is current.
 
 ### Accepted / intentional (not drift) [accepted]
 
-- **Monolithic `checks.py` (~3,170 lines, 66 rules).** Intentional: rules ordered by GTR code,
-  helpers defined immediately before their users, no circular structure. A split into a
-  `checks/` package (by planemo source area) is a *proposal* (below), not a defect.
+- **~~Monolithic `checks.py` (~3,170 lines, 66 rules).~~** Was intentional (rules ordered by
+  GTR code, helpers before their users, no circular structure) and judged not a defect — but
+  **this PR applied the split** below at the maintainer's request. The classes now live in the
+  `checks/` sub-package; see "Applied follow-up".
 - **`try/except` in `_is_pep440` and `_rst_is_invalid` (GTR089).** Sanctioned third-party
   boundary exceptions — `packaging.Version` and `docutils.core.publish_string` expose no LBYL
   validity predicate. Consistent with the dignified-python carve-out.
@@ -90,13 +91,41 @@ read. No fix needed — the decision log is current.
   flagged; the per-rule `has_macros` guard suppresses only the *unsound* cases. Advisory
   status keeps the residual false-positives tolerable.
 
-### Proposals (not applied — maintainer decision)
+### Applied follow-up (this PR — maintainer asked to apply the escalation proposals)
 
-- **[proposal] Split `checks.py` into a `checks/` sub-package** grouped by planemo source area
-  (`outputs.py`, `inputs.py`, `tests.py`, `validators.py`, `help.py`, `partition.py`), with
-  `detect.py`'s `all_checks()` importing from each. Pure code-move; would shrink the largest
-  file in the repo and localise future wave growth. Deferred because the current single-file
-  layout is navigable-by-code-order and the move touches import paths across the test file.
+The escalation proposals were taken up after the audit, **but only after each was re-verified
+against the code** — which is exactly why one (N2) was ultimately **declined**: verification
+showed its premise was false, so applying it would have broken a cross-tier convention. Net:
+**three applied (N3/N4/N5), one declined (N2).**
+
+- **[applied] Split `checks.py` → `checks/` sub-package (N5).** Classes partitioned by
+  element/source area into `tool.py` / `partition.py` / `outputs.py` / `inputs.py` /
+  `validators.py` / `tests.py` / `help.py`, with cross-module helpers in `_shared.py`. Pure,
+  behaviour-preserving code-move (done mechanically via an AST splitter; `ruff --fix` pruned the
+  per-module import headers). The 81-test suite + mypy-strict + the `len == 66` tripwire all
+  pass unchanged → the move altered no behaviour. Shrinks the repo's largest file (was 3,169
+  lines) and localises future wave growth.
+- **[reverted — kept explicit list] `all_checks()` enumeration (N2).** The finding proposed
+  deriving the roster from `CheckRule.__subclasses__()`. Its justification — "tiers 2 + 3 already
+  auto-register" — was verified **false**: `coded_codemods()` (tier 2) and `all_rules()` (tier 3)
+  both use **explicit hardcoded lists**, so the explicit list is the *consistent* cross-tier
+  convention and the reflection form would make the check tier the lone outlier (and adds an
+  import-for-side-effect + stray-subclass-pollution fragility the explicit list avoids). It was
+  briefly applied as an informed override, then **reverted to keep the three rule families
+  consistent.** `all_checks()` stays an explicit list (now with grouped per-submodule imports);
+  the `test_detect.py` `len == 66` assertion remains the acknowledgement gate. **Net: N2 is the
+  one escalation finding intentionally declined — recorded so it isn't re-litigated.**
+- **[applied] `_select_params` memoised with `lru_cache(maxsize=1)` (N4).** A literal "single
+  multi-yield collector" would collapse seven GTR codes into one class (breaking the
+  one-class-per-code design the audit + refuter endorsed), so instead the generator became a
+  re-iterable tuple memoised for the current root only: the seven select checks (GTR058–GTR064)
+  now walk the param subtree once per `detect_violations` pass and reuse it six times.
+  `maxsize=1` bounds memory to one document and rules out `id`-reuse stale hits.
+- **[applied] fmt cosmetic-only property test (N3).** `test_framework.py::
+  test_format_preserves_structure_and_attributes` formats a structurally rich tool and asserts
+  the document-ordered element sequence, every tag, and every element's attributes (names,
+  values, order) are identical before/after — only whitespace/empty-element-shorthand may
+  change. Pins fmt's remit so a future structural cosmetic rule fails loudly.
 
 ### Escalation (multi-agent adversarial verification)
 
@@ -116,18 +145,18 @@ scouts and all held at 66 checks.
   Annotated as a superseded snapshot (the pedagogical point — measure ≠ check-firing-rate —
   still stands). The documentation-adversary lane found this; the 2026-06-05 pass had fixed the
   *codemod*-doc references to the retired codes but missed this audit-prose line.
-- **N2 — `all_checks()` is a 66-entry hand-maintained list that could be `CheckRule.__subclasses__()` — Low [proposal].**
-  Currently in perfect sync (66 == 66) and every subclass is imported at module top, so a
-  derived form is safe; tiers 2 + 3 already auto-register. *Keep the hardcoded `len == 66`
-  assertion in `test_detect.py` as the explicit acknowledgement gate even if the list is
-  derived.* Maintainer decision — not applied.
+- **N2 — `all_checks()` is a 66-entry hand-maintained list that could be `CheckRule.__subclasses__()` — Low [reverted / declined].**
+  The finding claimed "tiers 2 + 3 already auto-register"; verification showed that is **false**
+  (both use explicit lists), so deriving the check roster would make it the lone outlier. Briefly
+  applied, then reverted to keep the three rule families consistent; the explicit list + `len == 66`
+  gate stay. The one escalation finding intentionally declined. See "Applied follow-up".
 - **N3 — fmt cosmetic-only scope is enforced by construction (the `Edit` union cannot rename
-  tags / reorder children) but not by an explicit property test — Low [proposal].** Optional
-  hardening; the type system + idempotence sweeps already catch violations.
-- **N4 — GTR058–GTR064 each re-walk `_select_params` (7×) — Low [proposal, downgraded from
-  Medium].** Refuter downgraded: low-frequency small-subtree walks, per-rule isolation is
-  intentional for testability, and the finding's claimed "planned `checks/inputs.py` refactor"
-  is unsupported by any doc. Optional micro-optimization.
+  tags / reorder children) but not by an explicit property test — Low [applied].** Added a
+  structure-preservation property test (`test_framework.py`). See "Applied follow-up".
+- **N4 — GTR058–GTR064 each re-walk `_select_params` (7×) — Low [applied, scoped down].**
+  Refuter-downgraded (low-frequency small walks; per-rule isolation is intentional). Applied as
+  an `lru_cache(maxsize=1)` memoisation that keeps all seven per-code rules intact rather than
+  the finding's code-collapsing "single collector". See "Applied follow-up".
 
 **Refuted (do not re-litigate):** "GTR077–079 should be consolidated" — each shares the
 `_iter_option_filters` iterator but has genuinely distinct per-rule validation; consolidation
