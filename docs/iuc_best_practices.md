@@ -126,6 +126,15 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 | package `<requirement>`s pin a version | GTR033 | **done** (275 tools / 661 findings; check D7) |
 | unused input `<param>` (general lint, not IUC) | GTR034 | **done** (conservative reference scan; check D11) |
 
+> **Scope note.** The table above is the *IUC-practice* slice of the `check` tier.
+> The same tier (`galaxy-tool-xml-check`) additionally hosts the **planemo-parity
+> wave `GTR038`–`GTR089`** (52 detect-only checks reimplementing the
+> `galaxy.tool_util.lint` linters — outputs, inputs, tests, validators, `<help>` RST),
+> bringing it to **66 checks** total. Those are a different axis (planemo coverage,
+> not the IUC tool-XML practices mapped here) and are tracked in
+> [`planemo_linter_parity.md`](planemo_linter_parity.md) +
+> `galaxy-tool-xml-check/docs/decisions.md` D12–D30, not in this document.
+
 The two `<command>`-CDATA-text heuristics (GTR020.2/GTR032) are **reserved
 placeholders** — registered codes, no-op `detect` — pending tuning to avoid
 noise (distinguishing an unquoted Cheetah `$var` or a command-joining `&` from
