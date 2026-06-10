@@ -66,9 +66,9 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
 ## Useful references
 
 - `galaxy-tool-refactor-registry/src/galaxy_tool_refactor_registry/facade.py` —
-  the `run` / `upgrade` / `detect` / `list_rulesets` / `list_rules` entry points
-  `service.py` wraps; `results.py` for the structured result shapes serialised.
+  the `run` / `upgrade` / `detect` / `convert_help` / `list_rulesets` /
+  `list_rules` entry points `service.py` wraps; `results.py` for the structured result shapes serialised.
 - `galaxy-tool-refactor-cli/src/galaxy_tool_refactor_cli/cli.py` — the sibling
   front-end over the same facade.
-- `docs/decisions.md` D1 — the design; `docs/vision.md` — the agent-authored-rules
+- `docs/decisions.md` D1–D2 — the design + the `convert_help_tool` addition; `docs/vision.md` — the agent-authored-rules
   future (Goal 2).

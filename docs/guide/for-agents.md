@@ -1,7 +1,7 @@
 # For AI agents (and people building them)
 
 > **In one sentence:** this is a substrate for agents that work on Galaxy tools — call
-> it over **MCP** (five tools) or embed the **library**, and let it do the deterministic,
+> it over **MCP** (six tools) or embed the **library**, and let it do the deterministic,
 > verifiable parts (format, upgrade, check) while the agent does the reasoning.
 
 ## Why an agent wants this
@@ -17,7 +17,8 @@ is provably safe.
 
 ### MCP (tool calls)
 
-Five tools — `format_tool`, `upgrade_tool`, `check_tool`, `list_rulesets`, `list_rules` —
+Six tools — `format_tool`, `upgrade_tool`, `check_tool`, `convert_help_tool`,
+`list_rulesets`, `list_rules` —
 take the tool XML as a string and return JSON. Nothing is written to disk. See
 [usage/mcp](usage/mcp.md). The key signal for autonomy:
 

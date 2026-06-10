@@ -1210,14 +1210,22 @@ same code paths.
   **swaps the engine** — behaviour-changing by construction — hence the gate.
 - **`rst_to_commonmark(text)`** — a whitelist doctree visitor (sections→ATX,
   paragraphs, em/strong/literal, fenced literal blocks, bullet/enum lists,
-  block quotes, transitions, links, images) that **bails on the first node with
-  no CommonMark form**; returns `(markdown, None)` or `(None, bail_class)`.
+  block quotes, transitions, links, images; **GFM pipe tables** for a *simple*
+  table — one tgroup, a single-row `thead` (GFM needs a header), span-free,
+  inline-only cells — and **hard breaks** for a *flat* line block) that **bails
+  on the first node with no CommonMark form** (incl. a header-less/spanning/
+  block-content table → `"table"`, a nested line block → `"line_block"`);
+  returns `(markdown, None)` or `(None, bail_class)`.
 - **`conversion_is_render_equivalent(rst, md)`** — renders both sides exactly as
   Galaxy does (docutils html4css1 vs markdown-it-py `js-default`, `html:false`),
   reduces each to a normalized semantic skeleton (canonical tag names,
   `<tt>`→`<code>`, fenced `<pre><code>`→`<pre>`, loose-vs-tight list `<p>`
-  unwrapped, whitespace insignificant at block boundaries only), and accepts iff
-  equal. Negative-controlled (corruptions are rejected; pinned by tests).
+  unwrapped, whitespace insignificant at block boundaries only; **drop the
+  docutils-only `<colgroup>`/`<col>` table artifacts, and map both markdown-it
+  `<br>` and docutils `div.line` to one shared line-boundary marker** so a
+  faithful table / line-block conversion compares equal), and accepts iff equal.
+  Negative-controlled (corruptions — incl. swapped cells, dropped rows, reordered
+  lines — are rejected; pinned by tests).
 - **`convert_help_rst(text)`** — the composed pipeline: invalid RST goes through
   the §23 surgical repair first (itself gated), then convert, then gate (against
   the repaired text — what Galaxy would render). `None` unless *provably*
@@ -1227,8 +1235,11 @@ same code paths.
   so an absent extra means refusal, never a blind conversion. MIT, but the
   capability is opt-in, so it follows the bashlex extra pattern, not the CT3
   base-dep pattern. It stays a dev dep so the tests run in CI.
-- **Corpus:** 72.2 % of RST `<help>` bodies convert + pass the gate
+- **Corpus:** 73.4 % of RST `<help>` bodies convert + pass the gate
   (`scripts.measure help-rst-md-convert`, R4 — the measure imports this module).
+  The GFM table/line-block support lifted this from 72.2 % (+88 tools); the gate
+  rejected the 139 non-simple tables/line-blocks that convert but don't render
+  equivalently — far below the spike's ungated ~78–80 % guess.
 
 ### Reproduced by
 

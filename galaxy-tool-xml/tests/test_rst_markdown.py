@@ -98,3 +98,113 @@ def test_convert_help_rst_repairs_then_converts() -> None:
 def test_convert_help_rst_returns_none_on_unrepairable_invalid() -> None:
     # unclosed inline markup is not deterministically repairable
     assert convert_help_rst("some **unclosed strong text\n") is None
+
+
+_GRID_TABLE = """\
++------+------+
+| Name | Size |
++======+======+
+| a    | 1    |
++------+------+
+| b    | 2    |
++------+------+
+"""
+
+_SIMPLE_TABLE_NO_HEADER = """\
+====  ====
+a     1
+b     2
+====  ====
+"""
+
+_SPANNING_TABLE = """\
++------+------+
+| Name | Size |
++======+======+
+| ab          |
++------+------+
+"""
+
+_LINE_BLOCK = "| line one\n| line two\n| line three\n"
+
+
+def test_rst_to_commonmark_converts_a_simple_table() -> None:
+    markdown, bail = rst_to_commonmark(_GRID_TABLE)
+    assert bail is None
+    assert markdown is not None
+    assert "| Name | Size |" in markdown
+    assert "| --- | --- |" in markdown
+    assert "| a | 1 |" in markdown
+
+
+def test_simple_table_conversion_is_render_equivalent() -> None:
+    markdown, _bail = rst_to_commonmark(_GRID_TABLE)
+    assert markdown is not None
+    assert conversion_is_render_equivalent(_GRID_TABLE, markdown)
+    # negative controls: swapped cells / a dropped row must be rejected
+    assert not conversion_is_render_equivalent(
+        _GRID_TABLE, markdown.replace("| a | 1 |", "| 1 | a |")
+    )
+    assert not conversion_is_render_equivalent(
+        _GRID_TABLE, markdown.replace("| b | 2 |\n", "")
+    )
+
+
+def test_table_cell_pipe_is_escaped() -> None:
+    rst = (
+        "+----------+\n"
+        "| Header   |\n"
+        "+==========+\n"
+        "| a|b      |\n"
+        "+----------+\n"
+    )
+    markdown, bail = rst_to_commonmark(rst)
+    assert bail is None and markdown is not None
+    assert conversion_is_render_equivalent(rst, markdown)
+
+
+def test_headerless_table_bails() -> None:
+    # GFM pipe tables require a header row; a headerless RST table has no
+    # faithful GFM form.
+    markdown, bail = rst_to_commonmark(_SIMPLE_TABLE_NO_HEADER)
+    assert markdown is None
+    assert bail == "table"
+
+
+def test_spanning_table_bails() -> None:
+    markdown, bail = rst_to_commonmark(_SPANNING_TABLE)
+    assert markdown is None
+    assert bail == "table"
+
+
+def test_block_content_cell_bails() -> None:
+    rst = (
+        "+----------+\n"
+        "| Header   |\n"
+        "+==========+\n"
+        "| - x      |\n"
+        "| - y      |\n"
+        "+----------+\n"
+    )
+    markdown, bail = rst_to_commonmark(rst)
+    assert markdown is None
+    assert bail == "table"
+
+
+def test_rst_to_commonmark_converts_a_line_block() -> None:
+    markdown, bail = rst_to_commonmark(_LINE_BLOCK)
+    assert bail is None
+    assert markdown is not None
+    assert conversion_is_render_equivalent(_LINE_BLOCK, markdown)
+    # negative controls: dropped / reordered lines must be rejected
+    assert not conversion_is_render_equivalent(
+        _LINE_BLOCK, markdown.replace("line two", "line 2")
+    )
+
+
+def test_nested_line_block_bails() -> None:
+    # docutils nests deeper-indented lines as a child line_block; there is no
+    # flat hard-break form, so only flat line blocks convert.
+    markdown, bail = rst_to_commonmark("| outer\n|    inner indented block\n")
+    assert markdown is None
+    assert bail == "line_block"

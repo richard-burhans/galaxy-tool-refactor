@@ -9,7 +9,7 @@ can happen in Markdown, which — unlike RST — has faithful, source-mapped par
 deterministically-fixable docutils error classes, shipped as a **`GTR089.1` partition-fix** (the
 fixable `.1` half; GTR089 stays the advisory `.2` residual), mirroring GTR018/019/020. It repairs
 the corpus's deterministically-fixable invalid help *and any novel tool* exhibiting those classes.
-**RST→Markdown** is a strong *secondary* (**72.2 % convert behaviour-equivalently** through a real
+**RST→Markdown** is a strong *secondary* (**73.4 % convert behaviour-equivalently** through a real
 converter + render-equivalence gate, R4 below; the gateway to tractable help codemods) but is
 **behaviour-changing → opt-in/upgrade-style**, deferred. **Normalize is not recommended** (no
 canonical RST style; changes rendering; low value).
@@ -104,8 +104,9 @@ question that actually matters — *does a real conversion render the same?* —
 
 - **Converter**: a hand-rolled doctree → CommonMark transducer (whitelist visitor: sections →
   ATX headings, paragraphs, emphasis/strong/literal, literal_block → fence, bullet/enum lists,
-  block_quote, transition, reference → link, image), **bailing on the first node outside the
-  whitelist** — never a lossy approximation.
+  block_quote, transition, reference → link, image, **GFM pipe tables** for simple
+  header-bearing span-free tables, **hard breaks** for flat line blocks), **bailing on the
+  first node outside the whitelist** — never a lossy approximation.
 - **Gate**: render the original RST exactly as Galaxy's server does (docutils html4css1) and the
   converted CommonMark exactly as Galaxy's client does (markdown-it-py's **"js-default"** preset,
   `html:false` — faithful to JS `markdown-it ^14` default), reduce both renderings to a normalized
@@ -113,21 +114,25 @@ question that actually matters — *does a real conversion render the same?* —
   loose-vs-tight list `<p>` unwrapped; whitespace insignificant at block boundaries only), and
   accept **iff the skeletons are equal**. Negative-controlled: corruptions (dropped/added word,
   strong↔em, code→plain, dropped/reordered list item) are all rejected (pinned by
-  `test_gate_rejects_a_corrupted_conversion`).
+  `test_gate_rejects_corrupted_conversions`).
 
-Across the corpus (7,348 deduped non-macro RST bodies):
+Across the corpus (7,348 deduped non-macro RST bodies), with the shipped converter
+(whitelist + **GFM simple-table** + **flat line-block** support):
 
-- **CONVERT + gate PASS: 5,307 (72.2 %)** — the true behaviour-equivalent convertible population.
-- converter BAIL: 1,783 (24.3 %) — genuine non-CommonMark features, led by definition_list 648,
-  table 321, title_reference 278, field_list 247, line_block 207, option_list 30.
-- gate FAIL: 258 (3.5 %) — converted but **not** render-equivalent (e.g. literal-whitespace
-  edges), correctly *not* counted convertible.
+- **CONVERT + gate PASS: 5,395 (73.4 %)** — the true behaviour-equivalent convertible population.
+- converter BAIL: 1,556 (21.2 %) — genuine non-CommonMark features, led by definition_list 702,
+  title_reference 287, field_list 248, table 223 (the non-simple residual: header-less, spanning,
+  or block-content cells), option_list 34.
+- gate FAIL: 397 (5.4 %) — converted but **not** render-equivalent, correctly *not* counted
+  convertible (e.g. literal-whitespace edges, and a standalone block image — docutils renders a
+  bare `<img>` where markdown-it wraps the sole-image paragraph in `<p>`).
 
-So R3's 74.5 % shape heuristic was an honest proxy: ~2.3 points of it fail the real
-behaviour-equivalence test. **Headroom** (spike-side observation, not yet a standing
-measurement): a converter extension emitting GFM pipe tables for the simple-table subset and
-hard breaks for line blocks would lift the ceiling to roughly **~78–80 %**; definition and field
-lists are genuinely unmappable to the markdown-it default preset.
+**The GFM extension lifted the gated rate 72.2 % → 73.4 % (+88 tools), not the spike's
+ungated ~78–80 % guess.** The spike counted convertible *shapes*; running the
+render-equivalence gate on real tables shows ~227 tables/line-blocks leave the bail pile but
+only 88 are truly equivalent — the other 139 (block-content / spanning / multi-paragraph cells)
+the gate correctly rejects. The corpus re-run *is* the honest sizing. Definition and field
+lists remain genuinely unmappable to the markdown-it default preset.
 
 ---
 
@@ -153,19 +158,19 @@ No canonical RST style exists, it changes rendered output, and the value is cosm
 
 ### (3) Convert valid RST → Markdown — **strong secondary, deferred (opt-in)**
 
-**72.2 % convert behaviour-equivalently** (R4 — a real converter + render-equivalence gate, not
+**73.4 % convert behaviour-equivalently** (R4 — a real converter + render-equivalence gate, not
 the shape heuristic) — the gateway that makes *future* help codemods tractable (Markdown has
 source-mapped CommonMark parsers; the Cheetah-style surgical edit works there, not in RST). But it
 is **behaviour-changing** (server-side docutils render becomes client-side markdown-it render —
 the verified model above), so it is an **opt-in / `upgrade`-style** codemod that sets
 `format="markdown"`, **never canonical/auto**. Converter = a **hand-rolled doctree → CommonMark
-writer** (no faithful RST writer; pandoc absent), **bailing** on the 24.3 % complex (definition
+writer** (no faithful RST writer; pandoc absent), **bailing** on the 21.2 % complex (definition
 lists, tables, line blocks, field/option lists, interpreted-text roles) and on invalid RST; the
 **markdown-it-py render-equivalence gate** (R4) is the convert-time atomic bail.
 
 > **Decision (2026-06-10, morning): research formalized** — the converter + gate were promoted
 > from a one-off spike into the standing `help-rst-md-convert` measure (pinned by
-> synthetic-fixture + negative-control tests), so the 72.2 % is reproducible on every corpus
+> synthetic-fixture + negative-control tests), so the 73.4 % is reproducible on every corpus
 > refresh.
 >
 > **SHIPPED (2026-06-10, same day): the conversion capability.** Tier-1

@@ -12,10 +12,11 @@ preset, ``html:false``), reduce both renderings to a normalized semantic
 skeleton, and accept iff the skeletons are equal.
 
 The converter is a whitelist doctree visitor that **bails on the first node with
-no CommonMark form** (definition/field/option lists, tables, line blocks,
-interpreted-text roles, …) — never a lossy approximation. Corpus sizing: 72.2 %
-of RST ``<help>`` bodies convert and pass the gate (``scripts.measure
-help-rst-md-convert``, which consumes this module).
+no CommonMark form** (definition/field/option lists, non-simple tables,
+nested line blocks, interpreted-text roles, …) — never a lossy approximation. It
+does render GFM pipe tables (simple, header-bearing, span-free) and flat line
+blocks (hard breaks). Corpus sizing: 73.4 % of RST ``<help>`` bodies convert and
+pass the gate (``scripts.measure help-rst-md-convert``, which consumes this module).
 
 The gate needs ``markdown-it-py`` (the ``galaxy-tool-xml[markdown]`` extra);
 ``markdown_renderer_available()`` is the LBYL check — conversion without the
@@ -110,10 +111,77 @@ def _block(node: Any, out: list[str], depth: int) -> None:
         out.append("---")
     elif name == "image":
         out.append(f"![{node.get('alt') or ''}]({node.get('uri') or ''})")
+    elif name == "table":
+        out.append(_table_to_pipes(node))
+    elif name == "line_block":
+        out.append(_line_block_to_hard_breaks(node))
     elif name in ("comment", "target", "system_message"):
         return  # invisible in the rendering
     else:
         raise _CommonMarkBail(name)
+
+
+def _children_named(node: Any, name: str) -> list[Any]:
+    return [child for child in node.children if type(child).__name__ == name]
+
+
+def _table_to_pipes(node: Any) -> str:
+    """Render a SIMPLE docutils table as a GFM pipe table, or raise ``_CommonMarkBail``.
+
+    Simple means: one ``tgroup``, a ``thead`` with exactly one row (GFM requires a
+    header), no row/column spans, and inline-only cells (at most one paragraph).
+    Anything else has no faithful pipe-table form -> bail (class ``"table"``).
+    """
+    tgroups = _children_named(node, "tgroup")
+    if len(tgroups) != 1:
+        raise _CommonMarkBail("table")
+    theads = _children_named(tgroups[0], "thead")
+    tbodies = _children_named(tgroups[0], "tbody")
+    if len(theads) != 1 or len(tbodies) != 1:
+        raise _CommonMarkBail("table")
+    head_rows = _children_named(theads[0], "row")
+    if len(head_rows) != 1:
+        raise _CommonMarkBail("table")
+
+    def cells(row: Any) -> list[str]:
+        rendered: list[str] = []
+        for entry in _children_named(row, "entry"):
+            if entry.get("morerows") or entry.get("morecols"):
+                raise _CommonMarkBail("table")  # spans have no GFM form
+            blocks = entry.children
+            if not blocks:
+                rendered.append("")
+                continue
+            if len(blocks) != 1 or type(blocks[0]).__name__ != "paragraph":
+                raise _CommonMarkBail("table")  # block content in a cell
+            rendered.append("".join(_inline(child) for child in blocks[0].children))
+        return rendered
+
+    header = cells(head_rows[0])
+    body = [cells(row) for row in _children_named(tbodies[0], "row")]
+    if any(len(row) != len(header) for row in body):
+        raise _CommonMarkBail("table")
+    lines = [
+        "| " + " | ".join(header) + " |",
+        "| " + " | ".join(["---"] * len(header)) + " |",
+    ]
+    lines.extend("| " + " | ".join(row) + " |" for row in body)
+    return "\n".join(lines)
+
+
+def _line_block_to_hard_breaks(node: Any) -> str:
+    """Render a FLAT docutils line block as hard-break-joined lines, or bail.
+
+    A nested ``line_block`` child (docutils nests deeper-indented lines) has no
+    flat hard-break form -> bail (class ``"line_block"``). The backslash-newline
+    hard break is CommonMark's canonical spelling (markdown-it renders ``<br>``).
+    """
+    lines: list[str] = []
+    for child in node.children:
+        if type(child).__name__ != "line":
+            raise _CommonMarkBail("line_block")
+        lines.append("".join(_inline(grandchild) for grandchild in child.children))
+    return "\\\n".join(lines)
 
 
 def _list_item(item: Any, out: list[str], marker: str) -> None:
@@ -208,8 +276,17 @@ _SKELETON_TAG_CANON = {
 }
 # Structural wrappers both renderers emit freely: unwrap, keep children.
 _SKELETON_UNWRAP = frozenset({"div", "span", "body", "html", "document", "root"})
+# Renderer-artifact elements with no content: docutils emits <colgroup>/<col> for
+# tables; markdown-it emits neither. Dropped entirely so a faithful pipe-table
+# conversion is not rejected on a docutils-only artifact.
+_SKELETON_DROP = frozenset({"colgroup", "col"})
+# The shared line-boundary marker: markdown-it hard breaks render <br>; docutils
+# line blocks render <div class="line"> children. Both normalize to this marker
+# (and the line-block wrapper to <p>, matching markdown-it's paragraph), so a
+# faithful line-block conversion compares equal.
+_LINE_BOUNDARY = "<lb/>"
 _SKELETON_BLOCK_WS = re.compile(
-    r"\s*(</?(?:p|pre|list|li|quote|h|hr|table|tr|cell|_)>)\s*"
+    r"\s*(</?(?:p|pre|list|li|quote|h|hr|table|tr|cell|_)>|<lb/>)\s*"
 )
 
 
@@ -243,6 +320,22 @@ def _html_skeleton(html_text: str) -> str | None:
 def _skeleton_walk(element: Any, parts: list[str]) -> None:
     tag = element.tag if isinstance(element.tag, str) else None
     if tag is None:  # comment / processing instruction
+        return
+    if tag in _SKELETON_DROP:
+        return  # artifact subtree (no content)
+    if tag == "br":
+        parts.append(_LINE_BOUNDARY)
+        return
+    if tag == "div" and "line-block" in (element.get("class") or ""):
+        # docutils line block -> the same shape markdown-it renders: a <p> whose
+        # lines are joined by the boundary marker (each child is a div.line).
+        parts.append("<p>")
+        children = [child for child in element if isinstance(child.tag, str)]
+        for index, child in enumerate(children):
+            if index:
+                parts.append(_LINE_BOUNDARY)
+            _skeleton_walk(child, parts)
+        parts.append("</p>")
         return
     if tag in _SKELETON_UNWRAP:
         _skeleton_text(element.text, parts)

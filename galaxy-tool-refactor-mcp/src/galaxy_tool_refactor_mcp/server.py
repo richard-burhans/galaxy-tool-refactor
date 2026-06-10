@@ -81,6 +81,11 @@ def _check_tool(
     )
 
 
+def _convert_help_tool(xml: str) -> dict[str, object]:
+    """Convert an RST <help> to Markdown when provably render-equivalent (opt-in)."""
+    return _guarded(lambda: service.convert_help_tool(xml))
+
+
 def _list_rulesets() -> list[dict[str, object]]:
     """The baked-in rulesets (name / codes / is_default / description)."""
     return service.list_rulesets()
@@ -97,6 +102,7 @@ def build_server() -> FastMCP:
     server.add_tool(_format_tool, name="format_tool")
     server.add_tool(_upgrade_tool, name="upgrade_tool")
     server.add_tool(_check_tool, name="check_tool")
+    server.add_tool(_convert_help_tool, name="convert_help_tool")
     server.add_tool(_list_rulesets, name="list_rulesets")
     server.add_tool(_list_rules, name="list_rules")
     return server
