@@ -34,6 +34,7 @@ What each GTR rule does, across both tiers. The isolation tables below report ho
 | GTR036 | codemod | Replace a deprecated `<outputs>``<output type="data">` with `<data>` (collection / expression outputs are left for the advisory check). |
 | GTR037 | codemod | Drop a `<param>` 'name' that equals the name Galaxy derives from its 'argument' (redundant; argument implies the same name). |
 | GTR089.1 | codemod | Repair deterministically-fixable invalid `<help>` reStructuredText (short title underlines, missing blank lines) behind a behaviour-preserving gate. |
+| GTR092 | codemod | Convert an RST `<help>` body to Markdown (format="markdown") when the markdown-it rendering is provably equivalent to the docutils rendering (opt-in convert-help only; requires profile >= 24.2). |
 
 ## fmt rules (isolated)
 
@@ -72,6 +73,7 @@ Each codemod applied alone to every eligible tool, checked for idempotence and p
 | GTR036 | ReplaceOutputElement | 8,607 | 1 | 8,607 | 0 | 0 | 1 | 0 |
 | GTR037 | DropRedundantParamName | 8,607 | 332 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR089.1 | RepairHelpRst | 8,607 | 54 | 8,607 | 0 | 0 | 0 | 0 |
+| GTR092 | ConvertHelpToMarkdown | 8,607 | 777 | 8,607 | 0 | 0 | 0 | 0 |
 
 ## Upgrade discovery (GTR012 `UpgradeToLatest`, isolated)
 
