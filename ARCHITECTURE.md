@@ -37,7 +37,7 @@ load-bearing rule:
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic `Rule`s (indent / blank line / shorthand), the `Edit` union + `apply_edits`, `format_tool_document` + the net-diff `detect_tool_document`, the shared `cli_support` engine, the serializer. **The only tier that serialises canonical output XML.** |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice + planemo-parity checks (68; `CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | `RuleHandle` (uniform adapter over all three families), the unified registry, declarative rule-sets, ruff-style selection, and the **library-first** `run` / `upgrade` / `detect` facade. Composes 0.5/1/2/3/3.5. |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros`. CLI plumbing only. |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` / `convert-help`. CLI plumbing only. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`convert_help_tool`/`list_rulesets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
 
 ### Dependency direction
@@ -471,8 +471,9 @@ serializer. *(registry `docs/decisions.md` D1–D5.)*
 
 The user-facing `galaxy-tool-refactor` CLI (`cli.py`). **CLI plumbing only** — all
 rule orchestration is delegated to the facade; this package no longer imports the
-codemod / check tiers directly. Eight subcommands (`format`, `upgrade`, `check`,
-`find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`) —
+codemod / check tiers directly. Nine subcommands (`format`, `upgrade`, `check`,
+`find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`,
+`convert-help`) —
 `find-references` is a read-only query for a parameter's Cheetah `$var` reference sites
 (`galaxy_tool_xml.cheetah_refs`; cli `docs/decisions.md` §D8) and `rename-param` is its
 mutating sibling (the first Cheetah mutator, `galaxy_tool_xml.cheetah_rename`; cli §D9):
@@ -489,10 +490,13 @@ mutating sibling (the first Cheetah mutator, `galaxy_tool_xml.cheetah_rename`; c
   Fixable findings fail the run; advisory findings (the `detect_only` checks, under
   `--ruleset strict`) are informational unless `--strict`. Wraps `facade.detect`.
 - **`rulesets` / `rules`** — introspection over `facade.list_rulesets` /
-  `list_rules`, `convert_help_tool`.
+  `list_rules`.
 - **`normalize-macros`** — opt-in, repo-scoped: lowercase literal `format` /
   `ftype` in `<macros>`-root files (`macro_datatype.normalize_macro_files`). Not in
   the per-tool pipeline — it writes files other than the one named (cli §D7).
+- **`convert-help`** — opt-in: RST `<help>` → Markdown when provable (profile ≥
+  24.2 + the tier-1 render-equivalence gate). Swaps Galaxy's rendering engine, so
+  never part of `format` / `upgrade`. Wraps `facade.convert_help` (cli §D12).
 
 Selection (`--ruleset` / `--select` / `--ignore`) is shared across
 `format` / `upgrade` / `check` with the ruff-style precedence above (`--ruleset`
@@ -501,7 +505,8 @@ unions the named sets). Exceptions from the facade (`UnknownRuleset` /
 `click.BadParameter`.
 
 **`galaxy-tool-refactor-mcp`:** an agent-facing MCP server over the same facade
-(discover rules/rulesets, run `format` / `upgrade` / `check` on supplied content).
+(discover rules/rulesets, run `format` / `upgrade` / `check` / `convert-help` on
+supplied content).
 The facade's library-first shape is what makes it a thin adapter: a FastMCP
 binding (`server.py`) over a protocol-agnostic `service.py` (facade → JSON). Goal 1
 of the vision is shipped; agent-authored rules (Goal 2) remain future. *(cli

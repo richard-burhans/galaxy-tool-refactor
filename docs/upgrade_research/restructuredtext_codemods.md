@@ -114,7 +114,7 @@ question that actually matters — *does a real conversion render the same?* —
   loose-vs-tight list `<p>` unwrapped; whitespace insignificant at block boundaries only), and
   accept **iff the skeletons are equal**. Negative-controlled: corruptions (dropped/added word,
   strong↔em, code→plain, dropped/reordered list item) are all rejected (pinned by
-  `test_gate_rejects_a_corrupted_conversion`).
+  `test_gate_rejects_corrupted_conversions`).
 
 Across the corpus (7,348 deduped non-macro RST bodies), with the shipped converter
 (whitelist + **GFM simple-table** + **flat line-block** support):
