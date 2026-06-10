@@ -2,7 +2,9 @@
 # seeded from corpus_sources.json) and external source clones for inspection
 # (e.g. .local/galaxy-src = a clone of galaxyproject/galaxy used to verify
 # Galaxy-internal behaviour locally).
-.local/
+# No trailing slash: `.local/` matches only a directory, so an accidental
+# symlink at this path was committable (it happened once; removed in this branch).
+.local
 .venv/
 __pycache__/
 *.pyc

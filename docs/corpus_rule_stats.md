@@ -31,11 +31,12 @@ What each GTR rule does, across both tiers. The isolation tables below report ho
 | GTR019.1 | codemod | Wrap a pure-text `<help>` body in CDATA (IUC #42). |
 | GTR020.1 | codemod | Single-quote provably-single-valued Cheetah variables in `<command>` (bare single-token params, $__…__ path built-ins, space-free attrs). |
 | GTR035.1 | codemod | Trim accidental leading/trailing whitespace from a `<requirement>` 'version' (a whitespace-bearing value never resolved — conda gets the spec verbatim; the `<tool>` 'name' trim is the GTR035.2 advisory). |
-| GTR036 | codemod | Replace a deprecated `<outputs>``<output type="data">` with `<data>` (collection / expression outputs are left for the advisory check). |
+| GTR036 | codemod | Replace a deprecated `<outputs>``<output type="data">` with `<data>`, and `<output type="collection">` with `<collection>` via Galaxy's own attribute remap (expression / degenerate outputs are left for the advisory check). |
 | GTR037 | codemod | Drop a `<param>` 'name' that equals the name Galaxy derives from its 'argument' (redundant; argument implies the same name). |
 | GTR089.1 | codemod | Repair deterministically-fixable invalid `<help>` reStructuredText (short title underlines, missing blank lines) behind a behaviour-preserving gate. |
 | GTR092 | codemod | Convert an RST `<help>` body to Markdown (format="markdown") when the markdown-it rendering is provably equivalent to the docutils rendering (opt-in convert-help only; requires profile >= 24.2). |
 | GTR093 | codemod | Upgrade a tool stuck at profile 21.09 toward 22.01 (normalize collection_type + has_size Bytes; repair stdio exit_code/regex). |
+| GTR094 | codemod | Factor a literal version="`<base>`+galaxy`<suffix>`" into @TOOL_VERSION@/@VERSION_SUFFIX@ tokens shared with the matching package requirement (opt-in tokenize-version only). |
 
 ## fmt rules (isolated)
 
@@ -43,9 +44,9 @@ Each rule applied alone to every validated tool, then applied again. *Tools touc
 
 | Rule | Tools validated | Tools touched | Edits | Non-idempotent | Crashed |
 |---|---:|---:|---:|---:|---:|
-| GTR001 | 8,608 | 8,607 | 857,669 | 0 | 0 |
-| GTR003 | 8,608 | 8,608 | 69,431 | 0 | 0 |
-| GTR004 | 8,608 | 1,370 | 2,429 | 0 | 0 |
+| GTR001 | 8,624 | 8,623 | 860,965 | 0 | 0 |
+| GTR003 | 8,624 | 8,624 | 69,603 | 0 | 0 |
+| GTR004 | 8,624 | 1,368 | 2,429 | 0 | 0 |
 
 ## codemods (isolated)
 
@@ -53,35 +54,36 @@ Each codemod applied alone to every eligible tool, checked for idempotence and p
 
 | Rule | Codemod | Eligible | Modified | Idempotent | Non-idempotent | Post-validate-failed | No-repair | Crashed |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| GTR002 | ReorderParamAttributes | 8,607 | 6,075 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR005 | ReorderToolAttributes | 8,607 | 1,020 | 8,607 | 0 | 0 | 0 | 0 |
+| GTR002 | ReorderParamAttributes | 8,623 | 6,087 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR005 | ReorderToolAttributes | 8,623 | 1,019 | 8,623 | 0 | 0 | 0 | 0 |
 | GTR006 | FixTypos | 708 | 39 | 708 | 0 | 0 | 669 | 0 |
-| GTR007 | UpdateProfile | 8,607 | 7,224 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR008 | Upgrade19_01 | 8,607 | 9 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR009 | Upgrade24_0 | 8,607 | 1 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR010 | Upgrade24_1 | 8,607 | 217 | 8,607 | 0 | 0 | 4 | 0 |
-| GTR011 | Upgrade25_1 | 8,607 | 5 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR012 | UpgradeToLatest | 8,607 | 7,227 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR013 | ReorderToolChildren | 8,607 | 4,640 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR014 | FixFromWorkDirWhitespace | 8,607 | 4 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR015 | FixOutputFormatInput | 8,607 | 79 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR016 | FixInterpreter | 8,607 | 1,144 | 8,607 | 0 | 0 | 0 | 0 |
+| GTR007 | UpdateProfile | 8,623 | 7,221 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR008 | Upgrade19_01 | 8,623 | 9 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR009 | Upgrade24_0 | 8,623 | 1 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR010 | Upgrade24_1 | 8,623 | 224 | 8,623 | 0 | 0 | 4 | 0 |
+| GTR011 | Upgrade25_1 | 8,623 | 5 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR012 | UpgradeToLatest | 8,623 | 7,224 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR013 | ReorderToolChildren | 8,623 | 4,653 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR014 | FixFromWorkDirWhitespace | 8,623 | 4 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR015 | FixOutputFormatInput | 8,623 | 79 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR016 | FixInterpreter | 8,623 | 1,143 | 8,623 | 0 | 0 | 0 | 0 |
 | GTR017 | NormalizeBooleanValues | 708 | 21 | 708 | 0 | 0 | 687 | 0 |
-| GTR018.1 | WrapCommandCdata | 8,607 | 2,772 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR019.1 | WrapHelpCdata | 8,607 | 3,247 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR020.1 | SingleQuoteCommandVars | 8,607 | 4,354 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR035.1 | TrimAttributeWhitespace | 8,607 | 0 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR036 | ReplaceOutputElement | 8,607 | 1 | 8,607 | 0 | 0 | 1 | 0 |
-| GTR037 | DropRedundantParamName | 8,607 | 332 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR089.1 | RepairHelpRst | 8,607 | 54 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR092 | ConvertHelpToMarkdown | 8,607 | 796 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR093 | Upgrade21_09 | 8,607 | 0 | 8,607 | 0 | 0 | 0 | 0 |
+| GTR018.1 | WrapCommandCdata | 8,623 | 2,771 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR019.1 | WrapHelpCdata | 8,623 | 3,243 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR020.1 | SingleQuoteCommandVars | 8,623 | 4,357 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR035.1 | TrimAttributeWhitespace | 8,623 | 0 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR036 | ReplaceOutputElement | 8,623 | 1 | 8,623 | 0 | 0 | 1 | 0 |
+| GTR037 | DropRedundantParamName | 8,623 | 332 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR089.1 | RepairHelpRst | 8,623 | 54 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR092 | ConvertHelpToMarkdown | 8,623 | 806 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR093 | Upgrade21_09 | 8,623 | 0 | 8,623 | 0 | 0 | 0 | 0 |
+| GTR094 | TokenizeVersion | 8,623 | 76 | 8,623 | 0 | 0 | 0 | 0 |
 
 ## Upgrade discovery (GTR012 `UpgradeToLatest`, isolated)
 
-Post-apply landing profile over the 8,607 eligible tools. A tool below the latest profile (`26.1`) is a sticking point still needing an `upgrade_vN` codemod.
+Post-apply landing profile over the 8,623 eligible tools. A tool below the latest profile (`26.1`) is a sticking point still needing an `upgrade_vN` codemod.
 
-- reached latest (`26.1`): 8,566
+- reached latest (`26.1`): 8,582
 - below latest: 41
 
 | Sticking version | Tools |

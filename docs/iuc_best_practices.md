@@ -145,7 +145,7 @@ the advisory residual of its partition, and **GTR032 shipped as a real detector
 in check D34** — the D3 deferral's revisit condition (the CT3/M5 lexer) was
 met, and the `lone_amp` classifier (quote/redirect/pipe-aware) flags only the
 genuine joining class, retiring the false-positive concern this paragraph
-recorded
+recorded.
 
 **Not promising for the human-judgment remainder.** "tests are *meaningful*",
 "help is *useful* prose", "names are *descriptive*", "the requirement exists on

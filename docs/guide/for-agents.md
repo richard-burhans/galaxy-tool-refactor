@@ -10,7 +10,7 @@ An LLM can draft a tool wrapper, but it shouldn't *guess* whether the XML is val
 canonical form, or safe at a newer profile. This project answers those deterministically
 and returns structured results — so the agent offloads the parts that must be *correct*,
 not *plausible*. The **upgrade + validation framework is the most mature surface**: it's
-backed by per-release XSDs and a 9,358-tool evidence base, and it tells you when a change
+backed by per-release XSDs and a 9,374-tool evidence base, and it tells you when a change
 is provably safe.
 
 ## Two ways in

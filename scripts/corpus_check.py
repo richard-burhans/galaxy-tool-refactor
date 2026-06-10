@@ -3193,10 +3193,9 @@ def _check_stats_lines(*, source: str, state: _CheckSweepState) -> list[str]:
             heading="## Advisory checks (IUC — best practices)",
             blurb=(
                 "Detect-only IUC best-practice checks. Advisory: `check` reports "
-                "them but does not fail unless `--strict`. `GTR032` (`&&`-vs-lone-`&`) "
-                "is a reserved placeholder (data-backed deferral, check D3), so it "
-                "flags nothing. The `.2` rows are the advisory residual of a partition "
-                "practice (the fixable `.1` sibling is in the codemod table)."
+                "them but does not fail unless `--strict`. The `.2` rows are the "
+                "advisory residual of a partition practice (the fixable `.1` "
+                "sibling is in the codemod table)."
             ),
         )
     )
