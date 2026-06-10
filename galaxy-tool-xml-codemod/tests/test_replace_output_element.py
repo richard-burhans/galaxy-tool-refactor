@@ -39,13 +39,14 @@ def test_replaces_output_type_data_with_data() -> None:
     assert module.document.root.find("outputs/output") is None
 
 
-def test_skips_output_type_collection() -> None:
-    # collection rewrite is deferred (Galaxy's collection_type/type_source remap +
-    # unicodify(None) quirk make pure equivalence uncertain).
+def test_collection_with_collection_type_now_rewrites() -> None:
+    # The C3 widening: with collection_type present the Galaxy remap is exact
+    # (unicodify(None) -> None settled the absent-source corner) — see the
+    # dedicated collection tests below.
     module = parse_module(
         _tool(b'<output type="collection" collection_type="list" name="c"/>')
     )
-    assert list(ReplaceOutputElement().detect(module)) == []
+    assert len(list(ReplaceOutputElement().detect(module))) == 1
 
 
 def test_skips_expression_output_without_type() -> None:
@@ -72,3 +73,54 @@ def test_is_idempotent() -> None:
     once = etree.tostring(module.document.root)
     ReplaceOutputElement().apply(module)
     assert etree.tostring(module.document.root) == once
+
+
+def test_collection_output_remapped_to_collection_element() -> None:
+    # Galaxy's deprecated-path remap (parser/xml.py:548-563): type takes
+    # collection_type's value, type_source takes collection_type_source's, then
+    # the element parses as a <collection>. The rewrite mirrors it exactly.
+    module = parse_module(
+        b'<tool id="m" name="M" version="1.0"><outputs>'
+        b'<output type="collection" name="o" collection_type="list"'
+        b' collection_type_source="src" label="L">'
+        b'<data name="el" format="txt"/></output>'
+        b"</outputs></tool>"
+    )
+    changes = list(ReplaceOutputElement().detect(module))
+    assert len(changes) == 1 and changes[0].code == "GTR036"
+    ReplaceOutputElement().apply(module)
+    collection = module.document.root.find("outputs/collection")
+    assert collection is not None
+    assert collection.get("type") == "list"
+    assert collection.get("type_source") == "src"
+    assert collection.get("collection_type") is None
+    assert collection.get("collection_type_source") is None
+    assert collection.get("label") == "L"  # untouched attrs ride along
+    assert collection.find("data").get("name") == "el"  # children preserved
+    assert module.document.root.find(".//output") is None
+
+
+def test_collection_output_without_source_attr() -> None:
+    # Absent collection_type_source: the deprecated path stores
+    # unicodify(None) -> None, which reads identically to an absent attribute
+    # in the <collection> path — so no type_source is created.
+    module = parse_module(
+        b'<tool id="m" name="M" version="1.0"><outputs>'
+        b'<output type="collection" name="o" collection_type="paired"/>'
+        b"</outputs></tool>"
+    )
+    ReplaceOutputElement().apply(module)
+    collection = module.document.root.find("outputs/collection")
+    assert collection.get("type") == "paired"
+    assert "type_source" not in collection.attrib
+
+
+def test_collection_output_missing_collection_type_left() -> None:
+    # Degenerate: the deprecated path would set type=None (unicodify(None));
+    # there is no provable rewrite — left for the advisory check.
+    module = parse_module(
+        b'<tool id="m" name="M" version="1.0"><outputs>'
+        b'<output type="collection" name="o"/>'
+        b"</outputs></tool>"
+    )
+    assert list(ReplaceOutputElement().detect(module)) == []

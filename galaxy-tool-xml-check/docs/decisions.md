@@ -1070,3 +1070,20 @@ auto-fix. Following the GTR018/019/020/089 pattern, the codemod narrowed to
 `strict` ruleset, carrying the `ToolNameWhitespace` planemo alias (parity
 coverage unchanged). Roster 68 → **69**. Reproduced-by: `uv run --package
 galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/`.
+
+
+## D34 (2026-06-10) — GTR032 graduates: the lone-`&` joining detector (D3's revisit condition met)
+
+D3 deferred GTR032 on two grounds: ~1 genuine corpus instance, and precision
+needing shell-string tokenisation ("revisit only if the M5 lexer lands or the
+corpus shifts"). The lexer landed (CT3 is a tier-1 base dep) and the ledger's
+novel-tool principle retired the rarity leg, so the reserved no-op becomes a
+real detector. The engine is the `command-lone-amp` measure's classifier,
+**moved** to `galaxy_tool_xml_check.lone_amp` (the measure imports it back —
+one source, numbers stay comparable): quote/redirect/pipe-aware, flags only the
+*joining* class (`cmd1 & cmd2`); redirects (`2>&1`), `|&`, quoted sed/awk
+literals, and intentional trailing backgrounding never fire. Detect-only by
+construction: backgrounding is valid shell, so a typo cannot be proven — no
+auto-fix. The parity table's `_NO_OP_DETECT` mechanism is retired (every rule
+now detects). Reproduced-by: `uv run --package galaxy-tool-xml-check pytest
+galaxy-tool-xml-check/tests/ -k gtr032 -k iuc012`.

@@ -9,15 +9,22 @@ Galaxy routes a `<outputs>` child by tag (`tool_util/parser/xml.py`): an
 the element to ``<data>`` and dropping the now-redundant ``type="data"`` is a pure
 no-op for Galaxy.
 
-**Scope — ``type="data"`` only.** Two siblings are deliberately left flagged (advisory),
-not rewritten:
+**Scope — ``type="data"`` and ``type="collection"`` (when provable).** Galaxy's
+deprecated-collection path (`parser/xml.py:548-563`) remaps in place —
+``attrib["type"] = unicodify(collection_type)``, ``attrib["type_source"] =
+unicodify(collection_type_source)`` — then parses via the *same*
+``_parse_collection`` as a ``<collection>``. ``unicodify(None)`` is ``None``
+(the typed overload, ``util/__init__.py:1190-1196``), and ``None`` reads
+identically to an absent attribute, so when ``collection_type`` is **present**
+the rewrite mirrors the remap exactly: rename the tag to ``<collection>``,
+``collection_type`` → ``type``, ``collection_type_source`` → ``type_source``
+(when present), drop the old ``type`` discriminator. Two cases stay flagged
+(advisory), not rewritten:
 
-- ``<output type="collection">`` — Galaxy remaps ``collection_type`` → ``type`` and
-  ``collection_type_source`` → ``type_source`` and fills ``type_source`` via
-  ``unicodify(None)`` when the source attribute is absent, so a literal rename is not
-  provably equivalent. Deferred.
-- ``<output>`` with no ``type`` — an *expression* output (`_parse_expression`), a
-  different output kind, not a data rename.
+- ``<output type="collection">`` with **no** ``collection_type`` — the
+  deprecated path stores ``type=None`` (degenerate); no provable rewrite.
+- ``<output>`` with no ``type`` — an *expression* output (`_parse_expression`),
+  a different output kind, not a data rename.
 
 Only acts on ``<output>`` whose parent is ``<outputs>`` — an ``<output>`` under
 ``<test>`` is a test assertion, not an output definition. Idempotent (after the rename
@@ -48,14 +55,25 @@ def _to_data(cursor: Cursor, /) -> None:
     cursor.rename_tag("data")
 
 
+def _to_collection(cursor: Cursor, /) -> None:
+    """Mirror Galaxy's deprecated-collection remap (module docstring) statically."""
+    cursor.delete_attribute("type")  # the "collection" discriminator, now the tag
+    cursor.rename_attribute("collection_type", "type")
+    if cursor.get_attribute("collection_type_source") is not None:
+        cursor.rename_attribute("collection_type_source", "type_source")
+    cursor.rename_tag("collection")
+
+
 class ReplaceOutputElement(CodemodCommand):
     """Replace a deprecated ``<outputs><output type="data">`` with ``<data>``."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
         code="GTR036",
         summary=(
-            'Replace a deprecated <outputs><output type="data"> with <data> '
-            "(collection / expression outputs are left for the advisory check)."
+            'Replace a deprecated <outputs><output type="data"> with <data>, and'
+            ' <output type="collection"> with <collection> via Galaxy\'s own'
+            " attribute remap (expression / degenerate outputs are left for the"
+            " advisory check)."
         ),
         since="0.0.1",
         cite=_IUC,
@@ -68,12 +86,28 @@ class ReplaceOutputElement(CodemodCommand):
         parent = cursor.parent()
         if parent is None or parent.tag != "outputs":
             return  # a <test><output> is a test assertion, not an output definition
-        if cursor.get_attribute("type") != "data":
-            return  # collection / expression outputs are out of scope (see module doc)
-        yield Change(
-            code=self.meta.code,
-            sourceline=cursor.sourceline,
-            xpath=cursor.xpath,
-            message='replace deprecated <output type="data"> with <data>',
-            mutate=lambda: _to_data(cursor),
-        )
+        output_type = cursor.get_attribute("type")
+        if output_type == "data":
+            yield Change(
+                code=self.meta.code,
+                sourceline=cursor.sourceline,
+                xpath=cursor.xpath,
+                message='replace deprecated <output type="data"> with <data>',
+                mutate=lambda: _to_data(cursor),
+            )
+            return
+        if (
+            output_type == "collection"
+            and cursor.get_attribute("collection_type") is not None
+        ):
+            yield Change(
+                code=self.meta.code,
+                sourceline=cursor.sourceline,
+                xpath=cursor.xpath,
+                message=(
+                    'replace deprecated <output type="collection"> with'
+                    " <collection> (Galaxy's own attribute remap)"
+                ),
+                mutate=lambda: _to_collection(cursor),
+            )
+        # else: expression output / degenerate collection — advisory territory

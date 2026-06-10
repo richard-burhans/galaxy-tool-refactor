@@ -64,7 +64,7 @@ cleanly. Full record: codemod `docs/decisions.md` §41.
   maintainability payoff (IUC best practice), not a validity or behavior
   unlock. Opt-in-command shaped if built.
 
-### A3. GTR032 precise lone-`&` joining detector — its revisit condition is met
+### A3. GTR032 joining detector — **SHIPPED 2026-06-10** (check D34)
 
 - **Where:** check `docs/decisions.md` D3.
 - **What:** a *precise* "join with `&&`, not a lone `&`" advisory (the current
@@ -112,7 +112,7 @@ non-empty interpreter, not just the flags slice. Bucket C dissolved (25 → A,
 **316 → 299**. Full record: codemod `docs/decisions.md` §39 + the rewritten
 `docs/upgrade_research/16_04_fix_interpreter.md`.
 
-### C3. GTR036 `<output type="collection">` → `<collection>`
+### C3. GTR036 collection variant — **SHIPPED 2026-06-10** (codemod §34 addendum)
 
 - **Where:** codemod `docs/decisions.md` §34 ("Scope homework").
 - **What:** the deprecated-element rewrite ships only for `type="data"`;
@@ -175,9 +175,9 @@ Criteria: **(i)** novel-tool benefit (likelihood × severity of the gap),
 | 1 | **C2 — GTR016 bucket-C flags slice** | ✅ **shipped** (codemod §39): the proof admitted all of bucket C, not just flags — 25 tools by shape, 17 rescued from the stuck residual (316 → 299) |
 | 2 | **C1 — GTR015 nested sole input** | ✅ **shipped** (codemod §40): qualified `format_source` for conditional/section nesting; 0 corpus tools (the 1 nested corpus tool is repeat-nested — correctly still bailed), pure novel-tool insurance |
 | 3 | **A1 — collection-type whitespace** | ✅ **shipped** (`Upgrade21_09` / GTR093, codemod §41): runtime comma-token strip proves the no-op; 1 corpus tool + novel-tool insurance |
-| 4 | **C3 — GTR036 collection variant** | provable by source-mirroring (method already used for the data case); modernizes a deprecated construct; ~0 corpus so pure novel-tool insurance |
+| 4 | **C3 — GTR036 collection variant** | ✅ **shipped** (§34 addendum): the remap mirrored exactly; `unicodify(None)` corner settled; degenerate case stays advisory |
 | 5 | **A2 — 3c version tokenization** | the largest corpus count (75) but style-tier payoff (no validity/behavior unlock) and the highest cost (macros creation) |
-| 6 | **A3 — GTR032 precise detector** | revisit condition met, but advisory-only payoff on a ~1-tool pattern; build when the CT3 classifier is wanted for other command checks anyway |
+| 6 | **A3 — GTR032 precise detector** | ✅ **shipped** (check D34): the measure's classifier moved to the check tier; joining-only, no-op mechanism retired |
 
 Ranking approved by the maintainer 2026-06-10; work proceeds top-down.
 

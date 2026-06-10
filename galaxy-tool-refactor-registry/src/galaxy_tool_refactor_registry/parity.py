@@ -32,11 +32,6 @@ def _quote_tags(text: str, /) -> str:
 # The narrowest-first ruleset order (the sets nest: cosmetic ⊂ default = iuc ⊂ strict).
 _NARROW_ORDER = ("cosmetic", "default", "iuc", "strict")
 
-# The one reserved no-op detector — documented in check ``docs/decisions.md`` D3.
-# It carries a ``detect`` method (uniform interface) but never fires, so the table
-# shows ``—``. The single hand-known exception; everything else detects.
-_NO_OP_DETECT = frozenset({"GTR032"})
-
 _HEADER = "| GTR | planemo linter(s) covered | detect | fix | tier | ruleset | description |"  # noqa: E501
 _SEPARATOR = "|---|---|:--:|:--:|---|---|---|"
 
@@ -61,7 +56,7 @@ def render_parity_table() -> str:
         meta = handles[code].meta
         names = sorted(meta.planemo_linters)
         planemo = ", ".join(names) if names else "—"
-        detect = "—" if code in _NO_OP_DETECT else "✓"
+        detect = "✓"  # every rule detects (GTR032's no-op era ended — check D34)
         fix = "✗" if meta.detect_only else "✓"
         tier = "upgrade" if code in upgrade_codes else handles[code].family
         ruleset = next((name for name in _NARROW_ORDER if name in meta.rulesets), "—")

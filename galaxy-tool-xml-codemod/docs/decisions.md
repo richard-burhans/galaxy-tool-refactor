@@ -1501,6 +1501,19 @@ galaxy_tool_xml_codemod.codemods.replace_output_element:ReplaceOutputElement`.
   `profile=`-preserving).
 - **Corpus.** 1 tool carries `<output type="data">` combined-corpus (`docs/corpus_check_stats.md`); the codemod sweep modifies **1**, with **0 non-idempotent, 0 post-validate-failed, 0 crashed** (`docs/corpus_rule_stats.md`); fmt pipeline stays idempotent. Low incidence, but correct for novel tool XML — not gated on corpus frequency.
 
+**Addendum (2026-06-10, ledger item C3):** the `type="collection"` deferral is
+reversed — Galaxy's deprecated-path remap is exact and mirrorable
+(`parser/xml.py:548-563`: `attrib["type"] = unicodify(collection_type)`,
+`attrib["type_source"] = unicodify(collection_type_source)`, then the same
+`_parse_collection` as a `<collection>`), and the `unicodify(None)` corner is
+settled by the typed overload (`util/__init__.py:1190-1196`: `None` in → `None`
+out, which reads identically to an absent attribute). The codemod now rewrites
+`<output type="collection">` **when `collection_type` is present** (tag rename
++ `collection_type`→`type` + `collection_type_source`→`type_source`); the
+degenerate no-`collection_type` case (the deprecated path stores `type=None`)
+and expression outputs stay advisory. ~0 corpus incidence — novel-tool
+insurance, per `../../docs/deferred_fix_opportunities.md`.
+
 ## 35. `DropRedundantParamName` (GTR037) — drop a `<param>` name its `argument` implies
 
 **Date:** 2026-06-06. Third planemo-parity *fix*
