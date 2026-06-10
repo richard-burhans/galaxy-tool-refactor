@@ -6,6 +6,21 @@ authors = [{ name = "Richard Burhans", email = "richard.burhans@gmail.com" }]
 license = "MIT"
 readme = "README.md"
 requires-python = ">=3.10"
+keywords = ["galaxy", "bioinformatics", "tool-xml", "xsd", "validation", "cheetah"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Text Processing :: Markup :: XML",
+    "Typing :: Typed",
+]
 dependencies = [
     "xsdata[lxml]>=26.2",
     "lxml>=5",             # declared explicitly: galaxy-util needs lxml but does not declare it
@@ -39,6 +54,11 @@ shell-oracle = ["bashlex>=0.18"]
 # extra is absent (markdown_renderer_available()). MIT, but opt-in-feature-only ->
 # an extra, not a base dep (the bashlex pattern; it IS in dev so tests run in CI).
 markdown = ["markdown-it-py>=4"]
+
+[project.urls]
+Homepage = "https://github.com/richard-burhans/galaxy-tool-refactor"
+Repository = "https://github.com/richard-burhans/galaxy-tool-refactor"
+Issues = "https://github.com/richard-burhans/galaxy-tool-refactor/issues"
 
 [project.scripts]
 galaxy-tool-source = "galaxy_tool_source.cli:main"
