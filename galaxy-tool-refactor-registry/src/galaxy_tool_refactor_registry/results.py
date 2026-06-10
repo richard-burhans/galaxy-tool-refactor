@@ -90,7 +90,7 @@ class TokenizeVersionResult:
 
     formatted: bytes
     tokenized: bool
-    skip_reason: str | None
+    skip_reason: str | None = None
 
 
 @dataclass(frozen=True)

@@ -3,7 +3,7 @@
 ``registry()`` is the **selectable** set — the codemod canonical rules, the fmt
 cosmetic rules, and the advisory checks — keyed by ``RuleMeta.code``. The
 non-selectable codemods (GTR007–GTR012 + GTR093 validity-gated; GTR014–GTR016
-runtime-gated; the opt-in-command-only GTR092) are kept in the internal index
+runtime-gated; the opt-in-command-only GTR092/GTR094) are kept in the internal index
 purely so the duplicate-code guard sees the whole GTR namespace and so
 ``list_rules(include_upgrade=True)`` can enumerate them.
 

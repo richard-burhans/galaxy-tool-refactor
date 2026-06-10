@@ -122,7 +122,7 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 | non-empty `<description>` | GTR029 | done |
 | `<help>` wrapped in CDATA | GTR019.2 | done (now also fixable — GTR019.1) |
 | single-quoted Cheetah variables (#36) | GTR020.2 | **done** (read-only command lexer; the *provable* subset is now also fixable — GTR020.1; see below) |
-| `&&` vs a lone `&` (#39) | GTR032 | **placeholder** (deferred — data-backed, ~dead) |
+| `&&` vs a lone `&` (#39) | GTR032 | **check** (shipped — D34; quote/redirect/pipe-aware, joining-class only) |
 | package `<requirement>`s pin a version | GTR033 | **done** (275 tools / 661 findings; check D7) |
 | unused input `<param>` (general lint, not IUC) | GTR034 | **done** (conservative reference scan; check D11) |
 
@@ -140,34 +140,12 @@ last infra-free planemo linters: output reference integrity + data-param format)
 > [`planemo_linter_parity.md`](planemo_linter_parity.md) +
 > `galaxy-tool-xml-check/docs/decisions.md` D12–D31, not in this document.
 
-The two `<command>`-CDATA-text heuristics (GTR020.2/GTR032) are **reserved
-placeholders** — registered codes, no-op `detect` — pending tuning to avoid
-noise (distinguishing an unquoted Cheetah `$var` or a command-joining `&` from
-legitimate shell text inside CDATA is heuristic). For GTR032 this is now settled
-with data (`galaxy-tool-xml-check/docs/decisions.md` D3, `scripts.measure
-command-lone-amp`): of the 431 tools the crude lone-`&` heuristic flags, the
-genuine `cmd1 & cmd2` anti-pattern appears in **1** — the rest are redirections
-(`2>&1`), quoted `&` literals (sed/awk), and `|&` pipes. A precise check needs
-the M5 shell lexer, not a regex, and would flag ~1 tool, so GTR032 stays
-deferred. **GTR020.2 is the opposite and now ships** (`docs/decisions.md` D4 +
-**D5**): excluding Cheetah directive lines and tracking shell quotes (across
-newlines), a genuinely-unquoted `$var` fires on **73.2%** of tools — real signal,
-on par with shipped advisories (GTR025 57.3%, GTR027 89.6%). It is implemented as
-a **read-only command-text lexer** (`galaxy-tool-xml/.../command_text.py`, tier 1
-— the detection-only slice of the codemod tier's deferred M5, needing none of the
-matcher language / mutation cursors / provenance), reporting **one finding per
-unquoted occurrence**. The *provably*-single-valued subset of those occurrences is
-now **auto-fixed** by GTR020.1 (`SingleQuoteCommandVars`, a tier-2 codemod in the
-`format`/`iuc` pipeline) — bare single-token params, `$__…__` path built-ins,
-space-free attrs, plus `select`/`drill_down` whose option values are *provably*
-single tokens, whose value can never word-split for a working tool (50.9% of
-occurrences; `scripts.measure iuc011-fixability`, codemod `docs/decisions.md` §30/§32).
-The lexer moved to tier 1 so both the check (3.5) and the codemod (2) share it.
-GTR020.2 keeps flagging the non-provable residual (free-form `text`, `multiple=`
-splats, `$on_string`, label attrs, `#set`/loop vars). For *why* the command text is shell at all (Cheetah →
-whitespace-flatten → `#!/bin/sh` + `set -e`), which grounds both heuristics, see
-[`galaxy_processing_model.md`](galaxy_processing_model.md). "Profile recency" is
-omitted: it overlaps GTR007 / the `upgrade` command.
+The `<command>`-CDATA-text heuristics took different paths: GTR020.2 remains
+the advisory residual of its partition, and **GTR032 shipped as a real detector
+in check D34** — the D3 deferral's revisit condition (the CT3/M5 lexer) was
+met, and the `lone_amp` classifier (quote/redirect/pipe-aware) flags only the
+genuine joining class, retiring the false-positive concern this paragraph
+recorded
 
 **Not promising for the human-judgment remainder.** "tests are *meaningful*",
 "help is *useful* prose", "names are *descriptive*", "the requirement exists on

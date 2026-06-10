@@ -423,3 +423,29 @@ def test_convert_help_reports_the_profile_gate(tmp_path: Path) -> None:
     assert not result.converted
     assert result.skip_reason is not None and "upgrade" in result.skip_reason
     assert not out.exists()  # nothing written when not converted
+
+
+_TOKENIZABLE = (
+    b'<tool id="m" name="M" version="1.20+galaxy0" profile="24.0">'
+    b"<command><![CDATA[echo x]]></command>"
+    b'<requirements><requirement type="package" version="1.20">samtools'
+    b"</requirement></requirements>"
+    b'<inputs><param name="i" type="text"/></inputs>'
+    b'<outputs><data name="o"/></outputs></tool>'
+)
+
+
+def test_tokenize_version_applies_and_serialises() -> None:
+    result = facade.tokenize_version(_TOKENIZABLE)
+    assert result.tokenized is True and result.skip_reason is None
+    assert b'version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"' in result.formatted
+    assert b'<token name="@TOOL_VERSION@">1.20</token>' in result.formatted
+    assert b'<requirement type="package" version="@TOOL_VERSION@">' in result.formatted
+
+
+def test_tokenize_version_reports_skip_reason() -> None:
+    plain = _TOKENIZABLE.replace(b'version="1.20+galaxy0"', b'version="1.20"')
+    result = facade.tokenize_version(plain)
+    assert result.tokenized is False
+    assert result.skip_reason is not None and "+galaxy" in result.skip_reason
+    assert b'version="1.20"' in result.formatted  # unchanged tool echoed

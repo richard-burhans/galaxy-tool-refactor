@@ -1,5 +1,57 @@
 # Architectural audit — galaxy-tool-refactor
 
+## Re-audit 2026-06-10b — the proof-driven widening wave + ledger completion (PRs #157–#159 + the ledger-ranks-4-6 branch), with escalation
+
+**Audited commit:** `c46d579` (the live `feat/ledger-ranks-4-6` branch — findings
+applied on the branch before its PR). Delta from `c346a6d`: **#157** (the third
+audit's remediation — the opt-in-command class named), **#158** (the GTR001
+payload guard + the deferral ledger), **#159** (the 88-file wave: GTR016/GTR015
+widenings, GTR093, the Upgrade_vN gap audit + `xsd-tightenings`, the complete
+G-series, the proofs-tightening pass, `docs/proofs/` + its coverage tripwire,
+the GTR004 schema derivation, the GTR035 partition), and the live branch
+(GTR036 collection remap, the GTR032 detector + `lone_amp`, GTR094 +
+`tokenize-version` — the tenth CLI command — + the seventh MCP tool, the
+declined-list re-verification incl. the 18.01 deletion **refutation**).
+
+**Verdict — healthy; zero High, zero boundary violations, and the escalation's
+priority adversarial lanes all came back clean.** Nine finders (five tier-deep
++ four cross-cutting incl. a proofs-accuracy lane over all 27 proof documents)
+fed per-finding adversarial refuters: **21 raw findings → 5 refuted → 16
+survivors**, every survivor doc/test/cosmetic. The load-bearing surfaces this
+wave shipped — the §39 verbatim-composition proof, the schema-derived payload
+guard (fmt D20) and its two proof-carried exceptions, GTR094's
+expansion-equality gate, the GTR035 partition wiring, the doubled
+`OPT_IN_COMMAND_BY_CODE` invariants, and the proofs directory's accuracy
+against the code it cites — produced **no surviving findings**: the strongest
+corroboration this audit series has returned.
+
+### Applied (single pass + escalation survivors, all safe-fix class)
+
+1. **The GTR032-graduation propagation cluster** (the dominant survivor group —
+   one shipped change, six docs that still described the no-op era):
+   ARCHITECTURE.md prose + reference-index row, check `CLAUDE.md` + `README.md`,
+   `docs/iuc_best_practices.md` (table row + heuristics paragraph), the
+   capabilities matrix row (Roadmap → Shipped), the repo-explainer skill's
+   "not yet implemented" example, and a vindicated-rationale annotation on
+   registry D3 (the dated-entry convention).
+2. **Count/roster propagation**: cli `README.md` "eight commands" → ten +
+   `cli.py` module docstring; registry module docstring + `resolve.py` hint
+   docstring gain GTR094; codemod `CLAUDE.md` partition count (five) +
+   GTR035.1 codes + opt-in plural; capabilities GTR035.1 column + a GTR035.2
+   advisory row.
+3. **Symmetry/coverage**: `TokenizeVersionResult.skip_reason` gains the
+   `= None` default (ConvertHelpResult symmetry); two facade-level
+   `tokenize_version` tests added (mirroring `convert_help`'s).
+
+### Recorded, not findings
+
+- The corpus stats pages await the `.local` re-fetch (the scratch-loss
+  incident; recovery running) — the two stat guards are red by design until
+  the branch-end sweep, and the gate blocks any push until then. Working as
+  intended.
+- 5 refuted candidates (intentional/already-handled/mis-read) died in
+  verification — the adversarial layer doing its job.
+
 ## Re-audit 2026-06-10 — post RST→Markdown conversion wave (PRs #152–#156)
 
 **Audited commit:** `c346a6d` (main at audit time; the remediation below landed on

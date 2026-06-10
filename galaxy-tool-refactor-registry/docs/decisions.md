@@ -76,7 +76,10 @@ via `list_rules(include_upgrade=True)`.
 
 `strict` includes the *whole* advisory family rather than freezing at GTR021–GTR030,
 so when the reserved GTR031/GTR032 stubs gain real logic they are automatically
-covered; today they fire nothing, so this is observationally identical. Default
+covered; today they fire nothing, so this is observationally identical. *(Since
+superseded exactly as anticipated: GTR031 retired into the GTR020 partition —
+check D8 — and GTR032 gained its real detector in check D34; `strict` covered
+both automatically, vindicating this rationale.)* Default
 `iuc` keeps bare `format` unchanged for existing users. Excluding the upgrade-only
 codes from selection avoids exposing internal pipeline steps as if they were
 standalone, user-toggleable rules.

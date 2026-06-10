@@ -35,7 +35,9 @@ reports them but does not fail on them by default.
 **Scope.** Covers the mechanically-detectable IUC practices (presence /
 attribute / structure queries). The **flat** IUC advisories are `GTR021`,
 `GTR023`–`GTR029`, `GTR033` (package `<requirement>`s pin a version, D7) plus the
-`GTR032` (`&&`-vs-lone-`&`) no-op stub (~1 tool corpus-wide, D3) and `GTR034`
+`GTR032` (`&&`-vs-lone-`&`) — a real detector since D34 (the
+D3 no-op era ended): the `lone_amp.py` classifier flags only the genuine
+*joining* class.
 (unused `<param>`, D11). **Four are the advisory `.2` half of a partition
 practice** (D9/D31; registry D10): `GTR018.2` / `GTR019.2` (the `<command>` / `<help>`
 CDATA mixed-content residual), `GTR020.2` (the non-provable unquoted-`$var`

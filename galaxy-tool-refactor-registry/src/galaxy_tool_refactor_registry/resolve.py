@@ -32,7 +32,8 @@ def _non_selectable_hint(token: str, /) -> str | None:
 
     ``None`` for a genuinely unknown token. For a non-selectable codemod the hint
     names where the rule actually lives: its dedicated command
-    (``OPT_IN_COMMAND_BY_CODE``, e.g. ``convert-help`` for GTR092) or the
+    (``OPT_IN_COMMAND_BY_CODE`` — ``convert-help`` for GTR092, ``tokenize-version``
+    for GTR094) or the
     ``upgrade`` pipeline.
     """
     code = token.upper()

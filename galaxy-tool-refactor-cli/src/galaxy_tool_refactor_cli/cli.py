@@ -1,6 +1,7 @@
 """The ``galaxy-tool-refactor`` command-line interface.
 
-Eight subcommands. ``format`` and ``upgrade`` share fmt's file-walking /
+Ten subcommands (including the two opt-in conversions, ``convert-help`` and
+``tokenize-version``). ``format`` and ``upgrade`` share fmt's file-walking /
 drift-detection engine (``galaxy_tool_xml_fmt.cli_support``) and differ only in
 which rules run before serialisation; ``check`` is a report-only linter that
 mutates nothing; ``find-references`` is a read-only query for a parameter's Cheetah
