@@ -38,7 +38,7 @@ load-bearing rule:
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice + planemo-parity checks (68; `CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | `RuleHandle` (uniform adapter over all three families), the unified registry, declarative rule-sets, ruff-style selection, and the **library-first** `run` / `upgrade` / `detect` facade. Composes 0.5/1/2/3/3.5. |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros`. CLI plumbing only. |
-| 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`list_rulesets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
+| 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`convert_help_tool`/`list_rulesets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
 
 ### Dependency direction
 
@@ -489,7 +489,7 @@ mutating sibling (the first Cheetah mutator, `galaxy_tool_xml.cheetah_rename`; c
   Fixable findings fail the run; advisory findings (the `detect_only` checks, under
   `--ruleset strict`) are informational unless `--strict`. Wraps `facade.detect`.
 - **`rulesets` / `rules`** — introspection over `facade.list_rulesets` /
-  `list_rules`.
+  `list_rules`, `convert_help_tool`.
 - **`normalize-macros`** — opt-in, repo-scoped: lowercase literal `format` /
   `ftype` in `<macros>`-root files (`macro_datatype.normalize_macro_files`). Not in
   the per-tool pipeline — it writes files other than the one named (cli §D7).

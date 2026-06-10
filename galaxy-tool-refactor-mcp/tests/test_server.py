@@ -27,6 +27,7 @@ def test_build_server_registers_every_tool() -> None:
         "format_tool",
         "upgrade_tool",
         "check_tool",
+        "convert_help_tool",
         "list_rulesets",
         "list_rules",
     }

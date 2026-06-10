@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from galaxy_tool_refactor_registry.results import (
+        ConvertHelpResult,
         DetectResult,
         FormatResult,
         RuleInfo,
@@ -67,6 +68,14 @@ def _upgrade_result_to_dict(result: UpgradeResult, /) -> dict[str, object]:
         "behavior_preserving": result.behavior_preserving,
         "advisory": [_violation_to_dict(v) for v in result.advisory],
         "notes": list(result.notes),
+    }
+
+
+def _convert_help_result_to_dict(result: ConvertHelpResult, /) -> dict[str, object]:
+    return {
+        "converted": result.converted,
+        "formatted": result.formatted.decode("utf-8"),
+        "skip_reason": result.skip_reason,
     }
 
 
@@ -138,6 +147,17 @@ def check_tool(
     """Report-only detect over the selected rules; never mutates the tool."""
     codes = resolve_codes(rulesets=rulesets, select=select, ignore=ignore)
     return _detect_result_to_dict(facade.detect(xml.encode("utf-8"), codes=codes))
+
+
+def convert_help_tool(xml: str, /) -> dict[str, object]:
+    """Convert an RST ``<help>`` to Markdown when provable; else report why not.
+
+    The opt-in GTR092 conversion (registry D18): profile >= 24.2 (the XSD gate —
+    the skip reason says to run ``upgrade_tool`` first) + the tier-1
+    render-equivalence gate. ``converted=False`` is a normal outcome, not an
+    error; ``formatted`` then echoes the (serialised) unchanged tool.
+    """
+    return _convert_help_result_to_dict(facade.convert_help(xml.encode("utf-8")))
 
 
 def list_rulesets() -> list[dict[str, object]]:

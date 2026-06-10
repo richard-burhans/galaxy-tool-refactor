@@ -56,3 +56,14 @@ the CLI: both wrap the tier-3.6 facade for a different audience. Five tools:
 uv run --package galaxy-tool-refactor-mcp pytest galaxy-tool-refactor-mcp/tests/
 uv run galaxy-tool-refactor-mcp   # serve over stdio
 ```
+
+## D2 (2026-06-10) — `convert_help_tool`: the opt-in conversion joins the surface
+
+The sixth tool, mirroring the CLI's `convert-help` (cli D12) over the facade's
+`convert_help` (registry D18): `convert_help_tool(xml) -> {converted, formatted,
+skip_reason}`. The conversion's gates live below this tier (profile >= 24.2 +
+render equivalence, codemod §38); the adapter only serialises the structured
+outcome — `converted=False` with the codemod's own `skip_reason` is a normal
+result, not an MCP error, so an agent can act on the reason (e.g. call
+`upgrade_tool` first, exactly what the profile-gate message says). No
+ruleset/select parameters: GTR092 is not selectable anywhere, by design.

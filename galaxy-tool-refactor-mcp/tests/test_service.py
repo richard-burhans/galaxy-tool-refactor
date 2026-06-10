@@ -101,3 +101,28 @@ def test_list_rules_include_upgrade_adds_more() -> None:
 def test_malformed_xml_raises_syntax_error() -> None:
     with pytest.raises(ToolXmlSyntaxError):
         service.format_tool("<tool><unclosed></tool>")
+
+
+_CONVERTIBLE = (
+    '<tool id="m" name="M" version="1.0.0" profile="24.2">'
+    "<command><![CDATA[echo x]]></command>"
+    "<help>Title\n=====\n\nSome **bold** text.\n</help></tool>"
+)
+
+
+def test_convert_help_tool_converts() -> None:
+    result = service.convert_help_tool(_CONVERTIBLE)
+    assert result["converted"] is True
+    assert result["skip_reason"] is None
+    formatted = result["formatted"]
+    assert isinstance(formatted, str)
+    assert 'format="markdown"' in formatted
+    assert "# Title" in formatted
+
+
+def test_convert_help_tool_reports_profile_skip() -> None:
+    old = _CONVERTIBLE.replace(' profile="24.2"', "")
+    result = service.convert_help_tool(old)
+    assert result["converted"] is False
+    skip_reason = result["skip_reason"]
+    assert isinstance(skip_reason, str) and "upgrade" in skip_reason
