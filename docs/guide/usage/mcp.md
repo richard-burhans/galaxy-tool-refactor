@@ -1,11 +1,12 @@
 # Using it from an MCP client (agents)
 
-> **TL;DR.** The MCP server exposes the same engine to AI agents as six tools —
-> `format_tool`, `upgrade_tool`, `check_tool`, `convert_help_tool`, `list_rulesets`,
-> `list_rules` — over a thin FastMCP binding. Tools take the tool XML as a string and
+> **TL;DR.** The MCP server exposes the same engine to AI agents as seven tools —
+> `format_tool`, `upgrade_tool`, `check_tool`, `convert_help_tool`,
+> `tokenize_version_tool`, `list_rulesets`, `list_rules` — over a thin FastMCP
+> binding. Tools take the tool XML as a string and
 > return JSON; nothing is written to disk. This is vision Goal 1, and it ships today.
 
-## The six tools
+## The seven tools
 
 | Tool | Input | Returns |
 |---|---|---|
@@ -13,6 +14,7 @@
 | `upgrade_tool` | `xml`, optional `select`/`ignore` | upgraded XML, steps, `behavior_preserving`, notes |
 | `check_tool` | `xml`, optional `rulesets`/`select`/`ignore` | report-only findings (never mutates) |
 | `convert_help_tool` | `xml` | `{converted, formatted, skip_reason}` — opt-in RST→Markdown help conversion; a skip (e.g. "profile below 24.2 — run `upgrade` first") is a normal result an agent can act on |
+| `tokenize_version_tool` | `xml` | `{tokenized, formatted, skip_reason}` — opt-in @TOOL_VERSION@ extraction (expansion-equality gated); macro-importing tools fail closed (content-based — use the path-based CLI for those) |
 | `list_rulesets` | — | the baked-in rulesets (name / codes / default / description) |
 | `list_rules` | optional `include_upgrade` | every rule (code / family / fixable / rulesets / cite) |
 

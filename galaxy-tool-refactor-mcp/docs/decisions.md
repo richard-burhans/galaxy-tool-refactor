@@ -67,3 +67,14 @@ outcome — `converted=False` with the codemod's own `skip_reason` is a normal
 result, not an MCP error, so an agent can act on the reason (e.g. call
 `upgrade_tool` first, exactly what the profile-gate message says). No
 ruleset/select parameters: GTR092 is not selectable anywhere, by design.
+
+## D3 (2026-06-10) — `tokenize_version_tool`: the seventh tool
+
+The GTR094 sibling of D2, same shape: `tokenize_version_tool(xml) ->
+{tokenized, formatted, skip_reason}` over the facade's `tokenize_version`
+(registry D19). One MCP-specific boundary, stated rather than hidden: every
+MCP tool is **content-based** (agents supply XML strings; nothing touches
+disk), so a tool whose `<macros>` imports files fails closed — the
+expansion-equality gate cannot resolve imports without a source directory —
+and the skip reason says to use the path-based CLI `tokenize-version` instead.
+No ruleset/select parameters: GTR094, like GTR092, is not selectable anywhere.

@@ -41,7 +41,8 @@ contracts in ``canonical.py``:
   ``ReorderToolAttributes`` → ``ReorderToolChildren`` → ``WrapCommandCdata`` →
   ``WrapHelpCdata`` → ``SingleQuoteCommandVars`` (the safe canonical/format
   pipeline; ``TrimAttributeWhitespace`` / ``ReplaceOutputElement`` /
-  ``DropRedundantParamName`` = GTR035–GTR037, the planemo-parity fixes;
+  ``DropRedundantParamName`` = GTR035.1/GTR036/GTR037, the planemo-parity fixes
+  (GTR035 partitioned: the name-trim residual is the GTR035.2 advisory, §33);
   ``ReorderToolChildren`` = GTR013, IUC #52 element order, validity-safe because
   ``<tool>`` is ``xs:all``; ``WrapCommandCdata`` / ``WrapHelpCdata`` =
   GTR018.1/GTR019.1, IUC #34/#42, wrap a pure-text ``<command>``/``<help>`` body in
@@ -51,18 +52,20 @@ contracts in ``canonical.py``:
   canonical codemod to shift default-``format`` bytes vs the pre-partition output,
   ``docs/decisions.md`` §30; ``RepairHelpRst`` = GTR089.1, repair
   deterministically-fixable invalid ``<help>`` reStructuredText behind a
-  render-equivalence gate, ``docs/decisions.md`` §37. The four
-  ``Wrap…``/``SingleQuote…``/``RepairHelpRst`` codemods are the fixable ``.1`` half of
-  a partition practice — their advisory ``.2`` residual lives in the check tier;
+  render-equivalence gate, ``docs/decisions.md`` §37. The five
+  ``Wrap…``/``SingleQuote…``/``RepairHelpRst``/``TrimAttributeWhitespace`` codemods
+  are the fixable ``.1`` half of a partition practice — their advisory ``.2`` residual lives in the check tier;
   registry ``docs/decisions.md`` D10).
 - ``AUTO_UPGRADE_CODEMODS`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
   ``UpgradeToLatest`` (the opt-in profile-upgrade pipeline).
 
 ``ConvertHelpToMarkdown`` (GTR092, ``docs/decisions.md`` §38) is in neither
-pipeline: the catalog's first **opt-in-command-only** codemod (no ruleset; applied
+pipeline: the first of the catalog's **opt-in-command-only** codemods (no ruleset; applied
 solely by the app's ``convert-help``) — the RST → Markdown ``<help>`` conversion
 behind tier-1 ``rst_markdown``'s render-equivalence gate + the profile ≥ 24.2 XSD
-gate.
+gate. Its sibling ``TokenizeVersion`` (GTR094, §43) is the second:
+the @TOOL_VERSION@/@VERSION_SUFFIX@ extraction behind the expansion-equality
+gate, applied solely by ``tokenize-version``.
 
 ``FixTypos``, ``NormalizeBooleanValues`` (GTR017 — boolean-case repair, the
 ``True``/``False`` → ``true``/``false`` fix ``FixTypos`` cannot reach), and

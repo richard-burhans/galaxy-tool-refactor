@@ -1501,6 +1501,19 @@ galaxy_tool_xml_codemod.codemods.replace_output_element:ReplaceOutputElement`.
   `profile=`-preserving).
 - **Corpus.** 1 tool carries `<output type="data">` combined-corpus (`docs/corpus_check_stats.md`); the codemod sweep modifies **1**, with **0 non-idempotent, 0 post-validate-failed, 0 crashed** (`docs/corpus_rule_stats.md`); fmt pipeline stays idempotent. Low incidence, but correct for novel tool XML — not gated on corpus frequency.
 
+**Addendum (2026-06-10, ledger item C3):** the `type="collection"` deferral is
+reversed — Galaxy's deprecated-path remap is exact and mirrorable
+(`parser/xml.py:548-563`: `attrib["type"] = unicodify(collection_type)`,
+`attrib["type_source"] = unicodify(collection_type_source)`, then the same
+`_parse_collection` as a `<collection>`), and the `unicodify(None)` corner is
+settled by the typed overload (`util/__init__.py:1190-1196`: `None` in → `None`
+out, which reads identically to an absent attribute). The codemod now rewrites
+`<output type="collection">` **when `collection_type` is present** (tag rename
++ `collection_type`→`type` + `collection_type_source`→`type_source`); the
+degenerate no-`collection_type` case (the deprecated path stores `type=None`)
+and expression outputs stay advisory. ~0 corpus incidence — novel-tool
+insurance, per `../../docs/deferred_fix_opportunities.md`.
+
 ## 35. `DropRedundantParamName` (GTR037) — drop a `<param>` name its `argument` implies
 
 **Date:** 2026-06-06. Third planemo-parity *fix*
@@ -1799,3 +1812,34 @@ galaxy-tool-xml-codemod/tests/test_upgrade_21_09.py`.
 - **Corpus.** 0 tools for every one of these shapes (greps over 1,795
   `<exit_code>` elements and all `has_size` values) — like §40, shipped purely
   as novel-tool insurance under the ledger's principle.
+
+## 43. `TokenizeVersion` (GTR094) — opt-in @TOOL_VERSION@ extraction, proof by execution
+
+**Date:** 2026-06-10. Ledger item A2 (rank 5 of the approved G/ledger ranking,
+`../../docs/deferred_fix_opportunities.md`); sized by `scripts.measure
+version-tokenization` (75 clean candidates, PR #31). Reproduced-by: `uv run
+--package galaxy-tool-xml-codemod pytest
+galaxy-tool-xml-codemod/tests/test_tokenize_version.py`.
+
+- **The transform.** `version="<base>+galaxy<suffix>"` (base == a package
+  `<requirement>` version) → `@TOOL_VERSION@+galaxy@VERSION_SUFFIX@`; matching
+  requirement versions → `@TOOL_VERSION@`; the two `<token>`s defined in the
+  inline `<macros>` (created at the first child position when absent).
+- **Proof by execution.** The mutation runs on a deep copy first and is kept
+  only when `expand_from_tree` over the tokenized copy reproduces the original
+  expansion **byte-for-byte** (both `<macros>` blocks dropped — Galaxy clears
+  them after harvesting). The tokens substitute back to exactly the literals
+  they replaced, so the post-expansion tool is unchanged by construction. A
+  gate failure leaves the tree untouched and the surface reports it.
+- **Fail-closed preconditions** (`tokenization_skip_reason`, the shared
+  decision path): non-matching/already-tokenized versions; no requirement
+  pinning the base; `@TOOL_VERSION@`/`@VERSION_SUFFIX@` already defined; macro
+  `<import>`s on a bytes-parsed tool (the gate could not resolve them — the
+  CLI passes paths so imports resolve in practice).
+- **Classification.** The second **opt-in-command-only** codemod (the GTR092
+  class): no ruleset, `OPT_IN_COMMAND_BY_CODE["GTR094"] = "tokenize-version"`,
+  never `format`/`upgrade` (a multi-element style restructure). MCP tool =
+  follow-up, per the GTR092 precedent (mcp D2 arrived one PR later).
+- **Serializer-allowlist note.** The gate's internal `etree.tostring` compares
+  two throwaway expansions (proof, not output) — allowlisted with that
+  justification; output still flows through fmt via the facade.

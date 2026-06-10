@@ -13,6 +13,7 @@ from galaxy_tool_xml.macros import has_macros
 from lxml import etree
 from packaging.version import InvalidVersion, Version
 
+from galaxy_tool_xml_check.lone_amp import classify_lone_amps
 from galaxy_tool_xml_check.rules import CheckRule
 
 if TYPE_CHECKING:
@@ -292,19 +293,20 @@ class DescriptionPresent(CheckRule):
 
 
 class CommandAndJoining(CheckRule):
-    """GTR032 — join shell commands with ``&&`` not a lone ``&`` (placeholder).
+    """GTR032 — join shell commands with ``&&``, not a lone ``&``.
 
-    Reserved IUC code; ``detect`` is a no-op — now on a **data-backed** basis
-    (``docs/decisions.md`` D3, ``scripts.measure command-lone-amp``): of the 431
-    corpus tools the crude lone-``&`` heuristic flags, the genuine ``cmd1 & cmd2``
-    anti-pattern appears in **one** — the rest are redirections (``2>&1``), quoted
-    ``&`` literals (sed/awk), and ``|&`` pipes. A precise check needs the M5 shell
-    lexer, not a regex. Deferred. See ``../../docs/iuc_best_practices.md``.
+    A lone ``&`` between two commands backgrounds the first — almost always a
+    typo for ``&&`` (run-if-succeeded) in a tool wrapper. The classifier
+    (``lone_amp.classify_lone_amps``, the ``command-lone-amp`` measure's engine)
+    is quote/redirect/pipe-aware, so sed/awk literals, ``2>&1``, ``|&`` and an
+    intentional trailing ``&`` are never flagged — only the genuine *joining*
+    class is. Detect-only: a working tool's lone ``&`` cannot be proven a typo
+    (backgrounding is valid shell), so there is no auto-fix (D3 → D34).
     """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
         code="GTR032",
-        summary="Join shell commands with && not a lone & (not yet implemented).",
+        summary="Join shell commands with && (a lone & backgrounds the first).",
         since="0.0.1",
         cite=_IUC,
         detect_only=True,
@@ -312,7 +314,18 @@ class CommandAndJoining(CheckRule):
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
-        return ()  # placeholder — detection deferred
+        command = document.root.find("command")
+        if command is None:
+            return
+        joining = classify_lone_amps("".join(command.itertext()))["joining"]
+        if joining:
+            yield _violation(
+                document,
+                command,
+                self.meta,
+                f"lone '&' joins commands {joining} time(s) — use '&&' "
+                "(or end-of-command '&' for intentional backgrounding)",
+            )
 
 
 class RequirementVersionPinned(CheckRule):

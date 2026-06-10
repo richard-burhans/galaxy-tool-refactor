@@ -1,7 +1,7 @@
 # For AI agents (and people building them)
 
 > **In one sentence:** this is a substrate for agents that work on Galaxy tools — call
-> it over **MCP** (six tools) or embed the **library**, and let it do the deterministic,
+> it over **MCP** (seven tools) or embed the **library**, and let it do the deterministic,
 > verifiable parts (format, upgrade, check) while the agent does the reasoning.
 
 ## Why an agent wants this
@@ -10,15 +10,15 @@ An LLM can draft a tool wrapper, but it shouldn't *guess* whether the XML is val
 canonical form, or safe at a newer profile. This project answers those deterministically
 and returns structured results — so the agent offloads the parts that must be *correct*,
 not *plausible*. The **upgrade + validation framework is the most mature surface**: it's
-backed by per-release XSDs and a 9,358-tool evidence base, and it tells you when a change
+backed by per-release XSDs and a 9,374-tool evidence base, and it tells you when a change
 is provably safe.
 
 ## Two ways in
 
 ### MCP (tool calls)
 
-Six tools — `format_tool`, `upgrade_tool`, `check_tool`, `convert_help_tool`,
-`list_rulesets`, `list_rules` —
+Seven tools — `format_tool`, `upgrade_tool`, `check_tool`, `convert_help_tool`,
+`tokenize_version_tool`, `list_rulesets`, `list_rules` —
 take the tool XML as a string and return JSON. Nothing is written to disk. See
 [usage/mcp](usage/mcp.md). The key signal for autonomy:
 

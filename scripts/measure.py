@@ -1898,51 +1898,10 @@ def _run_command_iuc_heuristics(args: argparse.Namespace) -> None:
 # is the deferred M5 lexer); backs the GTR032 deferral in
 # `galaxy-tool-xml-check/docs/decisions.md`. Needs the corpus, not in CI.
 
-_LONE_AMP_CLASSES = (
-    "redirect",  # adjacent < or > : 2>&1, &>file, <&3 — a redirection, not joining
-    "pipe",  # |& : bash pipe-with-stderr, not joining
-    "quoted",  # inside '...' or "..." : a literal & in an argument (sed/awk)
-    "background",  # lone & at end of a command (eol / ; / )) — intentional, not a bug
-    "joining",  # lone & with a following command — the genuine GTR032 anti-pattern
+from galaxy_tool_xml_check.lone_amp import (  # noqa: E402 (module section)
+    LONE_AMP_CLASSES as _LONE_AMP_CLASSES,
+    classify_lone_amps as _classify_lone_amps,
 )
-
-
-def _classify_lone_amps(text: str, /) -> Counter[str]:
-    """Tally each lone ``&`` in *text* into a ``_LONE_AMP_CLASSES`` bucket.
-
-    Pure (string in, counts out), so it is unit-tested with synthetic bodies.
-    Quote state is a simple single/double scan (no escape handling — good enough
-    to tag the sed/awk literal-``&`` class). A ``&`` that is part of ``&&`` is not
-    a lone ``&`` and is never counted.
-    """
-    counts: Counter[str] = Counter()
-    in_single = in_double = False
-    for i, ch in enumerate(text):
-        if ch == "'" and not in_double:
-            in_single = not in_single
-            continue
-        if ch == '"' and not in_single:
-            in_double = not in_double
-            continue
-        if ch != "&":
-            continue
-        prev = text[i - 1] if i > 0 else ""
-        nxt = text[i + 1] if i + 1 < len(text) else ""
-        if prev == "&" or nxt == "&":
-            continue  # part of && — not a lone &
-        if in_single or in_double:
-            counts["quoted"] += 1
-        elif prev in "<>" or nxt == ">":
-            counts["redirect"] += 1
-        elif prev == "|":
-            counts["pipe"] += 1
-        else:
-            j = i + 1
-            while j < len(text) and text[j] in " \t":
-                j += 1
-            after = text[j] if j < len(text) else ""
-            counts["background" if after in "\n;)" or after == "" else "joining"] += 1
-    return counts
 
 
 @dataclass

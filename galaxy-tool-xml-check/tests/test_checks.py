@@ -936,10 +936,10 @@ def test_iuc019_2_help_cdata_residual() -> None:
     assert "GTR019.2" not in _codes(_tool())
 
 
-def test_iuc012_placeholder_never_fires() -> None:
-    """GTR032 (&&-vs-lone-&) is a data-backed no-op stub (decisions D3)."""
+def test_iuc012_joining_amp_fires() -> None:
+    """GTR032 graduated from the D3 no-op stub to a real detector (D34)."""
     codes = _codes(_tool(command="<command><![CDATA[a & b && c]]></command>"))
-    assert "GTR032" not in codes
+    assert "GTR032" in codes  # `a & b` is the joining anti-pattern
 
 
 def test_iuc013_flags_unpinned_package_requirements() -> None:
@@ -1180,3 +1180,16 @@ def test_gtr035_2_tool_name_whitespace_residual() -> None:
     assert "GTR035.2" not in _codes(_tool())
     assert "GTR035.2" in _codes(_tool().replace(b'name="Good"', b'name="Good "', 1))
     assert "GTR035.2" in _codes(_tool().replace(b'name="Good"', b'name=" Good"', 1))
+
+
+def test_gtr032_lone_amp_joining_flagged_other_classes_not() -> None:
+    # Only the genuine joining class fires; redirects, pipes, quoted literals,
+    # and intentional trailing backgrounding never do.
+    joining = _tool(command="<command><![CDATA[do_thing in.txt & cleanup]]></command>")
+    assert "GTR032" in _codes(joining)
+    benign = _tool(
+        command="<command><![CDATA[a 2>&1 | grep x |& tee log ; "
+        "sed 's/&/and/' in > out ; server &\n]]></command>"
+    )
+    assert "GTR032" not in _codes(benign)
+    assert "GTR032" not in _codes(_tool())  # default command uses no &

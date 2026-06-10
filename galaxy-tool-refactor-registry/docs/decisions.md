@@ -76,7 +76,10 @@ via `list_rules(include_upgrade=True)`.
 
 `strict` includes the *whole* advisory family rather than freezing at GTR021–GTR030,
 so when the reserved GTR031/GTR032 stubs gain real logic they are automatically
-covered; today they fire nothing, so this is observationally identical. Default
+covered; today they fire nothing, so this is observationally identical. *(Since
+superseded exactly as anticipated: GTR031 retired into the GTR020 partition —
+check D8 — and GTR032 gained its real detector in check D34; `strict` covered
+both automatically, vindicating this rationale.)* Default
 `iuc` keeps bare `format` unchanged for existing users. Excluding the upgrade-only
 codes from selection avoids exposing internal pipeline steps as if they were
 standalone, user-toggleable rules.
@@ -696,3 +699,14 @@ exception — it is applied by `convert-help`, not `upgrade`. *(Both renamed in 
 uv run --package galaxy-tool-refactor-registry pytest \
   galaxy-tool-refactor-registry/tests/test_facade.py -k convert_help
 ```
+
+## D19 (2026-06-10) — `tokenize_version`: the second opt-in conversion entry point
+
+The GTR094 sibling of D18's `convert_help`: `tokenize_version(source, *,
+write_path=None) -> TokenizeVersionResult(formatted, tokenized, skip_reason)`.
+The facade re-derives the outcome from the tree after `apply` (the codemod's
+expansion-equality gate may decline beyond the shared preconditions), so the
+reported skip reason can never disagree with what happened. Serialisation goes
+through `apply_selection(codes=frozenset())` — fmt stays the only output
+serializer. `OPT_IN_COMMAND_BY_CODE` gains the second entry; the partition
+tripwire and `list_rules(include_upgrade=True)` cover it as before.

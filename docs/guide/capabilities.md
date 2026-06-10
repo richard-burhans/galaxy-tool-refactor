@@ -39,10 +39,11 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Wrap pure-text `<command>` / `<help>` in CDATA | GTR018, GTR019 | ✅ Shipped | `default` ruleset |
 | Single-quote the *provably*-single-valued Cheetah `$var`s in `<command>` | GTR020.1 | ✅ Shipped | `default` ruleset |
 | Repair deterministically-fixable invalid `<help>` reStructuredText (short title underlines, missing blank lines) behind a behaviour-preserving gate | GTR089.1 | ✅ Shipped | `default` ruleset; planemo-parity *fix* (`HelpInvalidRST`) |
-| Trim accidental whitespace from a `<requirement>` `version` (the `<tool>` `name` trim is the GTR035.2 advisory — display-contract, report-only) | GTR035 | ✅ Shipped | `default` ruleset; planemo-parity *fix* (`docs/examples/planemo_fixable_issues.md`) |
+| Trim accidental whitespace from a `<requirement>` `version` (the `<tool>` `name` trim is the GTR035.2 advisory — display-contract, report-only) | GTR035.1 | ✅ Shipped | `default` ruleset; planemo-parity *fix* (`docs/examples/planemo_fixable_issues.md`) |
 | Replace a deprecated `<output type="data">` with `<data>` | GTR036 | ✅ Shipped | `default` ruleset; planemo-parity *fix* |
 | Drop a `<param>` `name` that its `argument` already implies | GTR037 | ✅ Shipped | `default` ruleset; planemo-parity *fix* |
 | Convert an RST `<help>` to Markdown when provably render-equivalent (profile ≥ 24.2; repair-then-convert; opt-in `convert-help`, never `format`/`upgrade`) | GTR092 | ✅ Shipped | `convert-help` command; tier-1 `rst_markdown` gate; 73.4% of corpus RST helps convertible (`docs/upgrade_research/restructuredtext_codemods.md`) |
+| Factor a literal `version="<base>+galaxy<suffix>"` into `@TOOL_VERSION@`/`@VERSION_SUFFIX@` tokens (opt-in `tokenize-version`, expansion-equality gated, never `format`/`upgrade`) | GTR094 | ✅ Shipped | `tokenize-version` command; codemod §43; ~75 corpus candidates (`scripts.measure version-tokenization`) |
 
 ### Upgrade (profile bump + repair, opt-in & semantic)
 
@@ -95,7 +96,8 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | `data` param declares the format(s) it accepts (else the generic `data` type matches everything) — planemo-parity advisory | GTR091 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
 | Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTR020.1, the residual stays advisory | GTR020.2 | ✅ Shipped | advisory; provable subset fixed (GTR020.1) |
 | Input `<param>` never referenced anywhere the tool uses it | GTR034 | ✅ Shipped | `strict` ruleset; 189/467 tools (`docs/corpus_check_stats.md`) |
-| Lone-`&` vs `&&` join | GTR032 | 🔭 Roadmap | registry labels it "not yet implemented" |
+| Lone-`&` vs `&&` join | GTR032 | ✅ Shipped | `strict` ruleset, detect-only (check D34); quote/redirect/pipe-aware — flags only genuine joining |
+| `<tool>` `name` edge whitespace (the GTR035 display-contract residual) | GTR035.2 | ✅ Shipped | `strict` ruleset, detect-only (check D33) |
 
 ### Inspect & refactor parameters (queries, not rules)
 
@@ -114,7 +116,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Code-addressable rule registry + rulesets (`cosmetic`/`default`/`iuc`/`strict`) + `--select`/`--ignore` | ✅ Shipped | `galaxy-tool-refactor-registry` |
 | CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` | ✅ Shipped | `galaxy-tool-refactor` |
 | MCP server for agents: `format_tool` / `upgrade_tool` / `check_tool` / `list_rulesets` / `list_rules` | ✅ Shipped | `galaxy-tool-refactor-mcp` (vision Goal 1) |
-| Corpus evidence base: 9,358 unique tools, standing measurements | ✅ Shipped | `docs/*_stats.md`, `scripts/measure.py` |
+| Corpus evidence base: 9,374 unique tools, standing measurements | ✅ Shipped | `docs/*_stats.md`, `scripts/measure.py` |
 | Behaviour-preservation proof ledger — every fixable rule adversarially audited; genuine breaks fixed (regression-pinned), over-claims documented | ✅ Shipped | `docs/behavior_preservation.md` (see `soundness.md`) |
 
 ## Roadmap (🔭 — not built; never stated elsewhere as present tense)

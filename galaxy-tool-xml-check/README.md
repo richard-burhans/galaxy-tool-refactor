@@ -41,6 +41,6 @@ auto-fixed by the GTR020.1 codemod (`docs/decisions.md` D8). **`GTR089.2`**
 (`HelpRstResidual`) is the advisory half of the GTR089 partition: it reports the
 invalid `<help>` reStructuredText the `GTR089.1` repair codemod can't safely fix,
 through the same tier-1 predicate (`galaxy_tool_xml.rst`; `docs/decisions.md`
-D31). **`GTR032`** (`&&`-vs-lone-`&`) remains a
-reserved no-op stub — its anti-pattern is ~1 tool corpus-wide (`docs/decisions.md`
-D3); the GTR020.2-ships / GTR032-deferred split is data-backed in D3–D5.
+D31). **`GTR032`** (`&&`-vs-lone-`&`) is a real detector since `docs/decisions.md`
+D34 (the data-backed D3 deferral ended when the CT3 lexer landed): the
+`lone_amp.py` classifier flags only genuine command-joining lone `&`s.

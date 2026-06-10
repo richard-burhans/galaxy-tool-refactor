@@ -30,6 +30,7 @@ if TYPE_CHECKING:
         FormatResult,
         RuleInfo,
         RulesetInfo,
+        TokenizeVersionResult,
         UpgradeResult,
     )
     from galaxy_tool_refactor_rules.violation import Violation
@@ -74,6 +75,16 @@ def _upgrade_result_to_dict(result: UpgradeResult, /) -> dict[str, object]:
 def _convert_help_result_to_dict(result: ConvertHelpResult, /) -> dict[str, object]:
     return {
         "converted": result.converted,
+        "formatted": result.formatted.decode("utf-8"),
+        "skip_reason": result.skip_reason,
+    }
+
+
+def _tokenize_version_result_to_dict(
+    result: TokenizeVersionResult, /
+) -> dict[str, object]:
+    return {
+        "tokenized": result.tokenized,
         "formatted": result.formatted.decode("utf-8"),
         "skip_reason": result.skip_reason,
     }
@@ -158,6 +169,21 @@ def convert_help_tool(xml: str, /) -> dict[str, object]:
     error; ``formatted`` then echoes the (serialised) unchanged tool.
     """
     return _convert_help_result_to_dict(facade.convert_help(xml.encode("utf-8")))
+
+
+def tokenize_version_tool(xml: str, /) -> dict[str, object]:
+    """Factor a literal version into @TOOL_VERSION@ tokens when provable (GTR094).
+
+    The opt-in tokenization (registry D19): fail-closed preconditions plus the
+    expansion-equality gate. ``tokenized=False`` is a normal outcome with the
+    codemod's own ``skip_reason``. Content-based like every MCP tool, so a tool
+    whose ``<macros>`` imports files fails closed (the gate cannot resolve
+    imports without a source directory) — the skip reason says so; use the CLI
+    ``tokenize-version`` (path-based) for those.
+    """
+    return _tokenize_version_result_to_dict(
+        facade.tokenize_version(xml.encode("utf-8"))
+    )
 
 
 def list_rulesets() -> list[dict[str, object]]:

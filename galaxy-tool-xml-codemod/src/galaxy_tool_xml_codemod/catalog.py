@@ -44,6 +44,7 @@ from galaxy_tool_xml_codemod.codemods.replace_output_element import (
 from galaxy_tool_xml_codemod.codemods.single_quote_command_vars import (
     SingleQuoteCommandVars,
 )
+from galaxy_tool_xml_codemod.codemods.tokenize_version import TokenizeVersion
 from galaxy_tool_xml_codemod.codemods.trim_attribute_whitespace import (
     TrimAttributeWhitespace,
 )
@@ -84,5 +85,6 @@ def coded_codemods() -> tuple[type[CodemodCommand], ...]:
         ReplaceOutputElement,
         DropRedundantParamName,
         ConvertHelpToMarkdown,
+        TokenizeVersion,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))

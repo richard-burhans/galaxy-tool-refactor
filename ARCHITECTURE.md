@@ -39,8 +39,8 @@ load-bearing rule:
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic `Rule`s (indent / blank line / shorthand), the `Edit` union + `apply_edits`, `format_tool_document` + the net-diff `detect_tool_document`, the shared `cli_support` engine, the serializer. **The only tier that serialises canonical output XML.** |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice + planemo-parity checks (69; `CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | `RuleHandle` (uniform adapter over all three families), the unified registry, declarative rule-sets, ruff-style selection, and the **library-first** `run` / `upgrade` / `detect` facade. Composes 0.5/1/2/3/3.5. |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` / `convert-help`. CLI plumbing only. |
-| 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`convert_help_tool`/`list_rulesets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` / `convert-help` / `tokenize-version`. CLI plumbing only. |
+| 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`convert_help_tool`/`tokenize_version_tool`/`list_rulesets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
 
 ### Dependency direction
 
@@ -355,8 +355,11 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   *non-provable* unquoted `$var` the `GTR020.1` fix can't safely quote), and `GTR089.2`
   (the invalid `<help>` RST the `GTR089.1` repair can't safely fix). Each reuses
   the shared tier-1 predicate its fix uses, so the partition is sound.
-  **GTR032** (`CommandAndJoining`, `&&`-vs-lone-`&`) remains a reserved no-op stub
-  — its anti-pattern is ~1 tool corpus-wide (D3). **GTR034** (`UnusedParam`) is a
+  **GTR032** (`CommandAndJoining`, `&&`-vs-lone-`&`) is a real detector since
+  check D34 (the D3 no-op era ended when its revisit condition — the CT3 lexer —
+  was met): the quote/redirect/pipe-aware classifier in `lone_amp.py` (shared
+  with the `command-lone-amp` measure, which imports it) flags only the genuine
+  *joining* class. **GTR034** (`UnusedParam`) is a
   *reference-usage* advisory (not presence/shape): an `<inputs>` `<param>` never
   referenced anywhere the tool uses it, via the tier-1 all-text identifier scan.
 - **The planemo-parity wave — `GTR038`–`GTR091`** (54 rules, across the `checks/`
@@ -483,9 +486,9 @@ serializer. *(registry `docs/decisions.md` D1–D5.)*
 
 The user-facing `galaxy-tool-refactor` CLI (`cli.py`). **CLI plumbing only** — all
 rule orchestration is delegated to the facade; this package no longer imports the
-codemod / check tiers directly. Nine subcommands (`format`, `upgrade`, `check`,
+codemod / check tiers directly. Ten subcommands (`format`, `upgrade`, `check`,
 `find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`,
-`convert-help`) —
+`convert-help`, `tokenize-version`) —
 `find-references` is a read-only query for a parameter's Cheetah `$var` reference sites
 (`galaxy_tool_xml.cheetah_refs`; cli `docs/decisions.md` §D8) and `rename-param` is its
 mutating sibling (the first Cheetah mutator, `galaxy_tool_xml.cheetah_rename`; cli §D9):
@@ -509,6 +512,10 @@ mutating sibling (the first Cheetah mutator, `galaxy_tool_xml.cheetah_rename`; c
 - **`convert-help`** — opt-in: RST `<help>` → Markdown when provable (profile ≥
   24.2 + the tier-1 render-equivalence gate). Swaps Galaxy's rendering engine, so
   never part of `format` / `upgrade`. Wraps `facade.convert_help` (cli §D12).
+- **`tokenize-version`** — opt-in: factor a literal `version="<base>+galaxy<suffix>"`
+  into `@TOOL_VERSION@`/`@VERSION_SUFFIX@`, kept only when the expansion-equality
+  gate proves the macro expansion byte-identical. Wraps `facade.tokenize_version`
+  (cli §D13, registry D19).
 
 Selection (`--ruleset` / `--select` / `--ignore`) is shared across
 `format` / `upgrade` / `check` with the ruff-style precedence above (`--ruleset`
@@ -517,8 +524,8 @@ unions the named sets). Exceptions from the facade (`UnknownRuleset` /
 `click.BadParameter`.
 
 **`galaxy-tool-refactor-mcp`:** an agent-facing MCP server over the same facade
-(discover rules/rulesets, run `format` / `upgrade` / `check` / `convert-help` on
-supplied content).
+(discover rules/rulesets, run `format` / `upgrade` / `check` / `convert-help` /
+`tokenize-version` on supplied content).
 The facade's library-first shape is what makes it a thin adapter: a FastMCP
 binding (`server.py`) over a protocol-agnostic `service.py` (facade → JSON). Goal 1
 of the vision is shipped; agent-authored rules (Goal 2) remain future. *(cli
@@ -724,8 +731,9 @@ Each abstraction → its file → the decision record that justifies it.
 | GTR035.1 / .2 | `TrimAttributeWhitespace` (fix, requirement version) + `NameWhitespace` (advisory) | codemod + check | **partition** GTR035 (codemod §33 addendum, check D33) |
 | GTR089.1 / .2 | `RepairHelpRst` (fix) + `HelpRstResidual` (advisory) | codemod + check | **partition** GTR089 (xml §23, codemod §37, check D31) |
 | GTR021, GTR023–029 | `TestsPresent` … (presence/shape) | `galaxy-tool-xml-check/.../checks/tool.py` | check (flat advisory) |
-| GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory, reserved no-op stub — D3) |
+| GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks/tool.py` (+ `lone_amp.py`) | check (advisory — D3 deferral ended by D34) |
 | GTR033 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory — D7) |
 | GTR034 | `UnusedParam` | `galaxy-tool-xml-check/.../checks/inputs.py` | check (advisory — reference-usage) |
 | GTR038–GTR091 | planemo-parity wave (`NoTodoText`, `CommandPresent`, `InputsPresent`, … 54 input/output/test/validator/help checks; GTR089 is the partition row above) | `galaxy-tool-xml-check/.../checks/` (`tool`/`outputs`/`inputs`/`validators`/`tests`/`help`) | check (advisory — planemo parity, D12–D32) |
 | GTR092 | `ConvertHelpToMarkdown` | `galaxy-tool-xml-codemod/.../convert_help_markdown.py` | codemod (opt-in `convert-help` command only — §38, registry D18) |
+| GTR094 | `TokenizeVersion` | `galaxy-tool-xml-codemod/.../tokenize_version.py` | codemod (opt-in `tokenize-version` command only — §43, registry D19) |

@@ -15,9 +15,14 @@ recovery of author intent, which is why it is a one-step upgrade codemod and not
 a cosmetic rule.
 
 It names only **direct** ``<outputs>`` children. An unnamed ``<data>`` nested
-inside an output ``<collection>`` is also ``OutputData`` (so also ``name``-required
-at 19.05), but collection-element naming has different semantics and no corpus
-tool needs it — the discovery sweep would report any that did. The synthesised
+inside an output ``<collection>`` is **construction-out-of-scope** (not a corpus
+judgment): Galaxy's collection parse asserts the name —
+``output_name = data_elem.get("name"); assert output_name``
+(``tool_util/parser/xml.py:540-541``) — so such a tool **never loaded** at any
+version; there is no working behaviour to preserve (the same class as the
+nameless-group decline). And the name keys ``output_collection.outputs`` — a
+user-visible element identity — so synthesis would create data-facing identity,
+not an internal placeholder. The synthesised
 names also avoid colliding with an existing ``<collection name=…>``, not just
 sibling ``<data>`` names (output identifiers share one namespace).
 

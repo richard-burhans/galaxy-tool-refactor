@@ -18,7 +18,7 @@
 | **Serve / deploy**, ToolShed publishing | ✅ | — |
 | Workflows & CWL | ✅ | — (tool XML only) |
 | **Agent / MCP** interface | — | ✅ MCP server + library |
-| Evidence base | — | tuned against 9,358 real tools |
+| Evidence base | — | tuned against 9,374 real tools |
 
 planemo *tells you what's wrong*; galaxy-tool-refactor can also *make the fix* and
 *move the tool forward*. The overlap is only in detection, and even there the two have

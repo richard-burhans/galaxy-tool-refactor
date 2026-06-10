@@ -59,12 +59,12 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR027 | BioToolsValid, EDAMTermsValid | ✓ | ✗ | check | strict | Tool should declare EDAM topics/operations or `<xrefs>`. |
 | GTR028 | HelpEmpty, HelpMissing | ✓ | ✗ | check | strict | Tool should provide non-empty `<help>`. |
 | GTR029 | — | ✓ | ✗ | check | strict | Tool should provide a non-empty `<description>`. |
-| GTR032 | — | — | ✗ | check | strict | Join shell commands with && not a lone & (not yet implemented). |
+| GTR032 | — | ✓ | ✗ | check | strict | Join shell commands with && (a lone & backgrounds the first). |
 | GTR033 | RequirementVersionMissing | ✓ | ✗ | check | strict | Package `<requirement>`s should pin a version. |
 | GTR034 | — | ✓ | ✗ | check | strict | Input `<param>` is never referenced in the tool. |
 | GTR035.1 | RequirementVersionWhitespace | ✓ | ✓ | codemod | default | Trim accidental leading/trailing whitespace from a `<requirement>` 'version' (a whitespace-bearing value never resolved — conda gets the spec verbatim; the `<tool>` 'name' trim is the GTR035.2 advisory). |
 | GTR035.2 | ToolNameWhitespace | ✓ | ✗ | check | strict | A `<tool>` 'name' should have no leading/trailing whitespace (display-contract residual of GTR035; report-only). |
-| GTR036 | OutputsOutput | ✓ | ✓ | codemod | default | Replace a deprecated `<outputs>``<output type="data">` with `<data>` (collection / expression outputs are left for the advisory check). |
+| GTR036 | OutputsOutput | ✓ | ✓ | codemod | default | Replace a deprecated `<outputs>``<output type="data">` with `<data>`, and `<output type="collection">` with `<collection>` via Galaxy's own attribute remap (expression / degenerate outputs are left for the advisory check). |
 | GTR037 | InputsNameRedundantArgument | ✓ | ✓ | codemod | default | Drop a `<param>` 'name' that equals the name Galaxy derives from its 'argument' (redundant; argument implies the same name). |
 | GTR038 | CitationsMissing, CitationsNoText, CitationsNoValid | ✓ | ✗ | check | strict | Tool should declare a non-empty `<citation>` (doi/bibtex). |
 | GTR039 | CommandTODO, HelpTODO | ✓ | ✗ | check | strict | `<command>`/`<help>` should not contain 'TODO' placeholder text. |
@@ -123,6 +123,7 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR091 | InputsDataFormat | ✓ | ✗ | check | strict | A data param should declare the format(s) it accepts. |
 | GTR092 | — | ✓ | ✓ | codemod | — | Convert an RST `<help>` body to Markdown (format="markdown") when the markdown-it rendering is provably equivalent to the docutils rendering (opt-in convert-help only; requires profile >= 24.2). |
 | GTR093 | — | ✓ | ✓ | upgrade | — | Upgrade a tool stuck at profile 21.09 toward 22.01 (normalize collection_type + has_size Bytes; repair stdio exit_code/regex). |
+| GTR094 | — | ✓ | ✓ | codemod | — | Factor a literal version="`<base>`+galaxy`<suffix>`" into @TOOL_VERSION@/@VERSION_SUFFIX@ tokens shared with the matching package requirement (opt-in tokenize-version only). |
 <!-- END GENERATED -->
 
 The remaining unmapped planemo linters (the ~80 correctness checks + the advisory-by-design

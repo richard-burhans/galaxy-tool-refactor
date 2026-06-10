@@ -1,6 +1,7 @@
 """The ``galaxy-tool-refactor`` command-line interface.
 
-Eight subcommands. ``format`` and ``upgrade`` share fmt's file-walking /
+Ten subcommands (including the two opt-in conversions, ``convert-help`` and
+``tokenize-version``). ``format`` and ``upgrade`` share fmt's file-walking /
 drift-detection engine (``galaxy_tool_xml_fmt.cli_support``) and differ only in
 which rules run before serialisation; ``check`` is a report-only linter that
 mutates nothing; ``find-references`` is a read-only query for a parameter's Cheetah
@@ -932,6 +933,60 @@ def convert_help_command(paths: tuple[Path, ...], check: bool, backup: bool) -> 
             click.echo(f"skipped {target}: {result.skip_reason}")
     click.echo(
         f"{converted} converted, {skipped} skipped"
+        + (f", {errored} error(s)" if errored else "")
+    )
+    if errored:
+        raise SystemExit(1)
+
+
+@main.command(name="tokenize-version")
+@click.argument(
+    "paths", nargs=-1, required=True, type=click.Path(exists=True, path_type=Path)
+)
+@click.option(
+    "--check", is_flag=True, help="Report what would tokenize and write nothing."
+)
+@_BACKUP_OPTION
+def tokenize_version_command(
+    paths: tuple[Path, ...], check: bool, backup: bool
+) -> None:
+    """Factor a literal version into @TOOL_VERSION@/@VERSION_SUFFIX@ (opt-in, gated).
+
+    Rewrites ``version="<base>+galaxy<suffix>"`` as
+    ``@TOOL_VERSION@+galaxy@VERSION_SUFFIX@``, retargets the matching package
+    ``<requirement>`` versions to ``@TOOL_VERSION@``, and defines the two
+    tokens in the tool's inline ``<macros>`` — only when *provable*: the
+    expansion-equality gate keeps the change solely when macro-expanding the
+    tokenized tool reproduces the original expansion byte-for-byte. Anything
+    unprovable is skipped with the reason. A multi-element style restructure,
+    which is why it is a deliberate, separate command — never part of
+    ``format``/``upgrade``. Files are passed by path so imported macros resolve.
+    """
+    tokenized = skipped = errored = 0
+    for target in iter_targets(paths):
+        try:
+            original = target.read_bytes()
+        except OSError as error:
+            click.echo(f"error: cannot read {target}: {error}", err=True)
+            errored += 1
+            continue
+        if not is_tool_root(original):
+            continue
+        # Pass the PATH (not bytes): the expansion gate resolves <import>ed
+        # macro files against the tool's own directory.
+        result = facade.tokenize_version(target)
+        if result.tokenized:
+            tokenized += 1
+            if not check:
+                if backup:
+                    make_backup(target)
+                target.write_bytes(result.formatted)
+            click.echo(f"{'would tokenize' if check else 'tokenized'} {target}")
+        else:
+            skipped += 1
+            click.echo(f"skipped {target}: {result.skip_reason}")
+    click.echo(
+        f"{tokenized} tokenized, {skipped} skipped"
         + (f", {errored} error(s)" if errored else "")
     )
     if errored:

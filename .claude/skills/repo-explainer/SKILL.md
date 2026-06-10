@@ -57,7 +57,7 @@ registry rule code, a CLI/MCP command, or a committed number in `docs/*_stats.md
   per-tool detection proves a change safe. State it up front in technical docs; one
   honest line for leadership. (See `docs/profile_upgrades.md` and the codemod
   decisions on validity-as-oracle.)
-- The registry is honest about itself (e.g. it labels GTR032 "not yet implemented").
+- The registry is honest about itself (e.g. per-rule detect/fix status comes straight from registry metadata).
   Trust introspection over recollection.
 
 ## Procedure

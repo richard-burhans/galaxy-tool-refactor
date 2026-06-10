@@ -78,6 +78,22 @@ class ConvertHelpResult:
 
 
 @dataclass(frozen=True)
+class TokenizeVersionResult:
+    """The outcome of ``tokenize_version`` (the opt-in @TOOL_VERSION@ extraction).
+
+    Attributes:
+        formatted: The serialised XML bytes (unchanged when not tokenized).
+        tokenized: Whether the version was factored into the IUC tokens.
+        skip_reason: Why the tokenization did not apply (``None`` when applied) —
+            the same decision path the GTR094 codemod runs.
+    """
+
+    formatted: bytes
+    tokenized: bool
+    skip_reason: str | None = None
+
+
+@dataclass(frozen=True)
 class DetectResult:
     """The outcome of ``detect`` (report-only over the selection).
 

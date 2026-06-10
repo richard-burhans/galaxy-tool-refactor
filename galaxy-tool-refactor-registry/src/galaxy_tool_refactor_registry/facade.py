@@ -38,6 +38,10 @@ from galaxy_tool_xml_codemod.codemods.convert_help_markdown import (
     conversion_skip_reason,
 )
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
+from galaxy_tool_xml_codemod.codemods.tokenize_version import (
+    TokenizeVersion,
+    tokenization_skip_reason,
+)
 from galaxy_tool_xml_codemod.module import Module
 from galaxy_tool_xml_codemod.profile_semantics import (
     crossed_and_applicable_codes,
@@ -61,6 +65,7 @@ from galaxy_tool_refactor_registry.results import (
     RenameParamResult,
     RuleInfo,
     RulesetInfo,
+    TokenizeVersionResult,
     UpgradeResult,
     render_advisory_note,
 )
@@ -386,6 +391,42 @@ def convert_help(
         write_path.write_bytes(formatted)
     return ConvertHelpResult(
         formatted=formatted, converted=reason is None, skip_reason=reason
+    )
+
+
+def tokenize_version(
+    source: Source | ToolDocument,
+    /,
+    *,
+    write_path: Path | None = None,
+) -> TokenizeVersionResult:
+    """Factor a literal version into @TOOL_VERSION@/@VERSION_SUFFIX@ (GTR094).
+
+    Runs the ``TokenizeVersion`` codemod: fail-closed preconditions plus the
+    expansion-equality gate (tokenizing must reproduce the original macro
+    expansion byte-for-byte). Never part of ``run``/``upgrade`` — a
+    multi-element style restructure exposed solely through this dedicated
+    entry point (the ``tokenize-version`` command). Serialisation goes through
+    fmt with no rules selected. Writes *write_path* only if given AND the
+    tokenization applied.
+    """
+    document = _to_document(source)
+    module = Module(document)
+    reason = tokenization_skip_reason(module)
+    if reason is None:
+        TokenizeVersion().apply(module)
+        # The codemod's expansion gate may still decline (it leaves the tree
+        # untouched); re-derive the outcome from the tree itself.
+        if document.root.get("version") != "@TOOL_VERSION@+galaxy@VERSION_SUFFIX@":
+            reason = (
+                "expansion-equality gate could not prove the tokenization a "
+                "no-op — left untouched"
+            )
+    formatted = apply_selection(document, codes=frozenset())
+    if reason is None and write_path is not None:
+        write_path.write_bytes(formatted)
+    return TokenizeVersionResult(
+        formatted=formatted, tokenized=reason is None, skip_reason=reason
     )
 
 

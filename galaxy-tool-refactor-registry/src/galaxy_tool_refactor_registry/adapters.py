@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 # command (codemod ``docs/decisions.md`` §38, registry D18). Hand-known, code →
 # command name; pinned by a partition tripwire in ``test_ruleset_membership.py``.
 OPT_IN_COMMAND_BY_CODE: Mapping[str, str] = MappingProxyType(
-    {"GTR092": "convert-help"}
+    {"GTR092": "convert-help", "GTR094": "tokenize-version"}
 )
 
 
@@ -49,9 +49,10 @@ def selectable_codemods() -> tuple[type[CodemodCommand], ...]:
 def non_selectable_codemods() -> tuple[type[CodemodCommand], ...]:
     """The GTR codemods with no ruleset → not independently selectable.
 
-    The ``upgrade``-pipeline codemods (GTR007–GTR016) plus the opt-in-command-only
-    ones (``OPT_IN_COMMAND_BY_CODE`` — today the ``convert-help`` conversion,
-    GTR092); exposed for introspection (``list_rules(include_upgrade=True)``) only.
+    The ``upgrade``-pipeline codemods (GTR007–GTR016, GTR093) plus the
+    opt-in-command-only ones (``OPT_IN_COMMAND_BY_CODE`` — ``convert-help``/GTR092
+    and ``tokenize-version``/GTR094); exposed for introspection
+    (``list_rules(include_upgrade=True)``) only.
     """
     return tuple(cls for cls in coded_codemods() if not cls.meta.rulesets)
 
