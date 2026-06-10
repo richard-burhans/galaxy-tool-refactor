@@ -666,3 +666,29 @@ uv run --package galaxy-tool-refactor-registry pytest \
   galaxy-tool-refactor-registry/tests/test_planemo_aliases.py
 uv run python -m scripts.gen_planemo_parity
 ```
+
+## D18 (2026-06-10) — `convert_help`: the opt-in conversion entry point
+
+### Decision
+
+Expose GTR092 (`ConvertHelpToMarkdown`, codemod §38) through a dedicated facade
+function — `convert_help(source, write_path=None) -> ConvertHelpResult` — and
+**nowhere else**: the conversion swaps Galaxy's rendering engine, so it joins no
+ruleset, `run`, or `upgrade`. The facade asks the codemod's own
+`conversion_skip_reason` first and surfaces it verbatim (`ConvertHelpResult.
+skip_reason`), so the library/CLI note and the codemod's behaviour share one
+decision path. Serialisation goes through `apply_selection(codes=frozenset())` —
+fmt stays the only serializer; nothing but the `<help>` element changes.
+`write_path` is written only when the conversion actually applied.
+
+Registry classification: GTR092 lands in `upgrade_only_codemods()` (no ruleset →
+not selectable; introspection via `list_rules(include_upgrade=True)`), but the
+parity table's tier column keeps its real family via the `_OPT_IN_COMMAND_CODES`
+exception — it is applied by `convert-help`, not `upgrade`.
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-registry pytest \
+  galaxy-tool-refactor-registry/tests/test_facade.py -k convert_help
+```

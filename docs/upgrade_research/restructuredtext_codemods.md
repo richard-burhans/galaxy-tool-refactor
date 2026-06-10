@@ -163,11 +163,19 @@ writer** (no faithful RST writer; pandoc absent), **bailing** on the 24.3 % comp
 lists, tables, line blocks, field/option lists, interpreted-text roles) and on invalid RST; the
 **markdown-it-py render-equivalence gate** (R4) is the convert-time atomic bail.
 
-> **Decision (2026-06-10): research formalized, converter still deferred.** The converter + gate
-> were promoted from a one-off spike into the standing `help-rst-md-convert` measure (pinned by
+> **Decision (2026-06-10, morning): research formalized** — the converter + gate were promoted
+> from a one-off spike into the standing `help-rst-md-convert` measure (pinned by
 > synthetic-fixture + negative-control tests), so the 72.2 % is reproducible on every corpus
-> refresh. Building the shipped conversion capability (a tier-1 `rst_to_markdown` + an opt-in
-> command/rule that sets `format="markdown"`) remains a **separate future decision**.
+> refresh.
+>
+> **SHIPPED (2026-06-10, same day): the conversion capability.** Tier-1
+> `galaxy_tool_xml.rst_markdown` (`convert_help_rst` — repair-then-convert-then-gate; the
+> measure now imports it) + the **GTR092** `ConvertHelpToMarkdown` codemod (no ruleset — never
+> `format`/`upgrade`) + the opt-in **`convert-help`** CLI command. Hard profile gate: `<help
+> format=…>` is XSD-valid only at **profile ≥ 24.2**, so older tools are skipped with "run
+> `upgrade` first" (60.9 % of the corpus sits at the 16.01 default; 91.7 % reach latest
+> post-upgrade). markdown-it-py rides the `galaxy-tool-xml[markdown]` extra — no extra, no
+> conversion (the gate is mandatory). xml §24, codemod §38, registry D18, cli D12.
 
 *Note on the user's fix→convert→MD-codemod pipeline:* sound in spirit, but the data says the **convert
 step is the value** (5,474 already convertible); fixing first adds only **+84** to the convertible pool

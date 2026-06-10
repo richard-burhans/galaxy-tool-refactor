@@ -1574,3 +1574,43 @@ before `WrapHelpCdata` (100) so the repaired text is re-canonicalised into CDATA
 uv run --package galaxy-tool-xml-codemod pytest galaxy-tool-xml-codemod/tests/test_repair_help_rst.py
 uv run python -m scripts.corpus_check codemod galaxy_tool_xml_codemod.codemods.repair_help_rst:RepairHelpRst
 ```
+
+## 38. `ConvertHelpToMarkdown` (GTR092) — opt-in RST → Markdown `<help>` conversion
+
+**Date:** 2026-06-10
+
+The first **opt-in-command-only** codemod: `rulesets=∅` like the upgrade-only
+codemods (so it is never selectable and never part of `format`), but applied by
+the dedicated `convert-help` CLI command (cli D12) rather than `upgrade` — the
+conversion is **behaviour-changing by construction** (it swaps Galaxy's rendering
+engine from server-side docutils to client-side markdown-it; tier-1 xml §24), so
+it can never ride a "safe" pipeline. Three gates make the opt-in sound:
+
+- **Profile gate** — `<help format="…">` is XSD-valid only at **profile ≥ 24.2**
+  (`_HELP_FORMAT_PROFILE`, pinned by a test that validates a converted tool at
+  24.2 and confirms the same shape invalid at 24.1). A tool below the gate (or at
+  the 16.01 default — 60.9 % of the corpus) is skipped with "run `upgrade`
+  first"; 91.7 % of corpus tools reach the latest profile post-upgrade
+  (`docs/upgrade_profile_shift_stats.md`).
+- **Render-equivalence gate** — tier-1 `convert_help_rst`: whitelist conversion +
+  semantic-skeleton equality, with invalid RST first passed through the GTR089.1
+  surgical repair (both halves independently gated).
+- **Dependency gate** — no `galaxy-tool-xml[markdown]` extra → no-op, never a
+  blind conversion.
+
+`conversion_skip_reason(module)` is the **single decision path**: `apply` runs it
+and the `convert-help` surface reports it, so the user-facing skip note can never
+disagree with the codemod. CDATA wrapping is preserved (`is_cdata_wrapped` →
+`Cursor.set_text`); the `format="markdown"` attribute makes the codemod naturally
+idempotent (a converted help is skipped as "already declares a format").
+
+In `coded_codemods()` (the GTR catalog) but **not** `canonical_codemods()` and
+**not** `AUTO_UPGRADE_CODEMODS`. The parity table renders its tier as `codemod`
+with ruleset `—` (registry's `_OPT_IN_COMMAND_CODES` exception).
+
+### Reproduced by
+
+```sh
+uv run --package galaxy-tool-xml-codemod pytest galaxy-tool-xml-codemod/tests/test_convert_help_markdown.py
+uv run python -m scripts.corpus_check rules   # GTR092 isolation row (needs the corpus)
+```

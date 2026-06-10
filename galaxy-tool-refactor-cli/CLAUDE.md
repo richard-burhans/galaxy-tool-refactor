@@ -22,7 +22,7 @@ Rule orchestration lives in the tier-3.6 **registry facade**
 (`galaxy-tool-refactor-registry`); this package depends on it (plus fmt's
 `cli_support` engine and tier-1 parsing) and does CLI plumbing only — it no
 longer imports the codemod / check tiers directly. It exposes the
-`galaxy-tool-refactor` CLI with eight subcommands:
+`galaxy-tool-refactor` CLI with nine subcommands:
 
 - `format` — apply a ruleset's fixable rules then cosmetic formatting. The default
   ruleset = `canonical_codemods()` (repair + attribute / element order + the
@@ -55,6 +55,12 @@ longer imports the codemod / check tiers directly. It exposes the
   `.bak`s. First Cheetah mutator (M5.3) over `cheetah_rename` / `bundle_rename`; see
   `docs/decisions.md` §D9, §D10, §D11.
 - `rulesets` / `rules` — introspection of the baked-in rulesets and rules.
+- `convert-help` — opt-in: convert an RST `<help>` body to Markdown
+  (`format="markdown"`, GTR092) when provable — profile ≥ 24.2 (XSD gate; the skip
+  says "run `upgrade` first") + the tier-1 render-equivalence gate (needs the
+  `galaxy-tool-xml[markdown]` extra). Behaviour-changing by construction (swaps the
+  rendering engine), so a deliberate, separate command — never part of
+  `format`/`upgrade` (cli §D12; codemod §38).
 - `normalize-macros` — opt-in, repo-scoped pass that lowercases literal
   `format`/`ftype` in `<macros>`-root files (the macro-library analog of 24.2
   normalization the per-tool `upgrade` cannot reach). Rewrites files other than the
@@ -67,7 +73,7 @@ files are formatted/checked standalone as encountered — cosmetic formatting is
 regardless of sharing; cli §D5). But `rename-param` / `find-references` **are
 bundle-aware** (cli §D10): they operate over a tool *and its imported macro files*,
 with a sole-owned `--repo-root` gate for the macro edits a rename makes (registry D12;
-`galaxy-tool-xml/docs/decisions.md` §21). All four mutating commands accept `--backup`
+`galaxy-tool-xml/docs/decisions.md` §21). All five mutating commands accept `--backup`
 (`<file>.bak` before overwrite).
 
 Selection (`--ruleset` / `--select` / `--ignore`) is shared by

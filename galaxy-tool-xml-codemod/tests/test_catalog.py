@@ -27,6 +27,7 @@ _EXPECTED_CODES = {
     "GTR036",  # ReplaceOutputElement (<output type="data"> -> <data>)
     "GTR037",  # DropRedundantParamName (name == argument-derived)
     "GTR089.1",  # RepairHelpRst (fix half of the GTR089 partition)
+    "GTR092",  # ConvertHelpToMarkdown (opt-in convert-help only; no ruleset)
 }
 
 

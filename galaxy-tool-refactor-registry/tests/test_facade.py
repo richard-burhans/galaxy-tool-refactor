@@ -394,3 +394,30 @@ def test_rename_param_writes_when_path_given(tmp_path: Path) -> None:
     )
     assert result.changed
     assert target.read_bytes() == result.formatted
+
+
+def test_convert_help_converts_a_gated_tool(tmp_path: Path) -> None:
+    tool = (
+        b"<tool id='x' name='X' version='1.0' profile='24.2'>"
+        b"<command><![CDATA[echo hi]]></command>"
+        b"<help>Title\n=====\n\nSome **bold** text.\n</help></tool>"
+    )
+    out = tmp_path / "converted.xml"
+    result = facade.convert_help(tool, write_path=out)
+    assert result.converted and result.skip_reason is None
+    assert b'format="markdown"' in result.formatted
+    assert b"# Title" in result.formatted
+    assert out.read_bytes() == result.formatted
+
+
+def test_convert_help_reports_the_profile_gate(tmp_path: Path) -> None:
+    tool = (
+        b"<tool id='x' name='X' version='1.0'>"
+        b"<command><![CDATA[echo hi]]></command>"
+        b"<help>Title\n=====\n\nSome **bold** text.\n</help></tool>"
+    )
+    out = tmp_path / "converted.xml"
+    result = facade.convert_help(tool, write_path=out)
+    assert not result.converted
+    assert result.skip_reason is not None and "upgrade" in result.skip_reason
+    assert not out.exists()  # nothing written when not converted

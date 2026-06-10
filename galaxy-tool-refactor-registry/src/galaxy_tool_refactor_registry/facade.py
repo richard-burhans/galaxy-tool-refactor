@@ -33,6 +33,10 @@ from galaxy_tool_xml.cheetah_refs import tool_cheetah_references
 from galaxy_tool_xml.cheetah_rename import rename_param as _rename_in_tree
 from galaxy_tool_xml.document import ToolDocument
 from galaxy_tool_xml_check.detect import sort_violations
+from galaxy_tool_xml_codemod.codemods.convert_help_markdown import (
+    ConvertHelpToMarkdown,
+    conversion_skip_reason,
+)
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_xml_codemod.module import Module
 from galaxy_tool_xml_codemod.profile_semantics import (
@@ -49,6 +53,7 @@ from galaxy_tool_refactor_registry.adapters import fmt_rule_by_code
 from galaxy_tool_refactor_registry.apply import apply_selection
 from galaxy_tool_refactor_registry.registry import all_handles, registry
 from galaxy_tool_refactor_registry.results import (
+    ConvertHelpResult,
     DetectResult,
     FindReferencesResult,
     FormatResult,
@@ -354,6 +359,36 @@ def upgrade(
     )
 
 
+def convert_help(
+    source: Source | ToolDocument,
+    /,
+    *,
+    write_path: Path | None = None,
+) -> ConvertHelpResult:
+    """Convert an RST ``<help>`` body to Markdown (GTR092) — opt-in, gated.
+
+    Runs the ``ConvertHelpToMarkdown`` codemod: XSD-valid only at profile >=
+    24.2, behaviour-gated by tier-1 render equivalence, and a no-op (with the
+    reason reported) whenever the conversion cannot be proven. Never part of
+    ``run``/``upgrade`` — the conversion swaps Galaxy's rendering engine, so it
+    is exposed solely through this dedicated entry point (the ``convert-help``
+    command). Serialisation goes through fmt with no rules selected, so nothing
+    but the ``<help>`` element changes. Writes *write_path* only if given AND
+    the conversion applied.
+    """
+    document = _to_document(source)
+    module = Module(document)
+    reason = conversion_skip_reason(module)
+    if reason is None:
+        ConvertHelpToMarkdown().apply(module)
+    formatted = apply_selection(document, codes=frozenset())
+    if reason is None and write_path is not None:
+        write_path.write_bytes(formatted)
+    return ConvertHelpResult(
+        formatted=formatted, converted=reason is None, skip_reason=reason
+    )
+
+
 def list_rulesets() -> list[RulesetInfo]:
     """Structured metadata for every ruleset (for the CLI and the MCP server)."""
     code_map = ruleset_codes()
@@ -371,9 +406,10 @@ def list_rulesets() -> list[RulesetInfo]:
 def list_rules(*, include_upgrade: bool = False) -> list[RuleInfo]:
     """Structured metadata for every rule, sorted by code.
 
-    With ``include_upgrade=True`` the upgrade-only codemods (GTR007–GTR012 plus the
-    runtime-gated GTR014–GTR015) are listed too; by default only the selectable
-    rules appear.
+    With ``include_upgrade=True`` the non-selectable codemods are listed too —
+    the upgrade-only ones (GTR007–GTR012 plus the runtime-gated GTR014–GTR016)
+    and the opt-in ``convert-help`` conversion (GTR092); by default only the
+    selectable rules appear.
     """
     handles = all_handles() if include_upgrade else registry()
     code_map = ruleset_codes()

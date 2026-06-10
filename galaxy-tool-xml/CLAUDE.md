@@ -49,7 +49,10 @@ its imported macro files. `bundle.py` builds a `ToolBundle` (a tool + its
 transitively-imported macro documents) via `load_bundle` and renames a parameter
 across the whole bundle (`rename_param_in_bundle`) — the cross-file extension of
 `cheetah_rename` (decisions §21).
-`corrections.py` suggests near-miss typo fixes. `models/` holds an
+`corrections.py` suggests near-miss typo fixes. `rst.py` / `rst_markdown.py` own
+the `<help>` reStructuredText subsystem: validity + surgical repair (the GTR089
+partition seam, decisions §23) and the render-equivalence-gated RST → Markdown
+conversion (GTR092's engine, §24; markdown-it-py rides the `[markdown]` extra). `models/` holds an
 xsdata-generated read-only typed model per vendored schema version, generated at
 build time by `_codegen.py` and reached via `ToolDocument.model()`;
 `models/registry.py` resolves a version to its model.

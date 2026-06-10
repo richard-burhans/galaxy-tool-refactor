@@ -35,7 +35,12 @@ def selectable_codemods() -> tuple[type[CodemodCommand], ...]:
 
 
 def upgrade_only_codemods() -> tuple[type[CodemodCommand], ...]:
-    """The GTR codemods internal to ``upgrade`` (no ruleset → not selectable)."""
+    """The GTR codemods with no ruleset → not independently selectable.
+
+    The ``upgrade``-internal codemods (GTR007–GTR016) plus the opt-in
+    ``convert-help`` conversion codemod (GTR092); exposed for introspection
+    (``list_rules(include_upgrade=True)``) only.
+    """
     return tuple(cls for cls in coded_codemods() if not cls.meta.rulesets)
 
 

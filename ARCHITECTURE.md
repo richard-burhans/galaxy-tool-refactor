@@ -185,7 +185,12 @@ schema, and expose a typed view — **without ever serialising**.
   as with Cheetah — it edits the source text, never parse-and-reserialise) behind a strong
   render-equivalence gate. It is the shared seam of the **GTR089 partition**: the
   `GTR089.1` fix (tier 2) and `GTR089.2` advisory residual (tier 3.5) both call it. Adds a
-  `docutils` base dependency (xml §23; codemod §37; check D31).
+  `docutils` base dependency (xml §23; codemod §37; check D31). Its sibling
+  `rst_markdown.py` converts RST `<help>` to CommonMark behind the same kind of
+  render-equivalence gate (docutils html4css1 vs markdown-it-py `js-default` — Galaxy's
+  server vs client renderers; the `[markdown]` extra): `rst_to_commonmark` /
+  `conversion_is_render_equivalent` / `convert_help_rst` power the GTR092 opt-in
+  `convert-help` conversion and the `help-rst-md-convert` measure (xml §24; codemod §38).
 
 **Contract:** the lxml tree is the single representation; tier 1 emits no XML.
 *(xml `docs/decisions.md` §3 representation, §9 three-tier vision, §10 corpus

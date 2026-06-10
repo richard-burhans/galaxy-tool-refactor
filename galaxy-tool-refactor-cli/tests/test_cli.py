@@ -744,3 +744,48 @@ def test_check_makes_no_backup(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _REFS_TOOL_BYTES)
     CliRunner().invoke(main, ["format", "--check", "--backup", str(file)])
     assert not (tmp_path / "tool.xml.bak").exists()  # --check writes nothing
+
+
+_CONVERTIBLE_TOOL = (
+    b"<tool id='x' name='X' version='1.0' profile='24.2'>"
+    b"<command><![CDATA[echo hi]]></command>"
+    b"<help>Title\n=====\n\nSome **bold** text.\n</help></tool>"
+)
+_OLD_PROFILE_TOOL = (
+    b"<tool id='x' name='X' version='1.0'>"
+    b"<command><![CDATA[echo hi]]></command>"
+    b"<help>Title\n=====\n\nSome **bold** text.\n</help></tool>"
+)
+
+
+def test_convert_help_converts_in_place(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _CONVERTIBLE_TOOL)
+    result = CliRunner().invoke(main, ["convert-help", str(file)])
+    assert result.exit_code == 0, result.output
+    assert "converted" in result.output
+    written = file.read_bytes()
+    assert b'format="markdown"' in written
+    assert b"# Title" in written
+
+
+def test_convert_help_check_writes_nothing(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _CONVERTIBLE_TOOL)
+    result = CliRunner().invoke(main, ["convert-help", "--check", str(file)])
+    assert result.exit_code == 0, result.output
+    assert "would convert" in result.output
+    assert file.read_bytes() == _CONVERTIBLE_TOOL
+
+
+def test_convert_help_reports_profile_skip(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _OLD_PROFILE_TOOL)
+    result = CliRunner().invoke(main, ["convert-help", str(file)])
+    assert result.exit_code == 0, result.output
+    assert "skipped" in result.output and "upgrade" in result.output
+    assert file.read_bytes() == _OLD_PROFILE_TOOL
+
+
+def test_convert_help_backup(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _CONVERTIBLE_TOOL)
+    result = CliRunner().invoke(main, ["convert-help", "--backup", str(file)])
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "tool.xml.bak").read_bytes() == _CONVERTIBLE_TOOL

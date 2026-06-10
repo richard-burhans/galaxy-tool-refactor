@@ -62,6 +62,22 @@ class UpgradeResult:
 
 
 @dataclass(frozen=True)
+class ConvertHelpResult:
+    """The outcome of ``convert_help`` (the opt-in RST -> Markdown conversion).
+
+    Attributes:
+        formatted: The serialised XML bytes (unchanged when not converted).
+        converted: Whether the ``<help>`` body was converted to Markdown.
+        skip_reason: Why the conversion did not apply (``None`` when converted) —
+            the same decision path the GTR092 codemod runs.
+    """
+
+    formatted: bytes
+    converted: bool
+    skip_reason: str | None = None
+
+
+@dataclass(frozen=True)
 class DetectResult:
     """The outcome of ``detect`` (report-only over the selection).
 

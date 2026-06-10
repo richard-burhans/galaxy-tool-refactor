@@ -13,7 +13,7 @@ galaxy-tool-refactor/
 ├── galaxy-tool-xml-fmt/      Tier 3 (formatting)
 ├── galaxy-tool-xml-check/    Tier 3.5 (advisory detect-only checks)
 ├── galaxy-tool-refactor-registry/ Tier 3.6 (unified rule registry + rulesets; library-first facade)
-├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + find-references + rename-param + rulesets/rules + normalize-macros)
+├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + find-references + rename-param + rulesets/rules + normalize-macros + convert-help)
 ├── galaxy-tool-refactor-mcp/ Tier 4 (MCP server over the registry facade; thin FastMCP adapter)
 ├── scripts/                  Shared maintainer scripts (not installed)
 │   ├── corpus_check.py         validate | fmt | codemod | rules | check subcommands
@@ -324,7 +324,7 @@ Tiers, each independently installable:
 front-end.** Each lower tier is consumable standalone; the facade composes them
 into one code-addressable rule set with rulesets and a library-first
 `run`/`upgrade`/`detect` API. The CLI (`galaxy-tool-refactor-cli`) depends on the
-facade (plus fmt's `cli_support` engine and tier-1 parsing) and owns eight
+facade (plus fmt's `cli_support` engine and tier-1 parsing) and owns nine
 commands:
 
 - `galaxy-tool-refactor format` — apply a ruleset's fixable rules (the default
@@ -359,6 +359,11 @@ commands:
   `format`/`ftype` in `<macros>`-root files (the macro-library analog of 24.2
   normalization the per-tool `upgrade` can't reach). Writes files other than the one
   named, so it is never folded into `format`/`upgrade` (cli `docs/decisions.md` §D7).
+- `galaxy-tool-refactor convert-help` — opt-in: convert an RST `<help>` to Markdown
+  (`format="markdown"`, GTR092) when *provable* — profile ≥ 24.2 (the XSD gate; run
+  `upgrade` first) and the markdown-it rendering semantically equals the docutils
+  rendering (tier-1 `rst_markdown`, the `[markdown]` extra). Swaps Galaxy's rendering
+  engine, so never part of `format`/`upgrade` (cli §D12, codemod §38, xml §24).
 
 Selection is shared across `format`/`upgrade`/`check`: `--ruleset NAME`
 (repeatable / comma-separated — the union of the named sets), `--select CODE…`,
