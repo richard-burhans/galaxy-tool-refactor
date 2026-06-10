@@ -11,10 +11,36 @@
 #
 # This is the mechanical backstop only; it does NOT replace the full pre-PR
 # code + documentation audit (see the project's standing practice).
+#
+# Green results are cached per working-tree state (.git/qa-gate-green): a
+# re-run on a byte-identical tree — e.g. the pre-push hook minutes after a
+# manual run — skips instantly. Any change to tracked or untracked-unignored
+# files invalidates the cache. QA_GATE_FORCE=1 bypasses it.
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT" || { echo "QA gate: cannot cd to repo root" >&2; exit 1; }
+
+CACHE_FILE="$REPO_ROOT/.git/qa-gate-green"
+
+qa_state() {
+    # One hash covering HEAD's tree, staged+unstaged changes, and the content
+    # of untracked-unignored files — i.e. everything the gate's verdict can
+    # depend on. Failure of any probe yields a distinct (uncacheable) hash.
+    {
+        git rev-parse 'HEAD^{tree}'
+        git diff HEAD
+        git ls-files --others --exclude-standard -z | sort -z | xargs -0 -r sha256sum
+    } 2>/dev/null | sha256sum | cut -d' ' -f1
+}
+
+STATE_BEFORE="$(qa_state)"
+if [[ "${QA_GATE_FORCE:-}" != "1" && -f "$CACHE_FILE" ]] \
+    && [[ "$(cat "$CACHE_FILE")" == "$STATE_BEFORE" ]]; then
+    echo "QA gate: PASSED (cached — tree unchanged since last green run;" \
+        "QA_GATE_FORCE=1 to re-run)"
+    exit 0
+fi
 
 PACKAGES=(
     galaxy-tool-refactor-rules
@@ -52,4 +78,8 @@ for package in "${PACKAGES[@]}"; do
         || fail "pytest ($package)"
 done
 
+# Cache the green verdict only if the tree did not change while the gate ran.
+if [[ "$(qa_state)" == "$STATE_BEFORE" ]]; then
+    printf '%s\n' "$STATE_BEFORE" > "$CACHE_FILE"
+fi
 echo "QA gate: PASSED"

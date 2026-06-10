@@ -69,7 +69,12 @@ uv run mypy --config-file galaxy-tool-refactor-mcp/pyproject.toml galaxy-tool-re
 per package), and pytest for all eight packages — and exits non-zero (naming the
 failing step) if anything fails. A `git push` **PreToolUse hook**
 (`.claude/settings.json`) calls it and **blocks the push** on failure, so code
-never leaves the machine with a red gate. Run it manually any time:
+never leaves the machine with a red gate. Green runs are **cached per
+working-tree state** (`.git/qa-gate-green`): a re-run on an unchanged tree —
+e.g. the hook right after a manual run — is a free cache hit; any file change
+invalidates it (`QA_GATE_FORCE=1` bypasses). CI (`.github/workflows/ci.yml`)
+runs this same script, so the package roster lives in exactly one place. Run it
+manually any time:
 
 ```bash
 bash scripts/qa_gate.sh
