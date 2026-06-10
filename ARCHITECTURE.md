@@ -423,7 +423,9 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
 - **Planemo aliases** — `planemo.py` (`planemo_index()`, the derived `planemo name
   → GTR codes` map) + `parity.py` (`render_parity_table()` — the generated GTR
   coverage table of `docs/planemo_linter_parity.md`). Both derive from each rule's
-  `meta.planemo_linters`; a freshness test pins the committed table. (Registry D16.)
+  `meta.planemo_linters`; a freshness test pins the committed table, and the alias
+  set is reconciled against a vendored canonical linter list + the parity Summary
+  count (`test_planemo_aliases.py`). (Registry D16–D17.)
 - **`apply_selection`** — `apply.py` — applies a code set in `format`'s order:
   codemods first (by `meta.order`), then the cosmetic fmt rules as
   one batch through `format_tool_document_subset` (which serialises once).
@@ -669,7 +671,7 @@ Each abstraction → its file → the decision record that justifies it.
 | `RuleHandle`, registry | `galaxy-tool-refactor-registry/src/.../handle.py`, `registry.py` | registry `docs/decisions.md` D1–D2 |
 | `Ruleset` catalog (names + descriptions) | `galaxy-tool-refactor-rules/src/.../rulesets.py` | rules `docs/decisions.md` §D4 |
 | rulesets, `resolve_codes`, `apply_selection` | `galaxy-tool-refactor-registry/src/.../rulesets.py`, `resolve.py`, `apply.py` | registry `docs/decisions.md` D3–D4, D15 |
-| planemo aliases + parity table | `galaxy-tool-refactor-registry/src/.../planemo.py`, `parity.py` | registry `docs/decisions.md` D16 |
+| planemo aliases + parity table | `galaxy-tool-refactor-registry/src/.../planemo.py`, `parity.py` | registry `docs/decisions.md` D16–D17 |
 | `run` / `upgrade` / `detect` facade | `galaxy-tool-refactor-registry/src/.../facade.py`, `results.py` | registry `docs/decisions.md` D1 |
 | imported-`@PROFILE@` upgrade | `galaxy-tool-refactor-registry/src/.../macro_profile.py` | registry `docs/decisions.md` D5 |
 | imported-macro `format`/`ftype` normalization | `galaxy-tool-refactor-registry/src/.../macro_datatype.py` | registry `docs/decisions.md` D8 |

@@ -874,7 +874,15 @@ class DataOptionsValid(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
-        planemo_linters=frozenset({"InputsDataOptionsMultiple"}),
+        planemo_linters=frozenset(
+            {
+                "InputsDataOptionsAttrib",
+                "InputsDataOptionsFilterAttribFiltersType",
+                "InputsDataOptionsFiltersRef",
+                "InputsDataOptionsFiltersType",
+                "InputsDataOptionsMultiple",
+            }
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:

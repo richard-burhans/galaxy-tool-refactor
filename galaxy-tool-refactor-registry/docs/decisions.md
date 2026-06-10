@@ -627,3 +627,42 @@ uv run --package galaxy-tool-refactor-registry pytest \
 uv run galaxy-tool-refactor rules | grep planemo
 uv run python -m scripts.gen_planemo_parity
 ```
+
+## D17 (2026-06-10) — Alias reconciliation: the parity HAVE count is metadata-derived
+
+### Decision
+
+Close the 2026-06-09b audit's **M3** finding (`docs/architecture_audit.md`): the parity
+Summary's hand-maintained **HAVE** figure and `RuleMeta.planemo_linters` disagreed
+(110 vs 103) because eight aliases were **under-declared** — the rules' docstrings and
+check `decisions.md` already claimed the coverage, but the metadata (and therefore
+`--select`, `planemo_index()`, and the generated table) lagged. Verified each claim
+against both our detect source and the planemo source, then:
+
+- **Added the 8 missing aliases**: `ToolIDWhitespace` → GTR023 (whitespace fails the
+  charset), `StdIOAbsenceLegacy` → GTR026 (same no-stdio condition), `CitationsNoValid`
+  → GTR038 (empty `<citations>` covered), `ValidatorDatasetMetadataEqualValueOrJson` →
+  GTR068 (the `value_json` branch), and the four data-param `<options>` linters
+  (`InputsDataOptionsAttrib`/`…FilterAttribFiltersType`/`…FiltersType`/`…FiltersRef`) →
+  GTR074. Strictly additive: each name now resolves in `--select`/`--ignore`.
+- **`BioToolsValid` re-marked HAVE\*** (was n/a) — it was already aliased on GTR027 and
+  is the same presence-check approximation as the HAVE\*-marked `EDAMTermsValid`; the
+  two were treated inconsistently. **`ValidDatatypes` stays DETECT** but keeps its
+  GTR010 alias (the case-normalizer is the closest rule; the roadmap row says so).
+- **Pinned the accounting** (`test_planemo_aliases.py`): HAVE = aliased canonical
+  linters − `{ValidDatatypes}` + `{XSD}` (tier-1 `validate_tool` coverage, deliberately
+  alias-free), checked against the Summary row; Total checked against the vendored
+  canonical list. Folds in the audit's **L2**: every alias must name a real planemo
+  `Linter` class from the vendored `tests/data/planemo_linters_c6e0ee3.txt` (146 names,
+  AST-extracted at the roadmap's pinned galaxy commit), so a typo'd alias now fails CI
+  instead of silently never matching.
+
+Summary moved HAVE 110 → **111** / n-a 12 → **11** (the `BioToolsValid` re-mark).
+
+### Reproduction
+
+```sh
+uv run --package galaxy-tool-refactor-registry pytest \
+  galaxy-tool-refactor-registry/tests/test_planemo_aliases.py
+uv run python -m scripts.gen_planemo_parity
+```

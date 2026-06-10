@@ -70,7 +70,11 @@ class TestsPresent(CheckRule):
 
 
 class IdCharset(CheckRule):
-    """GTR023 — the tool ``id`` should use the recommended charset."""
+    """GTR023 — the tool ``id`` should use the recommended charset.
+
+    Reimplements planemo's `ToolIDValid` and subsumes `ToolIDWhitespace` — an id
+    containing whitespace fails the charset match.
+    """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
         code="GTR023",
@@ -79,7 +83,7 @@ class IdCharset(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
-        planemo_linters=frozenset({"ToolIDValid"}),
+        planemo_linters=frozenset({"ToolIDValid", "ToolIDWhitespace"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -144,7 +148,11 @@ class RequirementsPresent(CheckRule):
 
 
 class ErrorHandling(CheckRule):
-    """GTR026 — the tool should declare error handling."""
+    """GTR026 — the tool should declare error handling.
+
+    Reimplements planemo's `StdIOAbsence` / `StdIOAbsenceLegacy` — both report the
+    same no-``<stdio>``/``detect_errors`` condition (planemo splits them by profile).
+    """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
         code="GTR026",
@@ -153,7 +161,7 @@ class ErrorHandling(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
-        planemo_linters=frozenset({"StdIOAbsence"}),
+        planemo_linters=frozenset({"StdIOAbsence", "StdIOAbsenceLegacy"}),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
@@ -313,8 +321,10 @@ class CitationsPresent(CheckRule):
     """GTR038 — the tool should declare at least one non-empty citation.
 
     Reimplements planemo's `CitationsMissing` (no `<citations>`) and `CitationsNoText`
-    (an empty ``doi``/``bibtex`` citation), `galaxy.tool_util.linters.citations`.
-    Detect-only: a citation is author-supplied content, never synthesised.
+    (an empty ``doi``/``bibtex`` citation), and subsumes `CitationsNoValid` (a
+    `<citations>` with no `<citation>` children — the same no-children condition this
+    detect reports), `galaxy.tool_util.linters.citations`. Detect-only: a citation is
+    author-supplied content, never synthesised.
     """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
@@ -324,7 +334,9 @@ class CitationsPresent(CheckRule):
         cite=_IUC,
         detect_only=True,
         rulesets=frozenset({"strict"}),
-        planemo_linters=frozenset({"CitationsMissing", "CitationsNoText"}),
+        planemo_linters=frozenset(
+            {"CitationsMissing", "CitationsNoText", "CitationsNoValid"}
+        ),
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:

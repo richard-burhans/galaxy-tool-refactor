@@ -51,10 +51,10 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR020.1 | — | ✓ | ✓ | codemod | default | Single-quote provably-single-valued Cheetah variables in `<command>` (bare single-token params, $__…__ path built-ins, space-free attrs). |
 | GTR020.2 | — | ✓ | ✗ | check | strict | Single-quote `<command>` Cheetah vars: the non-provable residual. |
 | GTR021 | TestsMissing | ✓ | ✗ | check | strict | Tool should ship at least one functional `<test>`. |
-| GTR023 | ToolIDValid | ✓ | ✗ | check | strict | Tool id should use lowercase letters, digits, and '_.+-'. |
+| GTR023 | ToolIDValid, ToolIDWhitespace | ✓ | ✗ | check | strict | Tool id should use lowercase letters, digits, and '_.+-'. |
 | GTR024 | ToolVersionPEP404 | ✓ | ✗ | check | strict | Tool version should be PEP 440 or a @...@ version macro. |
 | GTR025 | — | ✓ | ✗ | check | strict | Tool should declare `<requirements>`. |
-| GTR026 | StdIOAbsence | ✓ | ✗ | check | strict | Tool should declare error handling (detect_errors or `<stdio>`). |
+| GTR026 | StdIOAbsence, StdIOAbsenceLegacy | ✓ | ✗ | check | strict | Tool should declare error handling (detect_errors or `<stdio>`). |
 | GTR027 | BioToolsValid, EDAMTermsValid | ✓ | ✗ | check | strict | Tool should declare EDAM topics/operations or `<xrefs>`. |
 | GTR028 | HelpEmpty, HelpMissing | ✓ | ✗ | check | strict | Tool should provide non-empty `<help>`. |
 | GTR029 | — | ✓ | ✗ | check | strict | Tool should provide a non-empty `<description>`. |
@@ -64,7 +64,7 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR035 | RequirementVersionWhitespace, ToolNameWhitespace | ✓ | ✓ | codemod | default | Trim accidental leading/trailing whitespace from a `<tool>` 'name' and a `<requirement>` 'version' (the behaviour-preserving subset; a `<tool>` 'id'/'version' are identity-significant and left for the advisory check). |
 | GTR036 | OutputsOutput | ✓ | ✓ | codemod | default | Replace a deprecated `<outputs>``<output type="data">` with `<data>` (collection / expression outputs are left for the advisory check). |
 | GTR037 | InputsNameRedundantArgument | ✓ | ✓ | codemod | default | Drop a `<param>` 'name' that equals the name Galaxy derives from its 'argument' (redundant; argument implies the same name). |
-| GTR038 | CitationsMissing, CitationsNoText | ✓ | ✗ | check | strict | Tool should declare a non-empty `<citation>` (doi/bibtex). |
+| GTR038 | CitationsMissing, CitationsNoText, CitationsNoValid | ✓ | ✗ | check | strict | Tool should declare a non-empty `<citation>` (doi/bibtex). |
 | GTR039 | CommandTODO, HelpTODO | ✓ | ✗ | check | strict | `<command>`/`<help>` should not contain 'TODO' placeholder text. |
 | GTR040 | OutputsNameDuplicated | ✓ | ✗ | check | strict | Output `<data>`/`<collection>` names must be unique. |
 | GTR041 | OutputsNameInvalidCheetah | ✓ | ✗ | check | strict | Output name should be a valid Cheetah placeholder. |
@@ -94,13 +94,13 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR065 | ValidatorAttribIncompatible, ValidatorParamIncompatible | ✓ | ✗ | check | strict | A `<validator>` must be compatible with its param type and attributes. |
 | GTR066 | ValidatorHasNoText, ValidatorHasText | ✓ | ✗ | check | strict | A `<validator>` body should match its type (expr/regex carry text). |
 | GTR067 | ValidatorExpression, ValidatorExpressionFuture | ✓ | ✗ | check | strict | An expression/regex `<validator>` body must be valid. |
-| GTR068 | ValidatorDatasetMetadataEqualValue, ValidatorMetadataCheckSkip, ValidatorMetadataName, ValidatorMinMax, ValidatorTableName | ✓ | ✗ | check | strict | A `<validator>` must carry the attributes its type requires. |
+| GTR068 | ValidatorDatasetMetadataEqualValue, ValidatorDatasetMetadataEqualValueOrJson, ValidatorMetadataCheckSkip, ValidatorMetadataName, ValidatorMinMax, ValidatorTableName | ✓ | ✗ | check | strict | A `<validator>` must carry the attributes its type requires. |
 | GTR069 | ConditionalParamType, ConditionalParamTypeBool | ✓ | ✗ | check | strict | A conditional's first `<param>` should be a select. |
 | GTR070 | ConditionalParamIncompatibleAttributes | ✓ | ✗ | check | strict | A conditional's test param must not be optional or multiple. |
 | GTR071 | ConditionalOptionMissing, ConditionalOptionMissingBoolean, ConditionalWhenMissing | ✓ | ✗ | check | strict | A conditional's `<when>` blocks must match the test-param options. |
 | GTR072 | InputsMissing | ✓ | ✗ | check | strict | Most tools should define input parameters. |
 | GTR073 | InputsTypeChildCombination | ✓ | ✗ | check | strict | A `<param>` child element must be valid for the param type. |
-| GTR074 | InputsDataOptionsMultiple | ✓ | ✗ | check | strict | A data param's `<options>` (metadata filtering) must be valid. |
+| GTR074 | InputsDataOptionsAttrib, InputsDataOptionsFilterAttribFiltersType, InputsDataOptionsFiltersRef, InputsDataOptionsFiltersType, InputsDataOptionsMultiple | ✓ | ✗ | check | strict | A data param's `<options>` (metadata filtering) must be valid. |
 | GTR075 | InputsBoolDistinctValues, InputsBoolProblematic | ✓ | ✗ | check | strict | A boolean param's truevalue/falsevalue must be distinct and sane. |
 | GTR076 | InputsSelectMandatoryCheckboxes, InputsSelectMultipleRadio, InputsSelectOptionalRadio, InputsSelectSingleCheckboxes | ✓ | ✗ | check | strict | A select's display must agree with multiple/optional. |
 | GTR077 | InputsOptionsFiltersAllowedAttributes, InputsOptionsFiltersRequiredAttributes, InputsOptionsRemoveValueFilterRequiredAttributes | ✓ | ✗ | check | strict | An `<options>`/`<filter>` must carry the attributes its type allows. |
@@ -157,15 +157,25 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 110 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), **GTR077–079** (option-filter attributes/expression/references), **GTR080–084** (test assertions/compare/output-correspondence/discovered), **GTR085–088** (test param-in-inputs / expect-failure / expect-num-outputs / has-expectations), **GTR089** (help RST validity, docutils), 2026-06-06 |
+| **HAVE** | 111 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), **GTR077–079** (option-filter attributes/expression/references), **GTR080–084** (test assertions/compare/output-correspondence/discovered), **GTR085–088** (test param-in-inputs / expect-failure / expect-num-outputs / has-expectations), **GTR089** (help RST validity, docutils), 2026-06-06 |
 | **FIX** (new, auto-fixable) | 0 | **complete** — GTR035/036/037 shipped; the rest of the original FIX candidates reclassified to advisory/detect on inspection (identity-changing or no mechanical equivalent) |
 | **DETECT** (new advisory) | ~10 | correctness checks for the `check` tier (report-only). 52 GTR rules landed so far (GTR038–089) — the **entire `inputs.py` correctness surface**, **all mechanically-reimplementable `tests.py` checks**, and **help RST validity** (GTR089, via `docutils`), plus citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, container/filter/regex validity. **Remaining DETECT** all need external infra or are deliberately deferred: `TestsAssertionValidation`/`TestsCaseValidation` (2, need Galaxy's pydantic models), general `ToolVersionMissing`/`ToolNameMissing`/`ToolIDMissing` (3, XSD-required), `OutputsStructuredLikeReference`/`OutputsFormatSourceReference` (2, mechanical cross-refs — buildable), `ValidDatatypes`/`DatatypesCustomConf` (2, datatype registry / filesystem), `InputsDataFormat` (1, mechanical) |
 | **SKIP** (pass-state) | ~14 | `valid`/`info` reporters — nothing to build |
-| **n/a** (out of scope) | ~12 | CWL (9), filesystem (`required_files`), `ResourceRequirementExpression`, `BioToolsValid` (network) |
+| **n/a** (out of scope) | ~11 | CWL (9), filesystem (`required_files`), `ResourceRequirementExpression` |
 | **Total** | 146 | |
 
 > **Counts recomputed 2026-06-06** module-by-module after the `inputs.py` arc — the earlier
 > running `~`-totals for DETECT/SKIP/n/a had drifted; these now sum to 146.
+
+> **Alias-reconciled 2026-06-10.** The HAVE count is now *derivable from rule metadata*
+> and pinned by a registry test (`test_planemo_aliases.py`): HAVE = aliased canonical
+> linters (`RuleMeta.planemo_linters`) − `ValidDatatypes` (aliased on GTR010, the
+> case-normalizer, but membership validation remains DETECT) + `XSD` (covered by tier-1
+> `validate_tool`, deliberately alias-free). Eight under-declared aliases were added
+> (GTR023 `ToolIDWhitespace`, GTR026 `StdIOAbsenceLegacy`, GTR038 `CitationsNoValid`,
+> GTR068 `…OrJson`, GTR074 ×4) and `BioToolsValid` was re-marked **HAVE\*** for
+> consistency with `EDAMTermsValid` (same GTR027 presence-check approximation), moving
+> HAVE 110 → 111 / n-a 12 → 11. The canonical 146-name list is vendored beside the test.
 
 > **Reclassified by homework (2026-06-06).** The whitespace cluster started as 4 "FIX"
 > rows; building **GTR035** split it honestly: `name` + `requirement version` are
@@ -226,7 +236,7 @@ datatypes (registry/filesystem), and `InputsDataFormat`.
 
 | Linter | sev | tier | disp | note |
 |---|---|---|---|---|
-| ValidDatatypes | error | check | DETECT | `format`/`ext` is a real datatype; we *normalize case* in `upgrade` (GTR010) but don't validate membership |
+| ValidDatatypes | error | check | DETECT | `format`/`ext` is a real datatype; we *normalize case* in `upgrade` (GTR010) but don't validate membership. The name is still selectable — `--select ValidDatatypes` resolves to GTR010 (the closest rule we have) — but this row stays DETECT until a real registry-membership check exists |
 | DatatypesCustomConf | warn | check | DETECT (deferred) | needs the **filesystem** (a sibling `datatypes_conf.xml` on disk), not the parsed tree — out of the raw-tree check tier's reach, like `required_files.py` |
 
 ## general.py (19)
@@ -247,7 +257,7 @@ datatypes (registry/filesystem), and `InputsDataFormat`.
 | ToolNameMissing | error | check | DETECT | (XSD-required attr; detect TBD) |
 | ToolIDMissing | error | check | DETECT | (XSD-required attr; detect TBD) |
 | ResourceRequirementExpression | warn | n/a | — | unsupported feature warning |
-| BioToolsValid | warn | n/a | — | needs bio.tools network lookup |
+| BioToolsValid | warn | check | **HAVE\*** | ≈ **GTR027** (xrefs/EDAM presence); full bio.tools validation needs network — same approximation as `EDAMTermsValid` |
 | ToolVersionValid · ToolNameValid · ToolProfileLegacy · ToolProfileValid | valid | — | SKIP | pass-states |
 
 ## help.py (6)
