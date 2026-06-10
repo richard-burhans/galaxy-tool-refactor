@@ -1,0 +1,63 @@
+name: Release galaxy-tool-source to PyPI
+
+# Tag-triggered publish of the tier-1 package via PyPI Trusted Publishing
+# (OIDC — no stored token). Tag a release as `v<version>` matching
+# galaxy-tool-source/pyproject.toml's `version`, push the tag, and this builds
+# the sdist+wheel (the hatch build hook regenerates the per-version xsdata
+# models) and uploads them under the `pypi` environment.
+#
+# One-time PyPI setup (a maintainer, on pypi.org): Account → Publishing → add a
+# pending publisher — project `galaxy-tool-source`, owner `richard-burhans`,
+# repo `galaxy-tool-refactor`, workflow `release.yml`, environment `pypi`.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Verify the tag matches the package version
+        # Fail loudly if someone tags v0.2.0 but pyproject still says 0.1.0.
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg=$(uv run --no-sync python -c "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('galaxy-tool-source/pyproject.toml').read_text())['project']['version'])")
+          echo "tag=$tag  pyproject=$pkg"
+          test "$tag" = "$pkg" || { echo "::error::tag v$tag != pyproject version $pkg"; exit 1; }
+
+      - name: Build sdist + wheel
+        run: uv build --package galaxy-tool-source
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # OIDC token for Trusted Publishing
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
