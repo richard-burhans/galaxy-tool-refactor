@@ -236,3 +236,5 @@ only via its NEW-simpleType row — listed below by hand.
 4. **G5** — research; small population by construction.
 5. **G4** — expect a documented decline (API-surface hazard).
 6. **G6 / 18.01 row** — document-only.
+
+G-series ranking approved by the maintainer 2026-06-10; G1 proceeds first.
