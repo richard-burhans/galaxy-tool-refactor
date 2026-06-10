@@ -49,31 +49,43 @@ Our `_detects_output_format_input` uses the identical xpath
 
 Replace `format="input"` with `format_source="<input name>"` on the output `<data>`.
 This requires **choosing which input** to inherit from — author intent in general,
-but **unambiguous when the tool has exactly one data input addressable by an
-unqualified name** (a single top-level `<param type="data">`).
+but **unambiguous when the tool has exactly one data input**. Since the 2026-06-10
+widening (codemod `docs/decisions.md` §40) that includes a sole *nested* input:
+Galaxy keys the `format_source` lookup map by the **prefixed (qualified) name**
+(`actions/__init__.py`; conditional/section ancestors contribute `name|`, `<when>`
+nothing), an upstream-tested feature
+(`test/functional/tools/format_source_in_conditional.xml`,
+`format_source="cond|input1"`). A **repeat**-nested input has no static address
+(instance-indexed prefix) and stays out.
 
 ## What GTR015 already does
 
 `codemods/fix_output_format_input.py` (`FixOutputFormatInput`, `RuntimeGatedFix`,
 `introduced_profile="16.04"`) auto-fixes exactly the unambiguous case:
-`_sole_top_level_data_input_name(root)` returns the lone top-level data input's
-name, and every `<data format="input">` output is rewritten to
-`format_source="<that name>"`. Tools with zero, two-or-more, or a *nested* single
-data input are left for the warning to report. Per the codemod docstring this
-covers ~109 of ~150 corpus tools with a `format="input"` output (size it via
-`scripts/measure.py output-format-input`).
+`_sole_data_input_qualified_name(root)` returns the lone data input's qualified
+name (bare for top-level, `cond|name` / `sect|name` for an addressable nested
+one), and every `<data format="input">` output is rewritten to
+`format_source="<that name>"`. Tools with zero, two-or-more, or a
+repeat-nested/unnamed-grouping single data input are left for the warning to
+report (size it via `scripts/measure.py output-format-input`).
 
 ## Mechanical-fix feasibility
 
-- **Already covered** for the sole-data-input case (GTR015).
-- GTR015 leaves **41** tools unfixed — the genuinely ambiguous cases (per
-  `scripts/measure.py output-format-input`): 38 with multiple data inputs (which
-  one?), 2 with zero data inputs (nothing to inherit from), and 1 with a nested
-  single data input (the unqualified name wouldn't resolve). These need author
-  intent and should stay detect/report-only. (The **33** in the header is a
+- **Already covered** for the sole-data-input case (GTR015) — including, since
+  the 2026-06-10 widening (§40), the sole *nested* input via its qualified name
+  (the pre-widening residual's "1 nested single data input" entry: its
+  justification — "the unqualified name wouldn't resolve" — was true but
+  incomplete; the *qualified* name does resolve, verified against Galaxy source
+  and Galaxy's own conditional format_source test tool).
+- GTR015 leaves **40** tools unfixed — the genuinely undecidable cases (per
+  `scripts/measure.py output-format-input`): 38 with multiple data inputs
+  (pre-16.04 `format="input"` resolved to the *last* form input's ext under
+  Galaxy's own `TODO`-marked nondeterminism — no deterministic behaviour to
+  preserve), and 2 with zero data inputs (nothing to inherit from). These need
+  author intent and stay detect/report-only. (The **33** in the header is a
   different metric — the count of tools where this code is the *first* must_fix
   blocker in the sequential profile walk; most ambiguous tools stall earlier at
-  16.04 on `16_04_fix_interpreter`, so 33 is a subset of the 41.)
+  16.04 on `16_04_fix_interpreter`, so 33 is a subset.)
 
 ## Status / recommendation
 

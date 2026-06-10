@@ -89,9 +89,9 @@ def test_target_none_for_var_first_token() -> None:
 
 
 def test_target_resolves_for_any_nonempty_interpreter() -> None:
-    # Legacy composition is verbatim `interpreter + " " + command`
-    # (release_16.04..release_20.01 evaluation.py), so flag-bearing / non-script
-    # interpreter values are in scope — the literal first token is the only gate.
+    # Galaxy interpolates the interpreter value verbatim in every composition
+    # form (prepend 16.04..20.01; token-splice 20.09..dev:787), so flag-bearing /
+    # non-script values are in scope — the literal first token is the only gate.
     for interp in ("java -jar", "docker", "Rscript --no-save", "python -W ignore"):
         root = _root(
             f'<tool><command interpreter="{interp}">app.jar x</command></tool>'

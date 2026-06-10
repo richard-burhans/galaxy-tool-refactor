@@ -5491,7 +5491,11 @@ class _OutputFormatInputResult:
 
 
 def _measure_output_format_input(*, corpus_root: Path) -> _OutputFormatInputResult:
-    """Count output ``<data format="input">`` and the single-top-level-input subset."""
+    """Count output ``<data format="input">`` and the sole-data-input subset."""
+    from galaxy_tool_xml_codemod.codemods.fix_output_format_input import (
+        _sole_data_input_qualified_name,
+    )
+
     n_tools = n_with = n_elements = n_auto = 0
     n_copresent = n_auto_copresent = n_auto_past_1604 = 0
     introduced = Version("16.04")
@@ -5521,9 +5525,19 @@ def _measure_output_format_input(*, corpus_root: Path) -> _OutputFormatInputResu
         if len(data_params) == 0:
             buckets["0 data inputs"] += 1
         elif len(data_params) == 1:
-            parent = data_params[0].getparent()
-            if parent is not None and parent.tag == "inputs":
-                buckets["1 top-level (auto-fixable)"] += 1
+            # The codemod's own resolver (agreement by construction): a bare name
+            # for a top-level input, a qualified `cond|sect|name` for an
+            # addressable nested one, None for a repeat-nested/unnamed one.
+            qualified = _sole_data_input_qualified_name(root)
+            if qualified is None:
+                buckets["1 under repeat / unnamed (needs author intent)"] += 1
+            else:
+                label = (
+                    "1 top-level (auto-fixable)"
+                    if "|" not in qualified
+                    else "1 nested, addressable (auto-fixable)"
+                )
+                buckets[label] += 1
                 n_auto += 1
                 if any(d.get("format_source") is not None for d in format_input):
                     n_auto_copresent += 1
@@ -5532,8 +5546,6 @@ def _measure_output_format_input(*, corpus_root: Path) -> _OutputFormatInputResu
                 declared = _as_version(root.get("profile") or "16.01")
                 if declared is not None and declared >= introduced:
                     n_auto_past_1604 += 1
-            else:
-                buckets["1 nested (needs qualified ref)"] += 1
         else:
             buckets["2+ data inputs"] += 1
     return _OutputFormatInputResult(

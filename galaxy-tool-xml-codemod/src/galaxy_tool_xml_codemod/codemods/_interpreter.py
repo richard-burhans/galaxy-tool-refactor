@@ -10,11 +10,17 @@ the interpreter attribute **verbatim**::
     command_line = command_line.replace(executable, abs_executable, 1)
     command_line = interpreter + " " + command_line  # plain string concatenation
 
-(byte-identical from ``release_16.04`` ``lib/galaxy/tools/evaluation.py:478-484``
-through ``release_20.01`` ``:509-514`` — the whole era honoring ``interpreter=``;
-removed by 20.09; gated on ``if interpreter:``, so an *empty* attribute was ignored.)
-From profile 16.04 the attribute is ignored, so an upgraded tool breaks unless the
-command is rewritten (Galaxy's ``16_04_fix_interpreter`` *must-fix* code).
+(the prepend form above is byte-identical ``release_16.04``
+``lib/galaxy/tools/evaluation.py:478-484`` through ``release_20.01`` ``:509-514``;
+``release_20.09`` ``:501`` switched to splicing at the token —
+``replace(executable, f"{interpreter} {shlex.quote(abs_executable)}", 1)`` — which
+**still interpolates the interpreter verbatim** and is equivalent for any command
+whose first content token is the script; that splice form survives in ``dev``
+``:781-787`` today, honored whenever the tool parses with ``legacy_defaults``
+(profile 16.01 / none). Every form gates on ``if interpreter:``, so an *empty*
+attribute was always ignored.) From profile 16.04 the attribute is ignored, so an
+upgraded tool breaks unless the command is rewritten (Galaxy's
+``16_04_fix_interpreter`` *must-fix* code).
 
 Because the composition is verbatim concatenation, **any** non-empty interpreter
 value — flags (``Rscript --no-save``), non-scripts (``java -jar``), even compound

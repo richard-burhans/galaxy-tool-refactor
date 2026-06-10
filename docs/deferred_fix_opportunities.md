@@ -85,60 +85,33 @@ backlog entry.
   valid shell, so author intent (background vs typo) is not provable — no
   auto-fix.
 
-### C1. GTR015 `format="input"` — the nested sole-data-input case is provable
+### C1. GTR015 nested sole data input — **SHIPPED 2026-06-10** (codemod §40)
 
-- **Where:** `docs/upgrade_research/16_04_fix_output_format.md` (the 41-tool
-  residual: 38 multi-input, 2 zero-input, 1 nested-single).
-- **What:** GTR015 rewrites `format="input"` → `format_source="<name>"` only
-  for a sole **top-level** data input; a sole *nested* one (inside a
-  conditional/section) was left out because *"the unqualified name wouldn't
-  resolve"*.
-- **Verified against Galaxy source (2026-06-10):** `determine_output_format`
-  looks `format_source` up in `input_datasets`, which is keyed by the
-  **prefixed (qualified) name** (`lib/galaxy/tools/actions/__init__.py` —
-  `input_datasets[prefixed_name] = …`). A sole nested data input is therefore
-  addressable via its qualified name; the rewrite is provable.
-- **Sizing:** 1 corpus tool; the 38 multi-input cases stay out by construction
-  (Galaxy resolves bare `format="input"` to a *random* input's extension —
-  there is no deterministic behavior to preserve), and the 2 zero-input cases
-  have nothing to inherit from.
-- **What it would take:** small — extend `_sole_top_level_data_input_name` to a
-  qualified-name variant + a Galaxy-version check that qualified
-  `format_source` is honoured at the tool's profile.
+Closed, second item worked top-down. The Galaxy-source proof held exactly as the
+entry predicted (qualified `format_source` resolves against the prefixed-name
+`input_datasets` map — and is upstream-tested in
+`test/functional/tools/format_source_in_conditional.xml`), plus a corner the
+entry hadn't named: the absent-at-runtime case (unselected branch / empty
+optional) is also behaviour-matched — both sides resolve to `"data"`.
+Conditional/section nesting now auto-fixes via `cond|name`; repeat nesting
+(instance-indexed prefix) is the only nested shape left to the warning. The
+residual drops 41 → 40, all genuinely undecidable (38 multi-input under Galaxy's
+own nondeterminism + 2 zero-input). Full record: codemod `docs/decisions.md`
+§40 + the updated `docs/upgrade_research/16_04_fix_output_format.md`.
 
-### C2. GTR016 `interpreter=` — the flags slice of bucket C may be rewritable
+### C2. GTR016 `interpreter=` — **SHIPPED 2026-06-10** (codemod §39)
 
-- **Where:** `docs/upgrade_research/16_04_fix_interpreter.md` +
-  `docs/interpreter_bucket_stats.md`.
-- **What:** GTR016 auto-fixes bucket A (single-token standard interpreter +
-  literal leading script; 1,410 tools). Bucket **C — "non-standard
-  interpreter"** (51 tools, 3.0%) bundles two different things: true
-  non-scripts (`docker`, `java -jar`) *and* standard interpreters carrying
-  flags (`Rscript --no-save`, `python -W ignore`). If legacy Galaxy composed
-  the command by verbatim concatenation (`interpreter + " " + command`), the
-  flags slice is mechanically rewritable with the same proof as bucket A.
-- **Why deferred:** conservative bucket-A scoping; the flags slice was never
-  separately sized or proof-checked.
-- **Proof obtained (2026-06-10, legacy Galaxy source):** `evaluation.py`'s
-  interpreter block is **byte-identical from `release_16.04` through
-  `release_20.01`** (the whole era honoring `interpreter=`; removed by 20.09):
-  `executable = command_line.split()[0]` (post-Cheetah) → abspath against
-  `tool_dir` → replace-first-occurrence → **`command_line = interpreter + " "
-  + command_line`** — verbatim string concatenation. So for a command whose
-  first token is *literal* (the existing bucket-A requirement), the rewrite
-  `<command>{interpreter} '$__tool_directory__/{token}' {rest}</command>`
-  reproduces legacy behavior for **any** interpreter value — flags
-  (`Rscript --no-save`), `java -jar`, even `export X=1; docker …`. The
-  "single-token standard interpreter" gate was conservatism, not soundness.
-- **Sizing:** ≤51 corpus tools (bucket C; the provable slice = those whose
-  command leading token is literal — a sub-split measure quantifies it).
-  Bucket B (267 tools, leading Cheetah) stays genuinely unprovable —
-  `split()[0]` of the *rendered* line is statically unknowable.
-- **What it would take:** the proof is done; remaining work is a bucket-C
-  sub-split measure, the eligibility-predicate widening (TDD), the GTR016
-  corpus sweep + stats/research-note regen. Highest potential population on
-  this list, and `interpreter=` is a `must_fix` that blocks the whole
-  profile-upgrade chain for affected tools.
+Closed, first item worked top-down from the ranking below. The proof turned out
+stronger than the entry hypothesised: Galaxy interpolates the interpreter value
+**verbatim in every composition form it ever shipped** (prepend,
+`release_16.04`–`release_20.01`; token-splice + `shlex.quote`,
+`release_20.09`–`dev:781-787` today — the attribute was never removed, it is
+still honored for `legacy_defaults` tools), so the widening admits *any*
+non-empty interpreter, not just the flags slice. Bucket C dissolved (25 → A,
+26 → B); codemod target 1,410 → 1,435 by shape, sweep rewrites 1,127 → 1,144
+(all clean), and the `16_04_fix_interpreter` stuck-tool residual dropped
+**316 → 299**. Full record: codemod `docs/decisions.md` §39 + the rewritten
+`docs/upgrade_research/16_04_fix_interpreter.md`.
 
 ### C3. GTR036 `<output type="collection">` → `<collection>`
 
@@ -200,8 +173,8 @@ Criteria: **(i)** novel-tool benefit (likelihood × severity of the gap),
 
 | Rank | Item | Why here |
 |---|---|---|
-| 1 | **C2 — GTR016 bucket-C flags slice** | the only item with a real population (≤51 tools, sub-split TBD) *and* a `must_fix` payoff — each rescued tool's entire profile-upgrade chain unblocks; needs a legacy-source proof first |
-| 2 | **C1 — GTR015 nested sole input** | proof already verified in Galaxy source; smallest cost on the list; completes a shipped rule's coverage exactly in the GTR036 spirit |
+| 1 | **C2 — GTR016 bucket-C flags slice** | ✅ **shipped** (codemod §39): the proof admitted all of bucket C, not just flags — 25 tools by shape, 17 rescued from the stuck residual (316 → 299) |
+| 2 | **C1 — GTR015 nested sole input** | ✅ **shipped** (codemod §40): qualified `format_source` for conditional/section nesting; residual 41 → 40, all genuinely undecidable |
 | 3 | **A1 — collection-type whitespace** | fully provable today by a shipped precedent's argument; trivially small; unblocks the 22.01 crossing for novel tools |
 | 4 | **C3 — GTR036 collection variant** | provable by source-mirroring (method already used for the data case); modernizes a deprecated construct; ~0 corpus so pure novel-tool insurance |
 | 5 | **A2 — 3c version tokenization** | the largest corpus count (75) but style-tier payoff (no validity/behavior unlock) and the highest cost (macros creation) |

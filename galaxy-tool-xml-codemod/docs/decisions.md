@@ -1620,3 +1620,98 @@ conversion the gate admits is XSD-valid and stable.
 uv run --package galaxy-tool-xml-codemod pytest galaxy-tool-xml-codemod/tests/test_convert_help_markdown.py
 uv run python -m scripts.corpus_check rules   # GTR092 isolation row (needs the corpus)
 ```
+
+## 39. GTR016 widened: any non-empty interpreter (the verbatim-composition proof)
+
+**Date:** 2026-06-10. Item 1 of `../../docs/deferred_fix_opportunities.md` (the
+corpus-incidence deferral ledger; maintainer-approved ranking). Reproduced-by:
+`uv run --package galaxy-tool-xml-codemod pytest
+galaxy-tool-xml-codemod/tests/test_interpreter.py
+galaxy-tool-xml-codemod/tests/test_fix_interpreter.py`; sizing
+`uv run python -m scripts.measure interpreter-bucket-split`; validation
+`uv run python -m scripts.corpus_check codemod
+galaxy_tool_xml_codemod.codemods.fix_interpreter:FixInterpreter`.
+
+- **The conservatism removed.** §27's GTR016 required a *single-token standard*
+  interpreter (`_STANDARD_INTERPRETERS`), leaving flag-bearing
+  (`Rscript --no-save`), non-script (`java -jar`, `docker`), and compound
+  (`export …; java -jar`) values to the §23 warning as "bucket C". That gate was
+  never a soundness requirement — only nobody had proven it.
+- **The proof (Galaxy source archaeology).** Galaxy interpolates the interpreter
+  attribute **verbatim** in every composition form it ever shipped: the prepend
+  form (`command_line = interpreter + " " + command_line` after an unquoted
+  abspath replace) is byte-identical `release_16.04`
+  (`evaluation.py:478-484`) through `release_20.01`; `release_20.09` switched to
+  the token-splice form
+  (`replace(executable, f"{interpreter} {shlex.quote(abs_executable)}", 1)`),
+  alive in `dev:781-787` today (still honored for `legacy_defaults` tools). The
+  forms are equivalent whenever the script is the rendered line's first content
+  token — exactly the bucket-A literal-leading-token gate, which therefore
+  becomes the **sole** static requirement. Every form gates on
+  `if interpreter:`, so an empty `interpreter=""` was always ignored — the
+  predicate bails on it (nothing to reproduce; the §23 warning still covers it).
+- **The change.** `_interpreter.interpreter_rewrite` accepts any non-empty
+  interpreter (`_STANDARD_INTERPRETERS` deleted); the rewrite body
+  (`{interpreter} '$__tool_directory__/{token}'`) was already verbatim-faithful
+  and is untouched. Bucket taxonomy: C dissolves — literal-leading-token tools
+  join A, Cheetah-leading join B; `empty` is a new degenerate bucket (0 corpus
+  tools). The measure + its fixture test + the stats page mirror the predicate,
+  by construction as before.
+- **Corpus.** Bucket A 1,383 → **1,407** (+ A-missing 27 → 28): the dissolved C
+  (51) split 25 → A/A-missing, 26 → B (293). Codemod sweep: 8,607 eligible →
+  **1,144 modified** (1,127 before; +17 crossing-gated), **0 non-idempotent, 0
+  post-validate-failed, 0 crashed**. Behaviour-block walk: the
+  `16_04_fix_interpreter` first-blocker residual drops **316 → 299**
+  (`docs/upgrade_behavior_block_stats.md`) — each rescued tool's entire
+  profile-upgrade chain unblocks.
+- **Why this is the principle, not scope creep.** Per
+  `docs/deferred_fix_opportunities.md`: corpus incidence sizes impact, never
+  soundness. The widening is provable for *novel* tools regardless of the 25
+  corpus instances; the proof, not the count, is the admission ticket.
+
+## 40. GTR015 widened: the nested sole data input is addressable (qualified format_source)
+
+**Date:** 2026-06-10. Item 2 of `../../docs/deferred_fix_opportunities.md`.
+Reproduced-by: `uv run --package galaxy-tool-xml-codemod pytest
+galaxy-tool-xml-codemod/tests/test_fix_output_format_input.py`; sizing
+`uv run python -m scripts.measure output-format-input`; validation
+`uv run python -m scripts.corpus_check codemod
+galaxy_tool_xml_codemod.codemods.fix_output_format_input:FixOutputFormatInput`.
+
+- **The conservatism removed.** §24's GTR015 required the sole data input to be
+  a *direct child* of `<inputs>` "so an unqualified `format_source` reference
+  resolves" — leaving a sole *nested* input to the §23 warning on the belief
+  that it wasn't addressable.
+- **The proof (Galaxy source).** `determine_output_format` resolves
+  `format_source` against `input_datasets`, which Galaxy keys by the **prefixed
+  (qualified) name** (`actions/__init__.py` — `input_datasets[prefixed_name]`;
+  prefixed keying present back to `release_16.04`'s `prefix + input.name`). The
+  prefix grammar (`visit_input_values`): a `<conditional>` or `<section>`
+  ancestor contributes `name|`, a `<when>` contributes nothing, a `<repeat>`
+  contributes an **instance-indexed** `name_N|`. Qualified `format_source` is an
+  upstream-*tested* feature: `test/functional/tools/format_source_in_conditional.xml`
+  ships `format_source="cond|input1"` — and its second branch deliberately
+  exercises the **absent-key fallthrough**, which is also behaviour-matched: with
+  the input absent at runtime (unselected branch / empty optional), pre-16.04
+  `format="input"` resolved to `"data"` (no datasets walked), and a missing
+  `format_source` key falls through to the parsed output-format default — also
+  `"data"` (`xml.py` `get("format", "data")`).
+- **The change.** `_sole_top_level_data_input_name` →
+  `_sole_data_input_qualified_name`: walk the sole `<param type="data">`'s
+  ancestors to `<inputs>`, joining named `<conditional>`/`<section>` segments
+  with `|` (a top-level input degenerates to its bare name). Bail on a
+  `<repeat>` ancestor (instance-indexed prefix — no static address), an unnamed
+  grouping, or anything unrecognised. The `output-format-input` measure now
+  imports the resolver (agreement by construction, the GTR016 pattern) and
+  splits the old "1 nested (needs qualified ref)" bucket into "1 nested,
+  addressable (auto-fixable)" vs "1 under repeat / unnamed (needs author
+  intent)".
+- **What stays out, and why it is construction-not-corpus:** zero data inputs
+  (nothing to inherit), two-or-more (pre-16.04 `format="input"` resolved to the
+  *last* form input's ext under Galaxy's own `TODO`-marked nondeterminism — no
+  deterministic behaviour exists to preserve), repeat-nested (no static
+  address), and outputs already carrying `format_source` (§24's guard).
+- **Corpus.** The pre-widening sizing had exactly **1** nested-single tool (the
+  `output-format-input` measure) — the widening is novel-tool insurance in the
+  GTR036 spirit ("not gated on corpus frequency"), shipped for the proof, not
+  the count. Sweep numbers regenerated alongside §39's.

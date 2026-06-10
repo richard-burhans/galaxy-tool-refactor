@@ -6,13 +6,26 @@ The fix is to inherit the format from a specific input via
 ``format_source="<input name>"``.
 
 Choosing *which* input is author intent in general, but it is unambiguous when the
-tool has **exactly one data input addressable by an unqualified name** — a single
-top-level ``<param type="data">``. This codemod auto-fixes only that case (109 of
-the ~150 corpus tools with a ``format="input"`` output; see ``scripts/measure.py
-output-format-input``); tools with zero, two-or-more, or a nested single data input
-are left for the §23 upgrade warning to report. An output that already carries a
+tool has **exactly one data input** — top-level or nested. Galaxy keys the
+``input_datasets`` map ``format_source`` is resolved against by the **prefixed
+(qualified) name** (``actions/__init__.py``): a conditional or section ancestor
+contributes ``name|`` (a ``<when>`` contributes nothing), so a sole nested input is
+addressed as ``cond|input`` — an upstream-tested feature
+(``test/functional/tools/format_source_in_conditional.xml``). A **repeat** ancestor
+is the one nesting with no static address (its prefix is instance-indexed,
+``r_0|``), so it still bails. Behaviour also matches when the input is *absent* at
+runtime (an unselected branch / an empty optional): pre-16.04 ``format="input"``
+resolved to ``"data"`` with no datasets in the form, and a missing
+``format_source`` key falls through to the parsed format default — also ``"data"``
+(``xml.py``; Galaxy's conditional test tool exercises exactly this fallthrough).
+Tools with zero or two-or-more data inputs are left for the §23 upgrade warning
+(with several inputs, pre-16.04 ``format="input"`` resolved to the *last* form
+input's ext — under Galaxy's own ``TODO``-marked nondeterminism there is no
+deterministic behaviour to preserve). An output that already carries a
 ``format_source`` is also left alone — ``format="input"`` is inert there (Galaxy's
-format_source branch wins at runtime), so the author's source must not be overwritten.
+format_source branch wins at runtime), so the author's source must not be
+overwritten. (Originally top-level-only — 109 corpus tools; the 2026-06-10
+widening to qualified nested names is ``docs/decisions.md`` §40.)
 
 A runtime-gated fix (``runtime_fixes.py``): ``format="input"`` is XSD-valid, so this
 does not change ``newest_valid_profile`` and cannot ride the ``UpgradeToLatest``
@@ -38,12 +51,22 @@ if TYPE_CHECKING:
     from galaxy_tool_xml_codemod.module import Module
 
 
-def _sole_top_level_data_input_name(root: etree._Element, /) -> str | None:
-    """Return the name of the tool's single top-level ``<param type="data">``.
+# Grouping ancestors that contribute a ``name|`` segment to the runtime prefixed
+# name (visit_input_values: conditional + section); ``<when>`` is transparent. A
+# ``<repeat>`` prefix is instance-indexed (``r_0|``) — no static address — so any
+# other ancestor tag bails.
+_QUALIFYING_TAGS = frozenset({"conditional", "section"})
 
-    ``None`` unless there is exactly one ``<param type="data">`` anywhere under
-    ``<inputs>`` and it is a direct child of ``<inputs>`` (so an unqualified
-    ``format_source`` reference resolves) with a non-empty ``name``.
+
+def _sole_data_input_qualified_name(root: etree._Element, /) -> str | None:
+    """The qualified ``format_source`` name of the tool's single data input.
+
+    ``None`` unless there is exactly one ``<param type="data">`` under
+    ``<inputs>``, it has a non-empty ``name``, and every grouping ancestor is a
+    *statically addressable* one — a named ``<conditional>`` / ``<section>``
+    (each contributing ``name|``, matching Galaxy's runtime prefixed name) or a
+    transparent ``<when>``. A top-level input yields its bare name; a repeat
+    ancestor (instance-indexed prefix) or an unnamed grouping yields ``None``.
     """
     inputs = root.find("inputs")
     if inputs is None:
@@ -52,11 +75,23 @@ def _sole_top_level_data_input_name(root: etree._Element, /) -> str | None:
     if len(data_params) != 1:
         return None
     sole = data_params[0]
-    parent = sole.getparent()
-    if parent is None or parent.tag != "inputs":
-        return None
     name = sole.get("name")
-    return name or None
+    if not name:
+        return None
+    segments = [name]
+    node = sole.getparent()
+    while node is not None and node is not inputs:
+        if node.tag in _QUALIFYING_TAGS:
+            segment = node.get("name")
+            if not segment:
+                return None
+            segments.append(segment)
+        elif node.tag != "when":
+            return None  # repeat (indexed prefix) or unknown grouping
+        node = node.getparent()
+    if node is None:
+        return None  # defensive: param not actually under <inputs>
+    return "|".join(reversed(segments))
 
 
 def _swap_format_for_source(cursor: Cursor, source_name: str) -> Callable[[], None]:
@@ -76,7 +111,7 @@ class FixOutputFormatInput(RuntimeGatedFix):
         code="GTR015",
         summary=(
             'Replace output <data format="input"> with format_source for a tool'
-            " with a single top-level data input."
+            " with a sole data input (qualified name when nested)."
         ),
         since="0.0.1",
         cite="https://github.com/galaxyproject/galaxy/pull/1688",
@@ -87,9 +122,9 @@ class FixOutputFormatInput(RuntimeGatedFix):
 
     def detect(self, module: Module, /) -> Iterator[Change]:
         root = module.document.root
-        source_name = _sole_top_level_data_input_name(root)
+        source_name = _sole_data_input_qualified_name(root)
         if source_name is None:
-            return  # 0, 2+, or a nested single data input — needs author intent
+            return  # 0, 2+, or a repeat-nested single input — needs author intent
         outputs = root.find("outputs")
         if outputs is None:
             return

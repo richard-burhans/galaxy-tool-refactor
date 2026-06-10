@@ -56,17 +56,70 @@ def test_two_data_inputs_left_untouched() -> None:
     assert etree.tostring(module.document.root) == before
 
 
-def test_nested_single_data_input_left_untouched() -> None:
-    # A single data input nested in a conditional needs a qualified reference.
+def test_nested_single_data_input_gets_qualified_format_source() -> None:
+    # A sole data input nested in a conditional is addressable by its QUALIFIED
+    # name: Galaxy keys input_datasets by prefixed name (actions/__init__.py) and
+    # ships test/functional/tools/format_source_in_conditional.xml exercising
+    # format_source="cond|input1". The <when> level contributes no segment.
     module = parse_module(
         _tool(
-            b'<conditional name="c"><param type="data" name="i"/></conditional>',
+            b'<conditional name="c"><param name="sel" type="select"/>'
+            b'<when value="x"><param type="data" name="i"/></when></conditional>',
+            b'<data name="o" format="input"/>',
+        )
+    )
+    changes = list(FixOutputFormatInput().detect(module))
+    assert len(changes) == 1
+    FixOutputFormatInput().apply(module)
+    data = module.document.root.find("outputs/data")
+    assert data.get("format") is None
+    assert data.get("format_source") == "c|i"
+
+
+def test_doubly_nested_and_section_inputs_qualify_fully() -> None:
+    nested = parse_module(
+        _tool(
+            b'<conditional name="c"><param name="s" type="select"/>'
+            b'<when value="x"><conditional name="d"><param name="s2" type="select"/>'
+            b'<when value="y"><param type="data" name="i"/></when>'
+            b"</conditional></when></conditional>",
+            b'<data name="o" format="input"/>',
+        )
+    )
+    FixOutputFormatInput().apply(nested)
+    assert nested.document.root.find("outputs/data").get("format_source") == "c|d|i"
+    sectioned = parse_module(
+        _tool(
+            b'<section name="adv" title="A"><param type="data" name="i"/></section>',
+            b'<data name="o" format="input"/>',
+        )
+    )
+    FixOutputFormatInput().apply(sectioned)
+    assert sectioned.document.root.find("outputs/data").get("format_source") == "adv|i"
+
+
+def test_repeat_nested_input_left_untouched() -> None:
+    # A repeat's runtime prefix is instance-indexed (`r_0|i`), so no static
+    # format_source is faithful — the only nesting shape that stays bailed.
+    module = parse_module(
+        _tool(
+            b'<repeat name="r"><param type="data" name="i"/></repeat>',
             b'<data name="o" format="input"/>',
         )
     )
     before = etree.tostring(module.document.root)
     FixOutputFormatInput().apply(module)
     assert etree.tostring(module.document.root) == before
+
+
+def test_unnamed_grouping_ancestor_left_untouched() -> None:
+    module = parse_module(
+        _tool(
+            b'<conditional><param type="data" name="i"/></conditional>',
+            b'<data name="o" format="input"/>',
+        )
+    )
+    assert not list(FixOutputFormatInput().detect(module))
 
 
 def test_existing_format_source_left_untouched() -> None:

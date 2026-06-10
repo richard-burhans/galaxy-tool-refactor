@@ -5,8 +5,8 @@
 | **Code** | `16_04_fix_interpreter` |
 | **Profile** | 16.04 |
 | **Level** | `must_fix` |
-| **Auto-fix today** | **GTR016** `FixInterpreter` (bucket A; runtime-gated) |
-| **Stuck tools** (must_fix-only) | **316** now (post-GTR016; see `../upgrade_behavior_block_stats.md`) — down from **1,726** without this codemod (= 316 + the 1,410 bucket-A/A-missing tools GTR016 clears) |
+| **Auto-fix today** | **GTR016** `FixInterpreter` (bucket A — any non-empty interpreter since the 2026-06-10 widening; runtime-gated) |
+| **Stuck tools** (must_fix-only) | **299** now (post-widening; see `../upgrade_behavior_block_stats.md`) — down from 316 pre-widening and **1,726** without this codemod |
 | **Galaxy PR** | https://github.com/galaxyproject/galaxy/pull/1688 |
 
 > Galaxy-source citations are from the local clone `.local/galaxy-src/` @ `c6e0ee3`
@@ -31,6 +31,17 @@ neither the `python` prefix nor a path to the script; Galaxy supplied both.
 3. `abs_executable = os.path.join(os.path.abspath(tool_dir), executable)`.
 4. `command_line.replace(executable, f"{interpreter} {shlex.quote(abs_executable)}", 1)`
    — replace the **first occurrence** with `<interpreter> '<abs path>'`.
+
+The interpreter value is interpolated **verbatim** — never quoted, never split. That
+holds across every composition form Galaxy ever shipped: `release_16.04`
+(`evaluation.py:478-484`) through `release_20.01` *prepended* it
+(`command_line = interpreter + " " + command_line` after an unquoted abspath
+replace); `release_20.09` (`:501`) switched to the token-splice + `shlex.quote`
+form above, which survives in `dev` today. The two forms are equivalent whenever
+the script is the first content token of the rendered line — exactly the bucket-A
+shape — and the verbatim interpolation is what makes flag-bearing / non-script
+interpreter values (`Rscript --no-save`, `java -jar`, `export …;`) mechanically
+rewritable (the 2026-06-10 widening, codemod `docs/decisions.md` §39).
 
 So `<command interpreter="python">myscript.py $input</command>` in a tool at
 `/galaxy/tools/mytool/` executed as `python '/galaxy/tools/mytool/myscript.py' <input>`.
@@ -91,21 +102,31 @@ full paths). Shapes:
 
 - **(A) Clean** — body *starts* with a literal co-located script filename + args
   (maybe trailing Cheetah). In every sampled case the script existed beside the XML.
+  **Since the 2026-06-10 widening this includes any non-empty interpreter value** —
+  flags (`Rscript --no-save`, `python -W ignore`), non-scripts (`java -jar`,
+  `docker`), compound prefixes (`export …; java -jar`) — because Galaxy interpolates
+  the value verbatim in every composition form (above).
 - **(B) Leading Cheetah** — the script is not the literal first token (e.g. `#if …`
-  precedes it, or it sits inside both branches).
-- **(C) Non-script interpreters** — `java -jar`, `docker`, `export …; java -jar`:
-  the "interpreter" is itself a command prefix; the first token is a `.jar`, not a
-  tool-dir script.
-- **(D) Interpreter carries flags** — `Rscript --no-save`, `python -W ignore`.
+  precedes it, or it sits inside both branches). The only genuinely unprovable
+  shape: `split()[0]` of the *rendered* line is statically unknowable.
+
+(The historical buckets **C** — non-script interpreter — and **D** — flag-carrying
+interpreter — were conservatism, not soundness: the verbatim-interpolation proof
+dissolved them into A (literal first token, 25 tools) and B (Cheetah-leading, 26
+tools). An empty `interpreter=""` is its own degenerate non-bucket: every Galaxy
+form gates on `if interpreter:`, so it was always ignored — nothing to reproduce;
+0 corpus tools.)
 
 ## Mechanical-fix feasibility
 
 Galaxy chose the script **after Cheetah substitution** (`split()[0]` on the rendered
 line). A codemod sees only the unrendered XML, so *"the script is the first token"*
-holds reliably **only for bucket A**. B/C/D defeat a naive first-token rule. The
-conservative, GTR015-style scope is to auto-fix only bucket A — a single leading
-literal script token + a single-token standard interpreter (optionally requiring the
-script file to exist beside the XML) — and leave B/C/D to detect/warn.
+holds reliably **only for bucket A** — a literal leading script token. That is the
+**sole** static gate: the interpreter value itself is interpolated verbatim by
+every Galaxy composition form, so it needs no restriction beyond non-emptiness.
+Only bucket B (leading Cheetah) defeats the rule and stays detect/warn. (The
+original GTR016 scope also required a single-token standard interpreter — that
+restriction was conservatism, removed by the 2026-06-10 widening, §39.)
 
 ## Where the fix plugs in
 
@@ -120,18 +141,21 @@ is the shared `codemods/_interpreter.py` core (so the codemod and the
 
 ## Status / recommendation
 
-**Shipped: `FixInterpreter` (GTR016).** The conservative bucket-A codemod described
-above — the single highest-impact behaviour-preserving fix. It rewrites
-bucket-A-by-shape tools (the `interpreter-bucket-split` measure's **A** 1,383 +
-**A-missing** 27; the file-exists check is a measurement refinement, not a codemod
-gate — the rewrite is faithful regardless, see codemod `docs/decisions.md` §27). The
-rewrite uses a **positional splice** anchored at the first content line so a script
-name in a leading `##` comment is never mistargeted, and emits CDATA so shell
-operators stay literal. Corpus impact (three population-distinct counts): the
-`interpreter-bucket-split` measure sizes **1,410** tools eligible by shape (A 1,383 +
-A-missing 27, across all profiles); the `corpus_check codemod` sweep **rewrites
-1,127** of them (idempotent, 0 post-validate-failed — the gap being bucket-A tools
-that don't actually cross the 16.04 boundary in the sweep, e.g. already declaring
-≥ 16.04, so the runtime gate never fires); and the behaviour-block walk, which counts
-only sub-16.04 first-blockers, drops **1,726 → 316** as GTR016 clears its 1,410
-(`upgrade_behavior_block_stats.md`), the residual 316 being bucket B/C.
+**Shipped: `FixInterpreter` (GTR016), widened 2026-06-10 (codemod §39).** The
+bucket-A codemod described above — the single highest-impact behaviour-preserving
+fix. It rewrites bucket-A-by-shape tools (the `interpreter-bucket-split` measure's
+**A** 1,407 + **A-missing** 28; the file-exists check is a measurement refinement,
+not a codemod gate — the rewrite is faithful regardless, see codemod
+`docs/decisions.md` §27). The rewrite uses a **positional splice** anchored at the
+first content line so a script name in a leading `##` comment is never mistargeted,
+and emits CDATA so shell operators stay literal. Corpus impact (three
+population-distinct counts): the `interpreter-bucket-split` measure sizes **1,435**
+tools eligible by shape (A 1,407 + A-missing 28, across all profiles; 1,410 before
+the widening — the dissolved bucket C contributed 25); the `corpus_check codemod`
+sweep **rewrites 1,144** of them (idempotent, 0 post-validate-failed — the gap
+being bucket-A tools that don't actually cross the 16.04 boundary in the sweep,
+e.g. already declaring ≥ 16.04, so the runtime gate never fires; 1,127 before the
+widening); and the behaviour-block walk, which counts only sub-16.04
+first-blockers, drops **1,726 → 299** (`upgrade_behavior_block_stats.md`; 316
+before the widening — the 17 rescued tools are the dissolved-C tools that were
+actually stuck sub-16.04), the residual 299 being bucket B.

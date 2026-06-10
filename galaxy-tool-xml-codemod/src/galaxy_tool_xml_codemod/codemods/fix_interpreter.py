@@ -4,8 +4,10 @@ Before profile 16.04 Galaxy ran ``<command interpreter="python">script.py …</c
 as ``python '<tool_dir>/script.py' …`` at runtime — it took the first whitespace
 token of the *substituted* command line, resolved it under the tool directory, and
 prepended the interpreter attribute **verbatim** (``interpreter + " " +
-command_line``; byte-identical ``release_16.04`` ``evaluation.py:478-484`` through
-``release_20.01`` ``:509-514``, the whole era honoring the attribute). From 16.04
+command_line``, ``release_16.04`` ``evaluation.py:478-484`` … ``release_20.01``;
+since ``release_20.09`` spliced at the token as ``f"{interpreter}
+{shlex.quote(abs_executable)}"`` — still verbatim, equivalent for a literal first
+token, and alive in ``dev:781-787`` for ``legacy_defaults`` tools). From 16.04
 the ``interpreter`` attribute is ignored, so an upgraded tool breaks unless the command
 is rewritten (Galaxy's ``16_04_fix_interpreter`` *must-fix* upgrade code).
 

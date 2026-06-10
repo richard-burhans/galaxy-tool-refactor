@@ -107,9 +107,9 @@ def test_bucket_b_leading_cheetah_is_no_op() -> None:
 
 
 def test_multitoken_interpreter_rewrites_verbatim() -> None:
-    # Legacy Galaxy composed `interpreter + " " + command` by verbatim string
-    # concatenation (release_16.04..release_20.01 evaluation.py, byte-identical),
-    # so `java -jar` ran exactly as written — the rewrite reproduces it.
+    # Galaxy interpolates the interpreter value verbatim in every composition
+    # form (prepend 16.04..20.01; token-splice + shlex.quote 20.09..dev), so
+    # `java -jar` ran exactly as written — the rewrite reproduces it.
     module = parse_module(
         _HEAD + b'<command interpreter="java -jar">app.jar x</command></tool>'
     )

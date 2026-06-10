@@ -479,10 +479,18 @@ def test_output_format_input_buckets(tmp_path: Path) -> None:
         '</inputs><outputs><data name="o" format="input"/></outputs></tool>',
         encoding="utf-8",
     )
-    # needs qualified ref: single data input nested in a conditional
+    # nested but addressable (qualified format_source): auto-fixable since the
+    # 2026-06-10 widening (codemod decisions §40)
     (repo / "nested.xml").write_text(
         '<tool><inputs><conditional name="c">'
         '<param type="data" name="i"/></conditional></inputs>'
+        '<outputs><data name="o" format="input"/></outputs></tool>',
+        encoding="utf-8",
+    )
+    # repeat-nested: instance-indexed runtime prefix -> still needs author intent
+    (repo / "repeat.xml").write_text(
+        '<tool><inputs><repeat name="r">'
+        '<param type="data" name="i"/></repeat></inputs>'
         '<outputs><data name="o" format="input"/></outputs></tool>',
         encoding="utf-8",
     )
@@ -512,11 +520,14 @@ def test_output_format_input_buckets(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     result = _measure_output_format_input(corpus_root=tmp_path)
-    assert result.n_tools_parsed == 7
-    assert result.n_tools_with_format_input == 6
-    assert result.n_auto_fixable == 3  # auto + copresent_auto + autofix_past_1604
+    assert result.n_tools_parsed == 8
+    assert result.n_tools_with_format_input == 7
+    # auto + copresent_auto + autofix_past_1604 + nested (addressable since §40)
+    assert result.n_auto_fixable == 4
     buckets = result.by_data_input_bucket
     assert buckets["1 top-level (auto-fixable)"] == 3
+    assert buckets["1 nested, addressable (auto-fixable)"] == 1
+    assert buckets["1 under repeat / unnamed (needs author intent)"] == 1
     assert buckets["2+ data inputs"] == 1
     # the format_source guard breakdown (codemod decisions §24)
     assert result.n_format_input_with_format_source == 2  # both copresent_* files
@@ -524,7 +535,6 @@ def test_output_format_input_buckets(tmp_path: Path) -> None:
     # the crossing-gate breakdown: only autofix_past_1604.xml declares >= 16.04
     # (auto.xml/copresent_auto.xml have no profile -> 16.01 default, below 16.04)
     assert result.n_auto_fixable_already_at_16_04 == 1
-    assert buckets["1 nested (needs qualified ref)"] == 1
 
 
 def test_semantic_boundaries_population_split() -> None:
