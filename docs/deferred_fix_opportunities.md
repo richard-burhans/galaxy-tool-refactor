@@ -94,10 +94,13 @@ entry predicted (qualified `format_source` resolves against the prefixed-name
 entry hadn't named: the absent-at-runtime case (unselected branch / empty
 optional) is also behaviour-matched — both sides resolve to `"data"`.
 Conditional/section nesting now auto-fixes via `cond|name`; repeat nesting
-(instance-indexed prefix) is the only nested shape left to the warning. The
-residual drops 41 → 40, all genuinely undecidable (38 multi-input under Galaxy's
-own nondeterminism + 2 zero-input). Full record: codemod `docs/decisions.md`
-§40 + the updated `docs/upgrade_research/16_04_fix_output_format.md`.
+(instance-indexed prefix) is the only nested shape left to the warning — and the
+corpus's single nested tool turns out to be exactly that, so the widening
+rescues **0 corpus tools** (the residual stays 41: 38 multi-input under Galaxy's
+own nondeterminism, 2 zero-input, 1 repeat-nested). Pure novel-tool insurance in
+the GTR036 spirit — the cleanest possible instance of the ledger's principle.
+Full record: codemod `docs/decisions.md` §40 + the updated
+`docs/upgrade_research/16_04_fix_output_format.md`.
 
 ### C2. GTR016 `interpreter=` — **SHIPPED 2026-06-10** (codemod §39)
 
@@ -174,7 +177,7 @@ Criteria: **(i)** novel-tool benefit (likelihood × severity of the gap),
 | Rank | Item | Why here |
 |---|---|---|
 | 1 | **C2 — GTR016 bucket-C flags slice** | ✅ **shipped** (codemod §39): the proof admitted all of bucket C, not just flags — 25 tools by shape, 17 rescued from the stuck residual (316 → 299) |
-| 2 | **C1 — GTR015 nested sole input** | ✅ **shipped** (codemod §40): qualified `format_source` for conditional/section nesting; residual 41 → 40, all genuinely undecidable |
+| 2 | **C1 — GTR015 nested sole input** | ✅ **shipped** (codemod §40): qualified `format_source` for conditional/section nesting; 0 corpus tools (the 1 nested corpus tool is repeat-nested — correctly still bailed), pure novel-tool insurance |
 | 3 | **A1 — collection-type whitespace** | fully provable today by a shipped precedent's argument; trivially small; unblocks the 22.01 crossing for novel tools |
 | 4 | **C3 — GTR036 collection variant** | provable by source-mirroring (method already used for the data case); modernizes a deprecated construct; ~0 corpus so pure novel-tool insurance |
 | 5 | **A2 — 3c version tokenization** | the largest corpus count (75) but style-tier payoff (no validity/behavior unlock) and the highest cost (macros creation) |

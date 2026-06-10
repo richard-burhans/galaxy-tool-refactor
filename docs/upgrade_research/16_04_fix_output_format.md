@@ -72,20 +72,23 @@ report (size it via `scripts/measure.py output-format-input`).
 ## Mechanical-fix feasibility
 
 - **Already covered** for the sole-data-input case (GTR015) — including, since
-  the 2026-06-10 widening (§40), the sole *nested* input via its qualified name
-  (the pre-widening residual's "1 nested single data input" entry: its
-  justification — "the unqualified name wouldn't resolve" — was true but
-  incomplete; the *qualified* name does resolve, verified against Galaxy source
-  and Galaxy's own conditional format_source test tool).
-- GTR015 leaves **40** tools unfixed — the genuinely undecidable cases (per
+  the 2026-06-10 widening (§40), a sole conditional/section-nested input via its
+  qualified name (the old "unqualified name wouldn't resolve" justification was
+  true but incomplete; the *qualified* name does resolve, verified against
+  Galaxy source and Galaxy's own conditional format_source test tool). The
+  widening rescues **0 corpus tools** — the corpus's single nested-single tool
+  is **repeat**-nested (instance-indexed prefix, no static address), so it is
+  correctly still bailed — making this pure novel-tool insurance.
+- GTR015 leaves **41** tools unfixed — the genuinely undecidable cases (per
   `scripts/measure.py output-format-input`): 38 with multiple data inputs
   (pre-16.04 `format="input"` resolved to the *last* form input's ext under
   Galaxy's own `TODO`-marked nondeterminism — no deterministic behaviour to
-  preserve), and 2 with zero data inputs (nothing to inherit from). These need
-  author intent and stay detect/report-only. (The **33** in the header is a
-  different metric — the count of tools where this code is the *first* must_fix
-  blocker in the sequential profile walk; most ambiguous tools stall earlier at
-  16.04 on `16_04_fix_interpreter`, so 33 is a subset.)
+  preserve), 2 with zero data inputs (nothing to inherit from), and the 1
+  repeat-nested single. These need author intent and stay detect/report-only.
+  (The **33** in the header is a different metric — the count of tools where
+  this code is the *first* must_fix blocker in the sequential profile walk;
+  most ambiguous tools stall earlier at 16.04 on `16_04_fix_interpreter`, so 33
+  is a subset.)
 
 ## Status / recommendation
 

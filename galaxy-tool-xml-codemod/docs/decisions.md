@@ -1711,7 +1711,11 @@ galaxy_tool_xml_codemod.codemods.fix_output_format_input:FixOutputFormatInput`.
   *last* form input's ext under Galaxy's own `TODO`-marked nondeterminism — no
   deterministic behaviour exists to preserve), repeat-nested (no static
   address), and outputs already carrying `format_source` (§24's guard).
-- **Corpus.** The pre-widening sizing had exactly **1** nested-single tool (the
-  `output-format-input` measure) — the widening is novel-tool insurance in the
-  GTR036 spirit ("not gated on corpus frequency"), shipped for the proof, not
-  the count. Sweep numbers regenerated alongside §39's.
+- **Corpus.** The widening rescues **0 corpus tools**: the corpus's single
+  nested-single tool turns out to be **repeat-nested** (the
+  `output-format-input` measure's "1 under repeat / unnamed" bucket; the
+  "addressable" bucket is 0), so it is *correctly still bailed*, and the
+  codemod sweep is unchanged at **79 modified, 0 non-idempotent, 0
+  post-validate-failed, 0 crashed**. Pure novel-tool insurance in the GTR036
+  spirit ("not gated on corpus frequency") — shipped for the proof, not the
+  count.

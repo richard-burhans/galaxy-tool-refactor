@@ -5572,7 +5572,7 @@ def _report_output_format_input(measurement: _OutputFormatInputResult) -> None:
     for label, count in sorted(measurement.by_data_input_bucket.items()):
         print(f"  {count:5d}  {label}")
     print(
-        f"\nAuto-fixable (single top-level data input -> unqualified format_source): "
+        f"\nAuto-fixable (sole addressable data input -> format_source): "
         f"{measurement.n_auto_fixable}"
     )
     print(
