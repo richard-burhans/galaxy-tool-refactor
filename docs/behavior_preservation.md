@@ -41,8 +41,8 @@ false alarms:
 ## Verdict summary
 
 19 fixable rules audited in the 2026-06-04 adversarial pass — **11 hold, 8 refuted**.
-Of the refuted: **5 fixed** (GTR018.1, GTR019.1, GTR020.1, GTR004, GTR016), **1 open**
-(GTR001 — doc-tighten, zero corpus incidence), and **2 where the adversarial refutation
+Of the refuted: **6 fixed** (GTR018.1, GTR019.1, GTR020.1, GTR004, GTR016, and — since
+2026-06-10 — GTR001), and **2 where the adversarial refutation
 itself overreached** and there is no bug to fix (GTR006, GTR009 — both confirmed against
 Galaxy source / the rule's contract; doc-clarify only). One rule shipped later carries its
 claim by construction rather than via that pass: **GTR089.1 RepairHelpRst** (2026-06-09)
@@ -50,7 +50,7 @@ holds on the strength of its tier-1 render-equivalence gate (below).
 
 | Rule | Codemod / fmt | Claim | Verdict | Basis |
 |---|---|---|---|---|
-| GTR001 | fmt indent | runtime | **REFUTED** | ws-only `.tail` in mixed content → rendered-text drift (zero corpus incidence) |
+| GTR001 | fmt indent | runtime | **REFUTED → FIXED** | ws-only `.tail` in mixed content → rendered-text drift; guarded by the mixed-content + payload-subtree skip (fmt §D19) |
 | GTR002 | param attr order | runtime | hold | attribute reorder, no value/text touched |
 | GTR003 | blank-line trivia | runtime | hold | writes only None/ws tails of `<tool>` children |
 | GTR004 | empty-element | runtime | **REFUTED → FIXED** | cleared ws-only `.text` on content-bearing leaves (`<configfile>`/`<command>`/`<token>`) (PR #113) |
@@ -181,7 +181,7 @@ still tidies it to `<help/>` — the guard stays surgical). Corpus delta is a ha
 degenerate whitespace-only command/token bodies now conservatively preserved. fmt
 `rule_empty_element.py`; regression fixture in `test_rule_empty_element.py`.
 
-### GTR001 — whitespace-tail rewrite in mixed content (zero corpus incidence) — DOCUMENTED (PR #116)
+### GTR001 — whitespace-tail rewrite in mixed content — FIXED (was: documented, PR #116)
 
 The indentation rule's `strip()` oracle rewrites a whitespace-only `.tail` without
 checking whether the parent holds **mixed content** (text interspersed with
@@ -195,6 +195,17 @@ whitespace non-significant" justification (true for element content, not mixed
 content); add `xml:space="preserve"` + mixed content to the rule's known limitations.
 An optional guard (skip ws-tail rewrite inside a mixed-content parent) is low-priority
 given zero incidence. fmt `docs/decisions.md` D3.
+
+**Fix (2026-06-10, fmt §D19):** the zero-incidence deferral was reversed on the
+maintainer's standing principle — soundness arguments must hold *by construction*
+for novel tools, not by corpus absence. The indent rule now skips the whole subtree
+of (a) any element holding **mixed content** and (b) any **payload element with
+children** (`<command>`/`<configfile>`/`<token>` — the GTR004 verbatim set — plus
+RST-sensitive `<help>`). (b) closes a hazard the original verdict missed: a
+whitespace-only tail *between* `<expand>` children of `<command>` is not mixed
+content by the textbook definition, yet rewriting its space to newline+indent turns
+a shell word separator into a command separator. The strict `xfail` fixture flipped
+to a positive test plus three new guards (`test_rule_indent.py`).
 
 ### GTR006 — FixTypos case-folds a `format`/`type` enum value (contract nuance) — DOCUMENTED (PR #116)
 
@@ -220,13 +231,13 @@ fixtures are the record. Suggested order (cleanest/highest-value first):
 2. ~~**GTR004 — content-bearing `.text` scope-narrow**~~ — **DONE (PR #113)**: empty-element rule skips `<command>`/`<configfile>`/`<token>`.
 3. ~~**GTR016 — FixInterpreter mixed-content**~~ — **DONE (PR #114)**: skips mixed-content `<command>`.
 4. ~~**GTR009 — Upgrade24_0 mixed-content filter**~~ — **RESOLVED (PR #115)**: refutation overreached; Galaxy evaluates `filter.text.strip()`, so the hoist is behaviour-preserving (no code change).
-5. ~~**GTR001 — doc-tighten**~~ — **DONE (PR #116)**: mixed-content limitation documented at `serializer.safe_set_tail` + fmt §D3. The optional guard stays deliberately deferred (zero corpus incidence); the `xfail` fixture remains as the known-limitation marker.
+5. ~~**GTR001 — doc-tighten**~~ — **DONE (PR #116)**: mixed-content limitation documented at `serializer.safe_set_tail` + fmt §D3. ~~The optional guard stays deliberately deferred (zero corpus incidence); the `xfail` fixture remains as the known-limitation marker.~~ **Superseded 2026-06-10: the guard SHIPPED (fmt §D19)** — the corpus-incidence deferral conflicted with the novel-tool soundness principle; the `xfail` flipped positive.
 6. ~~**GTR006 — doc-clarify the validity-restoration contract**~~ — **DONE (PR #116)**: codemod §11 now states the contract (preserve valid tools, repair invalid ones); no code change.
 
-**Backlog complete.** All 8 refuted findings are resolved: 5 fixed (GTR004, GTR016,
-GTR018.1, GTR019.1, GTR020.1), 2 refutation-overreach documented (GTR006, GTR009), and
-GTR001's mixed-content limitation documented (the only residual; a guard is deferred on
-zero incidence).
+**Backlog complete.** All 8 refuted findings are resolved: 6 fixed (GTR001, GTR004,
+GTR016, GTR018.1, GTR019.1, GTR020.1) and 2 refutation-overreach documented (GTR006,
+GTR009). No residual: GTR001's guard — initially deferred on zero corpus incidence —
+shipped 2026-06-10 (fmt §D19) under the novel-tool soundness principle.
 
 Each *open* refuted finding has a `xfail(strict=True)` regression fixture in its owning
 test module, tagged with its GTR code, so a future scope-widening that re-introduces

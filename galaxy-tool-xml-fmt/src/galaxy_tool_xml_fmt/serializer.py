@@ -29,16 +29,15 @@ def safe_set_text(element: etree._Element, value: str) -> None:
 def safe_set_tail(element: etree._Element, value: str) -> None:
     """Write *value* to *element*.tail only when it is absent or pure whitespace.
 
-    Known limitation (behaviour-preservation GTR001;
+    Caller contract (behaviour-preservation GTR001;
     ``../../docs/behavior_preservation.md``): the ``strip()`` guard treats *any*
     whitespace-only tail as rewritable, but a whitespace-only tail inside **mixed
-    content** (text interspersed with child elements, e.g. ``See <b>x</b> <i>y</i>``)
-    is a *significant* word separator — XML 1.0 calls inter-element whitespace
-    non-significant only for *element* content, not mixed content. Rewriting it to
-    newline+indent would change the rendered text. This has **zero corpus incidence**
-    (no real tool indents inside a mixed-content body), so it is left as a documented
-    limitation rather than guarded; revisit (skip ws-tail rewrite when the parent
-    holds mixed content) if a real case appears.
+    content** (``See <b>x</b> <i>y</i>``) or inside a payload element with children
+    (``<command><expand/> <expand/></command>``) is significant — a rendered word
+    separator / spliced script text — so callers must not target tails there. The
+    indent rule enforces this with its mixed-content + payload-subtree skip
+    (``rule_indent``); the blank-line rule only ever targets the root's direct
+    children (element content by schema).
     """
     if not (element.tail or "").strip():
         element.tail = value

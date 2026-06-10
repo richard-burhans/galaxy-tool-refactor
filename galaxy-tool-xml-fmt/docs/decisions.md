@@ -154,6 +154,9 @@ significant word separator. GTR001's `strip()`-guarded tail rewrite (`serializer
 `safe_set_tail`) does not distinguish the two, so it *would* reflow such a separator —
 a documented behaviour-preservation limitation (GTR001) with **zero corpus incidence**,
 left unguarded rather than fixed. See `../../docs/behavior_preservation.md`.
+*(Superseded 2026-06-10: the guard shipped — D19's mixed-content + payload-subtree
+skip — reversing the zero-incidence deferral under the novel-tool soundness
+principle.)*
 
 ### Source
 
@@ -931,3 +934,43 @@ galaxy-tool-xml-fmt pytest galaxy-tool-xml-fmt/tests/test_rule_empty_element.py`
   collapsed; idempotence and validity unaffected (corpus `fmt` sweep). Pinned by
   `test_whitespace_only_content_bearing_text_is_preserved` (+ the `<help>`-still-
   collapses companion).
+
+## D19 (2026-06-10) — GTR001: skip mixed-content and payload subtrees (the zero-incidence deferral reversed)
+
+**Date:** 2026-06-10. Behavior-preservation finding GTR001
+(`../../docs/behavior_preservation.md`). Reproduced-by: `uv run --package
+galaxy-tool-xml-fmt pytest galaxy-tool-xml-fmt/tests/test_rule_indent.py` and
+`uv run python -m scripts.corpus_check fmt`.
+
+- **The reversal.** The 2026-06-04 adversarial audit refuted GTR001's
+  behaviour-preservation claim for whitespace-only tails in mixed content, and the
+  guard was deferred on *zero corpus incidence*. That deferral conflicted with the
+  maintainer's standing principle: behaviour-preservation must hold **by
+  construction for novel tools**, not by absence from the corpus. The guard now
+  ships.
+- **The guard.** `_walk` returns without emitting edits for the whole subtree of:
+  (a) any element holding **mixed content** (non-ws `.text`, or any child with a
+  non-ws `.tail`) — inter-element whitespace there is a rendered word separator
+  (XML 1.0 makes it non-significant for *element* content only); and (b) any
+  **payload element with children** — `_PAYLOAD_TAGS = {command, configfile,
+  token, help}`: the GTR004 verbatim set plus indentation-sensitive RST `<help>`.
+- **(b) closes a hazard the original verdict never counted.** A whitespace-only
+  tail *between* `<expand>` children of `<command>` is not mixed content by the
+  textbook definition, yet the macros splice into one command line — rewriting
+  that space to newline+indent turns a shell **word** separator into a shell
+  **command** separator.
+- **`<help>` divergence from GTR004 is deliberate, not inconsistent.** GTR004
+  keeps `<help>` *out* of its denylist (a whitespace-only help renders empty
+  either way, so it still collapses to `<help/>`); GTR001 puts `<help>` *in* its
+  payload set because the concern is different — injecting indentation **inside a
+  non-empty body with children** changes the expanded RST's leading whitespace
+  (blockquote drift), whereas collapsing an empty one changes nothing.
+- **Corpus impact.** The "zero incidence" framing was too narrow: the 2026-06-10
+  `fmt` sweep shows **245 edits across the 8,608-tool corpus** were landing inside
+  these unprovable subtrees (GTR001 edits 863,912 → 863,667; tools touched 8,608 →
+  8,607). All are now conservatively preserved; idempotence and validity
+  unaffected (0 non-idempotent, 0 crashes). The strict `xfail` known-limitation
+  fixture flipped to a positive test, plus three new guards
+  (`test_ws_tail_between_command_expands_is_preserved`,
+  `test_ws_text_of_command_with_children_is_preserved`,
+  `test_help_with_expand_children_is_left_alone`).
