@@ -186,12 +186,16 @@ incidence sizes impact, never soundness.*
 
 ### Proposals from the tightening pass (not applied — maintainer decision)
 
-- **GTR004's `_CONTENT_BEARING_TAGS` could be derived from the XSD** instead of
-  hand-maintained: an element whose schema type carries text content is exactly
-  the set whose ws-only body may be payload. The hand list is correct today
-  (and the GTR001 §D19 `_PAYLOAD_TAGS` mirrors it +`help`); a derivation would
-  make both robust to future schema additions. Medium effort; the explicit-list
-  convention (N2) argues for the status quo — flagging, not recommending.
+- ~~**GTR004's `_CONTENT_BEARING_TAGS` could be derived from the XSD**~~ —
+  **applied same day at the maintainer's direction (fmt §D20):** tier-1
+  `schema_content.text_bearing_tags()` + the fmt `payload` guard now back both
+  GTR004 and GTR001. The derivation immediately earned its keep: it surfaced
+  ~50 text-bearing tags the hand lists missed (option/filter/description/…)
+  **and one latent GTR004 unsoundness** — `<inputs>` is `simpleContent` under
+  `<configfiles>`, so a ws-only configfiles-`<inputs>` body was collapsible;
+  now context-guarded. Two proof-carried exceptions recorded (`<macros>` text
+  is dead — Galaxy clears the element, `xml_macros.py:39-45`; `<help>` keeps
+  D18's renders-empty argument).
 - **GTR035's `<tool name>` leg is a display-contract claim**, now stated as
   such (the GTR089.1 style): the trimmed name is byte-visible in API JSON but
   render-identical in HTML. If a stricter bar is ever wanted, the name trim

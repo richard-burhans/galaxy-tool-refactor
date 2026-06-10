@@ -17,12 +17,13 @@ tool is to not touch it:
   ``See <b>x</b> <i>y</i>``): a whitespace-only tail there is a rendered
   word separator — XML 1.0 calls inter-element whitespace
   non-significant only for *element* content.
-- **Payload elements with children** (``<command>`` / ``<configfile>`` /
-  ``<token>`` — read verbatim by Galaxy, ``strip=False``, the GTR004
-  set — plus indentation-sensitive RST ``<help>``): even an all-
-  whitespace text/tail between ``<expand>`` children is spliced into
-  the script/template/RST, where a space→newline rewrite changes
-  meaning (in shell, a newline *separates commands*).
+- **Payload elements with children** (the schema-derived text-bearing
+  set, fmt ``payload`` module — ``<command>`` / ``<configfile>`` /
+  ``<token>`` / ``<help>`` and every other tag whose content model
+  admits text): even an all-whitespace text/tail between ``<expand>``
+  children is spliced into the script/template/RST, where a
+  space→newline rewrite changes meaning (in shell, a newline
+  *separates commands*).
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ from typing import TYPE_CHECKING, ClassVar
 from galaxy_tool_refactor_rules.meta import RuleMeta
 
 from galaxy_tool_xml_fmt.edits import Edit, SetTail, SetText
+from galaxy_tool_xml_fmt.payload import element_text_may_be_payload
 from galaxy_tool_xml_fmt.rules import Rule
 
 if TYPE_CHECKING:
@@ -40,13 +42,6 @@ if TYPE_CHECKING:
 
 
 _INDENT = "    "
-
-# Elements whose body Galaxy consumes verbatim (shell/Cheetah script, template,
-# macro substitution value — the GTR004 ``_CONTENT_BEARING_TAGS``) or renders
-# whitespace-sensitively (RST <help>): with child elements present, every
-# text/tail inside is potential payload, never provably layout.
-_PAYLOAD_TAGS = frozenset({"command", "configfile", "token", "help"})
-
 
 def _holds_mixed_content(element: etree._Element, /) -> bool:
     """Text interspersed with elements — inter-element whitespace is rendered."""
@@ -75,7 +70,7 @@ def _walk(element: etree._Element, *, depth: int) -> Iterable[Edit]:
     children = list(element)
     if not children:
         return
-    if element.tag in _PAYLOAD_TAGS or _holds_mixed_content(element):
+    if element_text_may_be_payload(element) or _holds_mixed_content(element):
         return  # whole subtree: whitespace may be payload / rendered text
     inner = "\n" + _INDENT * (depth + 1)
     outer = "\n" + _INDENT * depth

@@ -33,11 +33,13 @@ from typing import TYPE_CHECKING, ClassVar
 from galaxy_tool_refactor_rules.meta import RuleMeta
 
 from galaxy_tool_xml_fmt.edits import ClearText, Edit
+from galaxy_tool_xml_fmt.payload import element_text_may_be_payload
 from galaxy_tool_xml_fmt.rules import Rule
 
-# Elements whose ``.text`` is runtime/expansion payload Galaxy reads verbatim, so a
-# whitespace-only body is content (not layout) and must not be collapsed (GTR004).
-_CONTENT_BEARING_TAGS = frozenset({"command", "configfile", "token"})
+# The content-bearing guard is now schema-derived (fmt ``payload`` module — every
+# tag whose content model admits text, with the configfiles-``<inputs>`` context
+# check and the cleared-``<macros>`` exception); ``<help>`` stays a deliberate,
+# cited exception below (a whitespace-only help renders empty either way, D18).
 
 if TYPE_CHECKING:
     from lxml import etree
@@ -65,7 +67,7 @@ class EmptyElementShorthand(Rule):
             # Restrict the rule to real elements.
             if not isinstance(element.tag, str):
                 continue
-            if element.tag in _CONTENT_BEARING_TAGS:
+            if element.tag != "help" and element_text_may_be_payload(element):
                 continue  # whitespace-only body is payload, not layout — keep it
             if len(element) == 0:
                 text = element.text

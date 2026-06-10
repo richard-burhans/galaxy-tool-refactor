@@ -974,3 +974,40 @@ galaxy-tool-xml-fmt pytest galaxy-tool-xml-fmt/tests/test_rule_indent.py` and
   (`test_ws_tail_between_command_expands_is_preserved`,
   `test_ws_text_of_command_with_children_is_preserved`,
   `test_help_with_expand_children_is_left_alone`).
+
+## D20 (2026-06-10) — The payload guard is schema-derived (GTR004 + GTR001 share it)
+
+**Date:** 2026-06-10. The behaviour-preservation ledger's GTR004 derivation
+proposal, applied at the maintainer's direction. Reproduced-by: `uv run
+--package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_schema_content.py`
+and `uv run --package galaxy-tool-xml-fmt pytest
+galaxy-tool-xml-fmt/tests/test_rule_empty_element.py
+galaxy-tool-xml-fmt/tests/test_rule_indent.py`.
+
+- **The change.** D18's hand list (`_CONTENT_BEARING_TAGS = {command,
+  configfile, token}`) and D19's `_PAYLOAD_TAGS` are replaced by one derivation:
+  tier-1 `schema_content.text_bearing_tags()` — an element is text-bearing iff
+  its content model admits character data (`xs:simpleContent`, `mixed="true"`,
+  a builtin, or a named simpleType), unioned across all 28 vendored XSDs
+  (conservative for a guard). The fmt-side `payload.element_text_may_be_payload`
+  consumes it for both rules; GTR004 keeps D18's cited `<help>` exception.
+- **What the derivation surfaced (the point of doing it):** the hand lists
+  missed text-bearing tags — `<option>` labels, eval'd `<filter>` text,
+  `<description>`, `<version_command>`, … (~50 tags) — **including one latent
+  GTR004 collision**: `<inputs>` is `simpleContent` under `<configfiles>`
+  (`ConfigInputs`), so a whitespace-only configfiles-`<inputs>` body was
+  collapsible by the old rule. It is now protected by a parent-context check
+  (the tool-level `<inputs>` stays element-only and keeps tidying).
+- **Two proof-carried exceptions** (the D18-help pattern, each cited):
+  `<inputs>` is payload only under `<configfiles>`; `<macros>` (legacy
+  `xs:anyType`) is excepted because Galaxy's loader harvests its children and
+  then clears the element (`galaxy/util/xml_macros.py:39-45`) — its text is
+  provably dead.
+- **N2 note.** The explicit-list convention
+  ([[project_explicit_rule_lists_convention]]-style len-pinned rosters) governs
+  *rule* lists; this is a *semantic* set whose source of truth genuinely is the
+  schema — deriving it removes a drift class instead of adding one. The
+  tier-1 tests pin the known members both ways (payload tags present,
+  structural tags absent, the collision tags honestly included).
+- **Corpus impact:** regenerated with the branch's final sweep (GTR004/GTR001
+  counts shift as the widened guard preserves more whitespace-only bodies).
