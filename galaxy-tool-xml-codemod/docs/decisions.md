@@ -1458,6 +1458,20 @@ galaxy_tool_xml_codemod.codemods.trim_attribute_whitespace:TrimAttributeWhitespa
   0 crashed** (`docs/corpus_rule_stats.md`); the canonical `format` pipeline stays
   idempotent (fmt sweep: 8,608 idempotent, 0 non-idempotent).
 
+**Addendum (2026-06-10, the proofs-tightening pass):** GTR035 became a
+**partition** — `GTR035.1` (this codemod, now `<requirement version>` only:
+conda receives the spec verbatim, `conda_util.py:461-465`, so a
+whitespace-bearing version never resolved — an unconditional repair proof) and
+`GTR035.2` (a new check-tier advisory for `<tool name>` edge whitespace: its
+preservation argument is a *display-contract* claim — `parse_name` reads the
+attribute raw, `xml.py:220-221`, render-identical in HTML but byte-visible in
+API JSON — below the construction bar fixable rules now hold to). The
+`ToolNameWhitespace` planemo alias moved to `.2`; parity coverage is unchanged.
+**Corpus:** all 26 detected whitespace instances are *name* cases — GTR035.2
+now reports all 26, and GTR035.1 (version) is zero-corpus novel-tool insurance
+(0 modified in the rules sweep). Behaviour-preservation ledger, "GTR035
+advisory" proposal, applied at the maintainer's direction.
+
 ## 34. `ReplaceOutputElement` (GTR036) — deprecated `<output type="data">` → `<data>`
 
 **Date:** 2026-06-06. Second planemo-parity *fix*
@@ -1620,3 +1634,168 @@ conversion the gate admits is XSD-valid and stable.
 uv run --package galaxy-tool-xml-codemod pytest galaxy-tool-xml-codemod/tests/test_convert_help_markdown.py
 uv run python -m scripts.corpus_check rules   # GTR092 isolation row (needs the corpus)
 ```
+
+## 39. GTR016 widened: any non-empty interpreter (the verbatim-composition proof)
+
+**Date:** 2026-06-10. Item 1 of `../../docs/deferred_fix_opportunities.md` (the
+corpus-incidence deferral ledger; maintainer-approved ranking). Reproduced-by:
+`uv run --package galaxy-tool-xml-codemod pytest
+galaxy-tool-xml-codemod/tests/test_interpreter.py
+galaxy-tool-xml-codemod/tests/test_fix_interpreter.py`; sizing
+`uv run python -m scripts.measure interpreter-bucket-split`; validation
+`uv run python -m scripts.corpus_check codemod
+galaxy_tool_xml_codemod.codemods.fix_interpreter:FixInterpreter`.
+
+- **The conservatism removed.** §27's GTR016 required a *single-token standard*
+  interpreter (`_STANDARD_INTERPRETERS`), leaving flag-bearing
+  (`Rscript --no-save`), non-script (`java -jar`, `docker`), and compound
+  (`export …; java -jar`) values to the §23 warning as "bucket C". That gate was
+  never a soundness requirement — only nobody had proven it.
+- **The proof (Galaxy source archaeology).** Galaxy interpolates the interpreter
+  attribute **verbatim** in every composition form it ever shipped: the prepend
+  form (`command_line = interpreter + " " + command_line` after an unquoted
+  abspath replace) is byte-identical `release_16.04`
+  (`evaluation.py:478-484`) through `release_20.01`; `release_20.09` switched to
+  the token-splice form
+  (`replace(executable, f"{interpreter} {shlex.quote(abs_executable)}", 1)`),
+  alive in `dev:781-787` today (still honored for `legacy_defaults` tools). The
+  forms are equivalent whenever the script is the rendered line's first content
+  token — exactly the bucket-A literal-leading-token gate, which therefore
+  becomes the **sole** static requirement. Every form gates on
+  `if interpreter:`, so an empty `interpreter=""` was always ignored — the
+  predicate bails on it (nothing to reproduce; the §23 warning still covers it).
+- **The change.** `_interpreter.interpreter_rewrite` accepts any non-empty
+  interpreter (`_STANDARD_INTERPRETERS` deleted); the rewrite body
+  (`{interpreter} '$__tool_directory__/{token}'`) was already verbatim-faithful
+  and is untouched. Bucket taxonomy: C dissolves — literal-leading-token tools
+  join A, Cheetah-leading join B; `empty` is a new degenerate bucket (0 corpus
+  tools). The measure + its fixture test + the stats page mirror the predicate,
+  by construction as before.
+- **Corpus.** Bucket A 1,383 → **1,407** (+ A-missing 27 → 28): the dissolved C
+  (51) split 25 → A/A-missing, 26 → B (293). Codemod sweep: 8,607 eligible →
+  **1,144 modified** (1,127 before; +17 crossing-gated), **0 non-idempotent, 0
+  post-validate-failed, 0 crashed**. Behaviour-block walk: the
+  `16_04_fix_interpreter` first-blocker residual drops **316 → 299**
+  (`docs/upgrade_behavior_block_stats.md`) — each rescued tool's entire
+  profile-upgrade chain unblocks.
+- **Why this is the principle, not scope creep.** Per
+  `docs/deferred_fix_opportunities.md`: corpus incidence sizes impact, never
+  soundness. The widening is provable for *novel* tools regardless of the 25
+  corpus instances; the proof, not the count, is the admission ticket.
+
+## 40. GTR015 widened: the nested sole data input is addressable (qualified format_source)
+
+**Date:** 2026-06-10. Item 2 of `../../docs/deferred_fix_opportunities.md`.
+Reproduced-by: `uv run --package galaxy-tool-xml-codemod pytest
+galaxy-tool-xml-codemod/tests/test_fix_output_format_input.py`; sizing
+`uv run python -m scripts.measure output-format-input`; validation
+`uv run python -m scripts.corpus_check codemod
+galaxy_tool_xml_codemod.codemods.fix_output_format_input:FixOutputFormatInput`.
+
+- **The conservatism removed.** §24's GTR015 required the sole data input to be
+  a *direct child* of `<inputs>` "so an unqualified `format_source` reference
+  resolves" — leaving a sole *nested* input to the §23 warning on the belief
+  that it wasn't addressable.
+- **The proof (Galaxy source).** `determine_output_format` resolves
+  `format_source` against `input_datasets`, which Galaxy keys by the **prefixed
+  (qualified) name** (`actions/__init__.py` — `input_datasets[prefixed_name]`;
+  prefixed keying present back to `release_16.04`'s `prefix + input.name`). The
+  prefix grammar (`visit_input_values`): a `<conditional>` or `<section>`
+  ancestor contributes `name|`, a `<when>` contributes nothing, a `<repeat>`
+  contributes an **instance-indexed** `name_N|`. Qualified `format_source` is an
+  upstream-*tested* feature: `test/functional/tools/format_source_in_conditional.xml`
+  ships `format_source="cond|input1"` — and its second branch deliberately
+  exercises the **absent-key fallthrough**, which is also behaviour-matched: with
+  the input absent at runtime (unselected branch / empty optional), pre-16.04
+  `format="input"` resolved to `"data"` (no datasets walked), and a missing
+  `format_source` key falls through to the parsed output-format default — also
+  `"data"` (`xml.py` `get("format", "data")`).
+- **The change.** `_sole_top_level_data_input_name` →
+  `_sole_data_input_qualified_name`: walk the sole `<param type="data">`'s
+  ancestors to `<inputs>`, joining named `<conditional>`/`<section>` segments
+  with `|` (a top-level input degenerates to its bare name). Bail on a
+  `<repeat>` ancestor (instance-indexed prefix — no static address), an unnamed
+  grouping, or anything unrecognised. The `output-format-input` measure now
+  imports the resolver (agreement by construction, the GTR016 pattern) and
+  splits the old "1 nested (needs qualified ref)" bucket into "1 nested,
+  addressable (auto-fixable)" vs "1 under repeat / unnamed (needs author
+  intent)".
+- **What stays out, and why it is construction-not-corpus:** zero data inputs
+  (nothing to inherit), two-or-more (pre-16.04 `format="input"` resolved to the
+  *last* form input's ext under Galaxy's own `TODO`-marked nondeterminism — no
+  deterministic behaviour exists to preserve), repeat-nested (no static
+  address), and outputs already carrying `format_source` (§24's guard).
+- **Corpus.** The widening rescues **0 corpus tools**: the corpus's single
+  nested-single tool turns out to be **repeat-nested** (the
+  `output-format-input` measure's "1 under repeat / unnamed" bucket; the
+  "addressable" bucket is 0), so it is *correctly still bailed*, and the
+  codemod sweep is unchanged at **79 modified, 0 non-idempotent, 0
+  post-validate-failed, 0 crashed**. Pure novel-tool insurance in the GTR036
+  spirit ("not gated on corpus frequency") — shipped for the proof, not the
+  count.
+
+## 41. `Upgrade21_09` (GTR093) — collection_type whitespace: the one-tool decline reversed
+
+**Date:** 2026-06-10. Item 3 of `../../docs/deferred_fix_opportunities.md`
+(reversing `PLAN.md`'s "Considered and declined — collection-type whitespace
+normalization", which declined a provably-safe fix on **one-tool corpus
+incidence**). Reproduced-by: `uv run --package galaxy-tool-xml-codemod pytest
+galaxy-tool-xml-codemod/tests/test_upgrade_21_09.py`; sizing
+`uv run python -m scripts.measure collection-type-normalization`.
+
+- **The boundary.** 22.01's XSD types `collection_type` for the first time:
+  `<param collection_type>` → `CollectionTypeList`
+  (`(list|paired)([:,](list|paired))*`, whitespace-rejecting); the single-value
+  sites (output `<collection type>`, `<output collection_type>`, test
+  `<output_collection type>`) → `CollectionType`. 21.09 had free `xs:string`.
+- **The proof (the part the decline never asked for).** Galaxy's runtime strips
+  each comma token itself — `DataCollectionToolParameter.__init__`:
+  `[t.strip() for t in collection_types.split(",")]`, unconditional — so
+  comma-adjacent whitespace is runtime-insignificant and stripping it is a
+  behaviour no-op that gains 22.01 validity. The same line proves two edges:
+  `collection_type=""` is **dropped** (`if collection_types:` falsy — identical
+  to absent), while a whitespace-only value is **left** (it strips to a
+  matches-nothing restriction; lifting it would change behaviour).
+- **What stays out, and why it is construction-not-corpus:** colon-inner
+  whitespace (`type_description.py` splits `:` raw — runtime-significant), the
+  single-value `CollectionType` sites (no runtime strip exists), and case
+  (`List` — runtime comparisons exact). All left stuck + reported.
+- **Corpus.** Exactly **1** tool (`qiime2_core__tools__import_fastq`,
+  `"list, list:paired"`) — and even it is invisible to the codemod *sweep*
+  (declares 22.05 but validates only to 21.09, so the sweep's
+  `corpus_test_profile_for` anchor drops it; a harness-policy artifact, not a
+  codemod gate — `UpgradeToLatest` itself reaches it fine via
+  `UPGRADE_CODEMODS["21.09"]`). Shipped under the novel-tool soundness
+  principle: the proof, not the count, is the admission ticket.
+
+## 42. `Upgrade21_09` grows the proven 22.01 repairs: stdio (G1+G3+G5) + has_size Bytes (G2)
+
+**Date:** 2026-06-10. The first two items of the approved G-series
+(`../../docs/deferred_fix_opportunities.md`, "Profile-step gap audit").
+Reproduced-by: `uv run --package galaxy-tool-xml-codemod pytest
+galaxy-tool-xml-codemod/tests/test_upgrade_21_09.py`.
+
+- **stdio (G1, with G3+G5 folded in by the source reads).** Galaxy's stdio
+  parser (`lib/galaxy/tool_util/parser/xml.py`) proves three behaviour-no-op
+  repairs for the 22.01 `use="required"` tightenings: `range` falls back to the
+  `value` attribute (`:1248-1250` — runtime aliases ⇒ rename `value=`→`range=`;
+  a `value` alongside `range` is never read ⇒ dropped); an `<exit_code>` with
+  neither attribute, or whose range strips to empty (the parser does
+  `re.sub(r"\s", "", …)` then hits the singular `int("")` path), is logged and
+  skipped ⇒ the dead element is deleted; a `<regex>` without `match=`
+  (`:1318-1324`) is likewise logged and skipped ⇒ deleted. `RangeType`'s only
+  consumer is `ExitCode.range`, so the 22.01 pattern change reduces entirely to
+  the empty form — G5 needed no work of its own.
+- **has_size Bytes (G2, proof corrected during the read).** The runtime parser
+  is `galaxy.util.bytesize.parse_bytesize` — *not* `size_to_bytes` — so the
+  provable class is exactly: whitespace forms (`int()` tolerates them),
+  wrong-case suffixes (`100MI` ≡ `100Mi` after `upper()`), and integral
+  float/scientific forms (`129e6` ≡ `129000000`). Plain-`B`/word-suffix forms
+  (`"2 TB"`, `"10 bytes"`) are **not** in the suffix table — they were never
+  runtime-working, so they are left (nothing to preserve). Canonical form:
+  the case/whitespace fix when it round-trips, else the exact integer byte
+  count; non-integral parses are left. The suffix-grammar mirror lives in this
+  codemod (`galaxy.util` stays confined to tier-1 `macros.py`), pinned by tests.
+- **Corpus.** 0 tools for every one of these shapes (greps over 1,795
+  `<exit_code>` elements and all `has_size` values) — like §40, shipped purely
+  as novel-tool insurance under the ledger's principle.

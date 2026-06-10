@@ -4,11 +4,19 @@ Reimplements planemo's `ToolNameWhitespace` / `RequirementVersionWhitespace` lin
 (`galaxy.tool_util.linters.general`) — which only *report* — as a fixer, but **only for
 the subset where trimming is behaviour-preserving**:
 
-- ``<tool name="…">`` — the display name; trailing/leading whitespace is invisible and
-  carries no runtime meaning.
-- ``<requirement version="…">`` — the conda package version; a whitespace-bearing value
-  cannot resolve (the solve fails), so a *working* tool never has one — trimming only
-  ever repairs an already-broken requirement, never changes a working tool.
+- ``<requirement version="…">`` — Galaxy composes the conda spec **verbatim**:
+  ``package_specifier = f"{self.package}={self.version}"``
+  (``tool_util/deps/conda_util.py:461-465``), passed as a conda CLI argument — a
+  whitespace-bearing value never resolved, so a *working* tool never has one;
+  trimming only ever repairs an already-broken requirement.
+
+The ``<tool name>`` trim moved to the **advisory residual GTR035.2** (check
+tier) in the 2026-06-10 proofs-tightening pass: its preservation argument is a
+*display-contract* claim (``parse_name`` reads the attribute raw,
+``tool_util/parser/xml.py:220-221``; the trimmed byte difference is visible in
+API JSON though render-identical in HTML) — below the construction bar this
+fixable rule now holds itself to, so it is reported, not auto-fixed
+(``docs/decisions.md`` §33 addendum; the GTR018/019/020/089 partition pattern).
 
 A ``<tool>``'s ``id`` and ``version`` are **deliberately excluded** even though planemo
 flags whitespace on them too (`ToolIDWhitespace` / `ToolVersionWhitespace`): Galaxy uses
@@ -42,29 +50,22 @@ _IUC = "https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/too
 
 
 class TrimAttributeWhitespace(CodemodCommand):
-    """Trim whitespace from a tool's ``name`` and a requirement's ``version``."""
+    """Trim whitespace from a requirement's ``version`` (the provable trim)."""
 
     meta: ClassVar[RuleMeta] = RuleMeta(
-        code="GTR035",
+        code="GTR035.1",
+        parent="GTR035",
         summary=(
-            "Trim accidental leading/trailing whitespace from a <tool> 'name' and a "
-            "<requirement> 'version' (the behaviour-preserving subset; a <tool> 'id'/"
-            "'version' are identity-significant and left for the advisory check)."
+            "Trim accidental leading/trailing whitespace from a <requirement> "
+            "'version' (a whitespace-bearing value never resolved — conda gets the "
+            "spec verbatim; the <tool> 'name' trim is the GTR035.2 advisory)."
         ),
         since="0.0.1",
         cite=_IUC,
         order=30,
         rulesets=frozenset({"default", "iuc", "strict"}),
-        planemo_linters=frozenset(
-            {
-                "RequirementVersionWhitespace",
-                "ToolNameWhitespace",
-            }
-        ),
+        planemo_linters=frozenset({"RequirementVersionWhitespace"}),
     )
-
-    def detect_Tool(self, cursor: Cursor) -> Iterable[Change]:
-        yield from self._trim(cursor, "name")
 
     def detect_Requirement(self, cursor: Cursor) -> Iterable[Change]:
         yield from self._trim(cursor, "version")

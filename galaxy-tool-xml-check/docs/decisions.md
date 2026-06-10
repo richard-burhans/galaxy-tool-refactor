@@ -1057,3 +1057,16 @@ derived at HAVE=114).
 uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/ -k "gtr090 or gtr091"
 uv run python -m scripts.corpus_check check   # regenerates docs/corpus_check_stats.md
 ```
+
+
+## D33 (2026-06-10) — GTR035 partitions: the `<tool name>` trim becomes the GTR035.2 advisory
+
+The proofs-tightening pass re-graded GTR035's two legs: the `<requirement
+version>` trim is unconditionally proven (conda gets the spec verbatim), but the
+`<tool name>` trim rests on a *display-contract* argument (raw `parse_name`,
+HTML collapse, byte-visible in API JSON) — below the construction bar for an
+auto-fix. Following the GTR018/019/020/089 pattern, the codemod narrowed to
+`GTR035.1` and this tier gained **`NameWhitespace` (GTR035.2)**: detect-only,
+`strict` ruleset, carrying the `ToolNameWhitespace` planemo alias (parity
+coverage unchanged). Roster 68 → **69**. Reproduced-by: `uv run --package
+galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/`.

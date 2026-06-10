@@ -46,17 +46,18 @@ What each GTR rule does, across both tiers. *fmt*-tier rules are the cosmetic ru
 | GTR012 | codemod | Iteratively upgrade a tool toward the latest profile. |
 | GTR013 | codemod | Reorder `<tool>` child elements to the IUC convention. |
 | GTR014 | codemod | Strip surrounding whitespace from `<data from_work_dir>` (literal at profile >= 21.09). |
-| GTR015 | codemod | Replace output `<data format="input">` with format_source for a tool with a single top-level data input. |
-| GTR016 | codemod | Inline a deprecated `<command interpreter=I>`script ...`</command>` as `<command>`I '$__tool_directory__/script' ...`</command>` (single-token interpreter, literal-script first token). |
+| GTR015 | codemod | Replace output `<data format="input">` with format_source for a tool with a sole data input (qualified name when nested). |
+| GTR016 | codemod | Inline a deprecated `<command interpreter=I>`script ...`</command>` as `<command>`I '$__tool_directory__/script' ...`</command>` (any non-empty interpreter, literal-script first token). |
 | GTR017 | codemod | Normalize Python-style boolean attribute values (True/Yes/…) to canonical xs:boolean so a globally-invalid tool validates. |
 | GTR018.1 | codemod | Wrap a pure-text `<command>` body in CDATA (IUC #34). |
 | GTR019.1 | codemod | Wrap a pure-text `<help>` body in CDATA (IUC #42). |
 | GTR020.1 | codemod | Single-quote provably-single-valued Cheetah variables in `<command>` (bare single-token params, $__…__ path built-ins, space-free attrs). |
-| GTR035 | codemod | Trim accidental leading/trailing whitespace from a `<tool>` 'name' and a `<requirement>` 'version' (the behaviour-preserving subset; a `<tool>` 'id'/'version' are identity-significant and left for the advisory check). |
+| GTR035.1 | codemod | Trim accidental leading/trailing whitespace from a `<requirement>` 'version' (a whitespace-bearing value never resolved — conda gets the spec verbatim; the `<tool>` 'name' trim is the GTR035.2 advisory). |
 | GTR036 | codemod | Replace a deprecated `<outputs>``<output type="data">` with `<data>` (collection / expression outputs are left for the advisory check). |
 | GTR037 | codemod | Drop a `<param>` 'name' that equals the name Galaxy derives from its 'argument' (redundant; argument implies the same name). |
 | GTR089.1 | codemod | Repair deterministically-fixable invalid `<help>` reStructuredText (short title underlines, missing blank lines) behind a behaviour-preserving gate. |
 | GTR092 | codemod | Convert an RST `<help>` body to Markdown (format="markdown") when the markdown-it rendering is provably equivalent to the docutils rendering (opt-in convert-help only; requires profile >= 24.2). |
+| GTR093 | codemod | Upgrade a tool stuck at profile 21.09 toward 22.01 (normalize collection_type + has_size Bytes; repair stdio exit_code/regex). |
 
 ## Pass 1 rule triggers (raw input → canonical)
 
@@ -64,9 +65,9 @@ Per-rule counts for the first format pass. *Tools touched* is the number of vali
 
 | Rule | Tools touched | Edits emitted |
 |---|---:|---:|
-| GTR001 | 8,607 | 863,667 |
+| GTR001 | 8,607 | 857,669 |
 | GTR003 | 8,608 | 69,431 |
-| GTR004 | 1,404 | 2,468 |
+| GTR004 | 1,370 | 2,429 |
 
 ## Pass 2 rule triggers (canonical → canonical, must be empty)
 
@@ -74,7 +75,7 @@ Per-rule counts for the idempotence pass. A canonical-form input should produce 
 
 | Rule | Tools touched | Edits emitted |
 |---|---:|---:|
-| GTR001 | 8,607 | 863,667 |
+| GTR001 | 8,607 | 857,669 |
 | GTR003 | 8,608 | 69,431 |
 
 ## Failure signatures

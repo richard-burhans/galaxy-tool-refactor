@@ -263,10 +263,19 @@ uv run python -m scripts.measure rename-coverage
 # galaxy-tool-xml/docs/decisions.md §21:
 uv run python -m scripts.measure rename-macro-spread
 
+# The per-release XSD tightening ladder behind the Upgrade_vN gap audit
+# (docs/deferred_fix_opportunities.md): diff every adjacent vendored schema pair and
+# report only tool-stranding deltas — attr sites typed builtin->restricted, attrs
+# newly use="required", changed patterns, REMOVED enum members (enum additions are
+# widenings, ignored). Schema-only: no corpus, fixture-tested in CI:
+uv run python -m scripts.measure xsd-tightenings
+
 # Auto-fixable population for a 16_04_fix_interpreter codemod (GTR016): tools with a
-# deprecated <command interpreter=…> split into bucket A (rewritable) / A-missing / B
-# (leading-Cheetah) / C (non-standard interpreter), reusing the codemod's own
-# eligibility predicate. Backs docs/upgrade_research/16_04_fix_interpreter.md. Writes
+# deprecated <command interpreter=…> split into bucket A (rewritable — any non-empty
+# interpreter incl. flags/java -jar, the legacy composition being verbatim
+# concatenation) / A-missing / B (leading-Cheetah) / empty-attribute, reusing the
+# codemod's own eligibility predicate. Backs
+# docs/upgrade_research/16_04_fix_interpreter.md. Writes
 # docs/interpreter_bucket_stats.md (needs the corpus, so not run in CI):
 uv run python -m scripts.measure interpreter-bucket-split
 

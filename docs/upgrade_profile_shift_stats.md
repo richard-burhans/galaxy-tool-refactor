@@ -24,8 +24,8 @@ Unique `<tool>` files (sha256-deduped): **9,358**. Latest vendored profile: `26.
 | Measure | Tools | Share |
 |---|--:|--:|
 | At latest **before** upgrade (declared = `26.1`) | 0 | 0.0% |
-| At latest **after** upgrade | 8,582 | 91.7% |
-| Advanced (reached a newer profile) | 7,138 | 76.3% |
+| At latest **after** upgrade | 8,583 | 91.7% |
+| Advanced (reached a newer profile) | 7,139 | 76.3% |
 | Unchanged (same profile) | 0 | 0.0% |
 | Macro-token / unplaceable baseline | 1,486 | 15.9% |
 | Validates nowhere after upgrade | 734 | 7.8% |
@@ -77,9 +77,9 @@ Unique `<tool>` files (sha256-deduped): **9,358**. Latest vendored profile: `26.
 | Profile | Tools | % | Histogram |
 |---|--:|--:|---|
 | 21.05 | 1 | 0.0% |  |
-| 21.09 | 2 | 0.0% |  |
+| 21.09 | 1 | 0.0% |  |
 | 24.1 | 39 | 0.4% |  |
-| 26.1 | 8,582 | 91.7% | ██████████████████████████████ |
+| 26.1 | 8,583 | 91.7% | ██████████████████████████████ |
 | (none) | 734 | 7.8% | ███ |
 
 `(none)` = validates at no profile after the run. Because this is `UpgradeToLatest`-only, these are the tools that need a `FixTypos` repair first (the full `galaxy-tool-refactor upgrade` runs `FixTypos` before `UpgradeToLatest`, so it would carry many of them further). A sub-latest literal profile (e.g. `24.1`) is a genuine sticking point — no registered upgrade codemod advances it. The macro-token baselines counted above are not lost: they appear here at the profile they actually reached.

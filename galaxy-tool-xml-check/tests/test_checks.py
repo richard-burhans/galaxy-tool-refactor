@@ -1172,3 +1172,11 @@ def test_gtr091_nested_data_param_without_format() -> None:
         '<param name="d" type="data"/></section></inputs>'
     )
     assert "GTR091" in _codes(_tool(inputs=nested))
+
+
+def test_gtr035_2_tool_name_whitespace_residual() -> None:
+    # The advisory half of the GTR035 partition: edge whitespace on <tool name>
+    # is reported (display-contract claim), not auto-fixed.
+    assert "GTR035.2" not in _codes(_tool())
+    assert "GTR035.2" in _codes(_tool().replace(b'name="Good"', b'name="Good "', 1))
+    assert "GTR035.2" in _codes(_tool().replace(b'name="Good"', b'name=" Good"', 1))

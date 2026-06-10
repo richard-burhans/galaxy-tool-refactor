@@ -23,7 +23,7 @@ from galaxy_tool_refactor_registry.rulesets import ruleset_codes
 # so a new no-ruleset codemod must be deliberately filed here or in
 # ``OPT_IN_COMMAND_BY_CODE`` — never silently absorbed.
 _UPGRADE_PIPELINE_CODES = frozenset(
-    {"GTR007", "GTR008", "GTR009", "GTR010", "GTR011", "GTR012"}
+    {"GTR007", "GTR008", "GTR009", "GTR010", "GTR011", "GTR012", "GTR093"}
     | {"GTR014", "GTR015", "GTR016"}
 )
 

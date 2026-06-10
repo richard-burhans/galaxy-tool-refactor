@@ -123,3 +123,51 @@ def test_whitespace_only_help_still_collapses(
     )
     output = format_tool_document(make_doc(payload))
     assert b"<help/>" in output
+
+
+def test_schema_derived_text_bearing_leaves_are_preserved(
+    make_doc: Callable[[bytes], ToolDocument],
+) -> None:
+    # The derivation widened the guard beyond the old hand list: option labels,
+    # eval'd filter text, description are text content by schema.
+    payload = (
+        b"<tool id='t' name='T' version='0'>"
+        b"<description> </description>"
+        b"<inputs><param name='s' type='select'>"
+        b"<option value='x'> </option></param></inputs>"
+        b"<outputs><data name='o'><filter> </filter></data></outputs></tool>"
+    )
+    output = format_tool_document(make_doc(payload))
+    assert b"<description> </description>" in output
+    assert b"<option value='x'> </option>".replace(b"'", b'"') in output
+    assert b"<filter> </filter>" in output
+
+
+def test_configfiles_inputs_text_is_preserved_tool_inputs_still_collapses(
+    make_doc: Callable[[bytes], ToolDocument],
+) -> None:
+    # The same-named-element collision the derivation surfaced: <inputs> is
+    # simpleContent under <configfiles> (a text body by schema) but
+    # element-only under <tool> (layout, still tidied).
+    payload = (
+        b"<tool id='t' name='T' version='0'>"
+        b"<configfiles><inputs filename='f'> </inputs></configfiles>"
+        b"<inputs>\n</inputs>"
+        b"<outputs><data name='o'/></outputs></tool>"
+    )
+    output = format_tool_document(make_doc(payload))
+    assert b'<inputs filename="f"> </inputs>' in output  # payload context kept
+    assert b"<inputs/>" in output  # the tool-level structural one collapsed
+
+
+def test_macros_whitespace_still_collapses(
+    make_doc: Callable[[bytes], ToolDocument],
+) -> None:
+    # xs:anyType in legacy schemas, but Galaxy's loader clears the element
+    # after harvesting children (xml_macros.py:39-45) — its text is dead.
+    payload = (
+        b"<tool id='t' name='T' version='0'><macros>\n</macros>"
+        b"<outputs><data name='o'/></outputs></tool>"
+    )
+    output = format_tool_document(make_doc(payload))
+    assert b"<macros/>" in output

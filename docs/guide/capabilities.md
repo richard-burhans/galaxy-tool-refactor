@@ -39,7 +39,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Wrap pure-text `<command>` / `<help>` in CDATA | GTR018, GTR019 | ✅ Shipped | `default` ruleset |
 | Single-quote the *provably*-single-valued Cheetah `$var`s in `<command>` | GTR020.1 | ✅ Shipped | `default` ruleset |
 | Repair deterministically-fixable invalid `<help>` reStructuredText (short title underlines, missing blank lines) behind a behaviour-preserving gate | GTR089.1 | ✅ Shipped | `default` ruleset; planemo-parity *fix* (`HelpInvalidRST`) |
-| Trim accidental whitespace from a `<tool>` `name` / `<requirement>` `version` | GTR035 | ✅ Shipped | `default` ruleset; planemo-parity *fix* (`docs/examples/planemo_fixable_issues.md`) |
+| Trim accidental whitespace from a `<requirement>` `version` (the `<tool>` `name` trim is the GTR035.2 advisory — display-contract, report-only) | GTR035 | ✅ Shipped | `default` ruleset; planemo-parity *fix* (`docs/examples/planemo_fixable_issues.md`) |
 | Replace a deprecated `<output type="data">` with `<data>` | GTR036 | ✅ Shipped | `default` ruleset; planemo-parity *fix* |
 | Drop a `<param>` `name` that its `argument` already implies | GTR037 | ✅ Shipped | `default` ruleset; planemo-parity *fix* |
 | Convert an RST `<help>` to Markdown when provably render-equivalent (profile ≥ 24.2; repair-then-convert; opt-in `convert-help`, never `format`/`upgrade`) | GTR092 | ✅ Shipped | `convert-help` command; tier-1 `rst_markdown` gate; 73.4% of corpus RST helps convertible (`docs/upgrade_research/restructuredtext_codemods.md`) |
@@ -59,7 +59,9 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 > preserved in general. Behaviour-affecting changes are only applied where per-tool
 > detection proves them safe; otherwise they are reported, not made (`upgrade` surfaces a
 > `behavior_preserving` flag — `true`/`false`/`null` — so callers can gate on it). GTR016 (interpreter)
-> auto-fixes only the clean "bucket A" shape; GTR015 only the single top-level data input.
+> auto-fixes any non-empty interpreter whose command leads with a literal script
+> ("bucket A", widened 2026-06-10); GTR015 the sole data input — top-level or
+> conditional/section-nested via a qualified `format_source`.
 > Imported-macro write-back now covers the `@PROFILE@` token (by name, on importer
 > consensus) **and** literal `format`/`ftype` normalization (the opt-in `normalize-macros`);
 > both work by *locating the construct in its source file*. General provenance-based

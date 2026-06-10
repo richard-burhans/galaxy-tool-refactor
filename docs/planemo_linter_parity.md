@@ -42,8 +42,8 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR012 | — | ✓ | ✓ | upgrade | — | Iteratively upgrade a tool toward the latest profile. |
 | GTR013 | XMLOrder | ✓ | ✓ | codemod | default | Reorder `<tool>` child elements to the IUC convention. |
 | GTR014 | — | ✓ | ✓ | upgrade | — | Strip surrounding whitespace from `<data from_work_dir>` (literal at profile >= 21.09). |
-| GTR015 | OutputsFormatInput | ✓ | ✓ | upgrade | — | Replace output `<data format="input">` with format_source for a tool with a single top-level data input. |
-| GTR016 | CommandInterpreterDeprecated | ✓ | ✓ | upgrade | — | Inline a deprecated `<command interpreter=I>`script ...`</command>` as `<command>`I '$__tool_directory__/script' ...`</command>` (single-token interpreter, literal-script first token). |
+| GTR015 | OutputsFormatInput | ✓ | ✓ | upgrade | — | Replace output `<data format="input">` with format_source for a tool with a sole data input (qualified name when nested). |
+| GTR016 | CommandInterpreterDeprecated | ✓ | ✓ | upgrade | — | Inline a deprecated `<command interpreter=I>`script ...`</command>` as `<command>`I '$__tool_directory__/script' ...`</command>` (any non-empty interpreter, literal-script first token). |
 | GTR017 | — | ✓ | ✓ | codemod | default | Normalize Python-style boolean attribute values (True/Yes/…) to canonical xs:boolean so a globally-invalid tool validates. |
 | GTR018.1 | — | ✓ | ✓ | codemod | default | Wrap a pure-text `<command>` body in CDATA (IUC #34). |
 | GTR018.2 | — | ✓ | ✗ | check | strict | `<command>` CDATA residual the fix can't reach (mixed-content / ]]>). |
@@ -62,7 +62,8 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR032 | — | — | ✗ | check | strict | Join shell commands with && not a lone & (not yet implemented). |
 | GTR033 | RequirementVersionMissing | ✓ | ✗ | check | strict | Package `<requirement>`s should pin a version. |
 | GTR034 | — | ✓ | ✗ | check | strict | Input `<param>` is never referenced in the tool. |
-| GTR035 | RequirementVersionWhitespace, ToolNameWhitespace | ✓ | ✓ | codemod | default | Trim accidental leading/trailing whitespace from a `<tool>` 'name' and a `<requirement>` 'version' (the behaviour-preserving subset; a `<tool>` 'id'/'version' are identity-significant and left for the advisory check). |
+| GTR035.1 | RequirementVersionWhitespace | ✓ | ✓ | codemod | default | Trim accidental leading/trailing whitespace from a `<requirement>` 'version' (a whitespace-bearing value never resolved — conda gets the spec verbatim; the `<tool>` 'name' trim is the GTR035.2 advisory). |
+| GTR035.2 | ToolNameWhitespace | ✓ | ✗ | check | strict | A `<tool>` 'name' should have no leading/trailing whitespace (display-contract residual of GTR035; report-only). |
 | GTR036 | OutputsOutput | ✓ | ✓ | codemod | default | Replace a deprecated `<outputs>``<output type="data">` with `<data>` (collection / expression outputs are left for the advisory check). |
 | GTR037 | InputsNameRedundantArgument | ✓ | ✓ | codemod | default | Drop a `<param>` 'name' that equals the name Galaxy derives from its 'argument' (redundant; argument implies the same name). |
 | GTR038 | CitationsMissing, CitationsNoText, CitationsNoValid | ✓ | ✗ | check | strict | Tool should declare a non-empty `<citation>` (doi/bibtex). |
@@ -121,6 +122,7 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR090 | OutputsFormatSourceReference, OutputsStructuredLikeReference | ✓ | ✗ | check | strict | Output structured_like/format_source must reference an input param. |
 | GTR091 | InputsDataFormat | ✓ | ✗ | check | strict | A data param should declare the format(s) it accepts. |
 | GTR092 | — | ✓ | ✓ | codemod | — | Convert an RST `<help>` body to Markdown (format="markdown") when the markdown-it rendering is provably equivalent to the docutils rendering (opt-in convert-help only; requires profile >= 24.2). |
+| GTR093 | — | ✓ | ✓ | upgrade | — | Upgrade a tool stuck at profile 21.09 toward 22.01 (normalize collection_type + has_size Bytes; repair stdio exit_code/regex). |
 <!-- END GENERATED -->
 
 The remaining unmapped planemo linters (the ~80 correctness checks + the advisory-by-design

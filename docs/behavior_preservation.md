@@ -63,8 +63,8 @@ holds on the strength of its tier-1 render-equivalence gate (below).
 | GTR011 | Upgrade25_1 | structural | hold | 25.1→26.0 validity + idempotence |
 | GTR013 | ReorderToolChildren | runtime | hold | `<tool>` is `xs:all` (order-free); reorder is validity-safe |
 | GTR014 | from_work_dir strip | runtime (conditional) | hold | matches Galaxy's own `<21.09` `strip()`; crossing-gated |
-| GTR015 | format=input→source | runtime | hold | single-top-data-input; format_source-guarded |
-| GTR016 | FixInterpreter | runtime | **REFUTED → FIXED** | mixed-content `<command>`: `set_text` kept comment/`<expand>` children → flag duplicated (PR #114) |
+| GTR015 | format=input→source | runtime | hold | sole data input (top-level or qualified-nested, §40); format_source-guarded |
+| GTR016 | FixInterpreter | runtime | **REFUTED → FIXED** | mixed-content `<command>`: `set_text` kept comment/`<expand>` children → flag duplicated (PR #114); scope since widened to any non-empty interpreter (§39, verbatim-composition proof) |
 | GTR017 | NormalizeBooleanValues | runtime | hold | `True`→`true` only where the lenient model already accepts it; validity-restore |
 | GTR018.1 | WrapCommandCdata | runtime | **REFUTED → FIXED** | body with `\r` → CDATA can't carry `&#13;` → CR lost, non-idempotent (PR #112) |
 | GTR019.1 | WrapHelpCdata | runtime | **REFUTED → FIXED** | same `\r`-through-CDATA bug (shared `cdata_wrappable` predicate) (PR #112) |
@@ -75,33 +75,37 @@ holds on the strength of its tier-1 render-equivalence gate (below).
 re-verification against Galaxy source / the rule's contract there is no behaviour
 change. See their entries.
 
-## Holds — the proof basis
+## Proofs — construction-grade, source-cited (tightened 2026-06-10)
 
-Each was attacked by ≥2 executed skeptics; none produced a verified break, and the
-refutation pass's own evidence affirmed the invariant. Concise basis:
+**The canonical per-rule proofs live in [`docs/proofs/`](proofs/README.md)** —
+one document per fixable rule (claim, contract, source-cited proof, scope
+boundary, history), coverage-guarded by
+`galaxy-tool-refactor-registry/tests/test_proof_documents.py` so a fixable rule
+cannot ship proofless. The standing bar: *a fixable rule's preservation claim
+must hold by construction for novel tools — corpus incidence sizes impact,
+never soundness.* This ledger keeps the audit trail (verdicts, refutations,
+remediations); the dated `decisions.md` entries keep the why-at-the-time
+records. The 2026-06-10 tightening pass first upgraded every basis from
+"argued" to source-cited here, then moved them to the directory.
 
-- **GTR002 / GTR005** (codemods `reorder_param_attributes.py` /
-  `reorder_tool_attributes.py`, sharing the canonical order in `_attribute_ordering.py`):
-  reorder a `<param>`'s / the `<tool>`'s attributes into a canonical order. Attribute
-  order is semantically irrelevant in XML; no element text/tail is touched. Idempotent
-  and validity-preserving.
-- **GTR003** (blank-line trivia; fmt D4): emits `SetTail` only for the non-last
-  children of a `<tool>` root and `safe_set_tail` writes only when the current tail is
-  None/whitespace — never touches significant text.
-- **GTR013 ReorderToolChildren** (codemod §17): `<tool>` is `xs:all` in every vendored
-  XSD (order-free), so reordering its children cannot change validity or runtime.
-- **GTR017 NormalizeBooleanValues** (codemod §26): rewrites `True`/`False` →
-  `true`/`false` only on a tool the lenient model already accepts; a validity-restoring
-  case fix with no runtime change.
-- **GTR007 / GTR008 / GTR010 / GTR011** (`UpdateProfile` + `upgrade_vN`; codemod §22):
-  **structural-only** claim — XSD-valid at the reached profile + idempotent; runtime
-  surfaced via `behavior_preserving`. Verified on that (correct) boundary.
-- **GTR014** (from_work_dir strip; codemod §24): byte-identical to Galaxy's own
-  `output.from_work_dir.strip()` for `profile < 21.09`, applied only under the crossing
-  gate `< 21.09 <= reached`.
-- **GTR015** (format=input→format_source; codemod §24): runtime-equivalent on the
-  single-top-level-data-input subset, format_source-guarded, profile unchanged.
-- **GTR089.1 RepairHelpRst** (codemod §37; tier-1 `rst` §23): repairs invalid `<help>`
+### Proposals from the tightening pass (not applied — maintainer decision)
+
+- ~~**GTR004's `_CONTENT_BEARING_TAGS` could be derived from the XSD**~~ —
+  **applied same day at the maintainer's direction (fmt §D20):** tier-1
+  `schema_content.text_bearing_tags()` + the fmt `payload` guard now back both
+  GTR004 and GTR001. The derivation immediately earned its keep: it surfaced
+  ~50 text-bearing tags the hand lists missed (option/filter/description/…)
+  **and one latent GTR004 unsoundness** — `<inputs>` is `simpleContent` under
+  `<configfiles>`, so a ws-only configfiles-`<inputs>` body was collapsible;
+  now context-guarded. Two proof-carried exceptions recorded (`<macros>` text
+  is dead — Galaxy clears the element, `xml_macros.py:39-45`; `<help>` keeps
+  D18's renders-empty argument).
+- ~~**GTR035's `<tool name>` leg is a display-contract claim**~~ — **applied
+  same day at the maintainer's direction:** GTR035 partitioned into `GTR035.1`
+  (the unconditional version trim, fixable) + `GTR035.2` (the name-whitespace
+  advisory, check tier). Codemod §33 addendum, check D33.
+- **GTR089.1 RepairHelpRst** (codemod §37; tier-1 `rst` §23): proof by
+  execution, like GTR092 — repairs invalid `<help>`
   reStructuredText, but the claim is on the *rendered* help (Galaxy renders RST to HTML
   server-side). The tier-1 gate keeps a repaired round only when it strictly reduces
   serious docutils messages, adds no new error class, **and** leaves the doctree

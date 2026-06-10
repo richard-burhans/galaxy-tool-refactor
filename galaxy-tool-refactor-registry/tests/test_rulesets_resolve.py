@@ -20,7 +20,7 @@ from galaxy_tool_refactor_registry.rulesets import ruleset_codes
 # the canonical pipeline — the facade-vs-pipeline regression pin still holds.
 _TODAY_DEFAULT = frozenset({
     "GTR001", "GTR002", "GTR003", "GTR004", "GTR005", "GTR006", "GTR013",
-    "GTR017", "GTR018.1", "GTR019.1", "GTR020.1", "GTR035", "GTR036", "GTR037",
+    "GTR017", "GTR018.1", "GTR019.1", "GTR020.1", "GTR035.1", "GTR036", "GTR037",
     "GTR089.1",
 })
 

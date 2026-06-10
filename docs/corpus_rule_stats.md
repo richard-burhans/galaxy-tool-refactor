@@ -24,17 +24,18 @@ What each GTR rule does, across both tiers. The isolation tables below report ho
 | GTR012 | codemod | Iteratively upgrade a tool toward the latest profile. |
 | GTR013 | codemod | Reorder `<tool>` child elements to the IUC convention. |
 | GTR014 | codemod | Strip surrounding whitespace from `<data from_work_dir>` (literal at profile >= 21.09). |
-| GTR015 | codemod | Replace output `<data format="input">` with format_source for a tool with a single top-level data input. |
-| GTR016 | codemod | Inline a deprecated `<command interpreter=I>`script ...`</command>` as `<command>`I '$__tool_directory__/script' ...`</command>` (single-token interpreter, literal-script first token). |
+| GTR015 | codemod | Replace output `<data format="input">` with format_source for a tool with a sole data input (qualified name when nested). |
+| GTR016 | codemod | Inline a deprecated `<command interpreter=I>`script ...`</command>` as `<command>`I '$__tool_directory__/script' ...`</command>` (any non-empty interpreter, literal-script first token). |
 | GTR017 | codemod | Normalize Python-style boolean attribute values (True/Yes/…) to canonical xs:boolean so a globally-invalid tool validates. |
 | GTR018.1 | codemod | Wrap a pure-text `<command>` body in CDATA (IUC #34). |
 | GTR019.1 | codemod | Wrap a pure-text `<help>` body in CDATA (IUC #42). |
 | GTR020.1 | codemod | Single-quote provably-single-valued Cheetah variables in `<command>` (bare single-token params, $__…__ path built-ins, space-free attrs). |
-| GTR035 | codemod | Trim accidental leading/trailing whitespace from a `<tool>` 'name' and a `<requirement>` 'version' (the behaviour-preserving subset; a `<tool>` 'id'/'version' are identity-significant and left for the advisory check). |
+| GTR035.1 | codemod | Trim accidental leading/trailing whitespace from a `<requirement>` 'version' (a whitespace-bearing value never resolved — conda gets the spec verbatim; the `<tool>` 'name' trim is the GTR035.2 advisory). |
 | GTR036 | codemod | Replace a deprecated `<outputs>``<output type="data">` with `<data>` (collection / expression outputs are left for the advisory check). |
 | GTR037 | codemod | Drop a `<param>` 'name' that equals the name Galaxy derives from its 'argument' (redundant; argument implies the same name). |
 | GTR089.1 | codemod | Repair deterministically-fixable invalid `<help>` reStructuredText (short title underlines, missing blank lines) behind a behaviour-preserving gate. |
 | GTR092 | codemod | Convert an RST `<help>` body to Markdown (format="markdown") when the markdown-it rendering is provably equivalent to the docutils rendering (opt-in convert-help only; requires profile >= 24.2). |
+| GTR093 | codemod | Upgrade a tool stuck at profile 21.09 toward 22.01 (normalize collection_type + has_size Bytes; repair stdio exit_code/regex). |
 
 ## fmt rules (isolated)
 
@@ -42,9 +43,9 @@ Each rule applied alone to every validated tool, then applied again. *Tools touc
 
 | Rule | Tools validated | Tools touched | Edits | Non-idempotent | Crashed |
 |---|---:|---:|---:|---:|---:|
-| GTR001 | 8,608 | 8,607 | 863,667 | 0 | 0 |
+| GTR001 | 8,608 | 8,607 | 857,669 | 0 | 0 |
 | GTR003 | 8,608 | 8,608 | 69,431 | 0 | 0 |
-| GTR004 | 8,608 | 1,404 | 2,468 | 0 | 0 |
+| GTR004 | 8,608 | 1,370 | 2,429 | 0 | 0 |
 
 ## codemods (isolated)
 
@@ -64,16 +65,17 @@ Each codemod applied alone to every eligible tool, checked for idempotence and p
 | GTR013 | ReorderToolChildren | 8,607 | 4,640 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR014 | FixFromWorkDirWhitespace | 8,607 | 4 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR015 | FixOutputFormatInput | 8,607 | 79 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR016 | FixInterpreter | 8,607 | 1,123 | 8,607 | 0 | 0 | 0 | 0 |
+| GTR016 | FixInterpreter | 8,607 | 1,144 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR017 | NormalizeBooleanValues | 708 | 21 | 708 | 0 | 0 | 687 | 0 |
 | GTR018.1 | WrapCommandCdata | 8,607 | 2,772 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR019.1 | WrapHelpCdata | 8,607 | 3,247 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR020.1 | SingleQuoteCommandVars | 8,607 | 4,354 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR035 | TrimAttributeWhitespace | 8,607 | 20 | 8,607 | 0 | 0 | 0 | 0 |
+| GTR035.1 | TrimAttributeWhitespace | 8,607 | 0 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR036 | ReplaceOutputElement | 8,607 | 1 | 8,607 | 0 | 0 | 1 | 0 |
 | GTR037 | DropRedundantParamName | 8,607 | 332 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR089.1 | RepairHelpRst | 8,607 | 54 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR092 | ConvertHelpToMarkdown | 8,607 | 796 | 8,607 | 0 | 0 | 0 | 0 |
+| GTR093 | Upgrade21_09 | 8,607 | 0 | 8,607 | 0 | 0 | 0 | 0 |
 
 ## Upgrade discovery (GTR012 `UpgradeToLatest`, isolated)
 

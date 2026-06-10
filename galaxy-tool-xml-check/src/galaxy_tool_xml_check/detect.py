@@ -80,6 +80,7 @@ from galaxy_tool_xml_check.checks.tool import (
     ErrorHandling,
     HelpPresent,
     IdCharset,
+    NameWhitespace,
     NoTodoText,
     ProfileFormatValid,
     RequirementNamePresent,
@@ -110,6 +111,7 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         # tool-level (presence/shape, command, citations/TODO)
         TestsPresent,
         IdCharset,
+        NameWhitespace,
         VersionFormat,
         RequirementsPresent,
         ErrorHandling,

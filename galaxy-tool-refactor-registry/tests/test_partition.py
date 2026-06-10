@@ -20,6 +20,7 @@ _GROUPS = {
     "GTR019": ("GTR019.1", "GTR019.2"),  # <help> CDATA
     "GTR020": ("GTR020.1", "GTR020.2"),  # single-quote $var
     "GTR089": ("GTR089.1", "GTR089.2"),  # <help> RST repair / residual
+    "GTR035": ("GTR035.1", "GTR035.2"),  # attribute-whitespace trim / name residual
 }
 
 

@@ -14,7 +14,9 @@ upgrade map (what each profile bump requires, and the validity-vs-behaviour
 soundness boundary) see [`docs/profile_upgrades.md`](docs/profile_upgrades.md); for
 the per-rule behaviour-preservation claims, their adversarial verdicts, and the
 open remediation backlog see
-[`docs/behavior_preservation.md`](docs/behavior_preservation.md).
+[`docs/behavior_preservation.md`](docs/behavior_preservation.md); the canonical
+per-rule **proof documents** (coverage-guarded) are
+[`docs/proofs/`](docs/proofs/README.md).
 
 ---
 
@@ -35,7 +37,7 @@ load-bearing rule:
 | 1 | **parsing & validation** | `galaxy-tool-xml` | `ToolDocument` / `MacroDocument` (mutable lxml tree = source of truth), `load_tool` / `parse_tool` / `validate_tool`, `newest_valid_profile`, profile resolution, typed xsdata views. **No serializer.** |
 | 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework, `Cursor` mutation primitives, `Change` + `apply_changes`, the bundled codemods, `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` contracts. |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic `Rule`s (indent / blank line / shorthand), the `Edit` union + `apply_edits`, `format_tool_document` + the net-diff `detect_tool_document`, the shared `cli_support` engine, the serializer. **The only tier that serialises canonical output XML.** |
-| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice + planemo-parity checks (68; `CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
+| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice + planemo-parity checks (69; `CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | `RuleHandle` (uniform adapter over all three families), the unified registry, declarative rule-sets, ruff-style selection, and the **library-first** `run` / `upgrade` / `detect` facade. Composes 0.5/1/2/3/3.5. |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` / `convert-help`. CLI plumbing only. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`convert_help_tool`/`list_rulesets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
@@ -191,6 +193,10 @@ schema, and expose a typed view — **without ever serialising**.
   server vs client renderers; the `[markdown]` extra): `rst_to_commonmark` /
   `conversion_is_render_equivalent` / `convert_help_rst` power the GTR092 opt-in
   `convert-help` conversion and the `help-rst-md-convert` measure (xml §24; codemod §38).
+- **`schema_content.text_bearing_tags()`** — `schema_content.py` — the
+  schema-derived set of element tags whose content model admits text, unioned
+  across all 28 vendored XSDs; the source of truth behind fmt's payload guard
+  (GTR001/GTR004 whitespace soundness — fmt §D20, xml §25).
 
 **Contract:** the lxml tree is the single representation; tier 1 emits no XML.
 *(xml `docs/decisions.md` §3 representation, §9 three-tier vision, §10 corpus
@@ -287,6 +293,10 @@ and a throwaway temp-dir round-trip for macro expansion — neither is output.)
   `CanonicalIndent` (`rule_indent.py`), `GTR003` `BlankLineBetweenSections`
   (`rule_blank_line.py`, tool-only), `GTR004` `EmptyElementShorthand`
   (`rule_empty_element.py`). *(GTR002/GTR005 — attribute order — moved to tier 2.)*
+  GTR001 and GTR004 share the **schema-derived payload guard** (`payload.py` over
+  tier-1 `schema_content`, fmt §D20): whitespace inside a text-bearing element is
+  never rewritten, with two proof-carried exceptions (configfiles-context
+  `<inputs>`, cleared `<macros>`).
 - **`Edit` + `apply_edits`** — `edits.py` — a frozen discriminated union
   (`NoOp | SetText | SetTail | ClearText`); `apply_edits` is the **single place**
   the tree is mutated and the single place the CDATA whitespace-only guard is
@@ -359,7 +369,8 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   display/idiom, option-filters (`GTR054`–`GTR079`) — the `tests.py` surface
   (`GTR080`–`GTR088`), and `<help>` reStructuredText validity (`GTR089`, which carries
   the `docutils` dependency — now split into the `GTR089.1` repair + `GTR089.2` residual
-  partition, with the predicate in tier 1, xml §23). The whole tier is now **68 checks**
+  partition, with the predicate in tier 1, xml §23; GTR035.2 — the name-whitespace
+  residual of the GTR035 partition, check D33). The whole tier is now **69 checks**
   (`GTR018.2`/`GTR019.2`/`GTR020.2`/`GTR089.2` + the flat IUC advisories above + this
   wave). A recurring soundness rule across the wave: a check that would mis-fire when a
   `<macro>` injects the construct it inspects skips that tool (the tier-1
@@ -402,7 +413,7 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
   — `registry.py` — the cached `code -> RuleHandle` index. `registry()` is the
   **selectable** set (canonical codemods + cosmetic fmt + advisory checks);
   `all_handles()` additionally includes the **non-selectable** codemods
-  (GTR007–GTR012 — internal to `UpgradeToLatest` — plus the runtime-gated
+  (GTR007–GTR012 + GTR093 — internal to `UpgradeToLatest` — plus the runtime-gated
   GTR014–GTR016, applied by the facade's `upgrade`, plus the opt-in-command-only
   GTR092, applied by `convert-help`; `adapters.non_selectable_codemods` /
   `OPT_IN_COMMAND_BY_CODE`).
@@ -700,7 +711,7 @@ Each abstraction → its file → the decision record that justifies it.
 | GTR005 | `ReorderToolAttributes` | `galaxy-tool-xml-codemod/.../reorder_tool_attributes.py` | codemod (canonical) |
 | GTR006 | `FixTypos` | `galaxy-tool-xml-codemod/.../fix_typos.py` | codemod (canonical, validation-driven) |
 | GTR007 | `UpdateProfile` | `galaxy-tool-xml-codemod/.../update_profile.py` | codemod (upgrade-only) |
-| GTR008–011 | `Upgrade19_01` … `Upgrade25_1` | `galaxy-tool-xml-codemod/.../upgrade_*.py` | codemod (upgrade-only) |
+| GTR008–011, GTR093 | `Upgrade19_01` … `Upgrade25_1`, `Upgrade21_09` | `galaxy-tool-xml-codemod/.../upgrade_*.py` | codemod (upgrade-only) |
 | GTR012 | `UpgradeToLatest` | `galaxy-tool-xml-codemod/.../upgrades.py` | codemod (upgrade-only orchestrator) |
 | GTR013 | `ReorderToolChildren` | `galaxy-tool-xml-codemod/.../reorder_tool_children.py` | codemod (canonical) |
 | GTR014 | `FixFromWorkDirWhitespace` | `galaxy-tool-xml-codemod/.../fix_from_work_dir_whitespace.py` | codemod (upgrade-only, runtime-gated) |
@@ -710,6 +721,7 @@ Each abstraction → its file → the decision record that justifies it.
 | GTR018.1 / .2 | `WrapCommandCdata` (fix) + command-CDATA residual (advisory) | codemod + check | **partition** GTR018 (§29, registry D10) |
 | GTR019.1 / .2 | `WrapHelpCdata` (fix) + help-CDATA residual (advisory) | codemod + check | **partition** GTR019 (§29) |
 | GTR020.1 / .2 | `SingleQuoteCommandVars` (fix) + single-quote residual (advisory) | codemod + check | **partition** GTR020 (§30, check D9) |
+| GTR035.1 / .2 | `TrimAttributeWhitespace` (fix, requirement version) + `NameWhitespace` (advisory) | codemod + check | **partition** GTR035 (codemod §33 addendum, check D33) |
 | GTR089.1 / .2 | `RepairHelpRst` (fix) + `HelpRstResidual` (advisory) | codemod + check | **partition** GTR089 (xml §23, codemod §37, check D31) |
 | GTR021, GTR023–029 | `TestsPresent` … (presence/shape) | `galaxy-tool-xml-check/.../checks/tool.py` | check (flat advisory) |
 | GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory, reserved no-op stub — D3) |

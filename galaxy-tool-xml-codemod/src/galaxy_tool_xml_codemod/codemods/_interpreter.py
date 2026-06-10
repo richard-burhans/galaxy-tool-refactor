@@ -3,15 +3,33 @@
 Galaxy's legacy ``<command interpreter="python">myscript.py …</command>`` ran, at
 runtime, as ``python '<tool_dir>/myscript.py' …`` — it took the first whitespace token
 of the *substituted* command line, resolved it under the tool directory, and prepended
-the interpreter (``.local/galaxy-src`` ``lib/galaxy/tools/evaluation.py:781-787``). From
-profile 16.04 the ``interpreter`` attribute is ignored, so an upgraded tool breaks
-unless the command is rewritten (Galaxy's ``16_04_fix_interpreter`` *must-fix* code).
+the interpreter attribute **verbatim**::
 
-A static codemod can only reproduce that rewrite when the script is **statically the
-first token** — i.e. the command body starts with a literal script filename, not a
-Cheetah directive (``#if``/``#for``/…) or a ``$var`` (Galaxy chose the token *after*
-Cheetah substitution; we cannot). This module defines that "bucket A" eligibility as a
-pure predicate so the corpus measure (``scripts/measure.py interpreter-bucket-split``)
+    executable = command_line.split()[0]            # after Cheetah substitution
+    abs_executable = os.path.join(tool_dir, executable)
+    command_line = command_line.replace(executable, abs_executable, 1)
+    command_line = interpreter + " " + command_line  # plain string concatenation
+
+(the prepend form above is byte-identical ``release_16.04``
+``lib/galaxy/tools/evaluation.py:478-484`` through ``release_20.01`` ``:509-514``;
+``release_20.09`` ``:501`` switched to splicing at the token —
+``replace(executable, f"{interpreter} {shlex.quote(abs_executable)}", 1)`` — which
+**still interpolates the interpreter verbatim** and is equivalent for any command
+whose first content token is the script; that splice form survives in ``dev``
+``:781-787`` today, honored whenever the tool parses with ``legacy_defaults``
+(profile 16.01 / none). Every form gates on ``if interpreter:``, so an *empty*
+attribute was always ignored.) From profile 16.04 the attribute is ignored, so an
+upgraded tool breaks unless the command is rewritten (Galaxy's
+``16_04_fix_interpreter`` *must-fix* code).
+
+Because the composition is verbatim concatenation, **any** non-empty interpreter
+value — flags (``Rscript --no-save``), non-scripts (``java -jar``), even compound
+prefixes (``export …; java -jar``) — rewrites mechanically. The only static
+requirement is that the script is **statically the first token**: the command body
+must start with a literal script filename, not a Cheetah directive
+(``#if``/``#for``/…) or a ``$var`` (Galaxy chose the token *after* Cheetah
+substitution; we cannot). This module defines that "bucket A" eligibility as a pure
+predicate so the corpus measure (``scripts/measure.py interpreter-bucket-split``)
 and the codemod (``fix_interpreter.py``) agree by construction. See
 ``../../docs/upgrade_research/16_04_fix_interpreter.md``.
 """
@@ -25,17 +43,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from lxml import etree
-
-# Single-token language runtimes we will auto-rewrite. Deliberately excludes
-# whitespace/flag-bearing or non-script "interpreters" (``java -jar``, ``docker``,
-# ``export …; java -jar``, ``Rscript --no-save``, ``python -W ignore``) — those need a
-# human and stay in the §23 upgrade warning.
-_STANDARD_INTERPRETERS: frozenset[str] = frozenset(
-    {
-        "python", "python2", "python2.7", "python3",
-        "perl", "Rscript", "bash", "sh", "ruby",
-    }
-)
 
 # A literal script filename: starts alphanumeric/underscore, has an extension, and
 # carries no Cheetah/shell sigils (``$``, ``@``, ``#``, quotes, spaces).
@@ -79,18 +86,20 @@ def interpreter_rewrite(
 ) -> tuple[str, str, int] | None:
     """The full ``16_04_fix_interpreter`` rewrite plan, or ``None`` if not bucket A.
 
-    Returns ``(interpreter, token, offset)`` when *root* is "bucket A" — a
-    single-token standard ``interpreter`` whose command body begins with a literal
-    script filename — where *offset* is the body anchor for the rewrite (see
-    ``first_command_token_span``). Else ``None`` (bucket B/C). When *tool_dir* is
-    given the named script must exist beside the tool (kills false positives); the
-    check is skipped when it is ``None``.
+    Returns ``(interpreter, token, offset)`` when *root* is "bucket A" — any
+    non-empty ``interpreter`` whose command body begins with a literal script
+    filename — where *offset* is the body anchor for the rewrite (see
+    ``first_command_token_span``). Else ``None``: bucket B (non-literal first
+    token), or an empty ``interpreter=""`` (legacy gated on ``if interpreter:``,
+    so an empty attribute was ignored — there is no composition to reproduce).
+    When *tool_dir* is given the named script must exist beside the tool (kills
+    false positives); the check is skipped when it is ``None``.
     """
     command = root.find("command")
     if command is None:
         return None
     interpreter = command.get("interpreter")
-    if interpreter is None or interpreter not in _STANDARD_INTERPRETERS:
+    if not interpreter:  # absent, or empty = legacy-ignored
         return None
     span = first_command_token_span("".join(command.itertext()))
     if span is None:

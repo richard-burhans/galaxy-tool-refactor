@@ -1247,3 +1247,19 @@ same code paths.
 uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_rst_markdown.py
 uv run python -m scripts.measure help-rst-md-convert   # needs the corpus
 ```
+
+## 25. `schema_content.text_bearing_tags` — the schema as the payload-guard source of truth
+
+**Date:** 2026-06-10. Reproduced-by: `uv run --package galaxy-tool-xml pytest
+galaxy-tool-xml/tests/test_schema_content.py`. The fmt tier's whitespace guards
+(GTR004 collapse denylist, GTR001 payload-subtree skip) had hand-maintained tag
+lists; this module derives the set from the vendored XSDs instead — an element
+is **text-bearing** iff its content model admits character data
+(`xs:simpleContent` / `mixed="true"` / a builtin / a named simpleType), unioned
+across all 28 schemas (conservative for a guard; unknown type references also
+resolve conservatively). The derivation is honest about name collisions
+(`<inputs>` is element-only under `<tool>` but `simpleContent` under
+`<configfiles>`; legacy `<macros>` is `xs:anyType`) — context handling and
+proof-carried exceptions live in the consumer (fmt `payload.py`, fmt §D20),
+not here. Tier direction is clean: tier 1 owns the schemas, fmt consumes the
+derived fact.

@@ -49,6 +49,7 @@ from galaxy_tool_xml_codemod.codemods.trim_attribute_whitespace import (
 )
 from galaxy_tool_xml_codemod.codemods.update_profile import UpdateProfile
 from galaxy_tool_xml_codemod.codemods.upgrade_19_01 import Upgrade19_01
+from galaxy_tool_xml_codemod.codemods.upgrade_21_09 import Upgrade21_09
 from galaxy_tool_xml_codemod.codemods.upgrade_24_0 import Upgrade24_0
 from galaxy_tool_xml_codemod.codemods.upgrade_24_1 import Upgrade24_1
 from galaxy_tool_xml_codemod.codemods.upgrade_25_1 import Upgrade25_1
@@ -66,6 +67,7 @@ def coded_codemods() -> tuple[type[CodemodCommand], ...]:
         ReorderToolChildren,
         UpdateProfile,
         Upgrade19_01,
+        Upgrade21_09,
         Upgrade24_0,
         Upgrade24_1,
         Upgrade25_1,

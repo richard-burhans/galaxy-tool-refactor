@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import importlib.resources
 import json
 import logging
 import re
@@ -5283,18 +5284,129 @@ def _run_rename_macro_spread(args: argparse.Namespace) -> None:
         print(f"\nwrote {_display_path(out_path)}")
 
 
+
+# --- measurement: xsd-tightenings -------------------------------------------------
+#
+# The systematic per-release tightening ladder behind the Upgrade_vN gap audit
+# (docs/deferred_fix_opportunities.md): diff every adjacent pair of vendored XSDs
+# and report only the deltas that can STRAND an existing tool — an attribute site
+# moving from a builtin type to a restricted simpleType (`typed`), an attribute
+# becoming `use="required"` (`required`), an existing simpleType's pattern set
+# changing (`pattern-changed`), and enum members being REMOVED (`enums-removed`).
+# Enum additions are widenings (more permissive) and are deliberately ignored.
+# Schema-only — no corpus needed, so the fixture test runs in CI.
+
+_XS = "{http://www.w3.org/2001/XMLSchema}"
+
+
+@dataclass
+class _XsdTighteningsResult:
+    """Per-version-pair schema deltas that can strand an existing tool."""
+
+    versions: list[str]
+    # (from_version, to_version, kind, site, detail)
+    rows: list[tuple[str, str, str, str, str]]
+
+
+def _xsd_model(
+    path: Path, /
+) -> tuple[dict[str, tuple[tuple[str, ...], frozenset[str]]], dict[str, tuple[str | None, str | None]]]:
+    """Reduce one XSD to comparable maps: simpleType facets + attribute sites."""
+    root = etree.parse(str(path)).getroot()
+    simple: dict[str, tuple[tuple[str, ...], frozenset[str]]] = {}
+    for st in root.findall(f"{_XS}simpleType"):
+        name = st.get("name")
+        if name is None:
+            continue
+        patterns = tuple(
+            value
+            for pat in st.iter(f"{_XS}pattern")
+            if (value := pat.get("value")) is not None
+        )
+        enums = frozenset(
+            value
+            for enum in st.iter(f"{_XS}enumeration")
+            if (value := enum.get("value")) is not None
+        )
+        simple[name] = (patterns, enums)
+    sites: dict[str, tuple[str | None, str | None]] = {}
+    for ct in root.findall(f"{_XS}complexType"):
+        ct_name = ct.get("name")
+        for attr in ct.iter(f"{_XS}attribute"):
+            sites[f"{ct_name}.{attr.get('name')}"] = (attr.get("type"), attr.get("use"))
+    return simple, sites
+
+
+def _measure_xsd_tightenings(*, schema_dir: Path) -> _XsdTighteningsResult:
+    """Diff adjacent vendored XSDs for tool-stranding deltas (see section comment)."""
+    versions = sorted(
+        (path.stem.removeprefix("galaxy-") for path in schema_dir.glob("galaxy-*.xsd")),
+        key=Version,
+    )
+    rows: list[tuple[str, str, str, str, str]] = []
+    previous: tuple[str, dict, dict] | None = None
+    for version in versions:
+        simple, sites = _xsd_model(schema_dir / f"galaxy-{version}.xsd")
+        if previous is not None:
+            prev_version, prev_simple, prev_sites = previous
+            for name in sorted(set(simple) & set(prev_simple)):
+                old_patterns, old_enums = prev_simple[name]
+                new_patterns, new_enums = simple[name]
+                if old_patterns != new_patterns:
+                    rows.append(
+                        (prev_version, version, "pattern-changed", name,
+                         f"{old_patterns} -> {new_patterns}")
+                    )
+                removed = old_enums - new_enums
+                if removed:
+                    rows.append(
+                        (prev_version, version, "enums-removed", name,
+                         ",".join(sorted(removed)))
+                    )
+            for site in sorted(set(sites) & set(prev_sites)):
+                old_type, old_use = prev_sites[site]
+                new_type, new_use = sites[site]
+                old_builtin = old_type is None or old_type.startswith("xs:")
+                new_builtin = new_type is None or new_type.startswith("xs:")
+                if old_builtin and not new_builtin:
+                    rows.append(
+                        (prev_version, version, "typed", site,
+                         f"{old_type or 'xs:string'} -> {new_type}")
+                    )
+                if old_use != "required" and new_use == "required":
+                    rows.append((prev_version, version, "required", site, ""))
+        previous = (version, simple, sites)
+    return _XsdTighteningsResult(versions=list(versions), rows=rows)
+
+
+def _report_xsd_tightenings(measurement: _XsdTighteningsResult) -> None:
+    print("\n=== xsd-tightenings ===")
+    print(f"Vendored schema versions diffed: {len(measurement.versions)}")
+    print(f"Tool-stranding deltas (typed / required / pattern-changed / enums-removed): {len(measurement.rows)}")
+    for from_version, to_version, kind, site, detail in measurement.rows:
+        suffix = f"  {detail}" if detail else ""
+        print(f"  {from_version} -> {to_version}: {kind:16s} {site}{suffix}")
+
+
+def _run_xsd_tightenings(args: argparse.Namespace) -> None:
+    schema_resource = importlib.resources.files("galaxy_tool_xml") / "schema"
+    with importlib.resources.as_file(schema_resource) as schema_dir:
+        _report_xsd_tightenings(_measure_xsd_tightenings(schema_dir=schema_dir))
+
+
 # --- measurement: interpreter-bucket-split --------------------------------------
 #
 # Sizes the auto-fixable population for a `16_04_fix_interpreter` codemod (GTR016;
 # docs/upgrade_research/16_04_fix_interpreter.md). Tools with a deprecated
-# `<command interpreter=…>` split into: A (bucket-A: single-token standard interpreter
+# `<command interpreter=…>` split into: A (bucket-A: any non-empty interpreter value
 # + literal leading script token that exists beside the XML — exactly what the codemod
-# rewrites), A-missing (would-be-A but the named script isn't co-located), B
-# (leading-Cheetah / non-literal first token), C (non-standard / multi-token
-# interpreter — java -jar, docker, Rscript --no-save, …). Classification reuses the
-# codemod's own eligibility predicate (`codemods/_interpreter.py`) so the measure and
-# the codemod agree by construction. Writes docs/interpreter_bucket_stats.md. Needs
-# the corpus, so not run in CI.
+# rewrites; the legacy `interpreter + " " + command` composition is verbatim, so
+# flag-bearing / non-script values rewrite too), A-missing (would-be-A but the named
+# script isn't co-located), B (leading-Cheetah / non-literal first token), empty
+# (`interpreter=""` — legacy gated on `if interpreter:`, so it was ignored; nothing to
+# reproduce). Classification reuses the codemod's own eligibility predicate
+# (`codemods/_interpreter.py`) so the measure and the codemod agree by construction.
+# Writes docs/interpreter_bucket_stats.md. Needs the corpus, so not run in CI.
 
 
 @dataclass
@@ -5306,19 +5418,18 @@ class _InterpreterBucketResult:
     bucket_a: int  # auto-fixable now (literal script, exists beside the XML)
     bucket_a_missing: int  # structurally A, but the named script is not co-located
     bucket_b: int  # leading Cheetah / non-literal first token
-    bucket_c: int  # non-standard / multi-token interpreter
+    bucket_empty: int  # interpreter="" — legacy-ignored, nothing to reproduce
     interpreter_values: dict[str, int]  # interpreter attribute value -> tools
 
 
 def _measure_interpreter_buckets(*, corpus_root: Path) -> _InterpreterBucketResult:
     """Classify every `<command interpreter=…>` tool by codemod auto-fixability."""
     from galaxy_tool_xml_codemod.codemods._interpreter import (
-        _STANDARD_INTERPRETERS,
         interpreter_rewrite_target,
     )
 
     seen: set[str] = set()
-    n_tools = n_with = a = a_missing = b = c = 0
+    n_tools = n_with = a = a_missing = b = empty = 0
     values: Counter[str] = Counter()
     for path in _iter_corpus_tool_xmls(corpus_root):
         if not path.is_file():
@@ -5339,10 +5450,10 @@ def _measure_interpreter_buckets(*, corpus_root: Path) -> _InterpreterBucketResu
             continue
         n_with += 1
         values[interpreter] += 1
-        if interpreter not in _STANDARD_INTERPRETERS:
-            c += 1
+        if not interpreter:
+            empty += 1  # legacy `if interpreter:` ignored it — the codemod skips too
             continue
-        # Standard interpreter: A vs A-missing vs B turns on the body + co-location.
+        # Non-empty interpreter: A vs A-missing vs B turns on the body + co-location.
         structural = interpreter_rewrite_target(root)
         if structural is None:
             b += 1
@@ -5356,7 +5467,7 @@ def _measure_interpreter_buckets(*, corpus_root: Path) -> _InterpreterBucketResu
         bucket_a=a,
         bucket_a_missing=a_missing,
         bucket_b=b,
-        bucket_c=c,
+        bucket_empty=empty,
         interpreter_values=dict(values),
     )
 
@@ -5402,22 +5513,25 @@ def _render_interpreter_bucket_page(result: _InterpreterBucketResult) -> str:
             "| Bucket | Tools | Share | Meaning |",
             "|---|--:|--:|---|",
             f"| **A — auto-fixable** | {result.bucket_a:,} | {pct(result.bucket_a)} "
-            "| single-token standard interpreter + literal leading script that exists "
-            "beside the XML |",
+            "| any non-empty interpreter (incl. flags / `java -jar` — the legacy "
+            "composition is verbatim concatenation) + literal leading script that "
+            "exists beside the XML |",
             f"| A-missing | {result.bucket_a_missing:,} | {pct(result.bucket_a_missing)} "
             "| structurally A but the named script isn't co-located — still rewritten "
             "(the codemod has no file-exists gate; the split is a measurement refinement) |",
             f"| B — leading Cheetah / non-literal | {result.bucket_b:,} "
             f"| {pct(result.bucket_b)} | command starts with a `#`-directive or `$var`, "
             "so the script isn't statically first |",
-            f"| C — non-standard interpreter | {result.bucket_c:,} | {pct(result.bucket_c)} "
-            "| multi-token / non-script (`java -jar`, `docker`, `Rscript --no-save`, …) |",
+            f"| empty `interpreter=\"\"` | {result.bucket_empty:,} "
+            f"| {pct(result.bucket_empty)} | legacy gated on `if interpreter:` — the "
+            "attribute was ignored, so there is no composition to reproduce |",
             "",
             f"Buckets **A + A-missing** ({result.bucket_a + result.bucket_a_missing:,} "
             "tools) are the codemod's target — the file-exists split is a measurement-only "
             "refinement, not a codemod gate (`fix_interpreter.py` calls the eligibility "
-            "predicate with no `tool_dir`). Only **B/C** remain detect/warn-only (the §23 "
-            "upgrade warning) — they need author intent or a richer parse.",
+            "predicate with no `tool_dir`). Only **B** (and the degenerate empty "
+            "attribute) remains detect/warn-only (the §23 upgrade warning) — the "
+            "rendered first token needs author intent or a richer parse.",
             "",
             "## Interpreter values",
             "",
@@ -5438,7 +5552,7 @@ def _report_interpreter_buckets(result: _InterpreterBucketResult) -> None:
         f"  A (auto-fixable):     {result.bucket_a}\n"
         f"  A-missing (no script): {result.bucket_a_missing}\n"
         f"  B (leading cheetah):  {result.bucket_b}\n"
-        f"  C (non-standard):     {result.bucket_c}"
+        f"  empty interpreter=\"\": {result.bucket_empty}"
     )
 
 
@@ -5488,7 +5602,11 @@ class _OutputFormatInputResult:
 
 
 def _measure_output_format_input(*, corpus_root: Path) -> _OutputFormatInputResult:
-    """Count output ``<data format="input">`` and the single-top-level-input subset."""
+    """Count output ``<data format="input">`` and the sole-data-input subset."""
+    from galaxy_tool_xml_codemod.codemods.fix_output_format_input import (
+        _sole_data_input_qualified_name,
+    )
+
     n_tools = n_with = n_elements = n_auto = 0
     n_copresent = n_auto_copresent = n_auto_past_1604 = 0
     introduced = Version("16.04")
@@ -5518,9 +5636,19 @@ def _measure_output_format_input(*, corpus_root: Path) -> _OutputFormatInputResu
         if len(data_params) == 0:
             buckets["0 data inputs"] += 1
         elif len(data_params) == 1:
-            parent = data_params[0].getparent()
-            if parent is not None and parent.tag == "inputs":
-                buckets["1 top-level (auto-fixable)"] += 1
+            # The codemod's own resolver (agreement by construction): a bare name
+            # for a top-level input, a qualified `cond|sect|name` for an
+            # addressable nested one, None for a repeat-nested/unnamed one.
+            qualified = _sole_data_input_qualified_name(root)
+            if qualified is None:
+                buckets["1 under repeat / unnamed (needs author intent)"] += 1
+            else:
+                label = (
+                    "1 top-level (auto-fixable)"
+                    if "|" not in qualified
+                    else "1 nested, addressable (auto-fixable)"
+                )
+                buckets[label] += 1
                 n_auto += 1
                 if any(d.get("format_source") is not None for d in format_input):
                     n_auto_copresent += 1
@@ -5529,8 +5657,6 @@ def _measure_output_format_input(*, corpus_root: Path) -> _OutputFormatInputResu
                 declared = _as_version(root.get("profile") or "16.01")
                 if declared is not None and declared >= introduced:
                     n_auto_past_1604 += 1
-            else:
-                buckets["1 nested (needs qualified ref)"] += 1
         else:
             buckets["2+ data inputs"] += 1
     return _OutputFormatInputResult(
@@ -5557,7 +5683,7 @@ def _report_output_format_input(measurement: _OutputFormatInputResult) -> None:
     for label, count in sorted(measurement.by_data_input_bucket.items()):
         print(f"  {count:5d}  {label}")
     print(
-        f"\nAuto-fixable (single top-level data input -> unqualified format_source): "
+        f"\nAuto-fixable (sole addressable data input -> format_source): "
         f"{measurement.n_auto_fixable}"
     )
     print(
@@ -6583,6 +6709,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "cheetah-cdm-bails": _run_cheetah_cdm_bails,
     "rename-coverage": _run_rename_coverage,
     "rename-macro-spread": _run_rename_macro_spread,
+    "xsd-tightenings": _run_xsd_tightenings,
     "interpreter-bucket-split": _run_interpreter_buckets,
     "output-format-input": _run_output_format_input,
     "help-formats": _run_help_formats,

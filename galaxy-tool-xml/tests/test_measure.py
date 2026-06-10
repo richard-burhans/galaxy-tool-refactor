@@ -53,6 +53,7 @@ from scripts.measure import (
     _measure_upgrade_behavior_blocks,
     _measure_upgrade_headroom,
     _measure_version_tokenization,
+    _measure_xsd_tightenings,
     _ParamTypesResult,
     _render_behavior_block_page,
     _render_macro_stats_page,
@@ -479,10 +480,18 @@ def test_output_format_input_buckets(tmp_path: Path) -> None:
         '</inputs><outputs><data name="o" format="input"/></outputs></tool>',
         encoding="utf-8",
     )
-    # needs qualified ref: single data input nested in a conditional
+    # nested but addressable (qualified format_source): auto-fixable since the
+    # 2026-06-10 widening (codemod decisions §40)
     (repo / "nested.xml").write_text(
         '<tool><inputs><conditional name="c">'
         '<param type="data" name="i"/></conditional></inputs>'
+        '<outputs><data name="o" format="input"/></outputs></tool>',
+        encoding="utf-8",
+    )
+    # repeat-nested: instance-indexed runtime prefix -> still needs author intent
+    (repo / "repeat.xml").write_text(
+        '<tool><inputs><repeat name="r">'
+        '<param type="data" name="i"/></repeat></inputs>'
         '<outputs><data name="o" format="input"/></outputs></tool>',
         encoding="utf-8",
     )
@@ -512,11 +521,14 @@ def test_output_format_input_buckets(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     result = _measure_output_format_input(corpus_root=tmp_path)
-    assert result.n_tools_parsed == 7
-    assert result.n_tools_with_format_input == 6
-    assert result.n_auto_fixable == 3  # auto + copresent_auto + autofix_past_1604
+    assert result.n_tools_parsed == 8
+    assert result.n_tools_with_format_input == 7
+    # auto + copresent_auto + autofix_past_1604 + nested (addressable since §40)
+    assert result.n_auto_fixable == 4
     buckets = result.by_data_input_bucket
     assert buckets["1 top-level (auto-fixable)"] == 3
+    assert buckets["1 nested, addressable (auto-fixable)"] == 1
+    assert buckets["1 under repeat / unnamed (needs author intent)"] == 1
     assert buckets["2+ data inputs"] == 1
     # the format_source guard breakdown (codemod decisions §24)
     assert result.n_format_input_with_format_source == 2  # both copresent_* files
@@ -524,7 +536,6 @@ def test_output_format_input_buckets(tmp_path: Path) -> None:
     # the crossing-gate breakdown: only autofix_past_1604.xml declares >= 16.04
     # (auto.xml/copresent_auto.xml have no profile -> 16.01 default, below 16.04)
     assert result.n_auto_fixable_already_at_16_04 == 1
-    assert buckets["1 nested (needs qualified ref)"] == 1
 
 
 def test_semantic_boundaries_population_split() -> None:
@@ -986,6 +997,62 @@ def test_measure_rename_macro_spread_classifies(tmp_path: Path) -> None:
     assert result.n_silent_break_today == 3
 
 
+# --- xsd-tightenings --------------------------------------------------------------
+
+
+def test_measure_xsd_tightenings_classifies(tmp_path: Path) -> None:
+    xs = "http://www.w3.org/2001/XMLSchema"
+    (tmp_path / "galaxy-1.0.xsd").write_text(
+        f"""<xs:schema xmlns:xs="{xs}">
+  <xs:simpleType name="Color"><xs:restriction base="xs:string">
+    <xs:enumeration value="red"/><xs:enumeration value="blue"/>
+  </xs:restriction></xs:simpleType>
+  <xs:simpleType name="Range"><xs:restriction base="xs:string">
+    <xs:pattern value="loose"/>
+  </xs:restriction></xs:simpleType>
+  <xs:simpleType name="Mood"><xs:restriction base="xs:string">
+    <xs:enumeration value="happy"/>
+  </xs:restriction></xs:simpleType>
+  <xs:complexType name="Thing">
+    <xs:attribute name="size" type="xs:string"/>
+    <xs:attribute name="name" type="xs:string"/>
+  </xs:complexType>
+</xs:schema>""",
+        encoding="utf-8",
+    )
+    (tmp_path / "galaxy-2.0.xsd").write_text(
+        f"""<xs:schema xmlns:xs="{xs}">
+  <xs:simpleType name="Color"><xs:restriction base="xs:string">
+    <xs:enumeration value="red"/>
+  </xs:restriction></xs:simpleType>
+  <xs:simpleType name="Range"><xs:restriction base="xs:string">
+    <xs:pattern value="tight"/>
+  </xs:restriction></xs:simpleType>
+  <xs:simpleType name="Mood"><xs:restriction base="xs:string">
+    <xs:enumeration value="happy"/><xs:enumeration value="calm"/>
+  </xs:restriction></xs:simpleType>
+  <xs:simpleType name="Size"><xs:restriction base="xs:string">
+    <xs:pattern value="[0-9]+"/>
+  </xs:restriction></xs:simpleType>
+  <xs:complexType name="Thing">
+    <xs:attribute name="size" type="Size"/>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+  </xs:complexType>
+</xs:schema>""",
+        encoding="utf-8",
+    )
+    result = _measure_xsd_tightenings(schema_dir=tmp_path)
+    assert result.versions == ["1.0", "2.0"]
+    kinds = {(kind, site) for _, _, kind, site, _ in result.rows}
+    assert ("enums-removed", "Color") in kinds  # blue removed = narrowing
+    assert ("pattern-changed", "Range") in kinds
+    assert ("typed", "Thing.size") in kinds
+    assert ("required", "Thing.name") in kinds
+    # Mood only GAINED an enum (a widening) -> no row for it.
+    assert not any(site == "Mood" for _, _, _, site, _ in result.rows)
+    assert len(result.rows) == 4
+
+
 # --- interpreter-bucket-split ---------------------------------------------------
 
 
@@ -1008,9 +1075,16 @@ def test_measure_interpreter_buckets_classifies(tmp_path: Path) -> None:
         '<tool><command interpreter="python">#if $c\nx.py\n#end if</command></tool>',
         encoding="utf-8",
     )
-    # C: non-standard / multi-token interpreter.
+    # Multi-token interpreter is bucket A since the verbatim-composition widening
+    # (here A: the jar is co-located).
     (repo / "c.xml").write_text(
         '<tool><command interpreter="java -jar">app.jar</command></tool>',
+        encoding="utf-8",
+    )
+    (repo / "app.jar").write_bytes(b"")
+    # Empty interpreter: legacy-ignored -> its own bucket, never rewritten.
+    (repo / "empty.xml").write_text(
+        '<tool><command interpreter="">run.py $in</command></tool>',
         encoding="utf-8",
     )
     # No interpreter attribute -> not counted in the population.
@@ -1019,12 +1093,12 @@ def test_measure_interpreter_buckets_classifies(tmp_path: Path) -> None:
     )
 
     result = _measure_interpreter_buckets(corpus_root=tmp_path)
-    assert result.n_tools == 5
-    assert result.n_with_interpreter == 4
-    assert result.bucket_a == 1
+    assert result.n_tools == 6
+    assert result.n_with_interpreter == 5
+    assert result.bucket_a == 2
     assert result.bucket_a_missing == 1
     assert result.bucket_b == 1
-    assert result.bucket_c == 1
+    assert result.bucket_empty == 1
     assert result.interpreter_values["python"] == 2
     assert result.interpreter_values["java -jar"] == 1
 

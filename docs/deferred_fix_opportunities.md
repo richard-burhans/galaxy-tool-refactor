@@ -35,22 +35,18 @@ backlog entry.
 
 ## Open opportunities
 
-### A1. Collection-type whitespace normalization (a would-be `Upgrade22_1`)
+### A1. Collection-type whitespace — **SHIPPED 2026-06-10 as `Upgrade21_09` / GTR093** (codemod §41)
 
-- **Where:** codemod `PLAN.md` ("Considered and declined — collection-type
-  whitespace normalization").
-- **What:** strip stray whitespace from `collection_type` / `type` values
-  (`"list, list:paired"` → `"list,list:paired"`) on the 22.01 boundary — the
-  exact mechanical class as the shipped `Upgrade24_1` `format`/`ftype`
-  normalization.
-- **Why deferred:** *"exactly **1** corpus value is whitespace-fixable … a
-  one-tool codemod … does not earn its keep. Not built."* Pure rarity; the
-  transform itself is provably safe by the same argument as 24.1's.
-- **Sizing:** 1 corpus tool (`measure.py collection-type-normalization`);
-  vs `Upgrade24_1`'s ~97.
-- **What it would take:** small — a 24.1-pattern codemod; the corpus *sweep*
-  additionally needs an eligibility-anchor relaxation to exercise its one tool
-  (a harness concern, not a soundness one).
+Closed, third item worked top-down. The proof the decline never sought:
+Galaxy's runtime strips each comma token itself
+(`DataCollectionToolParameter.__init__`), so the rewrite is a behaviour no-op
+that gains 22.01 validity. Scoped precisely by the same runtime line —
+`collection_type=""` drops (falsy = absent), whitespace-only stays (a
+matches-nothing restriction), colon-inner whitespace and the single-value
+`CollectionType` sites stay (no runtime strip — construction, not corpus).
+The 1 corpus tool remains sweep-invisible (eligibility-anchor artifact) but
+`UpgradeToLatest` reaches it; novel tools writing `"list, paired"` now upgrade
+cleanly. Full record: codemod `docs/decisions.md` §41.
 
 ### A2. Phase-3c `@TOOL_VERSION@` / `@VERSION_SUFFIX@` extraction (parked, PR #31)
 
@@ -85,60 +81,36 @@ backlog entry.
   valid shell, so author intent (background vs typo) is not provable — no
   auto-fix.
 
-### C1. GTR015 `format="input"` — the nested sole-data-input case is provable
+### C1. GTR015 nested sole data input — **SHIPPED 2026-06-10** (codemod §40)
 
-- **Where:** `docs/upgrade_research/16_04_fix_output_format.md` (the 41-tool
-  residual: 38 multi-input, 2 zero-input, 1 nested-single).
-- **What:** GTR015 rewrites `format="input"` → `format_source="<name>"` only
-  for a sole **top-level** data input; a sole *nested* one (inside a
-  conditional/section) was left out because *"the unqualified name wouldn't
-  resolve"*.
-- **Verified against Galaxy source (2026-06-10):** `determine_output_format`
-  looks `format_source` up in `input_datasets`, which is keyed by the
-  **prefixed (qualified) name** (`lib/galaxy/tools/actions/__init__.py` —
-  `input_datasets[prefixed_name] = …`). A sole nested data input is therefore
-  addressable via its qualified name; the rewrite is provable.
-- **Sizing:** 1 corpus tool; the 38 multi-input cases stay out by construction
-  (Galaxy resolves bare `format="input"` to a *random* input's extension —
-  there is no deterministic behavior to preserve), and the 2 zero-input cases
-  have nothing to inherit from.
-- **What it would take:** small — extend `_sole_top_level_data_input_name` to a
-  qualified-name variant + a Galaxy-version check that qualified
-  `format_source` is honoured at the tool's profile.
+Closed, second item worked top-down. The Galaxy-source proof held exactly as the
+entry predicted (qualified `format_source` resolves against the prefixed-name
+`input_datasets` map — and is upstream-tested in
+`test/functional/tools/format_source_in_conditional.xml`), plus a corner the
+entry hadn't named: the absent-at-runtime case (unselected branch / empty
+optional) is also behaviour-matched — both sides resolve to `"data"`.
+Conditional/section nesting now auto-fixes via `cond|name`; repeat nesting
+(instance-indexed prefix) is the only nested shape left to the warning — and the
+corpus's single nested tool turns out to be exactly that, so the widening
+rescues **0 corpus tools** (the residual stays 41: 38 multi-input under Galaxy's
+own nondeterminism, 2 zero-input, 1 repeat-nested). Pure novel-tool insurance in
+the GTR036 spirit — the cleanest possible instance of the ledger's principle.
+Full record: codemod `docs/decisions.md` §40 + the updated
+`docs/upgrade_research/16_04_fix_output_format.md`.
 
-### C2. GTR016 `interpreter=` — the flags slice of bucket C may be rewritable
+### C2. GTR016 `interpreter=` — **SHIPPED 2026-06-10** (codemod §39)
 
-- **Where:** `docs/upgrade_research/16_04_fix_interpreter.md` +
-  `docs/interpreter_bucket_stats.md`.
-- **What:** GTR016 auto-fixes bucket A (single-token standard interpreter +
-  literal leading script; 1,410 tools). Bucket **C — "non-standard
-  interpreter"** (51 tools, 3.0%) bundles two different things: true
-  non-scripts (`docker`, `java -jar`) *and* standard interpreters carrying
-  flags (`Rscript --no-save`, `python -W ignore`). If legacy Galaxy composed
-  the command by verbatim concatenation (`interpreter + " " + command`), the
-  flags slice is mechanically rewritable with the same proof as bucket A.
-- **Why deferred:** conservative bucket-A scoping; the flags slice was never
-  separately sized or proof-checked.
-- **Proof obtained (2026-06-10, legacy Galaxy source):** `evaluation.py`'s
-  interpreter block is **byte-identical from `release_16.04` through
-  `release_20.01`** (the whole era honoring `interpreter=`; removed by 20.09):
-  `executable = command_line.split()[0]` (post-Cheetah) → abspath against
-  `tool_dir` → replace-first-occurrence → **`command_line = interpreter + " "
-  + command_line`** — verbatim string concatenation. So for a command whose
-  first token is *literal* (the existing bucket-A requirement), the rewrite
-  `<command>{interpreter} '$__tool_directory__/{token}' {rest}</command>`
-  reproduces legacy behavior for **any** interpreter value — flags
-  (`Rscript --no-save`), `java -jar`, even `export X=1; docker …`. The
-  "single-token standard interpreter" gate was conservatism, not soundness.
-- **Sizing:** ≤51 corpus tools (bucket C; the provable slice = those whose
-  command leading token is literal — a sub-split measure quantifies it).
-  Bucket B (267 tools, leading Cheetah) stays genuinely unprovable —
-  `split()[0]` of the *rendered* line is statically unknowable.
-- **What it would take:** the proof is done; remaining work is a bucket-C
-  sub-split measure, the eligibility-predicate widening (TDD), the GTR016
-  corpus sweep + stats/research-note regen. Highest potential population on
-  this list, and `interpreter=` is a `must_fix` that blocks the whole
-  profile-upgrade chain for affected tools.
+Closed, first item worked top-down from the ranking below. The proof turned out
+stronger than the entry hypothesised: Galaxy interpolates the interpreter value
+**verbatim in every composition form it ever shipped** (prepend,
+`release_16.04`–`release_20.01`; token-splice + `shlex.quote`,
+`release_20.09`–`dev:781-787` today — the attribute was never removed, it is
+still honored for `legacy_defaults` tools), so the widening admits *any*
+non-empty interpreter, not just the flags slice. Bucket C dissolved (25 → A,
+26 → B); codemod target 1,410 → 1,435 by shape, sweep rewrites 1,127 → 1,144
+(all clean), and the `16_04_fix_interpreter` stuck-tool residual dropped
+**316 → 299**. Full record: codemod `docs/decisions.md` §39 + the rewritten
+`docs/upgrade_research/16_04_fix_interpreter.md`.
 
 ### C3. GTR036 `<output type="collection">` → `<collection>`
 
@@ -200,11 +172,78 @@ Criteria: **(i)** novel-tool benefit (likelihood × severity of the gap),
 
 | Rank | Item | Why here |
 |---|---|---|
-| 1 | **C2 — GTR016 bucket-C flags slice** | the only item with a real population (≤51 tools, sub-split TBD) *and* a `must_fix` payoff — each rescued tool's entire profile-upgrade chain unblocks; needs a legacy-source proof first |
-| 2 | **C1 — GTR015 nested sole input** | proof already verified in Galaxy source; smallest cost on the list; completes a shipped rule's coverage exactly in the GTR036 spirit |
-| 3 | **A1 — collection-type whitespace** | fully provable today by a shipped precedent's argument; trivially small; unblocks the 22.01 crossing for novel tools |
+| 1 | **C2 — GTR016 bucket-C flags slice** | ✅ **shipped** (codemod §39): the proof admitted all of bucket C, not just flags — 25 tools by shape, 17 rescued from the stuck residual (316 → 299) |
+| 2 | **C1 — GTR015 nested sole input** | ✅ **shipped** (codemod §40): qualified `format_source` for conditional/section nesting; 0 corpus tools (the 1 nested corpus tool is repeat-nested — correctly still bailed), pure novel-tool insurance |
+| 3 | **A1 — collection-type whitespace** | ✅ **shipped** (`Upgrade21_09` / GTR093, codemod §41): runtime comma-token strip proves the no-op; 1 corpus tool + novel-tool insurance |
 | 4 | **C3 — GTR036 collection variant** | provable by source-mirroring (method already used for the data case); modernizes a deprecated construct; ~0 corpus so pure novel-tool insurance |
 | 5 | **A2 — 3c version tokenization** | the largest corpus count (75) but style-tier payoff (no validity/behavior unlock) and the highest cost (macros creation) |
 | 6 | **A3 — GTR032 precise detector** | revisit condition met, but advisory-only payoff on a ~1-tool pattern; build when the CT3 classifier is wanted for other command checks anyway |
 
 Ranking approved by the maintainer 2026-06-10; work proceeds top-down.
+
+---
+
+## Profile-step (Upgrade_vN) gap audit — 2026-06-10
+
+A systematic answer to "which profile crossings could we provably auto-fix but
+don't?": diff **every adjacent pair of the 28 vendored XSDs** for tool-stranding
+deltas (`scripts.measure xsd-tightenings` — typed / required / pattern-changed /
+enums-removed; enum *additions* are widenings and ignored), then verify each
+candidate against Galaxy source. The corpus side is nearly exhausted: the
+authoritative upgrade-discovery residual is **41 tools** below latest — 39 at
+24.1 (the documented §14 residual: macro-reachable via `normalize-macros`, junk,
+comma-lists), 1 at 21.05 (a tool bug, `has_size/@delta_frac`, recorded in
+`PLAN.md`), and 1 at 21.09 (fixed by GTR093). So everything below is
+**novel-tool insurance**, sized at ~0 corpus tools by construction-level greps
+(1,795 `<exit_code>` elements: 0 use the `value=` alias, 0 lack both attrs; 0
+spaced `has_size` values).
+
+**Known measure limitation (no silent caps):** `xsd-tightenings` diffs
+*attribute* sites; an element-**content** typing (e.g. 21.01's
+`MacroImportType` on `<import>` text, which forbids path separators) is found
+only via its NEW-simpleType row — listed below by hand.
+
+### Already covered
+
+- 21.09→22.01 `collection_type` ×4 sites — GTR093 (param list site; the
+  single-value sites are construction-unprovable, §41).
+- 24.1→24.2 `Format`/`FormatList` ×5 sites — GTR010.
+- Off-enum values at every step (`DetectErrorType`, `HelpFormatType`,
+  `InputsConfigfileDatastyleType`, the 23.2 `ParamType` `library_data`
+  removal…) — `FixTypos` (GTR006), whose validation-driven near-miss repair is
+  generic over enum-typed attributes.
+- Widenings/moot: 22.05 `Bytes` (now allows 0), 25.0 collection types (new
+  alternatives).
+
+### Gap candidates (G-series) — all closed 2026-06-10 (see the ranking below)
+
+| ID | Delta (boundary) | Status of proof | What it would take |
+|---|---|---|---|
+| **G1 (+G3, G5)** | the 22.01 **stdio tightening**: `ExitCode.range` required, `Regex.match` required, `RangeType` pattern (whose *sole* consumer is `ExitCode.range`) | **All proven** (Galaxy `xml.py:1248-1280`, `1318-1324`): `range` falls back to the `value` attribute (aliases); an `<exit_code>` with neither — or with `range=""` (the only stranded `RangeType` form; `int("")` path) — is silently skipped, as is a `<regex>` without `match`; the runtime range parser strips all whitespace | one codemod, three fixes: rename `value=`→`range=`; delete runtime-dead `<exit_code>`/`<regex>` elements |
+| **G2** | `AssertHasSize.value`/`delta` → `Bytes` (22.01) | **Proven** (follow-up read): values flow through `galaxy.util.size_to_bytes`, which accepts forms the pattern rejects (`"2 TB"`, `"1 MiB"`, decimals); any parseable value canonicalizes to its exact integer byte count — always pattern-valid | normalize to `str(size_to_bytes(v))` when pattern-invalid + parseable |
+| **G4** | `Repeat.name` (22.01) / `Conditional.name` (24.0) required | **Declined (verified 2026-06-10):** `Group.__init__` stores `name=None`, but every downstream prefixed-name construction concatenates it (`prefix + input.name` → `TypeError`) — a nameless group was *broken at runtime all along*, so there is no working behavior to preserve; and any synthesized name would leak into the workflow-addressable API surface | none — documented decline |
+| **G6** | `MacroImportType` element-content pattern (21.01) — forbids `/` in `<import>` paths | **unprovable** (the path is meaningful; no rewrite preserves it) | document-only |
+| — | `ParamConversion`/`RequestParameter` required ×4 (18.01) | pre-broken class: `data_source`-tool internals, missing values likely nonfunctional pre-18.01 | low priority; verify-then-decline |
+
+### Proposed ranking
+
+1. **G1 (+G3, G5)** — ✅ **shipped** (codemod §42): the stdio repair joined
+   `Upgrade21_09` — `value=`→`range=` alias rename, dead-`value` drop, and
+   deletion of runtime-skipped `<exit_code>`/`<regex>` elements.
+2. **G2** — ✅ **shipped** (codemod §42): the `has_size` Bytes canonicalizer.
+   One proof correction along the way: the runtime parser is
+   `galaxy.util.bytesize.parse_bytesize`, *not* `size_to_bytes` — so
+   plain-`B`/word-suffix forms were never runtime-working and stay out; the
+   provable class is whitespace, suffix case, and integral scientific forms.
+3. **G4** — ✅ **declined as predicted** (verified: nameless groups were
+   runtime-broken — `TypeError` in prefixed-name construction — plus the
+   API-surface hazard). Recorded above; no code.
+4. **G6 / 18.01 row** — document-only.
+
+**G-series complete (2026-06-10):** every gap shipped (§42), declined with a
+verified reason (G4), or documented as unprovable (G6, 18.01).
+
+G-series ranking approved by the maintainer 2026-06-10. The follow-up source
+reads then *collapsed* G3 and G5 into G1 (RangeType's sole consumer is
+`ExitCode.range`; `<regex>` shares the skip pattern) and completed G2's proof —
+the approved order is preserved, just denser.
