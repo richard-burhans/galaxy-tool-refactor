@@ -59,7 +59,9 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 > preserved in general. Behaviour-affecting changes are only applied where per-tool
 > detection proves them safe; otherwise they are reported, not made (`upgrade` surfaces a
 > `behavior_preserving` flag — `true`/`false`/`null` — so callers can gate on it). GTR016 (interpreter)
-> auto-fixes only the clean "bucket A" shape; GTR015 only the single top-level data input.
+> auto-fixes any non-empty interpreter whose command leads with a literal script
+> ("bucket A", widened 2026-06-10); GTR015 the sole data input — top-level or
+> conditional/section-nested via a qualified `format_source`.
 > Imported-macro write-back now covers the `@PROFILE@` token (by name, on importer
 > consensus) **and** literal `format`/`ftype` normalization (the opt-in `normalize-macros`);
 > both work by *locating the construct in its source file*. General provenance-based

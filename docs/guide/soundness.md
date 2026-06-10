@@ -58,10 +58,15 @@ approximation tuned to the current corpus.
   **per-tool detection** and only applies an automated repair where it can prove the
   change is safe for *that* tool. Where it can't, it **reports** the issue instead of
   silently changing behaviour.
-- The runtime-gated repairs are deliberately conservative:
-  - **GTR016 (`interpreter=`)** rewrites only the clean "bucket A" shape (a single
-    leading literal script token); other shapes are left to detect/warn.
-  - **GTR015 (`format="input"`)** fixes only the single-top-level-data-input case.
+- The runtime-gated repairs are exactly as wide as their proofs (widened
+  2026-06-10 when source archaeology extended the proofs):
+  - **GTR016 (`interpreter=`)** rewrites any non-empty interpreter value — Galaxy
+    interpolates it verbatim in every composition form it ever shipped — provided
+    the command's first token is a literal script ("bucket A"); a Cheetah-leading
+    command is left to detect/warn.
+  - **GTR015 (`format="input"`)** fixes the sole-data-input case, top-level or
+    conditional/section-nested (qualified `format_source`); multi-input and
+    repeat-nested cases are genuinely undecidable and stay reported.
   - **GTR014** guards `format_source`.
 - **Imported-macro write-back** is *locate-in-source* (the construct is found in its
   defining file), not provenance-driven. Three consumers exist: the `@PROFILE@` token
