@@ -29,6 +29,7 @@ _EXPECTED_CODES = {
     "GTR089.1",  # RepairHelpRst (fix half of the GTR089 partition)
     "GTR092",  # ConvertHelpToMarkdown (opt-in convert-help only; no ruleset)
     "GTR093",  # Upgrade21_09 (collection_type whitespace; 21.09 -> 22.01)
+    "GTR094",  # TokenizeVersion (opt-in tokenize-version only; no ruleset)
 }
 
 

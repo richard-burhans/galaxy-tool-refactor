@@ -48,7 +48,7 @@ The 1 corpus tool remains sweep-invisible (eligibility-anchor artifact) but
 `UpgradeToLatest` reaches it; novel tools writing `"list, paired"` now upgrade
 cleanly. Full record: codemod `docs/decisions.md` §41.
 
-### A2. Phase-3c `@TOOL_VERSION@` / `@VERSION_SUFFIX@` extraction (parked, PR #31)
+### A2. Phase-3c version tokenization — **SHIPPED 2026-06-10 as GTR094 / `tokenize-version`** (codemod §43)
 
 - **Where:** PR #31 (the `version-tokenization` measure; the parking record is
   the PR — this ledger is its first in-repo record).
@@ -176,7 +176,7 @@ Criteria: **(i)** novel-tool benefit (likelihood × severity of the gap),
 | 2 | **C1 — GTR015 nested sole input** | ✅ **shipped** (codemod §40): qualified `format_source` for conditional/section nesting; 0 corpus tools (the 1 nested corpus tool is repeat-nested — correctly still bailed), pure novel-tool insurance |
 | 3 | **A1 — collection-type whitespace** | ✅ **shipped** (`Upgrade21_09` / GTR093, codemod §41): runtime comma-token strip proves the no-op; 1 corpus tool + novel-tool insurance |
 | 4 | **C3 — GTR036 collection variant** | ✅ **shipped** (§34 addendum): the remap mirrored exactly; `unicodify(None)` corner settled; degenerate case stays advisory |
-| 5 | **A2 — 3c version tokenization** | the largest corpus count (75) but style-tier payoff (no validity/behavior unlock) and the highest cost (macros creation) |
+| 5 | **A2 — 3c version tokenization** | ✅ **shipped** (GTR094 + the `tokenize-version` command, codemod §43): expansion-equality gate; second opt-in-command-only codemod |
 | 6 | **A3 — GTR032 precise detector** | ✅ **shipped** (check D34): the measure's classifier moved to the check tier; joining-only, no-op mechanism retired |
 
 Ranking approved by the maintainer 2026-06-10; work proceeds top-down.
@@ -247,3 +247,6 @@ G-series ranking approved by the maintainer 2026-06-10. The follow-up source
 reads then *collapsed* G3 and G5 into G1 (RangeType's sole consumer is
 `ExitCode.range`; `<regex>` shares the skip pattern) and completed G2's proof —
 the approved order is preserved, just denser.
+
+**Ledger complete (2026-06-10):** every opportunity and gap is shipped,
+declined with a verified reason, or documented as unprovable.

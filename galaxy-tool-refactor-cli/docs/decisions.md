@@ -422,3 +422,12 @@ first" gate (`<help format=…>` is not XSD-valid earlier; codemod §38). Skips 
 informational (exit 0); read/parse errors exit non-zero. Requires the
 `galaxy-tool-xml[markdown]` extra; without it every tool is skipped with an
 install hint, and nothing is ever converted ungated.
+
+## D13 (2026-06-10) — `tokenize-version`: the tenth command
+
+The CLI surface for GTR094 (registry D19; codemod §43) — the `convert-help`
+pattern verbatim (`--check`/`--backup`, per-file tokenized/skipped-with-reason
+reporting, non-zero only on I/O or parse errors), with one deliberate
+difference: **files are passed to the facade by path, not bytes**, so the
+expansion-equality gate can resolve `<import>`ed macro files against the tool's
+own directory (a bytes-parsed tool with imports fails closed by design).

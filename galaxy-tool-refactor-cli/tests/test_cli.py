@@ -789,3 +789,51 @@ def test_convert_help_backup(tmp_path: Path) -> None:
     result = CliRunner().invoke(main, ["convert-help", "--backup", str(file)])
     assert result.exit_code == 0, result.output
     assert (tmp_path / "tool.xml.bak").read_bytes() == _CONVERTIBLE_TOOL
+
+
+def test_tokenize_version_command(tmp_path: Path) -> None:
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(
+        b'<tool id="m" name="M" version="1.20+galaxy0" profile="24.0">'
+        b"<command><![CDATA[echo x]]></command>"
+        b'<requirements><requirement type="package" version="1.20">samtools'
+        b"</requirement></requirements>"
+        b'<inputs><param name="i" type="text"/></inputs>'
+        b'<outputs><data name="o"/></outputs></tool>'
+    )
+    result = CliRunner().invoke(main, ["tokenize-version", str(tool)])
+    assert result.exit_code == 0, result.output
+    assert "tokenized" in result.output
+    written = tool.read_bytes()
+    assert b'version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"' in written
+    assert b'<token name="@TOOL_VERSION@">1.20</token>' in written
+
+
+def test_tokenize_version_check_mode_writes_nothing(tmp_path: Path) -> None:
+    tool = tmp_path / "tool.xml"
+    payload = (
+        b'<tool id="m" name="M" version="2.1+galaxy3" profile="24.0">'
+        b"<command><![CDATA[echo x]]></command>"
+        b'<requirements><requirement type="package" version="2.1">x'
+        b"</requirement></requirements>"
+        b'<inputs><param name="i" type="text"/></inputs>'
+        b'<outputs><data name="o"/></outputs></tool>'
+    )
+    tool.write_bytes(payload)
+    result = CliRunner().invoke(main, ["tokenize-version", "--check", str(tool)])
+    assert result.exit_code == 0
+    assert "would tokenize" in result.output
+    assert tool.read_bytes() == payload
+
+
+def test_tokenize_version_reports_skip_reason(tmp_path: Path) -> None:
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(
+        b'<tool id="m" name="M" version="1.20" profile="24.0">'
+        b"<command><![CDATA[echo x]]></command>"
+        b'<inputs><param name="i" type="text"/></inputs>'
+        b'<outputs><data name="o"/></outputs></tool>'
+    )
+    result = CliRunner().invoke(main, ["tokenize-version", str(tool)])
+    assert result.exit_code == 0
+    assert "skipped" in result.output and "+galaxy" in result.output

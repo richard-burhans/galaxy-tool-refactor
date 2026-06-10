@@ -13,7 +13,7 @@ galaxy-tool-refactor/
 ├── galaxy-tool-xml-fmt/      Tier 3 (formatting)
 ├── galaxy-tool-xml-check/    Tier 3.5 (advisory detect-only checks)
 ├── galaxy-tool-refactor-registry/ Tier 3.6 (unified rule registry + rulesets; library-first facade)
-├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + find-references + rename-param + rulesets/rules + normalize-macros + convert-help)
+├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + find-references + rename-param + rulesets/rules + normalize-macros + convert-help + tokenize-version)
 ├── galaxy-tool-refactor-mcp/ Tier 4 (MCP server over the registry facade; thin FastMCP adapter)
 ├── scripts/                  Shared maintainer scripts (not installed)
 │   ├── corpus_check.py         validate | fmt | codemod | rules | check subcommands
@@ -326,14 +326,14 @@ Tiers, each independently installable:
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic rules (indent / blank line / empty-element shorthand) + the shared `cli_support` CLI engine. The only tier that serialises canonical output XML. |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice checks (`GTR` codes, `RuleMeta.detect_only`); read-only LBYL queries over tier 1 yielding `Violation`. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | Unified, code-addressable `RuleHandle` over all three families + named rulesets (`cosmetic`/`default`/`iuc`/`strict`) + `run`/`upgrade`/`detect`. **Library-first** (no click/exit; structured I/O; introspectable). Depends on 0.5/1/2/3/3.5; lower tiers don't depend on it. |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`, `convert-help`. |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`, `convert-help`, `tokenize-version`. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the registry facade (a sibling of the CLI). A thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`convert_help_tool`/`list_rulesets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) remain future. |
 
 **Orchestration lives in the registry facade (tier 3.6); the CLI is a thin
 front-end.** Each lower tier is consumable standalone; the facade composes them
 into one code-addressable rule set with rulesets and a library-first
 `run`/`upgrade`/`detect` API. The CLI (`galaxy-tool-refactor-cli`) depends on the
-facade (plus fmt's `cli_support` engine and tier-1 parsing) and owns nine
+facade (plus fmt's `cli_support` engine and tier-1 parsing) and owns ten
 commands:
 
 - `galaxy-tool-refactor format` — apply a ruleset's fixable rules (the default
@@ -373,6 +373,11 @@ commands:
   `upgrade` first) and the markdown-it rendering semantically equals the docutils
   rendering (tier-1 `rst_markdown`, the `[markdown]` extra). Swaps Galaxy's rendering
   engine, so never part of `format`/`upgrade` (cli §D12, codemod §38, xml §24).
+- `galaxy-tool-refactor tokenize-version` — opt-in: factor a literal
+  `version="<base>+galaxy<suffix>"` into `@TOOL_VERSION@`/`@VERSION_SUFFIX@` tokens
+  shared with the matching package requirement, kept only when the expansion-equality
+  gate proves the macro expansion byte-identical. A multi-element style restructure,
+  so never part of `format`/`upgrade` (cli §D13, codemod §43, registry D19).
 
 Selection is shared across `format`/`upgrade`/`check`: `--ruleset NAME`
 (repeatable / comma-separated — the union of the named sets), `--select CODE…`,

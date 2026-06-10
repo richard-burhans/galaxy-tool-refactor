@@ -123,6 +123,7 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR091 | InputsDataFormat | ✓ | ✗ | check | strict | A data param should declare the format(s) it accepts. |
 | GTR092 | — | ✓ | ✓ | codemod | — | Convert an RST `<help>` body to Markdown (format="markdown") when the markdown-it rendering is provably equivalent to the docutils rendering (opt-in convert-help only; requires profile >= 24.2). |
 | GTR093 | — | ✓ | ✓ | upgrade | — | Upgrade a tool stuck at profile 21.09 toward 22.01 (normalize collection_type + has_size Bytes; repair stdio exit_code/regex). |
+| GTR094 | — | ✓ | ✓ | codemod | — | Factor a literal version="`<base>`+galaxy`<suffix>`" into @TOOL_VERSION@/@VERSION_SUFFIX@ tokens shared with the matching package requirement (opt-in tokenize-version only). |
 <!-- END GENERATED -->
 
 The remaining unmapped planemo linters (the ~80 correctness checks + the advisory-by-design

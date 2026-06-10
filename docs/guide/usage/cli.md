@@ -1,12 +1,12 @@
 # Using it from the command line
 
-> **TL;DR.** Install, then run one of nine commands on a tool file or a directory:
+> **TL;DR.** Install, then run one of ten commands on a tool file or a directory:
 > `format` (fix), `upgrade` (bump profile safely), `check` (report), `find-references`
 > (locate a param's Cheetah `$var` uses across a tool **and its imported macros**),
 > `rename-param` (rename a param everywhere — tool **and its imported macros** —
 > atomically), `rulesets`/`rules` (introspect), `normalize-macros` (opt-in macro-library
 > fix), `convert-help` (opt-in RST → Markdown help conversion, equivalence-gated).
-> `format`/`upgrade`/`rename-param`/`convert-help` support `--check` (and
+> `format`/`upgrade`/`rename-param`/`convert-help`/`tokenize-version` support `--check` (and
 > `format`/`upgrade` `--diff`) to preview without writing; all five mutating commands
 > take `--backup` (`<file>.bak` before overwrite).
 
@@ -17,7 +17,7 @@ uv sync
 uv run galaxy-tool-refactor --help
 ```
 
-The nine commands:
+The ten commands:
 
 ```text
 check            Report where tools deviate from the selection, without changing them.
@@ -33,6 +33,8 @@ rename-param     Rename a parameter OLD->NEW across every Cheetah section, cross
 rulesets         List the available rulesets and the rule codes each one selects.
 rules            List the baked-in rules: code, family, fixable/advisory, rulesets.
 normalize-macros Lowercase literal format/ftype in <macros>-root files (opt-in, repo-scoped).
+tokenize-version Factor a literal version into @TOOL_VERSION@/@VERSION_SUFFIX@
+                 (opt-in; kept only when the macro expansion is provably unchanged)
 convert-help     Convert an RST <help> to Markdown (format="markdown") when provably
                  render-equivalent and the profile is >= 24.2 (run upgrade first below it);
                  anything unprovable is skipped with the reason (opt-in; never part of

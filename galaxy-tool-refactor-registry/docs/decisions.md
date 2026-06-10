@@ -696,3 +696,14 @@ exception — it is applied by `convert-help`, not `upgrade`. *(Both renamed in 
 uv run --package galaxy-tool-refactor-registry pytest \
   galaxy-tool-refactor-registry/tests/test_facade.py -k convert_help
 ```
+
+## D19 (2026-06-10) — `tokenize_version`: the second opt-in conversion entry point
+
+The GTR094 sibling of D18's `convert_help`: `tokenize_version(source, *,
+write_path=None) -> TokenizeVersionResult(formatted, tokenized, skip_reason)`.
+The facade re-derives the outcome from the tree after `apply` (the codemod's
+expansion-equality gate may decline beyond the shared preconditions), so the
+reported skip reason can never disagree with what happened. Serialisation goes
+through `apply_selection(codes=frozenset())` — fmt stays the only output
+serializer. `OPT_IN_COMMAND_BY_CODE` gains the second entry; the partition
+tripwire and `list_rules(include_upgrade=True)` cover it as before.

@@ -30,6 +30,13 @@ _SERIALISE_MARKERS = ("etree.tostring(", ".write_bytes(")
 # marker is legitimate only if its file is here AND the marker is in that file's
 # allowed set. Keep this in sync with ``docs/architecture_audit.md`` §4.1.
 _ALLOWLIST: dict[str, tuple[frozenset[str], str]] = {
+    "galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/codemods"
+    "/tokenize_version.py": (
+        frozenset({"etree.tostring("}),
+        "GTR094's expansion-equality gate compares two throwaway expansions "
+        "byte-wise (proof by execution) — never output; output still flows "
+        "through fmt via the facade",
+    ),
     "galaxy-tool-xml-fmt/src/galaxy_tool_xml_fmt/serializer.py": (
         frozenset({"etree.tostring("}),
         "the sanctioned canonical serialiser (fmt's to_bytes)",
