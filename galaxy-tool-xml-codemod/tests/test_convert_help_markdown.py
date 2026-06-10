@@ -12,7 +12,9 @@ from galaxy_tool_xml_codemod.codemods.convert_help_markdown import (
 from galaxy_tool_xml_codemod.parse import parse_module
 
 
-def _tool(*, profile: str | None = "24.2", help_body: str = "", attrs: str = "") -> bytes:
+def _tool(
+    *, profile: str | None = "24.2", help_body: str = "", attrs: str = ""
+) -> bytes:
     profile_attr = f" profile='{profile}'" if profile else ""
     return (
         f"<tool id='x' name='X' version='1.0'{profile_attr}>"
@@ -75,7 +77,9 @@ def test_converted_tool_validates_at_the_gate_profile() -> None:
 
 
 def test_skips_already_markdown() -> None:
-    module = parse_module(_tool(help_body="# already markdown", attrs=" format='markdown'"))
+    module = parse_module(
+        _tool(help_body="# already markdown", attrs=" format='markdown'")
+    )
     assert list(ConvertHelpToMarkdown().detect(module)) == []
 
 
