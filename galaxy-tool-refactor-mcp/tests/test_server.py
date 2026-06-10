@@ -28,6 +28,7 @@ def test_build_server_registers_every_tool() -> None:
         "upgrade_tool",
         "check_tool",
         "convert_help_tool",
+        "tokenize_version_tool",
         "list_rulesets",
         "list_rules",
     }

@@ -126,3 +126,31 @@ def test_convert_help_tool_reports_profile_skip() -> None:
     assert result["converted"] is False
     skip_reason = result["skip_reason"]
     assert isinstance(skip_reason, str) and "upgrade" in skip_reason
+
+
+_TOKENIZABLE = (
+    '<tool id="m" name="M" version="1.20+galaxy0" profile="24.0">'
+    "<command><![CDATA[echo x]]></command>"
+    '<requirements><requirement type="package" version="1.20">samtools'
+    "</requirement></requirements>"
+    '<inputs><param name="i" type="text"/></inputs>'
+    '<outputs><data name="o"/></outputs></tool>'
+)
+
+
+def test_tokenize_version_tool_tokenizes() -> None:
+    result = service.tokenize_version_tool(_TOKENIZABLE)
+    assert result["tokenized"] is True
+    assert result["skip_reason"] is None
+    formatted = result["formatted"]
+    assert isinstance(formatted, str)
+    assert 'version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"' in formatted
+    assert '<token name="@TOOL_VERSION@">1.20</token>' in formatted
+
+
+def test_tokenize_version_tool_reports_skip() -> None:
+    plain = _TOKENIZABLE.replace('version="1.20+galaxy0"', 'version="1.20"')
+    result = service.tokenize_version_tool(plain)
+    assert result["tokenized"] is False
+    skip_reason = result["skip_reason"]
+    assert isinstance(skip_reason, str) and "+galaxy" in skip_reason
