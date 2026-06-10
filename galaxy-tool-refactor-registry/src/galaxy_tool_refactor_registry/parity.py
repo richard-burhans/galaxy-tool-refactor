@@ -29,6 +29,12 @@ def _quote_tags(text: str, /) -> str:
 # The narrowest-first ruleset order (the sets nest: cosmetic ⊂ default = iuc ⊂ strict).
 _NARROW_ORDER = ("cosmetic", "default", "iuc", "strict")
 
+# The opt-in conversion codemod: rulesets are empty (so it is not selectable, like
+# the upgrade-only codemods) but it is applied by the dedicated ``convert-help``
+# command, NOT ``upgrade`` — so its tier column stays its real family ("codemod").
+# Hand-known exception, mirroring _NO_OP_DETECT (codemod ``docs/decisions.md`` §38).
+_OPT_IN_COMMAND_CODES = frozenset({"GTR092"})
+
 # The one reserved no-op detector — documented in check ``docs/decisions.md`` D3.
 # It carries a ``detect`` method (uniform interface) but never fires, so the table
 # shows ``—``. The single hand-known exception; everything else detects.
@@ -54,7 +60,11 @@ def render_parity_table() -> str:
         planemo = ", ".join(names) if names else "—"
         detect = "—" if code in _NO_OP_DETECT else "✓"
         fix = "✗" if meta.detect_only else "✓"
-        tier = "upgrade" if code in upgrade_codes else handles[code].family
+        tier = (
+            "upgrade"
+            if code in upgrade_codes - _OPT_IN_COMMAND_CODES
+            else handles[code].family
+        )
         ruleset = next((name for name in _NARROW_ORDER if name in meta.rulesets), "—")
         rows.append(
             f"| {code} | {planemo} | {detect} | {fix} | {tier} | {ruleset} "

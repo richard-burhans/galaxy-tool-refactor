@@ -11,6 +11,9 @@ formatter tier's ``all_rules()``.
 from __future__ import annotations
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
+from galaxy_tool_xml_codemod.codemods.convert_help_markdown import (
+    ConvertHelpToMarkdown,
+)
 from galaxy_tool_xml_codemod.codemods.drop_redundant_param_name import (
     DropRedundantParamName,
 )
@@ -78,5 +81,6 @@ def coded_codemods() -> tuple[type[CodemodCommand], ...]:
         TrimAttributeWhitespace,
         ReplaceOutputElement,
         DropRedundantParamName,
+        ConvertHelpToMarkdown,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))

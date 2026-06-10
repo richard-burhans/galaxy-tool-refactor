@@ -832,7 +832,7 @@ currently legitimate, which is exactly why they belong in an allowlist:
 | `codemod/_coarse_detect.py:53,55` | before/after `tostring` to detect change (internal compare) |
 | `codemod/cursor.py` | serialise one element to a `str` for read-only CDATA-wrap inspection (GTR018/019, added 2026-06-03) |
 | `registry/facade.py:89,175`, `registry/macro_profile.py:188` | write **fmt-produced** bytes to disk |
-| `cli/cli.py` (`rename-param`) | write **fmt-produced** bytes from `facade.rename_param` to disk |
+| `cli/cli.py` (`rename-param`, `convert-help`) | write **fmt-produced** bytes from `facade.rename_param` / `facade.convert_help` to disk (convert-help writes after `make_backup` — an ordering the facade's `write_path` cannot express) |
 
 **Proposal:** add an architecture test (in registry or a workspace-level
 `tests/`) that greps `*/src/**` for `etree.tostring(` / `.write_bytes(` and fails

@@ -15,7 +15,8 @@ rules land; upgrade-only codemods GTR007–GTR016 are applied by `upgrade`, not 
 
 The **ruleset** column shows the *narrowest* named set a rule belongs to; the sets nest
 (`cosmetic` ⊂ `default` = `iuc` ⊂ `strict`), so a rule is also in every wider set. `—` marks
-the upgrade-only rules, which are not ruleset-selectable (the `upgrade` command applies them).
+the rules that are not ruleset-selectable: the upgrade-only rules (the `upgrade` command
+applies them) and the opt-in `convert-help` conversion codemod (GTR092).
 Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisions.md` D15.
 
 > The table below is **generated** from rule metadata by `uv run python -m
@@ -119,6 +120,7 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR089.2 | HelpInvalidRST | ✓ | ✗ | check | strict | A `<help>` body should be valid reStructuredText (the non-fixable residual). |
 | GTR090 | OutputsFormatSourceReference, OutputsStructuredLikeReference | ✓ | ✗ | check | strict | Output structured_like/format_source must reference an input param. |
 | GTR091 | InputsDataFormat | ✓ | ✗ | check | strict | A data param should declare the format(s) it accepts. |
+| GTR092 | — | ✓ | ✓ | codemod | — | Convert an RST `<help>` body to Markdown (format="markdown") when the markdown-it rendering is provably equivalent to the docutils rendering (opt-in convert-help only; requires profile >= 24.2). |
 <!-- END GENERATED -->
 
 The remaining unmapped planemo linters (the ~80 correctness checks + the advisory-by-design

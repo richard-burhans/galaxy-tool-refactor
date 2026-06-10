@@ -614,6 +614,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+markdown = [
+    { name = "markdown-it-py" },
+]
 shell-oracle = [
     { name = "bashlex" },
 ]
@@ -636,10 +639,11 @@ requires-dist = [
     { name = "docutils", specifier = ">=0.21" },
     { name = "galaxy-util", extras = ["template"], specifier = ">=24,<27" },
     { name = "lxml", specifier = ">=5" },
+    { name = "markdown-it-py", marker = "extra == 'markdown'", specifier = ">=4" },
     { name = "packaging", specifier = ">=23" },
     { name = "xsdata", extras = ["lxml"], specifier = ">=26.2" },
 ]
-provides-extras = ["shell-oracle"]
+provides-extras = ["shell-oracle", "markdown"]
 
 [package.metadata.requires-dev]
 dev = [

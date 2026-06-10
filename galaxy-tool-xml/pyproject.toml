@@ -31,6 +31,14 @@ dependencies = [
 # an extra: it is a base dependency above. cheetah_cdm still returns None on the ~0.4%
 # of bodies CT3 cannot compile, where callers fall back to the regex; see §19.)
 shell-oracle = ["bashlex>=0.18"]
+# The RST->Markdown <help> conversion gate (galaxy_tool_xml.rst_markdown):
+# markdown-it-py's "js-default" preset renders the converted CommonMark exactly as
+# Galaxy's client does (MarkdownIt({html:false})), and a conversion is kept only
+# when that rendering is semantically equal to the docutils server rendering.
+# Conversion without the gate is unsound, so the feature refuses cleanly when this
+# extra is absent (markdown_renderer_available()). MIT, but opt-in-feature-only ->
+# an extra, not a base dep (the bashlex pattern; it IS in dev so tests run in CI).
+markdown = ["markdown-it-py>=4"]
 
 [project.scripts]
 galaxy-tool-xml = "galaxy_tool_xml.cli:main"
@@ -106,5 +114,5 @@ exclude = "src/galaxy_tool_xml/models/(v[0-9].*|any_tool\\.py)"
 # lxml, galaxy-util, bashlex (the shell-oracle extra), and Cheetah/CT3 (the faithful
 # lexer, a base dependency) ship no type information.
 [[tool.mypy.overrides]]
-module = ["lxml.*", "galaxy.*", "bashlex.*", "Cheetah.*", "docutils.*"]
+module = ["lxml.*", "galaxy.*", "bashlex.*", "Cheetah.*", "docutils.*", "markdown_it.*"]
 ignore_missing_imports = true

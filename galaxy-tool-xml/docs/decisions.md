@@ -1193,3 +1193,46 @@ directly; it is transitive through tier 1.)
 uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_rst.py
 uv run python -m scripts.measure help-rst-errors   # the fixable-class population
 ```
+
+## 24. `<help>` RST → Markdown conversion + render-equivalence gate (`rst_markdown`)
+
+**Date:** 2026-06-10
+
+The converter + gate behind the GTR092 opt-in conversion (codemod §38) and the
+`help-rst-md-convert` standing measure — promoted here from `scripts/measure.py`
+when the conversion capability shipped, so the measure and the codemod run the
+same code paths.
+
+- **Rendering model (verified in the Galaxy clone):** RST renders **server-side**
+  (`galaxy.util.rst_to_html` = docutils html4css1; `ToolHelpRst.vue` just
+  `v-html`s it); `format="markdown"` renders **client-side** (`ToolHelpMarkdown.vue`
+  → `MarkdownIt({html:false}).render`, markdown-it ^14 default preset). Conversion
+  **swaps the engine** — behaviour-changing by construction — hence the gate.
+- **`rst_to_commonmark(text)`** — a whitelist doctree visitor (sections→ATX,
+  paragraphs, em/strong/literal, fenced literal blocks, bullet/enum lists,
+  block quotes, transitions, links, images) that **bails on the first node with
+  no CommonMark form**; returns `(markdown, None)` or `(None, bail_class)`.
+- **`conversion_is_render_equivalent(rst, md)`** — renders both sides exactly as
+  Galaxy does (docutils html4css1 vs markdown-it-py `js-default`, `html:false`),
+  reduces each to a normalized semantic skeleton (canonical tag names,
+  `<tt>`→`<code>`, fenced `<pre><code>`→`<pre>`, loose-vs-tight list `<p>`
+  unwrapped, whitespace insignificant at block boundaries only), and accepts iff
+  equal. Negative-controlled (corruptions are rejected; pinned by tests).
+- **`convert_help_rst(text)`** — the composed pipeline: invalid RST goes through
+  the §23 surgical repair first (itself gated), then convert, then gate (against
+  the repaired text — what Galaxy would render). `None` unless *provably*
+  convertible.
+- **Dependency:** markdown-it-py rides the **`[markdown]` extra**
+  (`markdown_renderer_available()` is the LBYL check) — the gate is mandatory,
+  so an absent extra means refusal, never a blind conversion. MIT, but the
+  capability is opt-in, so it follows the bashlex extra pattern, not the CT3
+  base-dep pattern. It stays a dev dep so the tests run in CI.
+- **Corpus:** 72.2 % of RST `<help>` bodies convert + pass the gate
+  (`scripts.measure help-rst-md-convert`, R4 — the measure imports this module).
+
+### Reproduced by
+
+```sh
+uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_rst_markdown.py
+uv run python -m scripts.measure help-rst-md-convert   # needs the corpus
+```

@@ -56,6 +56,7 @@ What each GTR rule does, across both tiers. *fmt*-tier rules are the cosmetic ru
 | GTR036 | codemod | Replace a deprecated `<outputs>``<output type="data">` with `<data>` (collection / expression outputs are left for the advisory check). |
 | GTR037 | codemod | Drop a `<param>` 'name' that equals the name Galaxy derives from its 'argument' (redundant; argument implies the same name). |
 | GTR089.1 | codemod | Repair deterministically-fixable invalid `<help>` reStructuredText (short title underlines, missing blank lines) behind a behaviour-preserving gate. |
+| GTR092 | codemod | Convert an RST `<help>` body to Markdown (format="markdown") when the markdown-it rendering is provably equivalent to the docutils rendering (opt-in convert-help only; requires profile >= 24.2). |
 
 ## Pass 1 rule triggers (raw input → canonical)
 

@@ -409,3 +409,16 @@ uv run --package galaxy-tool-refactor-cli pytest \
   galaxy-tool-refactor-cli/tests/test_cli.py -k across_importers
 uv run galaxy-tool-refactor rename-param old new tools/ --repo-root . --across-importers
 ```
+
+## D12 (2026-06-10) — `convert-help`: the opt-in RST → Markdown command
+
+The ninth subcommand, following the `normalize-macros` precedent (D7): a
+behaviour-changing operation gets a **deliberate, separate command**, never a
+flag on `format`/`upgrade`. `convert-help PATHS [--check] [--backup]` walks tool
+files (`iter_targets`/`is_tool_root`), calls the facade's `convert_help`
+(registry D18), writes in place on success, and prints the codemod's own skip
+reason otherwise — including the actionable "profile below 24.2 — run `upgrade`
+first" gate (`<help format=…>` is not XSD-valid earlier; codemod §38). Skips are
+informational (exit 0); read/parse errors exit non-zero. Requires the
+`galaxy-tool-xml[markdown]` extra; without it every tool is skipped with an
+install hint, and nothing is ever converted ungated.

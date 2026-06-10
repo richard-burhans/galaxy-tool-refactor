@@ -38,6 +38,12 @@ _ALLOWLIST: dict[str, tuple[frozenset[str], str]] = {
         frozenset({".write_bytes("}),
         "writes fmt-produced canonical bytes to disk",
     ),
+    "galaxy-tool-refactor-cli/src/galaxy_tool_refactor_cli/cli.py": (
+        frozenset({".write_bytes("}),
+        "convert-help writes facade-produced (fmt-serialised) bytes after "
+        "make_backup; the write-after-backup ordering is CLI policy the "
+        "facade's write_path cannot express",
+    ),
     "galaxy-tool-refactor-registry/src/galaxy_tool_refactor_registry/facade.py": (
         frozenset({".write_bytes("}),
         "writes fmt-produced canonical bytes when a write_path is given",

@@ -77,7 +77,10 @@ rename a parameter across a tool's Cheetah sections (the latter renders the rena
 either as a tree mutation, `rename_param`, or as minimal source offsets,
 `rename_param_plan`, for editor / LSP use); `bundle.py` extends the rename across a
 tool *and its imported macro files* (`ToolBundle` / `load_bundle` /
-`rename_param_in_bundle`); `models/` holds an xsdata-generated
+`rename_param_in_bundle`); `rst.py` / `rst_markdown.py` own the `<help>`
+reStructuredText subsystem — validity + surgical repair (the GTR089 partition seam)
+and the render-equivalence-gated RST → Markdown conversion (GTR092; needs the
+`[markdown]` extra); `models/` holds an xsdata-generated
 read-only typed model for every vendored schema version, reached via
 `ToolDocument.model()`.
 

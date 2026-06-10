@@ -58,6 +58,12 @@ contracts in ``canonical.py``:
 - ``AUTO_UPGRADE_CODEMODS`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
   ``UpgradeToLatest`` (the opt-in profile-upgrade pipeline).
 
+``ConvertHelpToMarkdown`` (GTR092, ``docs/decisions.md`` §38) is in neither
+pipeline: the catalog's first **opt-in-command-only** codemod (no ruleset; applied
+solely by the app's ``convert-help``) — the RST → Markdown ``<help>`` conversion
+behind tier-1 ``rst_markdown``'s render-equivalence gate + the profile ≥ 24.2 XSD
+gate.
+
 ``FixTypos``, ``NormalizeBooleanValues`` (GTR017 — boolean-case repair, the
 ``True``/``False`` → ``true``/``false`` fix ``FixTypos`` cannot reach), and
 ``UpgradeToLatest`` (which loops ``UpdateProfile`` + single-step ``upgrade_vN``
