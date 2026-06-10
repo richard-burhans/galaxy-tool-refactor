@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import importlib.resources
 import json
 import logging
 import re
@@ -5283,6 +5284,116 @@ def _run_rename_macro_spread(args: argparse.Namespace) -> None:
         print(f"\nwrote {_display_path(out_path)}")
 
 
+
+# --- measurement: xsd-tightenings -------------------------------------------------
+#
+# The systematic per-release tightening ladder behind the Upgrade_vN gap audit
+# (docs/deferred_fix_opportunities.md): diff every adjacent pair of vendored XSDs
+# and report only the deltas that can STRAND an existing tool — an attribute site
+# moving from a builtin type to a restricted simpleType (`typed`), an attribute
+# becoming `use="required"` (`required`), an existing simpleType's pattern set
+# changing (`pattern-changed`), and enum members being REMOVED (`enums-removed`).
+# Enum additions are widenings (more permissive) and are deliberately ignored.
+# Schema-only — no corpus needed, so the fixture test runs in CI.
+
+_XS = "{http://www.w3.org/2001/XMLSchema}"
+
+
+@dataclass
+class _XsdTighteningsResult:
+    """Per-version-pair schema deltas that can strand an existing tool."""
+
+    versions: list[str]
+    # (from_version, to_version, kind, site, detail)
+    rows: list[tuple[str, str, str, str, str]]
+
+
+def _xsd_model(
+    path: Path, /
+) -> tuple[dict[str, tuple[tuple[str, ...], frozenset[str]]], dict[str, tuple[str | None, str | None]]]:
+    """Reduce one XSD to comparable maps: simpleType facets + attribute sites."""
+    root = etree.parse(str(path)).getroot()
+    simple: dict[str, tuple[tuple[str, ...], frozenset[str]]] = {}
+    for st in root.findall(f"{_XS}simpleType"):
+        name = st.get("name")
+        if name is None:
+            continue
+        patterns = tuple(
+            value
+            for pat in st.iter(f"{_XS}pattern")
+            if (value := pat.get("value")) is not None
+        )
+        enums = frozenset(
+            value
+            for enum in st.iter(f"{_XS}enumeration")
+            if (value := enum.get("value")) is not None
+        )
+        simple[name] = (patterns, enums)
+    sites: dict[str, tuple[str | None, str | None]] = {}
+    for ct in root.findall(f"{_XS}complexType"):
+        ct_name = ct.get("name")
+        for attr in ct.iter(f"{_XS}attribute"):
+            sites[f"{ct_name}.{attr.get('name')}"] = (attr.get("type"), attr.get("use"))
+    return simple, sites
+
+
+def _measure_xsd_tightenings(*, schema_dir: Path) -> _XsdTighteningsResult:
+    """Diff adjacent vendored XSDs for tool-stranding deltas (see section comment)."""
+    versions = sorted(
+        (path.stem.removeprefix("galaxy-") for path in schema_dir.glob("galaxy-*.xsd")),
+        key=Version,
+    )
+    rows: list[tuple[str, str, str, str, str]] = []
+    previous: tuple[str, dict, dict] | None = None
+    for version in versions:
+        simple, sites = _xsd_model(schema_dir / f"galaxy-{version}.xsd")
+        if previous is not None:
+            prev_version, prev_simple, prev_sites = previous
+            for name in sorted(set(simple) & set(prev_simple)):
+                old_patterns, old_enums = prev_simple[name]
+                new_patterns, new_enums = simple[name]
+                if old_patterns != new_patterns:
+                    rows.append(
+                        (prev_version, version, "pattern-changed", name,
+                         f"{old_patterns} -> {new_patterns}")
+                    )
+                removed = old_enums - new_enums
+                if removed:
+                    rows.append(
+                        (prev_version, version, "enums-removed", name,
+                         ",".join(sorted(removed)))
+                    )
+            for site in sorted(set(sites) & set(prev_sites)):
+                old_type, old_use = prev_sites[site]
+                new_type, new_use = sites[site]
+                old_builtin = old_type is None or old_type.startswith("xs:")
+                new_builtin = new_type is None or new_type.startswith("xs:")
+                if old_builtin and not new_builtin:
+                    rows.append(
+                        (prev_version, version, "typed", site,
+                         f"{old_type or 'xs:string'} -> {new_type}")
+                    )
+                if old_use != "required" and new_use == "required":
+                    rows.append((prev_version, version, "required", site, ""))
+        previous = (version, simple, sites)
+    return _XsdTighteningsResult(versions=list(versions), rows=rows)
+
+
+def _report_xsd_tightenings(measurement: _XsdTighteningsResult) -> None:
+    print("\n=== xsd-tightenings ===")
+    print(f"Vendored schema versions diffed: {len(measurement.versions)}")
+    print(f"Tool-stranding deltas (typed / required / pattern-changed / enums-removed): {len(measurement.rows)}")
+    for from_version, to_version, kind, site, detail in measurement.rows:
+        suffix = f"  {detail}" if detail else ""
+        print(f"  {from_version} -> {to_version}: {kind:16s} {site}{suffix}")
+
+
+def _run_xsd_tightenings(args: argparse.Namespace) -> None:
+    schema_resource = importlib.resources.files("galaxy_tool_xml") / "schema"
+    with importlib.resources.as_file(schema_resource) as schema_dir:
+        _report_xsd_tightenings(_measure_xsd_tightenings(schema_dir=schema_dir))
+
+
 # --- measurement: interpreter-bucket-split --------------------------------------
 #
 # Sizes the auto-fixable population for a `16_04_fix_interpreter` codemod (GTR016;
@@ -6598,6 +6709,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "cheetah-cdm-bails": _run_cheetah_cdm_bails,
     "rename-coverage": _run_rename_coverage,
     "rename-macro-spread": _run_rename_macro_spread,
+    "xsd-tightenings": _run_xsd_tightenings,
     "interpreter-bucket-split": _run_interpreter_buckets,
     "output-format-input": _run_output_format_input,
     "help-formats": _run_help_formats,

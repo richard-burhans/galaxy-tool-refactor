@@ -180,3 +180,59 @@ Criteria: **(i)** novel-tool benefit (likelihood × severity of the gap),
 | 6 | **A3 — GTR032 precise detector** | revisit condition met, but advisory-only payoff on a ~1-tool pattern; build when the CT3 classifier is wanted for other command checks anyway |
 
 Ranking approved by the maintainer 2026-06-10; work proceeds top-down.
+
+---
+
+## Profile-step (Upgrade_vN) gap audit — 2026-06-10
+
+A systematic answer to "which profile crossings could we provably auto-fix but
+don't?": diff **every adjacent pair of the 28 vendored XSDs** for tool-stranding
+deltas (`scripts.measure xsd-tightenings` — typed / required / pattern-changed /
+enums-removed; enum *additions* are widenings and ignored), then verify each
+candidate against Galaxy source. The corpus side is nearly exhausted: the
+authoritative upgrade-discovery residual is **41 tools** below latest — 39 at
+24.1 (the documented §14 residual: macro-reachable via `normalize-macros`, junk,
+comma-lists), 1 at 21.05 (a tool bug, `has_size/@delta_frac`, recorded in
+`PLAN.md`), and 1 at 21.09 (fixed by GTR093). So everything below is
+**novel-tool insurance**, sized at ~0 corpus tools by construction-level greps
+(1,795 `<exit_code>` elements: 0 use the `value=` alias, 0 lack both attrs; 0
+spaced `has_size` values).
+
+**Known measure limitation (no silent caps):** `xsd-tightenings` diffs
+*attribute* sites; an element-**content** typing (e.g. 21.01's
+`MacroImportType` on `<import>` text, which forbids path separators) is found
+only via its NEW-simpleType row — listed below by hand.
+
+### Already covered
+
+- 21.09→22.01 `collection_type` ×4 sites — GTR093 (param list site; the
+  single-value sites are construction-unprovable, §41).
+- 24.1→24.2 `Format`/`FormatList` ×5 sites — GTR010.
+- Off-enum values at every step (`DetectErrorType`, `HelpFormatType`,
+  `InputsConfigfileDatastyleType`, the 23.2 `ParamType` `library_data`
+  removal…) — `FixTypos` (GTR006), whose validation-driven near-miss repair is
+  generic over enum-typed attributes.
+- Widenings/moot: 22.05 `Bytes` (now allows 0), 25.0 collection types (new
+  alternatives).
+
+### Open gap candidates (G-series)
+
+| ID | Delta (boundary) | Status of proof | What it would take |
+|---|---|---|---|
+| **G1** | `ExitCode.range` required (22.01) | **Proven** (Galaxy `xml.py:1248-1253`): `range` falls back to the `value` attribute (aliases), and an element with *neither* is silently skipped (`continue`) | two small fixes in one codemod: rename `value=`→`range=`; delete the dead no-range-no-value `<exit_code>` |
+| **G2** | `AssertHasSize.value`/`delta` → `Bytes` (22.01) | half-proven: `delta` was `xs:integer` (whitespace collapses by facet — strip is a schema no-op); `value` was `xs:string` — needs the assertion parser's size-string handling read | confirm the `has_size` parser strips/int()s, then a strip normalizer |
+| **G3** | `Regex.match` required (22.01) | unproven — needs the stdio `<regex>` parser's missing-`match` default read | one source read, then either a default-injection or a documented decline |
+| **G4** | `Repeat.name` (22.01) / `Conditional.name` (24.0) required | hazard identified: a synthesized name leaks into the tool's API surface (workflows/tests address params by qualified name) — likely a decline | check what pre-boundary Galaxy did with nameless groups; expect "document, don't fix" |
+| **G5** | `RangeType` pattern change (22.01) | unproven — old pattern admitted `""` and degenerate colon forms | read the in_range validator's parse of those forms |
+| **G6** | `MacroImportType` element-content pattern (21.01) — forbids `/` in `<import>` paths | **unprovable** (the path is meaningful; no rewrite preserves it) | document-only |
+| — | `ParamConversion`/`RequestParameter` required ×4 (18.01) | pre-broken class: `data_source`-tool internals, missing values likely nonfunctional pre-18.01 | low priority; verify-then-decline |
+
+### Proposed ranking
+
+1. **G1** — proof complete today, two fixes, `<exit_code>` is common in legacy
+   tools (1,795 corpus elements even though none currently trip it).
+2. **G2** — half-proven, trivially small once the parser read confirms.
+3. **G3** — one source read away from a verdict either way.
+4. **G5** — research; small population by construction.
+5. **G4** — expect a documented decline (API-surface hazard).
+6. **G6 / 18.01 row** — document-only.

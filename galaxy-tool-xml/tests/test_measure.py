@@ -53,6 +53,7 @@ from scripts.measure import (
     _measure_upgrade_behavior_blocks,
     _measure_upgrade_headroom,
     _measure_version_tokenization,
+    _measure_xsd_tightenings,
     _ParamTypesResult,
     _render_behavior_block_page,
     _render_macro_stats_page,
@@ -994,6 +995,62 @@ def test_measure_rename_macro_spread_classifies(tmp_path: Path) -> None:
     # Every spill here is over a tool that DEFINES the param, so the old single-file
     # rename would have "succeeded" while dangling the macro ref: all 3 silent breaks.
     assert result.n_silent_break_today == 3
+
+
+# --- xsd-tightenings --------------------------------------------------------------
+
+
+def test_measure_xsd_tightenings_classifies(tmp_path: Path) -> None:
+    xs = "http://www.w3.org/2001/XMLSchema"
+    (tmp_path / "galaxy-1.0.xsd").write_text(
+        f"""<xs:schema xmlns:xs="{xs}">
+  <xs:simpleType name="Color"><xs:restriction base="xs:string">
+    <xs:enumeration value="red"/><xs:enumeration value="blue"/>
+  </xs:restriction></xs:simpleType>
+  <xs:simpleType name="Range"><xs:restriction base="xs:string">
+    <xs:pattern value="loose"/>
+  </xs:restriction></xs:simpleType>
+  <xs:simpleType name="Mood"><xs:restriction base="xs:string">
+    <xs:enumeration value="happy"/>
+  </xs:restriction></xs:simpleType>
+  <xs:complexType name="Thing">
+    <xs:attribute name="size" type="xs:string"/>
+    <xs:attribute name="name" type="xs:string"/>
+  </xs:complexType>
+</xs:schema>""",
+        encoding="utf-8",
+    )
+    (tmp_path / "galaxy-2.0.xsd").write_text(
+        f"""<xs:schema xmlns:xs="{xs}">
+  <xs:simpleType name="Color"><xs:restriction base="xs:string">
+    <xs:enumeration value="red"/>
+  </xs:restriction></xs:simpleType>
+  <xs:simpleType name="Range"><xs:restriction base="xs:string">
+    <xs:pattern value="tight"/>
+  </xs:restriction></xs:simpleType>
+  <xs:simpleType name="Mood"><xs:restriction base="xs:string">
+    <xs:enumeration value="happy"/><xs:enumeration value="calm"/>
+  </xs:restriction></xs:simpleType>
+  <xs:simpleType name="Size"><xs:restriction base="xs:string">
+    <xs:pattern value="[0-9]+"/>
+  </xs:restriction></xs:simpleType>
+  <xs:complexType name="Thing">
+    <xs:attribute name="size" type="Size"/>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+  </xs:complexType>
+</xs:schema>""",
+        encoding="utf-8",
+    )
+    result = _measure_xsd_tightenings(schema_dir=tmp_path)
+    assert result.versions == ["1.0", "2.0"]
+    kinds = {(kind, site) for _, _, kind, site, _ in result.rows}
+    assert ("enums-removed", "Color") in kinds  # blue removed = narrowing
+    assert ("pattern-changed", "Range") in kinds
+    assert ("typed", "Thing.size") in kinds
+    assert ("required", "Thing.name") in kinds
+    # Mood only GAINED an enum (a widening) -> no row for it.
+    assert not any(site == "Mood" for _, _, _, site, _ in result.rows)
+    assert len(result.rows) == 4
 
 
 # --- interpreter-bucket-split ---------------------------------------------------
