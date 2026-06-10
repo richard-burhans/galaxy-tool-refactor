@@ -23,6 +23,7 @@ from scripts.measure import (
     _cross_source_key_matches,
     _ExpansionGapResult,
     _facts_from_macro_container,
+    _gate_passes,
     _measure_cheetah_cdm_bails,
     _measure_cheetah_cdm_coverage,
     _measure_cheetah_command_complexity,
@@ -33,6 +34,7 @@ from scripts.measure import (
     _measure_help_formats,
     _measure_help_rst_errors,
     _measure_help_rst_features,
+    _measure_help_rst_md_convert,
     _measure_help_rst_to_markdown,
     _measure_interpreter_buckets,
     _measure_iuc011_fixability,
@@ -57,6 +59,7 @@ from scripts.measure import (
     _render_macro_stats_page,
     _render_profile_ownership_page,
     _render_profile_shift_page,
+    _rst_to_commonmark,
     _tally_applicability,
     _tally_behavior_blocks,
     _tally_expansion_gap,
@@ -1757,3 +1760,71 @@ def test_help_rst_measures_empty_corpus(tmp_path: Path) -> None:
     assert _measure_help_rst_errors(corpus_root=tmp_path).n_rst_tools == 0
     assert _measure_help_rst_features(corpus_root=tmp_path).n_rst_tools == 0
     assert _measure_help_rst_to_markdown(corpus_root=tmp_path).n_rst_tools == 0
+    assert _measure_help_rst_md_convert(corpus_root=tmp_path).n_rst_tools == 0
+
+
+# --- RST -> CommonMark converter + render-equivalence gate (help-rst-md-convert) --
+
+
+@pytest.fixture()
+def rst_md_convert_corpus(tmp_path: Path) -> Path:
+    """Synthetic corpus pinning each ``help-rst-md-convert`` verdict class."""
+    repo = tmp_path / "owner" / "convert-repo"
+    repo.mkdir(parents=True)
+
+    def _tool(name: str, body: str) -> None:
+        (repo / name).write_text(
+            f"<tool id='{name}'><help>{body}</help></tool>", encoding="utf-8"
+        )
+
+    # Whitelist-only nodes; renders identically both sides -> CONVERT + gate PASS.
+    _tool(
+        "pass.xml",
+        "\nTitle\n=====\n\nA paragraph with **bold** and a "
+        "`link &lt;https://example.org&gt;`_.\n\n- item one\n- item two\n",
+    )
+    # A definition list has no CommonMark form -> converter BAIL.
+    _tool("bail.xml", "\nterm\n   the definition\n")
+    # An RST literal may contain a backtick; the single-backtick CommonMark code
+    # span the converter emits cannot -> renders differently -> gate FAIL.
+    _tool("gatefail.xml", "\nA paragraph with a ``lit`eral`` span.\n")
+    return tmp_path
+
+
+def test_help_rst_md_convert_verdict_classes(rst_md_convert_corpus: Path) -> None:
+    result = _measure_help_rst_md_convert(corpus_root=rst_md_convert_corpus)
+    assert result.n_rst_tools == 3
+    assert result.n_pass == 1
+    assert result.n_bail == 1
+    assert result.n_gate_fail == 1
+    assert result.bail_classes == [("definition_list", 1)]
+
+
+def test_rst_to_commonmark_converts_the_whitelist() -> None:
+    markdown, bail = _rst_to_commonmark(
+        "Title\n=====\n\nSome *em* and ``code``.\n\n- a\n- b\n"
+    )
+    assert bail is None
+    assert markdown is not None
+    assert "# Title" in markdown
+    assert "*em*" in markdown
+    assert "`code`" in markdown
+    assert "- a" in markdown
+
+
+def test_rst_to_commonmark_bails_on_non_commonmark_nodes() -> None:
+    markdown, bail = _rst_to_commonmark("A paragraph.\n\n:field: value\n")
+    assert markdown is None
+    assert bail == "field_list"
+
+
+def test_gate_rejects_a_corrupted_conversion() -> None:
+    """Negative control: the gate must reject a semantically-different conversion."""
+    rst = "Some **strong** text.\n"
+    markdown, bail = _rst_to_commonmark(rst)
+    assert bail is None and markdown is not None
+    assert _gate_passes(rst, markdown)
+    # strong -> em, dropped word, code -> plain: all must be rejected.
+    assert not _gate_passes(rst, markdown.replace("**strong**", "*strong*"))
+    assert not _gate_passes(rst, markdown.replace("**strong** ", ""))
+    assert not _gate_passes(rst, markdown.replace("**strong**", "strong"))

@@ -212,11 +212,17 @@ uv run python -m scripts.measure help-formats
 # help-rst-errors buckets docutils validity errors + sizes the deterministically-fixable
 # subset (the GTR089.1 auto-fix target: ~62 tools / 32% of invalid); help-rst-features
 # inventories RST node types + the non-CommonMark blockers; help-rst-to-markdown reports
-# the RST->Markdown convertibility 2x2 (valid+convertible 74.5%). Markdown target =
+# the RST->Markdown convertibility 2x2 (valid+convertible 74.5%, a node-type shape
+# heuristic); help-rst-md-convert runs the REAL doctree->CommonMark converter + the
+# render-equivalence gate (docutils html4css1 vs markdown-it-py "js-default", html:false
+# — each side rendered exactly as Galaxy does; semantic-skeleton equality) and reports
+# the true behaviour-equivalent convertible population: 72.2% PASS / 24.3% bail / 3.5%
+# gate-fail (needs markdown-it-py, a galaxy-tool-xml dev dep). Markdown target =
 # markdown-it ^14 default preset (CommonMark+tables+strikethrough, html:false):
 uv run python -m scripts.measure help-rst-errors
 uv run python -m scripts.measure help-rst-features
 uv run python -m scripts.measure help-rst-to-markdown
+uv run python -m scripts.measure help-rst-md-convert
 
 # Cheetah complexity of <command> + inline <configfile> (directive/variable-shape/
 # hazard distribution; heuristic regex, not a Cheetah parse). Backs
