@@ -401,10 +401,11 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
 - **`registry()` / `all_handles()` / `by_code` / `known_codes` / `advisory_codes`**
   — `registry.py` — the cached `code -> RuleHandle` index. `registry()` is the
   **selectable** set (canonical codemods + cosmetic fmt + advisory checks);
-  `all_handles()` additionally includes the **upgrade-only** codemods
+  `all_handles()` additionally includes the **non-selectable** codemods
   (GTR007–GTR012 — internal to `UpgradeToLatest` — plus the runtime-gated
-  GTR014–GTR016, applied by the facade's `upgrade`), which are not independently
-  selectable.
+  GTR014–GTR016, applied by the facade's `upgrade`, plus the opt-in-command-only
+  GTR092, applied by `convert-help`; `adapters.non_selectable_codemods` /
+  `OPT_IN_COMMAND_BY_CODE`).
   `_index()` asserts the GTR namespace is **collision-free** — a reused code
   fails loudly here.
 - **Rulesets** — `rulesets.py` — named rule subsets, **derived from per-rule
@@ -714,4 +715,5 @@ Each abstraction → its file → the decision record that justifies it.
 | GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory, reserved no-op stub — D3) |
 | GTR033 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory — D7) |
 | GTR034 | `UnusedParam` | `galaxy-tool-xml-check/.../checks/inputs.py` | check (advisory — reference-usage) |
-| GTR038–GTR089 | planemo-parity wave (`NoTodoText`, `CommandPresent`, `InputsPresent`, … 52 input/output/test/validator/help checks; GTR089 is the partition row above) | `galaxy-tool-xml-check/.../checks/` (`tool`/`outputs`/`inputs`/`validators`/`tests`/`help`) | check (advisory — planemo parity, D12–D31) |
+| GTR038–GTR091 | planemo-parity wave (`NoTodoText`, `CommandPresent`, `InputsPresent`, … 54 input/output/test/validator/help checks; GTR089 is the partition row above) | `galaxy-tool-xml-check/.../checks/` (`tool`/`outputs`/`inputs`/`validators`/`tests`/`help`) | check (advisory — planemo parity, D12–D32) |
+| GTR092 | `ConvertHelpToMarkdown` | `galaxy-tool-xml-codemod/.../convert_help_markdown.py` | codemod (opt-in `convert-help` command only — §38, registry D18) |

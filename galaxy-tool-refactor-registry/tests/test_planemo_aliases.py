@@ -117,3 +117,26 @@ def test_parity_summary_have_count_matches_metadata() -> None:
         f"{expected_have} — update docs/planemo_linter_parity.md's Summary (or the "
         "exception sets in this test) when planemo_linters aliases change"
     )
+
+
+def test_parity_summary_note_names_every_exception() -> None:
+    """The Summary's derivation note must name each exception-set linter.
+
+    The HAVE count test above pins the *number*; this pins the *prose* — the
+    blockquote note explaining the derivation must mention every member of
+    ``_ALIASED_NOT_HAVE`` / ``_ALIAS_FREE_HAVE``, so a reader can reconcile the
+    count without opening this test file.
+    """
+    text = _PARITY_DOC.read_text(encoding="utf-8")
+    note = re.search(
+        r"^> \*\*Alias-reconciled[^\n]*(?:\n>[^\n]*)*",
+        text,
+        re.MULTILINE,
+    )
+    assert note is not None, "the Summary derivation note is missing"
+    for name in sorted(_ALIASED_NOT_HAVE | _ALIAS_FREE_HAVE):
+        assert f"`{name}`" in note.group(0), (
+            f"the parity Summary derivation note no longer names the exception "
+            f"{name!r} — update docs/planemo_linter_parity.md (or the exception "
+            "sets in this test)"
+        )

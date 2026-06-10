@@ -1,5 +1,68 @@
 # Architectural audit — galaxy-tool-refactor
 
+## Re-audit 2026-06-10 — post RST→Markdown conversion wave (PRs #152–#156)
+
+**Audited commit:** `c346a6d` (main at audit time; the remediation below landed on
+top). Delta scoped from the previous record's `e34a479`: **#152** (planemo-alias
+M3 reconciliation — HAVE derivable from metadata), **#153** (the `help-rst-md-convert`
+measure, R4), **#154** (GTR090/GTR091, the last infra-free planemo linters),
+**#155** (tier-1 `rst_markdown` + **GTR092 `ConvertHelpToMarkdown`** + the
+`convert-help` CLI command), **#156** (the MCP `convert_help_tool` + the GFM
+table/line-block converter extension, 72.2 % → 73.4 % gated).
+
+**Verdict — architecture sound; no High findings, no boundary violations.** The wave
+introduced a genuinely new rule class — the **opt-in-command-only codemod** (no
+ruleset, not selectable, applied solely by a dedicated command; previously the
+no-ruleset set was exactly the upgrade pipeline) — and every finding was the
+naming/doc/test shadow of that class, not a structural problem. Method: two
+read-only delta scouts + source-verified triage (one session), remediation applied
+after the in-flight #156 merged (this session). Triage downgraded the scouts' two
+"High" claims to UX/doc after verifying by execution that `upgrade --select GTR015`
+raises the same `UnknownRuleCode` as `--select GTR092` — the rejection is the
+established contract for non-selectable codes, not a GTR092 regression.
+
+### Applied
+
+1. **Naming (B1–B3):** `adapters.upgrade_only_codemods()` →
+   **`non_selectable_codemods()`** — the set stopped being upgrade-only when GTR092
+   joined it. The hand-known opt-in map moved out of `parity.py`'s private
+   `_OPT_IN_COMMAND_CODES` into **`adapters.OPT_IN_COMMAND_BY_CODE`**
+   (code → dedicated command, today `{"GTR092": "convert-help"}`) so parity,
+   resolve, and the tests share one source. Ripples: registry/parity call sites,
+   the `rules --include-upgrade` help text, registry-module docstrings.
+2. **Selection UX (B4/B5):** `UnknownRuleCode` gained an optional `hint`;
+   `--select`/`--ignore` on a real-but-non-selectable code now says where the rule
+   lives ("GTR092 is applied only by the dedicated `convert-help` command" /
+   upgrade-pipeline wording) instead of a bare "unknown rule code".
+3. **Contract tests (B6/B8/B9):** the vacuous
+   `test_upgrade_only_codemods_declare_no_ruleset` (it asserted the set's own
+   defining predicate) became the **partition tripwire** — non-selectable codes ==
+   explicit `_UPGRADE_PIPELINE_CODES` ∪ `OPT_IN_COMMAND_BY_CODE` (the repo's
+   hand-maintained-list convention), so a new no-ruleset codemod must be filed
+   deliberately. Plus: opt-in codes appear in no ruleset and not in `registry()`
+   (B6); `list_rules()` default excludes GTR092 like GTR012 (B8); the
+   `--select GTR092` hint behaviour is pinned (B4/B5).
+4. **Parity-doc guard (A1):** the Summary HAVE-count test pins the number but not
+   the prose; a new test asserts the Summary's derivation note names every member
+   of `_ALIASED_NOT_HAVE`/`_ALIAS_FREE_HAVE`, so the exception sets stay readable
+   in the doc, not just in the test.
+5. **Doc drift:** ARCHITECTURE.md's reference index had frozen at GTR089 — wave row
+   extended to GTR038–GTR091 (54 checks, D12–D32) and a GTR092 row added; §7's
+   `all_handles()` description and the registry CLAUDE.md "Selectable ≠ all"
+   invariant now name the opt-in-command-only class.
+
+### Accepted as-is
+
+- **B7:** the codemod's hardcoded `_HELP_FORMAT_PROFILE = "24.2"` — pinned by the
+  24.2-vs-24.1 XSD gate test; deriving it from schema introspection buys nothing
+  (the XSD attribute's introduction version is a historical fact, not a moving
+  target).
+
+Scout A also clean-confirmed: zero measure↔tier-1 duplication after #155's move of
+the converter into `rst_markdown.py` (the measure imports it), the `[markdown]`
+extra/dev-dep/mypy wiring is coherent, and the GTR092 decision trail (xml §24,
+codemod §38, registry D18, cli D12, mcp D2) agrees with the code.
+
 ## Re-audit 2026-06-09b — post declarative rulesets + planemo aliases + help-RST repair (PRs #146–#150) + escalation
 
 **Audited commit:** `e34a479` (HEAD at audit time). This record establishes the
