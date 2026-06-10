@@ -88,6 +88,8 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | `<test>` discovered-dataset coverage (a test of a `discover_datasets` output asserts count/elements) — planemo-parity advisory | GTR084 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
 | `<test>` parameters & expectations (test params name real inputs, `expect_failure` coherence, `expect_num_outputs` for filtered outputs, tests assert something) — planemo-parity advisory | GTR085–GTR088 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
 | `<help>` reStructuredText validity (via `docutils`, like Galaxy; `format="markdown"` skipped) — reports the invalid RST the GTR089.1 repair can't safely fix | GTR089.2 | ✅ Shipped | `strict` ruleset; deterministically-fixable subset auto-repaired by GTR089.1; `docs/planemo_linter_parity.md` |
+| Output reference integrity (`structured_like`/`format_source` resolves to an input param, a qualified `a\|b` path, or a sibling output) — planemo-parity advisory | GTR090 | ✅ Shipped | `strict` ruleset; macro-using tools skipped; `docs/planemo_linter_parity.md` |
+| `data` param declares the format(s) it accepts (else the generic `data` type matches everything) — planemo-parity advisory | GTR091 | ✅ Shipped | `strict` ruleset; `docs/planemo_linter_parity.md` |
 | Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTR020.1, the residual stays advisory | GTR020.2 | ✅ Shipped | advisory; provable subset fixed (GTR020.1) |
 | Input `<param>` never referenced anywhere the tool uses it | GTR034 | ✅ Shipped | `strict` ruleset; 189/467 tools (`docs/corpus_check_stats.md`) |
 | Lone-`&` vs `&&` join | GTR032 | 🔭 Roadmap | registry labels it "not yet implemented" |

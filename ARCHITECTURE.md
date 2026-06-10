@@ -35,7 +35,7 @@ load-bearing rule:
 | 1 | **parsing & validation** | `galaxy-tool-xml` | `ToolDocument` / `MacroDocument` (mutable lxml tree = source of truth), `load_tool` / `parse_tool` / `validate_tool`, `newest_valid_profile`, profile resolution, typed xsdata views. **No serializer.** |
 | 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework, `Cursor` mutation primitives, `Change` + `apply_changes`, the bundled codemods, `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` contracts. |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic `Rule`s (indent / blank line / shorthand), the `Edit` union + `apply_edits`, `format_tool_document` + the net-diff `detect_tool_document`, the shared `cli_support` engine, the serializer. **The only tier that serialises canonical output XML.** |
-| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice + planemo-parity checks (66; `CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
+| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice + planemo-parity checks (68; `CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | `RuleHandle` (uniform adapter over all three families), the unified registry, declarative rule-sets, ruff-style selection, and the **library-first** `run` / `upgrade` / `detect` facade. Composes 0.5/1/2/3/3.5. |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros`. CLI plumbing only. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`list_rulesets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
@@ -326,7 +326,7 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   enumerated check set (an explicit list, sorted by code) and the aggregate runner
   (findings sorted by line). Mirrors codemod's `coded_codemods()` and fmt's
   `all_rules()` — the same explicit-list convention across all three rule families;
-  `test_detect.py` pins the count (66) as the acknowledgement gate when the roster
+  `test_detect.py` pins the count (68) as the acknowledgement gate when the roster
   grows.
 - **The checks** — the `checks/` sub-package (split by element/source area:
   `tool.py`, `partition.py`, `outputs.py`, `inputs.py`, `validators.py`,
@@ -344,7 +344,7 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   — its anti-pattern is ~1 tool corpus-wide (D3). **GTR034** (`UnusedParam`) is a
   *reference-usage* advisory (not presence/shape): an `<inputs>` `<param>` never
   referenced anywhere the tool uses it, via the tier-1 all-text identifier scan.
-- **The planemo-parity wave — `GTR038`–`GTR089`** (52 rules, across the `checks/`
+- **The planemo-parity wave — `GTR038`–`GTR091`** (54 rules, across the `checks/`
   submodules) — a
   reimplementation of every *mechanically-reimplementable* planemo (`galaxy.tool_util.lint`)
   linter as a detect-only advisory, grouped by Galaxy source area: citations/TODO
@@ -354,7 +354,7 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   display/idiom, option-filters (`GTR054`–`GTR079`) — the `tests.py` surface
   (`GTR080`–`GTR088`), and `<help>` reStructuredText validity (`GTR089`, which carries
   the `docutils` dependency — now split into the `GTR089.1` repair + `GTR089.2` residual
-  partition, with the predicate in tier 1, xml §23). The whole tier is now **66 checks**
+  partition, with the predicate in tier 1, xml §23). The whole tier is now **68 checks**
   (`GTR018.2`/`GTR019.2`/`GTR020.2`/`GTR089.2` + the flat IUC advisories above + this
   wave). A recurring soundness rule across the wave: a check that would mis-fire when a
   `<macro>` injects the construct it inspects skips that tool (the tier-1

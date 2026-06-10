@@ -1010,3 +1010,50 @@ galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/test_checks.py -k gtr08
   sweep — `scripts.corpus_check codemod …RepairHelpRst`, gated on the codemod's own
   eligibility, 8607 tools — modifies **54**, all idempotent with 0 validity breaks; the
   delta to 63 is the wider parseable population the `check` sweep covers.)
+
+## D32 (2026-06-10) — GTR090/GTR091: the last infra-free planemo linters
+
+### Decision
+
+Close the "mechanical, buildable" remainder of the planemo DETECT backlog — the three
+linters needing neither Galaxy's pydantic models, the datatype registry, the
+filesystem, nor the network:
+
+- **GTR090 `OutputReferencesValid`** (`checks/outputs.py`) — one rule reimplementing
+  `OutputsStructuredLikeReference` + `OutputsFormatSourceReference` (they share
+  planemo's unqualified-reference machinery, `output.py::_check_unqualified_reference`).
+  A `<collection structured_like=…>` / `<data|collection format_source=…>` must
+  resolve: a top-level input param passes; a `format_source` naming a sibling output
+  passes (faithful skip); a `|`-qualified reference is not validated (faithful); an
+  unqualified reference to a *nested* param is flagged with the qualified `cond|param`
+  spelling (planemo's warn), an ambiguous one lists the candidates, an unresolvable
+  one is a dangling reference (planemo's error). The qualified path prefixes only
+  `conditional`/`section` ancestors — a `repeat` contributes nothing — and the name
+  falls back to the argument-derived form (the shared `_param_name`).
+- **GTR091 `DataParamFormatDeclared`** (`checks/inputs.py`) — reimplements
+  `InputsDataFormat`: a `<param type="data">` without `format` accepts the generic
+  `data` type.
+
+### Macro-exposure soundness (the recurring pattern, sized before building)
+
+- **GTR090 skips any macro-using tool** (`has_macros`): an `<expand>` may supply the
+  referenced param — or the sibling output a `format_source` names — so the raw tree
+  cannot prove a reference dangling. Pre-build sizing (ad-hoc walk): **360** tools
+  carry a checkable reference, **254 (71%)** macro-using and skipped, the remainder
+  splitting 41 unqualified-resolvable / 15 ambiguous / 4 dangling. The committed
+  sweep reports **25 tools / 60 findings** (`docs/corpus_check_stats.md`).
+- **GTR091 needs no guard**: attribute presence is raw-tree-stable (expansion cannot
+  add an attribute to a literal `<param>`); macro-supplied params are unseen — the
+  accepted under-report side of the boundary. The committed sweep reports **207
+  tools / 650 findings** (`docs/corpus_check_stats.md`).
+
+With this batch every planemo linter buildable on the raw tree alone is HAVE; the
+~7 remaining DETECT all need external infra (parity-table Summary, now metadata-
+derived at HAVE=114).
+
+### Reproduced by
+
+```sh
+uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/ -k "gtr090 or gtr091"
+uv run python -m scripts.corpus_check check   # regenerates docs/corpus_check_stats.md
+```

@@ -100,3 +100,5 @@ Detect-only IUC best-practice checks. Advisory: `check` reports them but does no
 | GTR087 | check | 618 | 6.7% | 1,610 | A test should set expect_num_outputs when outputs are filtered. |
 | GTR088 | check | 190 | 2.0% | 277 | A test should assert outputs or expectations. |
 | GTR089.2 | check | 177 | 1.9% | 177 | A `<help>` body should be valid reStructuredText (the non-fixable residual). |
+| GTR090 | check | 25 | 0.3% | 60 | Output structured_like/format_source must reference an input param. |
+| GTR091 | check | 207 | 2.2% | 650 | A data param should declare the format(s) it accepts. |

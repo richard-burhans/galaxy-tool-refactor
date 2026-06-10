@@ -46,17 +46,18 @@ predicate). Each `.2` reuses the same tier-1 predicate its fixable sibling
 (`GTR018.1` / `GTR019.1` / `GTR020.1` / `GTR089.1`, codemod tier) uses, so the
 partition is sound and the check never depends on the codemod tier.
 
-On top of those, the tier hosts the **planemo-parity wave `GTR038`–`GTR089`** (52
+On top of those, the tier hosts the **planemo-parity wave `GTR038`–`GTR091`** (54
 rules) — a reimplementation of every mechanically-reimplementable
 `galaxy.tool_util.lint` linter, grouped by source area (citations/TODO, outputs,
 embedded expressions, the full `inputs.py` correctness surface, `tests.py`, and
 `<help>` RST validity via the tier-1 `galaxy_tool_xml.rst` predicate — `GTR089`, now
 split into the `GTR089.1` repair + `GTR089.2` residual partition, so docutils is a
-tier-1 dep, not declared here). The tier is now **66 checks total**. Each
+tier-1 dep, not declared here — plus output reference integrity and data-param
+format, `GTR090`–`GTR091`). The tier is now **68 checks total**. Each
 wave check that a `<macro>` could spoof skips that tool via the tier-1 `has_macros`
 raw-tree guard (`detect()` reads the un-expanded tree). The authoritative
 planemo→GTR map is `../docs/planemo_linter_parity.md`; per-group rationale + corpus
-counts are in `docs/decisions.md` **D12–D31**. See `../docs/iuc_best_practices.md`
+counts are in `docs/decisions.md` **D12–D32**. See `../docs/iuc_best_practices.md`
 for the IUC coverage map and D3–D11 for the command-text + requirement-pinning +
 partition-residual + unused-param decisions.
 

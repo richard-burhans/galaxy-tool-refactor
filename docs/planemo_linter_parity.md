@@ -117,6 +117,8 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR088 | TestsHasExpectations, TestsValid | ✓ | ✗ | check | strict | A test should assert outputs or expectations. |
 | GTR089.1 | HelpInvalidRST | ✓ | ✓ | codemod | default | Repair deterministically-fixable invalid `<help>` reStructuredText (short title underlines, missing blank lines) behind a behaviour-preserving gate. |
 | GTR089.2 | HelpInvalidRST | ✓ | ✗ | check | strict | A `<help>` body should be valid reStructuredText (the non-fixable residual). |
+| GTR090 | OutputsFormatSourceReference, OutputsStructuredLikeReference | ✓ | ✗ | check | strict | Output structured_like/format_source must reference an input param. |
+| GTR091 | InputsDataFormat | ✓ | ✗ | check | strict | A data param should declare the format(s) it accepts. |
 <!-- END GENERATED -->
 
 The remaining unmapped planemo linters (the ~80 correctness checks + the advisory-by-design
@@ -157,9 +159,9 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 111 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), **GTR077–079** (option-filter attributes/expression/references), **GTR080–084** (test assertions/compare/output-correspondence/discovered), **GTR085–088** (test param-in-inputs / expect-failure / expect-num-outputs / has-expectations), **GTR089** (help RST validity, docutils), 2026-06-06 |
+| **HAVE** | 114 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), **GTR077–079** (option-filter attributes/expression/references), **GTR080–084** (test assertions/compare/output-correspondence/discovered), **GTR085–088** (test param-in-inputs / expect-failure / expect-num-outputs / has-expectations), **GTR089** (help RST validity, docutils), 2026-06-06; **GTR090–091** (output structured_like/format_source reference integrity + data-param format), 2026-06-10 |
 | **FIX** (new, auto-fixable) | 0 | **complete** — GTR035/036/037 shipped; the rest of the original FIX candidates reclassified to advisory/detect on inspection (identity-changing or no mechanical equivalent) |
-| **DETECT** (new advisory) | ~10 | correctness checks for the `check` tier (report-only). 52 GTR rules landed so far (GTR038–089) — the **entire `inputs.py` correctness surface**, **all mechanically-reimplementable `tests.py` checks**, and **help RST validity** (GTR089, via `docutils`), plus citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, container/filter/regex validity. **Remaining DETECT** all need external infra or are deliberately deferred: `TestsAssertionValidation`/`TestsCaseValidation` (2, need Galaxy's pydantic models), general `ToolVersionMissing`/`ToolNameMissing`/`ToolIDMissing` (3, XSD-required), `OutputsStructuredLikeReference`/`OutputsFormatSourceReference` (2, mechanical cross-refs — buildable), `ValidDatatypes`/`DatatypesCustomConf` (2, datatype registry / filesystem), `InputsDataFormat` (1, mechanical) |
+| **DETECT** (new advisory) | ~7 | correctness checks for the `check` tier (report-only). 54 GTR rules landed so far (GTR038–091) — the **entire `inputs.py` correctness surface**, **all mechanically-reimplementable `tests.py` checks**, and **help RST validity** (GTR089, via `docutils`), plus citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, container/filter/regex validity, output reference integrity, and data-param format. **Remaining DETECT** all need external infra: `TestsAssertionValidation`/`TestsCaseValidation` (2, need Galaxy's pydantic models), general `ToolVersionMissing`/`ToolNameMissing`/`ToolIDMissing` (3, XSD-required), `ValidDatatypes`/`DatatypesCustomConf` (2, datatype registry / filesystem) |
 | **SKIP** (pass-state) | ~14 | `valid`/`info` reporters — nothing to build |
 | **n/a** (out of scope) | ~11 | CWL (9), filesystem (`required_files`), `ResourceRequirementExpression` |
 | **Total** | 146 | |
@@ -186,19 +188,19 @@ they're **SKIP**.
 
 By our tier, for the **buildable** rows (HAVE + FIX + DETECT):
 - **codemod** (structural fix): the FIX rows below + GTR013/015/016/**035** — ~15
-- **check** (advisory): the DETECT bulk + the advisory HAVEs — **66 GTR check rules shipped**
-  (GTR021–GTR089, detect-only), ~10 planemo advisories still to build
+- **check** (advisory): the DETECT bulk + the advisory HAVEs — **68 GTR check rules shipped**
+  (GTR021–GTR091, detect-only), ~7 planemo advisories still to build
 - **parse/validate**: 1 (XSD)
 
 **Headline:** planemo only *reports*; we *fix* the provably-safe subset (**GTR035/036/037**,
-complete) and **detect the rest** as advisory `check`-tier rules. As of 2026-06-06 the check
-tier has **66 rules** covering the whole `inputs.py` correctness surface, **all
-mechanically-reimplementable `tests.py` checks**, and **help RST validity** (GTR089, via
-`docutils`), plus citations, command, container, general, output, and stdio. Only ~10
-planemo advisories remain, all needing external infra or deliberately deferred: the two
-`tests.py` linters that need Galaxy's pydantic models (`TestsAssertionValidation`,
-`TestsCaseValidation`), general missing name/id/version, output cross-references,
-datatypes (registry/filesystem), and `InputsDataFormat`.
+complete) and **detect the rest** as advisory `check`-tier rules. As of 2026-06-10 the check
+tier has **68 rules** covering the whole `inputs.py` correctness surface, **all
+mechanically-reimplementable `tests.py` checks**, **help RST validity** (GTR089, via
+`docutils`), and **output reference integrity + data-param format** (GTR090–091), plus
+citations, command, container, general, output, and stdio. Only ~7 planemo advisories
+remain, all needing external infra: the two `tests.py` linters that need Galaxy's
+pydantic models (`TestsAssertionValidation`, `TestsCaseValidation`), general missing
+name/id/version (XSD-required), and datatypes (registry/filesystem).
 
 ---
 
@@ -304,11 +306,11 @@ needs author intent. The **FIX** candidates (auto-fixable, our edge):
 | InputsOptionsFiltersRequiredAttributes / …RemoveValueFilterRequiredAttributes / …FiltersAllowedAttributes | error/warn | check | **HAVE** | **GTR077** `<filter>` attribute schema per filter type |
 | InputsOptionsRegexFilterExpression | error | check | **HAVE** | **GTR078** `regexp` filter `value` compiles |
 | InputsOptionsFiltersCheckReferences | error | check | **HAVE** | **GTR079** filter `ref`/`meta_ref` resolves (macro-using tools skipped) |
-| InputsDataFormat | warn | check | DETECT | no `format` → defaults to `data` (fix = risky, leave advisory) |
+| InputsDataFormat | warn | check | **HAVE** | **GTR091** data param with no `format` (defaults to `data`; fix = risky, stays advisory) |
 
-**Group view — the whole `inputs.py` correctness surface is now HAVE** (only
-`InputsDataFormat` stays DETECT, table above; the `InputsNum`/datasource info linters are
-SKIP):
+**Group view — the whole `inputs.py` correctness surface is now HAVE**
+(`InputsDataFormat` was the last holdout, closed by **GTR091**; the
+`InputsNum`/datasource info linters are SKIP):
 - *naming/identity:* **HAVE** — `InputsName` (GTR054), `InputsNameEmpty`/`InputsNameValid` (GTR055), `InputsNameDuplicate` (GTR056), `InputsNameDuplicateOutput` (GTR057)
 - *static select options:* **HAVE** — `InputsSelectOptionsDef`/`…DefConditional` (GTR058), `InputsSelectOptionValueMissing` (GTR059), `InputsSelectOptionDuplicateValue`/`…Text` (GTR060)
 - *dynamic select `<options>`:* **HAVE** — `InputsSelectOptionsMultiple` (GTR061), `…DefinesOptions` (GTR062), `…FromDatasetAndDatatable`/`…MetaFileKey` (GTR063), `InputsSelectDynamicOptions`/`…DeprecatedAttr` (GTR064)
@@ -334,7 +336,7 @@ SKIP):
 | OutputsCollectionType | warn | check | **HAVE** | **GTR042** collection without `type` (lenient: accepts `type_source`/`structured_like`) |
 | OutputsFormat | warn | check | **HAVE** | **GTR049** output without a format (galaxy.json-metadata + macro-`<expand>` exempt) |
 | OutputsFormatSourceIncomp | warn | check | **HAVE** | **GTR043** both `format`/`ext` + `format_source` |
-| OutputsStructuredLikeReference · OutputsFormatSourceReference | warn | check | DETECT | cross-reference integrity |
+| OutputsStructuredLikeReference · OutputsFormatSourceReference | warn | check | **HAVE** | **GTR090** structured_like/format_source must resolve (top-level param, qualified `a\|b` ref, or — format_source — a sibling output); macro-using tools skipped (an `<expand>` may supply the referent: 254/360 corpus candidates) |
 | OutputsNumber | info | — | SKIP | |
 
 ## required_files.py (1) — **n/a** (filesystem)
