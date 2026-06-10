@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 from galaxy_tool_xml_check.checks._shared import (
     _CHEETAH_PLACEHOLDER,
     _IUC,
+    _param_name,
     _violation,
 )
 
@@ -396,3 +397,109 @@ class OutputFilterValid(CheckRule):
                     self.meta,
                     f"output filter {expression!r} is not a valid expression",
                 )
+
+
+def _param_qualified_paths(root: etree._Element, /) -> dict[str, list[str]]:
+    """Unqualified param name -> its qualified ``a|b`` path(s) (planemo's collector).
+
+    A qualified path prefixes only ``conditional``/``section`` ancestor names — a
+    ``repeat`` contributes nothing (faithful to planemo's ``_get_qualified_name``).
+    """
+    paths: dict[str, list[str]] = {}
+    parent_map = {child: parent for parent in root.iter() for child in parent}
+    for param in root.findall("./inputs//param"):
+        name = _param_name(param)
+        if name is None:
+            continue
+        parts = [name]
+        current: etree._Element = param
+        while True:
+            parent = parent_map.get(current)
+            if parent is None:
+                break
+            if parent.tag in ("conditional", "section"):
+                parent_name = parent.get("name")
+                if parent_name:
+                    parts.insert(0, str(parent_name))
+            elif parent.tag in ("inputs", "tool"):
+                break
+            current = parent
+        paths.setdefault(name, []).append("|".join(parts))
+    return paths
+
+
+class OutputReferencesValid(CheckRule):
+    """GTR090 — output ``structured_like``/``format_source`` must reference an input.
+
+    Reimplements planemo `OutputsStructuredLikeReference` +
+    `OutputsFormatSourceReference`:
+    a ``<collection structured_like=…>`` / ``<data|collection format_source=…>``
+    reference must resolve — to a top-level input param (or, for ``format_source``,
+    a sibling output); an unqualified reference to a *nested* param is flagged (use
+    the ``cond|param`` qualified spelling), an ambiguous one likewise, and an
+    unresolvable one is a dangling reference. A ``|``-qualified reference is not
+    validated (faithful to planemo). A macro-using tool is **skipped**: an
+    ``<expand>`` may supply the referenced param or output the raw tree cannot see
+    (the GTR044 soundness boundary; 254 of the 360 corpus tools carrying such a
+    reference). Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR090",
+        summary="Output structured_like/format_source must reference an input param.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+        rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {"OutputsFormatSourceReference", "OutputsStructuredLikeReference"}
+        ),
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        if has_macros(root):
+            return
+        references = [
+            (output, str(output.get("structured_like")), "structured_like")
+            for output in root.findall("outputs/collection[@structured_like]")
+        ]
+        output_names = {
+            output.get("name")
+            for output in root.findall("outputs/data[@name]")
+            + root.findall("outputs/collection[@name]")
+        }
+        for output in root.findall("outputs/data[@format_source]") + root.findall(
+            "outputs/collection[@format_source]"
+        ):
+            reference = str(output.get("format_source"))
+            # format_source may also name a sibling output (planemo skips those).
+            if reference in output_names:
+                continue
+            references.append((output, reference, "format_source"))
+        if not references:
+            return
+        paths = _param_qualified_paths(root)
+        for output, reference, attr in references:
+            if "|" in reference:
+                continue
+            if any(qp == reference for plist in paths.values() for qp in plist):
+                continue  # a top-level param resolves it directly
+            matches = paths.get(reference, [])
+            output_name = output.get("name") or "?"
+            if len(matches) == 1:
+                message = (
+                    f"output '{output_name}': unqualified {attr}='{reference}' — "
+                    f"use the qualified name '{matches[0]}'"
+                )
+            elif matches:
+                message = (
+                    f"output '{output_name}': ambiguous unqualified "
+                    f"{attr}='{reference}' (matches {', '.join(matches)})"
+                )
+            else:
+                message = (
+                    f"output '{output_name}': {attr}='{reference}' does not match "
+                    "any input parameter"
+                )
+            yield _violation(document, output, self.meta, message)

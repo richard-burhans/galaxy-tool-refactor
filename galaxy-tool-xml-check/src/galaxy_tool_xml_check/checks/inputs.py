@@ -1263,3 +1263,36 @@ class OptionFilterReferences(CheckRule):
                         f"parameter '{name}' filter {ref_attr} '{ref}' refers to a "
                         "non-existent parameter",
                     )
+
+
+class DataParamFormatDeclared(CheckRule):
+    """GTR091 — a ``data`` param should declare the format(s) it accepts.
+
+    Reimplements planemo `InputsDataFormat`: a ``<param type="data">`` without a
+    ``format`` attribute accepts the generic ``data`` type (every dataset matches).
+    Attribute presence is raw-tree-stable — macro expansion cannot add an attribute
+    to a literal ``<param>`` — so no macro guard is needed; params supplied *by* a
+    macro are simply unseen (the accepted under-report side of the GTR044 boundary).
+    Detect-only.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR091",
+        summary="A data param should declare the format(s) it accepts.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+        rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"InputsDataFormat"}),
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for param, name, ptype in _iter_named_typed_params(document.root):
+            if ptype == "data" and "format" not in param.attrib:
+                yield _violation(
+                    document,
+                    param,
+                    self.meta,
+                    f"data parameter '{name}' declares no format — the generic "
+                    "'data' type will be assumed",
+                )

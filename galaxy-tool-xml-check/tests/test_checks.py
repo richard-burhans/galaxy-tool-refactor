@@ -1099,3 +1099,76 @@ def test_gtr034_not_flagged_when_used_only_in_output_filter() -> None:
         extra=b'<outputs><data name="o2"><filter>store_ext</filter></data></outputs>',
     )
     assert "GTR034" not in _codes(tool)
+
+
+def test_gtr090_output_reference_unresolved() -> None:
+    dangling = '<outputs><data name="o" format_source="nope"/></outputs>'
+    assert "GTR090" in _codes(_tool(outputs=dangling))
+    # a top-level input param resolves
+    ok = '<outputs><data name="o" format_source="input"/></outputs>'
+    assert "GTR090" not in _codes(_tool(outputs=ok))
+    assert "GTR090" not in _codes(_tool())  # default has no reference attrs
+
+
+def test_gtr090_structured_like_collection() -> None:
+    dangling = (
+        '<outputs><collection name="c" type="list" structured_like="nope"/></outputs>'
+    )
+    assert "GTR090" in _codes(_tool(outputs=dangling))
+    ok = (
+        '<outputs><collection name="c" type="list" structured_like="input"/></outputs>'
+    )
+    assert "GTR090" not in _codes(_tool(outputs=ok))
+
+
+def test_gtr090_unqualified_nested_reference_flagged() -> None:
+    nested = (
+        '<inputs><conditional name="cond"><param name="sel" type="select">'
+        '<option value="a">a</option></param>'
+        '<when value="a"><param name="inp" type="data" format="txt"/></when>'
+        "</conditional></inputs>"
+    )
+    unqualified = '<outputs><data name="o" format_source="inp"/></outputs>'
+    assert "GTR090" in _codes(_tool(inputs=nested, outputs=unqualified))
+    # the qualified spelling is accepted (planemo skips any '|' reference)
+    qualified = '<outputs><data name="o" format_source="cond|inp"/></outputs>'
+    assert "GTR090" not in _codes(_tool(inputs=nested, outputs=qualified))
+
+
+def test_gtr090_format_source_may_name_an_output() -> None:
+    sibling = (
+        '<outputs><data name="a" format="txt"/>'
+        '<data name="o" format_source="a"/></outputs>'
+    )
+    assert "GTR090" not in _codes(_tool(outputs=sibling))
+
+
+def test_gtr090_argument_derived_name_resolves() -> None:
+    arg_input = '<inputs><param argument="--my-inp" type="data" format="txt"/></inputs>'
+    ok = '<outputs><data name="o" format_source="my_inp"/></outputs>'
+    assert "GTR090" not in _codes(_tool(inputs=arg_input, outputs=ok))
+
+
+def test_gtr090_macro_tool_skipped() -> None:
+    # A macro could supply the referenced param -> the raw tree cannot prove the
+    # reference dangling; the whole tool is skipped (the standing macro guard).
+    macro_inputs = '<inputs><expand macro="io"/></inputs>'
+    dangling = '<outputs><data name="o" format_source="nope"/></outputs>'
+    assert "GTR090" not in _codes(_tool(inputs=macro_inputs, outputs=dangling))
+
+
+def test_gtr091_data_param_without_format() -> None:
+    no_format = '<inputs><param name="d" type="data"/></inputs>'
+    assert "GTR091" in _codes(_tool(inputs=no_format))
+    assert "GTR091" not in _codes(_tool())  # default data param declares format
+    # only data params are in scope
+    text_param = '<inputs><param name="t" type="text"/></inputs>'
+    assert "GTR091" not in _codes(_tool(inputs=text_param))
+
+
+def test_gtr091_nested_data_param_without_format() -> None:
+    nested = (
+        '<inputs><section name="s" title="s">'
+        '<param name="d" type="data"/></section></inputs>'
+    )
+    assert "GTR091" in _codes(_tool(inputs=nested))

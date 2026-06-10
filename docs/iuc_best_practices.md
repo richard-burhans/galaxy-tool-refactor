@@ -130,7 +130,8 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 > The same tier (`galaxy-tool-xml-check`) additionally hosts the **planemo-parity
 > wave `GTR038`–`GTR089`** (52 detect-only checks reimplementing the
 > `galaxy.tool_util.lint` linters — outputs, inputs, tests, validators, `<help>` RST),
-> bringing it to **66 checks** total. `GTR089` is now a fix/advisory **partition**
+> bringing it to **68 checks** total (the 2026-06-10 GTR090–091 batch closed the
+last infra-free planemo linters: output reference integrity + data-param format). `GTR089` is now a fix/advisory **partition**
 > like GTR018/019/020: the deterministically-fixable invalid `<help>` RST is
 > auto-repaired by the `GTR089.1` codemod (tier 2, in the default `format`
 > pipeline), and the `GTR089.2` advisory reports the residual the repair can't

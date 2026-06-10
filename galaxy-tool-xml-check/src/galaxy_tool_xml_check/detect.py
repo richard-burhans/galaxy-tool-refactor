@@ -23,6 +23,7 @@ from galaxy_tool_xml_check.checks.inputs import (
     ConditionalTestParamType,
     ConditionalWhensMatchOptions,
     DataOptionsValid,
+    DataParamFormatDeclared,
     InputOutputNamesDistinct,
     InputsPresent,
     OptionFilterAttributes,
@@ -50,6 +51,7 @@ from galaxy_tool_xml_check.checks.outputs import (
     OutputLabelsDistinct,
     OutputNamesUnique,
     OutputNameValid,
+    OutputReferencesValid,
     OutputsPresent,
 )
 from galaxy_tool_xml_check.checks.partition import (
@@ -137,6 +139,7 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         OutputFormatDefined,
         OutputLabelsDistinct,
         OutputFilterValid,
+        OutputReferencesValid,
         # inputs (params, select, options, type/display, conditionals, filters)
         UnusedParam,
         ParamNamePresent,
@@ -161,6 +164,7 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         OptionFilterAttributes,
         OptionFilterExpression,
         OptionFilterReferences,
+        DataParamFormatDeclared,
         # validators
         ValidatorTypeCompatible,
         ValidatorTextPresence,
