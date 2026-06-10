@@ -28,10 +28,10 @@ from galaxy_tool_refactor_rules.rulesets import (
     ruleset_description,
     ruleset_names,
 )
-from galaxy_tool_xml.binding import Source, load_tool, newest_valid_profile
-from galaxy_tool_xml.cheetah_refs import tool_cheetah_references
-from galaxy_tool_xml.cheetah_rename import rename_param as _rename_in_tree
-from galaxy_tool_xml.document import ToolDocument
+from galaxy_tool_source.binding import Source, load_tool, newest_valid_profile
+from galaxy_tool_source.cheetah_refs import tool_cheetah_references
+from galaxy_tool_source.cheetah_rename import rename_param as _rename_in_tree
+from galaxy_tool_source.document import ToolDocument
 from galaxy_tool_xml_check.detect import sort_violations
 from galaxy_tool_xml_codemod.codemods.convert_help_markdown import (
     ConvertHelpToMarkdown,
@@ -181,7 +181,8 @@ def rename_param(
     The mutating sibling of ``find_references``: rewrites every live ``$old`` reference
     (``<command>`` / ``<configfile>`` via the faithful lexer, attribute-Cheetah, by-name
     cross-reference attributes) plus the definition, or changes nothing and reports why
-    it bailed (see ``galaxy_tool_xml.cheetah_rename``). The work runs on a deep copy, so
+    it bailed (see ``galaxy_tool_source.cheetah_rename``). The work runs on a deep
+    copy, so
     a bail never mutates *source*; on success the serialised bytes are returned (and
     written to *write_path* if given). Serialisation goes through fmt — the only
     serializer — with no cosmetic rules, so only the renamed tokens (and lxml's

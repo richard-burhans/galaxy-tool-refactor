@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from galaxy_tool_refactor_rules.meta import RuleMeta
     from galaxy_tool_refactor_rules.violation import Violation
-    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_source.document import ToolDocument
 
 
 @dataclass(frozen=True)

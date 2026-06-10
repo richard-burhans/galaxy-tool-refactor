@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
     from galaxy_tool_refactor_rules.meta import RuleMeta
-    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_source.document import ToolDocument
 
     from galaxy_tool_xml_codemod.module import Module
 

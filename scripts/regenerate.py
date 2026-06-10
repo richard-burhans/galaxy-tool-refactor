@@ -3,7 +3,7 @@
 
 A maintainer task: run on the ``uv.lock``-pinned toolchain via
 ``uv run python -m scripts.regenerate``. Each vendored XSD is regenerated into
-its own package under ``src/galaxy_tool_xml/models/`` (``v16_10`` … ``v26_1``),
+its own package under ``src/galaxy_tool_source/models/`` (``v16_10`` … ``v26_1``),
 together with ``any_tool.py``.
 
 The generated packages are not committed — the hatchling build hook regenerates
@@ -13,7 +13,7 @@ for instance after vendoring a new schema with ``scripts/fetch_schemas.py``.
 
 from __future__ import annotations
 
-from galaxy_tool_xml._codegen import regenerate_all_models
+from galaxy_tool_source._codegen import regenerate_all_models
 
 
 def main() -> int:

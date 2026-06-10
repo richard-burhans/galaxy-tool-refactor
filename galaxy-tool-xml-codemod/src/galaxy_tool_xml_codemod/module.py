@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from galaxy_tool_xml.document import MacroDocument, ToolDocument
-from galaxy_tool_xml.models.any_tool import AnyTool
+from galaxy_tool_source.document import MacroDocument, ToolDocument
+from galaxy_tool_source.models.any_tool import AnyTool
 
 from galaxy_tool_xml_codemod.cursor import Cursor
 

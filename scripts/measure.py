@@ -758,7 +758,7 @@ def _run_no_valid_profile_taxonomy(args: argparse.Namespace) -> None:
 
 def _measure_macro_usage(*, corpus_root: Path) -> _MacroUsageResult:
     """Re-walk the corpus and count tools that use Galaxy macros."""
-    from galaxy_tool_xml.macros import has_macros
+    from galaxy_tool_source.macros import has_macros
 
     seen_sha: set[str] = set()
     n_with_macros = 0
@@ -1033,7 +1033,7 @@ def _import_paths(root: etree._Element, *, tool_path: Path) -> list[tuple[str, P
 
 def _measure_macro_topology(*, corpus_root: Path) -> _MacroTopologyResult:
     """Re-walk the corpus and characterise macro organisation across unique tools."""
-    from galaxy_tool_xml.macros import has_macros, imported_macro_paths
+    from galaxy_tool_source.macros import has_macros, imported_macro_paths
 
     seen_sha: set[str] = set()
     importers: dict[Path, set[Path]] = defaultdict(set)
@@ -1498,7 +1498,7 @@ def _measure_macro_profile_ownership(
     *, corpus_root: Path, rows: list[dict[str, object]]
 ) -> _ProfileOwnershipResult:
     """Characterise where profile tokens live and whether their files are shared."""
-    from galaxy_tool_xml.macros import imported_macro_paths, token_definitions
+    from galaxy_tool_source.macros import imported_macro_paths, token_definitions
 
     sha_to_newest: dict[str, str] = {}
     for row in rows:
@@ -2096,7 +2096,7 @@ def _run_command_unquoted_var(args: argparse.Namespace) -> None:
 # scope. Of every unquoted $var the GTR020.2 lexer reports, how many fall in the
 # provably-quotable subset {safe, attr_safe, builtin_path} that single-quoting
 # cannot change for a tool that currently works (the classifier lives in tier 1:
-# `galaxy_tool_xml.command_vars`). Reports the Option-A floor (bare single-token
+# `galaxy_tool_source.command_vars`). Reports the Option-A floor (bare single-token
 # `safe` params) and the Option-B delta the path-built-in + space-free-attr
 # classes add, so the GTR020 scope decision is data-backed. Reuses the shipped
 # GTR020.2 lexer so the population is exactly what the check reports. Heuristic
@@ -2115,8 +2115,8 @@ class _Iuc011FixabilityResult:
 
 def _measure_iuc011_fixability(*, corpus_root: Path) -> _Iuc011FixabilityResult:
     """Classify every GTR020.2 occurrence by whether single-quoting it is provable."""
-    from galaxy_tool_xml.command_text import unquoted_cheetah_vars
-    from galaxy_tool_xml.command_vars import classify_var, input_param_info
+    from galaxy_tool_source.command_text import unquoted_cheetah_vars
+    from galaxy_tool_source.command_vars import classify_var, input_param_info
 
     provable = {"safe", "attr_safe", "builtin_path"}
     seen: set[str] = set()
@@ -2160,7 +2160,7 @@ def _measure_iuc011_fixability(*, corpus_root: Path) -> _Iuc011FixabilityResult:
 
 
 def _report_iuc011_fixability(result: _Iuc011FixabilityResult) -> None:
-    from galaxy_tool_xml.command_vars import VAR_CLASSES
+    from galaxy_tool_source.command_vars import VAR_CLASSES
 
     total = result.n_occurrences
     print("\n=== iuc011-fixability (provably-safe auto-quote population; heuristic) ===")
@@ -2252,7 +2252,7 @@ class _SelectQuotingResult:
 
 def _measure_select_quoting_safety(*, corpus_root: Path) -> _SelectQuotingResult:
     """Split select/drill_down params by quoting safety + the GTR020.1 regression scope."""
-    from galaxy_tool_xml.command_text import unquoted_cheetah_vars
+    from galaxy_tool_source.command_text import unquoted_cheetah_vars
 
     option_valued = {"select", "drill_down"}
     seen: set[str] = set()
@@ -2352,9 +2352,9 @@ def _run_select_quoting_safety(args: argparse.Namespace) -> None:
 # (value-domain + bashlex shell-context): WIDENED = the oracle now quotes a var the
 # value-domain rule would not (a residual var in a no-word-splitting context, e.g. an
 # assignment RHS); NARROWED = the oracle declines a value-domain-safe var (an fd-dup
-# target). Requires the `galaxy-tool-xml[shell-oracle]` extra (bashlex) — without it
+# target). Requires the `galaxy-tool-source[shell-oracle]` extra (bashlex) — without it
 # the oracle degrades to the value-domain rule and both counts are 0. Needs the
-# corpus, not in CI. See galaxy-tool-xml `docs/decisions.md` §17, codemod §31.
+# corpus, not in CI. See galaxy-tool-source `docs/decisions.md` §17, codemod §31.
 
 
 @dataclass
@@ -2370,9 +2370,9 @@ class _ShellOracleQuotingResult:
 
 def _measure_shell_oracle_quoting(*, corpus_root: Path) -> _ShellOracleQuotingResult:
     """Count where the shell oracle widens / narrows GTR020.1 vs the value-domain rule."""
-    from galaxy_tool_xml.command_text import unquoted_cheetah_vars
-    from galaxy_tool_xml.command_vars import input_param_info, provably_quotable
-    from galaxy_tool_xml.shell_oracle import (
+    from galaxy_tool_source.command_text import unquoted_cheetah_vars
+    from galaxy_tool_source.command_vars import input_param_info, provably_quotable
+    from galaxy_tool_source.shell_oracle import (
         quote_is_behavior_preserving,
         shell_oracle_available,
     )
@@ -2599,7 +2599,7 @@ def _measure_macro_fmt_idempotence(
     *, corpus_root: Path
 ) -> _MacroFmtIdempotenceResult:
     """Sweep distinct macro files for fmt idempotence and change rate."""
-    from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_macros
+    from galaxy_tool_source.binding import ToolXmlSyntaxError, load_macros
     from galaxy_tool_xml_fmt.format import format_macro_document
 
     seen: set[str] = set()
@@ -2816,7 +2816,7 @@ def _run_cross_source_presence(args: argparse.Namespace) -> None:
 
 # --- measurement: corrections-cutoff --------------------------------------------
 #
-# Justifies the ``_CUTOFF = 0.8`` constant in src/galaxy_tool_xml/corrections.py.
+# Justifies the ``_CUTOFF = 0.8`` constant in src/galaxy_tool_source/corrections.py.
 # For each of the no-valid-profile tools whose reason is "XSD does not declare
 # attribute used by tool" (~351), monkey-patch `_CUTOFF` to a sweep of values
 # and count how many tools yield at least one suggestion. The trade-off: a
@@ -2850,8 +2850,8 @@ def _measure_corrections_cutoff(
     *, rows: list[dict[str, object]], corpus_root: Path, cutoffs: tuple[float, ...]
 ) -> _CorrectionsResult:
     """Sweep ``_CUTOFF`` across ``cutoffs`` and tally suggestion outcomes."""
-    from galaxy_tool_xml import corrections as corrections_mod
-    from galaxy_tool_xml.corrections import suggest_corrections
+    from galaxy_tool_source import corrections as corrections_mod
+    from galaxy_tool_source.corrections import suggest_corrections
 
     unique = _unique_by_sha(rows)
     targets = [
@@ -3761,7 +3761,7 @@ def _classify_expansion_gap(path: Path, /) -> _GapSample:
     collapse the comparison). Macro-free tools are ``"no_macros"`` (raw ==
     expanded); a failed expansion is ``"expansion_failed"`` (uncomparable).
     """
-    from galaxy_tool_xml.macros import expand_from_path, has_macros
+    from galaxy_tool_source.macros import expand_from_path, has_macros
     from galaxy_tool_xml_codemod.profile_semantics import detect_codes_on_root
 
     empty: frozenset[str] = frozenset()
@@ -3924,9 +3924,9 @@ def _tally_profile_shift(
 
 def _measure_upgrade_profile_shift(*, corpus_root: Path) -> _ProfileShiftResult:
     """Run ``UpgradeToLatest`` over the corpus and tally declared -> reached profile."""
-    from galaxy_tool_xml.binding import newest_valid_profile
-    from galaxy_tool_xml.document import ToolDocument
-    from galaxy_tool_xml.profiles import latest_profile
+    from galaxy_tool_source.binding import newest_valid_profile
+    from galaxy_tool_source.document import ToolDocument
+    from galaxy_tool_source.profiles import latest_profile
     from galaxy_tool_xml_codemod.module import Module
     from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
 
@@ -4161,7 +4161,7 @@ def _behavior_code_autofixed(
     This captures partial coverage exactly (e.g. GTR015 only fixes a
     sole-top-level-data-input tool).
     """
-    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_source.document import ToolDocument
     from galaxy_tool_xml_codemod.module import Module
     from galaxy_tool_xml_codemod.profile_semantics import detect_codes_on_root
 
@@ -4173,7 +4173,7 @@ def _behavior_code_autofixed(
 
 def _measure_upgrade_behavior_blocks(*, corpus_root: Path) -> _BehaviorBlockResult:
     """Walk the corpus and tally where a behavior-preserving upgrade would stall."""
-    from galaxy_tool_xml.profiles import GALAXY_DEFAULT_PROFILE, latest_profile
+    from galaxy_tool_source.profiles import GALAXY_DEFAULT_PROFILE, latest_profile
     from galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace import (
         FixFromWorkDirWhitespace,
     )
@@ -4743,7 +4743,7 @@ def _run_cheetah_command_complexity(args: argparse.Namespace) -> None:
 
 # --- measurement: cheetah-cdm-coverage ------------------------------------------
 #
-# Parity + sizing for the SHIPPED faithful Cheetah lexer (galaxy_tool_xml.cheetah_cdm,
+# Parity + sizing for the SHIPPED faithful Cheetah lexer (galaxy_tool_source.cheetah_cdm,
 # the M5.1 CDM lexer): run cheetah_spans() over every pure-text <command> body and
 # report the parse-clean rate (vs the ~0.4% that bail to the regex fallback) plus the
 # rename scope-shadowing population (tools whose directive spans include a
@@ -4772,7 +4772,7 @@ _CDM_LOCAL_DIRECTIVES = frozenset({"set", "for", "def"})
 
 def _measure_cheetah_cdm_coverage(*, corpus_root: Path) -> _CheetahCdmCoverageResult:
     """Run the shipped CDM lexer over the corpus; size parse-clean + scope hazards."""
-    from galaxy_tool_xml.cheetah_cdm import (
+    from galaxy_tool_source.cheetah_cdm import (
         SpanKind,
         cheetah_cdm_available,
         cheetah_spans,
@@ -4822,7 +4822,7 @@ def _measure_cheetah_cdm_coverage(*, corpus_root: Path) -> _CheetahCdmCoverageRe
 def _report_cheetah_cdm_coverage(result: _CheetahCdmCoverageResult) -> None:
     print("\n=== cheetah-cdm-coverage (faithful CDM lexer parity + scope sizing) ===")
     if not result.cdm_available:
-        print("  CT3 not importable — it is a base dependency; reinstall galaxy-tool-xml.")
+        print("  CT3 not importable — it is a base dependency; reinstall galaxy-tool-source.")
         return
 
     def pct(n: int, of: int) -> str:
@@ -4848,7 +4848,7 @@ def _run_cheetah_cdm_coverage(args: argparse.Namespace) -> None:
 #
 # Save the ~0.4% of pure-text <command> bodies CT3 cannot compile (cheetah_spans ->
 # None) as a retained corpus for later work. These are exactly the bodies where
-# command_text / cheetah_refs fall back to the regex (galaxy-tool-xml/docs/decisions.md
+# command_text / cheetah_refs fall back to the regex (galaxy-tool-source/docs/decisions.md
 # §19); capturing them gives real test fixtures without needing the full corpus when we
 # later improve CT3-bail handling. Writes docs/corpus_data/cheetah_cdm_bail_cases.json.
 # Needs the corpus, not run in CI; the tally is pinned by a synthetic-fixture unit test.
@@ -4863,7 +4863,7 @@ class _CdmBailCase:
 
 def _measure_cheetah_cdm_bails(*, corpus_root: Path) -> list[_CdmBailCase]:
     """Collect every pure-text <command> body where ``cheetah_spans`` bails to ``None``."""
-    from galaxy_tool_xml.cheetah_cdm import cheetah_spans
+    from galaxy_tool_source.cheetah_cdm import cheetah_spans
 
     seen: set[str] = set()
     cases: list[_CdmBailCase] = []
@@ -4922,7 +4922,7 @@ def _run_cheetah_cdm_bails(args: argparse.Namespace) -> None:
 # mutator (same apply / same bail reason), except where the stricter offset path soundly
 # bails (entity-content / locator-failed); genuine mismatches must be 0. Needs the corpus
 # (CT3 is a base dep); print-only, not run in CI; the pure tally is pinned
-# by a synthetic-fixture unit test. Backs galaxy-tool-xml/docs/decisions.md §20.
+# by a synthetic-fixture unit test. Backs galaxy-tool-source/docs/decisions.md §20.
 
 _RENAME_DEFINITION_TAGS = frozenset({"param", "conditional", "repeat", "section"})
 # The bail reasons cheetah_rename.rename_param can return, in display order.
@@ -4958,8 +4958,8 @@ def _measure_rename_coverage(*, corpus_root: Path) -> _RenameCoverageResult:
     """Rename every input definition of every tool; tally success vs each bail reason."""
     import copy
 
-    from galaxy_tool_xml.cheetah_cdm import cheetah_cdm_available
-    from galaxy_tool_xml.cheetah_rename import rename_param, rename_param_plan
+    from galaxy_tool_source.cheetah_cdm import cheetah_cdm_available
+    from galaxy_tool_source.cheetah_rename import rename_param, rename_param_plan
 
     # Offset-only bails the stricter Tier-B path may add when the tree mutator applied.
     plan_only_bails = frozenset(
@@ -5036,7 +5036,7 @@ def _measure_rename_coverage(*, corpus_root: Path) -> _RenameCoverageResult:
 def _report_rename_coverage(result: _RenameCoverageResult) -> None:
     print("\n=== rename-coverage (first Cheetah mutator: outcome distribution) ===")
     if not result.cdm_available:
-        print("  CT3 not importable — it is a base dependency; reinstall galaxy-tool-xml.")
+        print("  CT3 not importable — it is a base dependency; reinstall galaxy-tool-source.")
         return
 
     def pct(n: int, of: int) -> str:
@@ -5090,7 +5090,7 @@ def _run_rename_coverage(args: argparse.Namespace) -> None:
 # a ``$old`` reference dangling in an imported macro. Reuses the SHIPPED
 # build_importer_map / rename_param_in_bundle so the measure can't drift from the
 # code. Writes docs/rename_macro_spread_stats.md. Needs the corpus (CT3 is a base dep);
-# not run in CI. Backs galaxy-tool-xml/docs/decisions.md §21.
+# not run in CI. Backs galaxy-tool-source/docs/decisions.md §21.
 
 
 @dataclass
@@ -5111,9 +5111,9 @@ def _measure_rename_macro_spread(*, corpus_root: Path) -> _RenameMacroSpreadResu
     """Rename every input definition across its bundle; classify the spread + gate."""
     import copy
 
-    from galaxy_tool_xml.binding import ToolXmlSyntaxError
-    from galaxy_tool_xml.bundle import load_bundle, rename_param_in_bundle
-    from galaxy_tool_xml.cheetah_cdm import cheetah_cdm_available
+    from galaxy_tool_source.binding import ToolXmlSyntaxError
+    from galaxy_tool_source.bundle import load_bundle, rename_param_in_bundle
+    from galaxy_tool_source.cheetah_cdm import cheetah_cdm_available
 
     from galaxy_tool_refactor_registry.bundle_rename import build_importer_map
 
@@ -5227,7 +5227,7 @@ def _render_rename_macro_spread_page(result: _RenameMacroSpreadResult) -> str:
 def _report_rename_macro_spread(result: _RenameMacroSpreadResult) -> None:
     print("\n=== rename-macro-spread (cross-file rename: spread + gate) ===")
     if not result.cdm_available:
-        print("  CT3 not importable — it is a base dependency; reinstall galaxy-tool-xml.")
+        print("  CT3 not importable — it is a base dependency; reinstall galaxy-tool-source.")
         return
     print(_render_rename_macro_spread_page(result))
 
@@ -5348,7 +5348,7 @@ def _report_xsd_tightenings(measurement: _XsdTighteningsResult) -> None:
 
 
 def _run_xsd_tightenings(args: argparse.Namespace) -> None:
-    schema_resource = importlib.resources.files("galaxy_tool_xml") / "schema"
+    schema_resource = importlib.resources.files("galaxy_tool_source") / "schema"
     with importlib.resources.as_file(schema_resource) as schema_dir:
         _report_xsd_tightenings(_measure_xsd_tightenings(schema_dir=schema_dir))
 
@@ -6104,7 +6104,7 @@ def _run_help_rst_to_markdown(args: argparse.Namespace) -> None:
 # --- measurement: help-rst-md-convert (R4) ----------------------------------------
 #
 # The REAL converter + semantic-equivalence gate behind R3's node-type heuristic.
-# The converter and gate are the SHIPPED tier-1 ``galaxy_tool_xml.rst_markdown``
+# The converter and gate are the SHIPPED tier-1 ``galaxy_tool_source.rst_markdown``
 # (they graduated there when the conversion capability was built; this measure
 # consumes the same code paths the ConvertHelpToMarkdown codemod runs): convert
 # each RST <help> doctree to CommonMark (whitelist visitor; bail on the first
@@ -6117,7 +6117,7 @@ def _run_help_rst_to_markdown(args: argparse.Namespace) -> None:
 # NOTE: unlike the codemod, this sizing measure runs the raw convert->gate pipeline
 # WITHOUT the repair composition or the profile>=24.2 gate — it sizes the
 # conversion itself. Backs docs/upgrade_research/restructuredtext_codemods.md;
-# needs markdown-it-py (a galaxy-tool-xml dev dependency, like bashlex) + the
+# needs markdown-it-py (a galaxy-tool-source dev dependency, like bashlex) + the
 # corpus, so not run in CI (the synthetic-fixture test is).
 
 
@@ -6134,7 +6134,7 @@ class _HelpRstMdConvertResult:
 
 def _measure_help_rst_md_convert(*, corpus_root: Path) -> _HelpRstMdConvertResult:
     """Convert + gate every corpus RST ``<help>`` body; tally the verdicts."""
-    from galaxy_tool_xml.rst_markdown import (
+    from galaxy_tool_source.rst_markdown import (
         conversion_is_render_equivalent,
         rst_to_commonmark,
     )
@@ -6218,13 +6218,13 @@ def _macro_format_unsticks(tool_path: Path, /, *, latest: str) -> list[Path] | N
     import shutil
     import tempfile
 
-    from galaxy_tool_xml.binding import (
+    from galaxy_tool_source.binding import (
         ToolXmlSyntaxError,
         load_tool,
         newest_valid_profile,
     )
-    from galaxy_tool_xml.macros import imported_macro_paths
-    from galaxy_tool_xml.profiles import is_newer_profile
+    from galaxy_tool_source.macros import imported_macro_paths
+    from galaxy_tool_source.profiles import is_newer_profile
 
     from galaxy_tool_refactor_registry.macro_datatype import normalize_macro_files
 
@@ -6261,8 +6261,8 @@ def _macro_format_unsticks(tool_path: Path, /, *, latest: str) -> list[Path] | N
 
 def _measure_macro_format_residual(*, corpus_root: Path) -> _MacroFormatResidualResult:
     """Count tools the macro-file `format`/`ftype` normalization pass would unstick."""
-    from galaxy_tool_xml.macros import imported_macro_paths
-    from galaxy_tool_xml.profiles import latest_profile
+    from galaxy_tool_source.macros import imported_macro_paths
+    from galaxy_tool_source.profiles import latest_profile
 
     latest = latest_profile()
     seen: set[str] = set()
@@ -6420,7 +6420,7 @@ def _temp_normalize_reached(
 
     from lxml import etree
 
-    from galaxy_tool_xml.binding import (
+    from galaxy_tool_source.binding import (
         ToolXmlSyntaxError,
         load_tool,
         newest_valid_profile,
@@ -6468,13 +6468,13 @@ def _measure_macro_token_residual(*, corpus_root: Path) -> _MacroTokenResidualRe
     """Size the token-supplied datatype residual left after Phase 2a."""
     import re as _re
 
-    from galaxy_tool_xml.binding import (
+    from galaxy_tool_source.binding import (
         ToolXmlSyntaxError,
         load_tool,
         newest_valid_profile,
     )
-    from galaxy_tool_xml.macros import imported_macro_paths, token_definitions
-    from galaxy_tool_xml.profiles import is_newer_profile, latest_profile
+    from galaxy_tool_source.macros import imported_macro_paths, token_definitions
+    from galaxy_tool_source.profiles import is_newer_profile, latest_profile
     from galaxy_tool_xml_codemod.datatype_format import normalize_datatype_value
 
     latest = latest_profile()
@@ -6618,7 +6618,7 @@ def _run_macro_token_residual(args: argparse.Namespace) -> None:
 def _run_corpus_check(args: argparse.Namespace, extra: list[str]) -> int:
     """Delegate to ``scripts/corpus_check.py``'s main with passthrough args."""
     del args  # corpus_check parses its own
-    import corpus_check  # local import: avoids loading galaxy_tool_xml just to --list
+    import corpus_check  # local import: avoids loading galaxy_tool_source just to --list
 
     return corpus_check.main(extra)
 

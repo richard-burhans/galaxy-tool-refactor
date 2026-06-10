@@ -44,7 +44,7 @@ fi
 
 PACKAGES=(
     galaxy-tool-refactor-rules
-    galaxy-tool-xml
+    galaxy-tool-source
     galaxy-tool-xml-codemod
     galaxy-tool-xml-fmt
     galaxy-tool-xml-check

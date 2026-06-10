@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import Path
 
-from galaxy_tool_xml.binding import load_tool
+from galaxy_tool_source.binding import load_tool
 
 from galaxy_tool_xml_codemod.change import Change
 from galaxy_tool_xml_codemod.codemod import CodemodCommand

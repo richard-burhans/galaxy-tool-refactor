@@ -18,7 +18,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from galaxy_tool_refactor_registry.errors import UnknownRuleCode, UnknownRuleset
-from galaxy_tool_xml.binding import ToolXmlSyntaxError
+from galaxy_tool_source.binding import ToolXmlSyntaxError
 from mcp.server.fastmcp import FastMCP
 
 from galaxy_tool_refactor_mcp import service

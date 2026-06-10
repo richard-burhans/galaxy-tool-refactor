@@ -18,7 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from galaxy_tool_xml.binding import validate_tool
+from galaxy_tool_source.binding import validate_tool
 from lxml import etree
 
 from galaxy_tool_xml_codemod.canonical import (

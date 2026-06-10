@@ -81,15 +81,15 @@ _ALLOWLIST: dict[str, tuple[frozenset[str], str]] = {
         frozenset({"etree.tostring("}),
         "internal before/after compare to detect change (not output)",
     ),
-    "galaxy-tool-xml/src/galaxy_tool_xml/cdata.py": (
+    "galaxy-tool-source/src/galaxy_tool_source/cdata.py": (
         frozenset({"etree.tostring("}),
         "serialise one element to a str for read-only CDATA detection",
     ),
-    "galaxy-tool-xml/src/galaxy_tool_xml/document.py": (
+    "galaxy-tool-source/src/galaxy_tool_source/document.py": (
         frozenset({"etree.tostring("}),
         "internal serialise-then-reparse to bind the typed model (not output)",
     ),
-    "galaxy-tool-xml/src/galaxy_tool_xml/macros.py": (
+    "galaxy-tool-source/src/galaxy_tool_source/macros.py": (
         frozenset({"etree.tostring(", ".write_bytes("}),
         "throwaway temp-dir round-trip for Galaxy's path-based macro expander",
     ),

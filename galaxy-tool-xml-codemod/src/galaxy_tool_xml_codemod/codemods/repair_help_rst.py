@@ -3,12 +3,13 @@
 GTR089.1 — the **fixable** half of the GTR089 partition (the advisory residual
 ``GTR089.2`` lives in the check tier). A no-op unless the ``<help>`` body is invalid
 RST; then it applies the class-based surgical repairs from tier-1
-``galaxy_tool_xml.rst``, which keep a fix only behind a **behaviour-preserving gate**
+``galaxy_tool_source.rst``, which keep a fix only behind a **behaviour-preserving gate**
 (re-parse: strictly fewer errors + no new class, AND the docutils doctree is identical
 modulo the removed messages). Macro-bearing help (``@TOKEN@``) is left alone (the
 unprovable-macro case). Help with no safely-fixable error is unchanged; whatever the
 repair can't reach stays the ``GTR089.2`` advisory residual. See ``docs/decisions.md``
-§37; the shared predicate lives in tier 1 (``galaxy-tool-xml/docs/decisions.md`` §22).
+§37; the shared predicate lives in tier 1 (``galaxy-tool-source/docs/decisions.md``
+§22).
 """
 
 from __future__ import annotations
@@ -16,8 +17,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
-from galaxy_tool_xml.cdata import is_cdata_wrapped
-from galaxy_tool_xml.rst import has_macro_token, repair_help_rst, rst_is_invalid
+from galaxy_tool_source.cdata import is_cdata_wrapped
+from galaxy_tool_source.rst import has_macro_token, repair_help_rst, rst_is_invalid
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
 from galaxy_tool_xml_codemod.codemods._coarse_detect import coarse_detect

@@ -17,7 +17,9 @@ from __future__ import annotations
 
 from lxml import etree
 
-from galaxy_tool_xml_codemod.codemods.replace_output_element import ReplaceOutputElement
+from galaxy_tool_xml_codemod.codemods.replace_output_element import (
+    ReplaceOutputElement,
+)
 from galaxy_tool_xml_codemod.parse import parse_module
 
 _HEAD = b'<tool id="m" name="M" version="1.0.0" profile="21.09">'

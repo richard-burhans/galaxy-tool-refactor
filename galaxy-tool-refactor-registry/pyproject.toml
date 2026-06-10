@@ -13,7 +13,7 @@ authors = [{ name = "Richard Burhans" }]
 # fmt (preserving "fmt is the only serializer").
 dependencies = [
     "galaxy-tool-refactor-rules",
-    "galaxy-tool-xml",
+    "galaxy-tool-source",
     "galaxy-tool-xml-codemod",
     "galaxy-tool-xml-fmt",
     "galaxy-tool-xml-check",
@@ -51,7 +51,7 @@ testpaths = ["tests"]
 
 [tool.uv.sources]
 galaxy-tool-refactor-rules = { workspace = true }
-galaxy-tool-xml = { workspace = true }
+galaxy-tool-source = { workspace = true }
 galaxy-tool-xml-codemod = { workspace = true }
 galaxy-tool-xml-fmt = { workspace = true }
 galaxy-tool-xml-check = { workspace = true }

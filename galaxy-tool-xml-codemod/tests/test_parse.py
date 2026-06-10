@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_macros, load_tool
-from galaxy_tool_xml.models.any_tool import AnyTool
+from galaxy_tool_source.binding import ToolXmlSyntaxError, load_macros, load_tool
+from galaxy_tool_source.models.any_tool import AnyTool
 
 from galaxy_tool_xml_codemod.module import MacroModule, Module
 from galaxy_tool_xml_codemod.parse import parse_macro_module, parse_module

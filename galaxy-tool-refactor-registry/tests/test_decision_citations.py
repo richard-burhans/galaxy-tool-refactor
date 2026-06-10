@@ -1,6 +1,6 @@
 """Architecture guard: every ``decisions.md §N`` / ``DN`` citation resolves.
 
-The docs cite decision sections constantly (``galaxy-tool-xml/docs/decisions.md``
+The docs cite decision sections constantly (``galaxy-tool-source/docs/decisions.md``
 §9, fmt ``§D12``, check ``D34``, ranges like ``D1–D4``). Both audit skills used to
 verify these by hand-grepping headers — which is exactly as reliable as the
 greper's memory of each package's header format (a manual pass produced a false
@@ -61,7 +61,7 @@ _HEADER = re.compile(
     r"^#{2,4}\s*(?P<code>D?\d+(?:\.\d+)?)(?:[.):\s—-]|$)", re.MULTILINE
 )
 
-# A numbered register row: galaxy-tool-xml's assumptions table numbers its rows
+# A numbered register row: galaxy-tool-source's assumptions table numbers its rows
 # (`| 1.5 | A missing profile …`) and prose cites them as `§1.5` — those rows
 # are citable codes exactly like headers.
 _TABLE_ROW = re.compile(r"^\|\s*(?P<code>D?\d+(?:\.\d+)?)\s*\|", re.MULTILINE)
@@ -77,7 +77,7 @@ _PACKAGE_BY_QUALIFIER = {
     "cli": "galaxy-tool-refactor-cli",
     "mcp": "galaxy-tool-refactor-mcp",
     "rules": "galaxy-tool-refactor-rules",
-    "xml": "galaxy-tool-xml",
+    "xml": "galaxy-tool-source",
 }
 # The qualifier must sit directly before the path with no intervening bracket:
 # in "the GTR020.1 codemod (`docs/decisions.md` D8)" the parenthetical cites the

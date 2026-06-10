@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from galaxy_tool_xml.binding import load_tool
+from galaxy_tool_source.binding import load_tool
 from galaxy_tool_xml_codemod.canonical import canonical_codemods
 from galaxy_tool_xml_codemod.module import Module
 from galaxy_tool_xml_fmt.format import format_tool_document
@@ -125,7 +125,7 @@ _UPGRADABLE = (
 
 
 def test_upgrade_bumps_profile_and_runs_migration() -> None:
-    from galaxy_tool_xml.profiles import latest_profile
+    from galaxy_tool_source.profiles import latest_profile
 
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
@@ -137,7 +137,7 @@ def test_upgrade_bumps_profile_and_runs_migration() -> None:
 
 
 def test_upgrade_ignore_fixtypos_still_upgrades() -> None:
-    from galaxy_tool_xml.profiles import latest_profile
+    from galaxy_tool_source.profiles import latest_profile
 
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
@@ -231,7 +231,7 @@ def test_crossing_gate_leaves_already_past_tool_untouched() -> None:
 
 def test_upgrade_already_latest_has_no_semantic_warning() -> None:
     """A tool already declaring the latest profile isn't bumped, so no warning."""
-    from galaxy_tool_xml.profiles import latest_profile
+    from galaxy_tool_source.profiles import latest_profile
 
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
@@ -295,7 +295,7 @@ def test_upgrade_behavior_preserving_none_for_macro_token_profile() -> None:
 
 def test_upgrade_already_latest_is_preserving_but_emits_no_pass_note() -> None:
     """A no-op upgrade (already latest) is vacuously preserving; no note is added."""
-    from galaxy_tool_xml.profiles import latest_profile
+    from galaxy_tool_source.profiles import latest_profile
 
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 

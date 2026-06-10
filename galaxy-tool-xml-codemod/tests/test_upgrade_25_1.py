@@ -8,7 +8,7 @@ is to drop it.
 
 from __future__ import annotations
 
-from galaxy_tool_xml.binding import newest_valid_profile
+from galaxy_tool_source.binding import newest_valid_profile
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemods.upgrade_25_1 import Upgrade25_1

@@ -9,7 +9,7 @@ fixes it reverts to a byte-identical no-op.
 
 from __future__ import annotations
 
-from galaxy_tool_xml.binding import newest_valid_profile
+from galaxy_tool_source.binding import newest_valid_profile
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos

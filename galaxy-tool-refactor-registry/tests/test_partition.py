@@ -3,7 +3,7 @@ soundness guard (the fix ``.1`` and advisory ``.2`` halves partition cleanly).""
 
 from __future__ import annotations
 
-from galaxy_tool_xml.binding import load_tool
+from galaxy_tool_source.binding import load_tool
 
 from galaxy_tool_refactor_registry.registry import (
     all_handles,

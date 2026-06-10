@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 from galaxy_tool_refactor_registry.errors import UnknownRuleCode, UnknownRuleset
-from galaxy_tool_xml.binding import ToolXmlSyntaxError
-from galaxy_tool_xml.profiles import latest_profile
+from galaxy_tool_source.binding import ToolXmlSyntaxError
+from galaxy_tool_source.profiles import latest_profile
 
 from galaxy_tool_refactor_mcp import service
 

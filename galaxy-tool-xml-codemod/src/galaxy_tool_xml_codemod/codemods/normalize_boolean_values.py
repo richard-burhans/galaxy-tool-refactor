@@ -33,13 +33,13 @@ import copy
 from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
-from galaxy_tool_xml.binding import newest_valid_profile, validate_tool
-from galaxy_tool_xml.boolean_values import (
+from galaxy_tool_source.binding import newest_valid_profile, validate_tool
+from galaxy_tool_source.boolean_values import (
     BooleanNormalization,
     suggest_boolean_normalizations,
 )
-from galaxy_tool_xml.document import ToolDocument
-from galaxy_tool_xml.profiles import available_profiles
+from galaxy_tool_source.document import ToolDocument
+from galaxy_tool_source.profiles import available_profiles
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand

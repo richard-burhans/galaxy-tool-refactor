@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Sweep public Galaxy tool repositories through the galaxy-tool-xml ecosystem.
+"""Sweep public Galaxy tool repositories through the galaxy-tool-source ecosystem.
 
 A maintainer QA tool with four subcommands:
 
-``validate`` — sweep the corpus through the galaxy-tool-xml API and check the
+``validate`` — sweep the corpus through the galaxy-tool-source API and check the
 library's invariants on each tool:
 
 * it must not **crash** on tool input;
@@ -95,7 +95,7 @@ _CORPUS_SOURCES_FILE = _REPO_ROOT / "corpus_sources.json"
 _TOOLSHED_ROOT = _CORPUS_ROOT / "galaxy-toolshed"
 _TOOLSHED_MANIFEST = _TOOLSHED_ROOT / "manifest.json"
 _VALIDATE_REGRESSIONS = (
-    _REPO_ROOT / "galaxy-tool-xml" / "tests" / "data" / "regressions"
+    _REPO_ROOT / "galaxy-tool-source" / "tests" / "data" / "regressions"
 )
 _VALIDATE_STATS_FILES = {
     "github": _REPO_ROOT / "docs" / "corpus_stats.md",
@@ -321,24 +321,24 @@ def _iter_sources(
 # validate subcommand — invariant checks
 # =============================================================================
 
-# These functions are also imported by galaxy-tool-xml/tests/test_regressions.py
+# These functions are also imported by galaxy-tool-source/tests/test_regressions.py
 # so a retained fixture is replayed through the same battery.
 
-from galaxy_tool_xml.binding import (  # noqa: E402
+from galaxy_tool_source.binding import (  # noqa: E402
     ToolXmlSyntaxError,
     load_tool,
     newest_valid_profile,
     parse_tool,
     validate_tool,
 )
-from galaxy_tool_xml.corrections import suggest_corrections  # noqa: E402
-from galaxy_tool_xml.document import ToolDocument  # noqa: E402
-from galaxy_tool_xml.macros import (  # noqa: E402
+from galaxy_tool_source.corrections import suggest_corrections  # noqa: E402
+from galaxy_tool_source.document import ToolDocument  # noqa: E402
+from galaxy_tool_source.macros import (  # noqa: E402
     MacroError,
     expand_from_path,
     has_macros,
 )
-from galaxy_tool_xml.profiles import available_profiles, latest_profile  # noqa: E402
+from galaxy_tool_source.profiles import available_profiles, latest_profile  # noqa: E402
 
 
 def check_immutable(document: ToolDocument) -> tuple[str, str]:
@@ -1264,7 +1264,7 @@ def _validate_main(argv: list[str]) -> int:
         prog="python -m scripts.corpus_check validate",
         description=(
             "Sweep a Galaxy tool corpus source (github, toolshed, or "
-            "combined) through galaxy-tool-xml."
+            "combined) through galaxy-tool-source."
         ),
     )
     parser.add_argument(
@@ -3294,7 +3294,7 @@ def main(argv: list[str]) -> int:
     """Dispatch to the ``validate``, ``fmt``, ``codemod``, or ``rules`` subcommand."""
     parser = argparse.ArgumentParser(
         prog="python -m scripts.corpus_check",
-        description="Sweep Galaxy tool repositories through the galaxy-tool-xml ecosystem.",
+        description="Sweep Galaxy tool repositories through the galaxy-tool-source ecosystem.",
         add_help=False,
     )
     parser.add_argument(

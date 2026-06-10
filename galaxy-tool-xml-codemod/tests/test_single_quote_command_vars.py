@@ -2,7 +2,7 @@
 
 Single-quotes only the provably-single-valued unquoted Cheetah ``$var``\\ s in a
 ``<command>`` body — the ``{safe, attr_safe, builtin_path}`` classes
-(``galaxy_tool_xml.command_vars``) whose value can never contain whitespace for a
+(``galaxy_tool_source.command_vars``) whose value can never contain whitespace for a
 tool that currently works. Free-form ``text`` params, deliberate ``multiple=``
 splats, label attrs (``.name``), and ``#set``/loop vars are left untouched (the
 GTR020.2 advisory check still flags them).
@@ -11,7 +11,7 @@ GTR020.2 advisory check still flags them).
 from __future__ import annotations
 
 import pytest
-from galaxy_tool_xml.shell_oracle import shell_oracle_available
+from galaxy_tool_source.shell_oracle import shell_oracle_available
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemods.single_quote_command_vars import (

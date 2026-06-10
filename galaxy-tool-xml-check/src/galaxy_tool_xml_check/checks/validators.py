@@ -16,7 +16,7 @@ from lxml import etree
 from galaxy_tool_xml_check.rules import CheckRule
 
 if TYPE_CHECKING:
-    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_source.document import ToolDocument
 
 from galaxy_tool_xml_check.checks._shared import (
     _IUC,

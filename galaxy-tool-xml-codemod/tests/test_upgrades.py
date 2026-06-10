@@ -10,8 +10,8 @@ sweep surfaces).
 from __future__ import annotations
 
 import pytest
-from galaxy_tool_xml.binding import newest_valid_profile
-from galaxy_tool_xml.profiles import latest_profile
+from galaxy_tool_source.binding import newest_valid_profile
+from galaxy_tool_source.profiles import latest_profile
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand

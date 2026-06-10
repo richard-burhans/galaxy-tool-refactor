@@ -8,15 +8,15 @@ from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_refactor_rules.violation import Violation
-from galaxy_tool_xml.cdata import cdata_wrappable, needs_cdata
-from galaxy_tool_xml.command_text import unquoted_cheetah_vars
-from galaxy_tool_xml.command_vars import input_param_info
-from galaxy_tool_xml.shell_oracle import quote_is_behavior_preserving
+from galaxy_tool_source.cdata import cdata_wrappable, needs_cdata
+from galaxy_tool_source.command_text import unquoted_cheetah_vars
+from galaxy_tool_source.command_vars import input_param_info
+from galaxy_tool_source.shell_oracle import quote_is_behavior_preserving
 
 from galaxy_tool_xml_check.rules import CheckRule
 
 if TYPE_CHECKING:
-    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_source.document import ToolDocument
 
 from galaxy_tool_xml_check.checks._shared import (
     _IUC,

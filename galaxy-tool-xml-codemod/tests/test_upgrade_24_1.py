@@ -13,7 +13,7 @@ forbids) has no single-token coercion and is left untouched.
 
 from __future__ import annotations
 
-from galaxy_tool_xml.binding import newest_valid_profile
+from galaxy_tool_source.binding import newest_valid_profile
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemods.upgrade_24_1 import Upgrade24_1

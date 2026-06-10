@@ -1,21 +1,21 @@
 [project]
 name = "galaxy-tool-xml-fmt"
 version = "0.0.1"
-description = "Opinionated formatter for Galaxy tool XML — tier 3 of the galaxy-tool-xml ecosystem."
+description = "Opinionated formatter for Galaxy tool XML — tier 3 of the galaxy-tool-source ecosystem."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Richard Burhans" }]
 dependencies = [
     "galaxy-tool-refactor-rules",
-    "galaxy-tool-xml",
+    "galaxy-tool-source",
     "click>=8",
     "lxml>=5",
 ]
 
 [tool.uv.sources]
 galaxy-tool-refactor-rules = { workspace = true }
-galaxy-tool-xml = { workspace = true }
+galaxy-tool-source = { workspace = true }
 
 [project.scripts]
 galaxy-tool-xml-fmt = "galaxy_tool_xml_fmt.cli:main"

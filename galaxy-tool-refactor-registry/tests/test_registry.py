@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from galaxy_tool_refactor_rules.meta import RuleMeta
-from galaxy_tool_xml.document import ToolDocument
+from galaxy_tool_source.document import ToolDocument
 
 from galaxy_tool_refactor_registry.errors import UnknownRuleCode
 from galaxy_tool_refactor_registry.handle import RuleHandle

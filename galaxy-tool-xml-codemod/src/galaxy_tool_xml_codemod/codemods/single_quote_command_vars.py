@@ -3,13 +3,14 @@
 The IUC ``single-quote your Cheetah variables`` practice guards against shell
 word-splitting / injection, but quoting is only *behaviour-preserving* in some
 positions. This codemod is the fixer for the subset that is provably so, via the
-shared tier-1 policy ``galaxy_tool_xml.shell_oracle.quote_is_behavior_preserving``:
+shared tier-1 policy ``galaxy_tool_source.shell_oracle.quote_is_behavior_preserving``:
 
 - **value-domain** (always, no dependency): a reference whose rendered value can never
   contain whitespace — the ``{safe, attr_safe, builtin_path}`` classes
   (``command_vars``): a bare ``$param`` of a single-token type, a ``$param.ext`` / path
   attribute, or a ``$__…__`` Galaxy path built-in;
-- **shell-context narrowing** (when the optional ``galaxy-tool-xml[shell-oracle]`` extra
+- **shell-context narrowing** (when the optional ``galaxy-tool-source[shell-oracle]``
+  extra
   is installed): the bashlex classifier additionally *narrows* away fd-dup targets
   (``2>&$fd``, where quoting a numeric fd flips a duplication into a file redirect).
   It does **not** widen — an earlier assignment-RHS widening was reverted as unsound
@@ -38,9 +39,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
-from galaxy_tool_xml.command_text import UnquotedVar, unquoted_cheetah_vars
-from galaxy_tool_xml.command_vars import input_param_info
-from galaxy_tool_xml.shell_oracle import quote_is_behavior_preserving
+from galaxy_tool_source.command_text import UnquotedVar, unquoted_cheetah_vars
+from galaxy_tool_source.command_vars import input_param_info
+from galaxy_tool_source.shell_oracle import quote_is_behavior_preserving
 
 from galaxy_tool_xml_codemod.change import Change
 from galaxy_tool_xml_codemod.codemod import CodemodCommand

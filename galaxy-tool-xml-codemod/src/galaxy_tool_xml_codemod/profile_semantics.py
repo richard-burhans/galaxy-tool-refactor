@@ -30,7 +30,7 @@ given tool, by running a per-code detector — a port of Galaxy's own advisor
 path warns on the *applicable* set, so a tool that trips none stays quiet.
 
 Detection runs on the **macro-expanded** tree (``tripped_upgrade_codes`` uses
-``galaxy_tool_xml.macros.expanded_detection_root``, raw fallback when expansion
+``galaxy_tool_source.macros.expanded_detection_root``, raw fallback when expansion
 fails), mirroring Galaxy's advisor, which parses the tool post-expansion — so a
 construct supplied only by an ``<expand>`` (e.g. a shared ``<stdio>`` macro) is
 seen, not falsely flagged. ``detect_codes_on_root`` is the raw-tree primitive used
@@ -69,7 +69,7 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from galaxy_tool_xml.macros import expanded_detection_root
+from galaxy_tool_source.macros import expanded_detection_root
 from packaging.version import Version
 
 from galaxy_tool_xml_codemod._version import version_or_none
@@ -77,7 +77,7 @@ from galaxy_tool_xml_codemod._version import version_or_none
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_source.document import ToolDocument
     from lxml import etree
 
 

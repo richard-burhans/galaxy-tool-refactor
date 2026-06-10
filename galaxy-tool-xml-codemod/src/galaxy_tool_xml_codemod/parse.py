@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from galaxy_tool_xml.binding import load_macros, load_tool
-from galaxy_tool_xml.document import MacroDocument, ToolDocument
+from galaxy_tool_source.binding import load_macros, load_tool
+from galaxy_tool_source.document import MacroDocument, ToolDocument
 
 from galaxy_tool_xml_codemod.module import MacroModule, Module
 

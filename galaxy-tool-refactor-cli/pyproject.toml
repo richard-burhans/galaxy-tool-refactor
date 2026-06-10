@@ -10,7 +10,7 @@ authors = [{ name = "Richard Burhans" }]
 # it plus fmt's file-walking engine (cli_support) and tier-1 parsing. It no
 # longer depends on the codemod / check tiers directly — the facade wraps them.
 dependencies = [
-    "galaxy-tool-xml",
+    "galaxy-tool-source",
     "galaxy-tool-xml-fmt",
     "galaxy-tool-refactor-registry",
     "click>=8",
@@ -45,6 +45,6 @@ strict = true
 testpaths = ["tests"]
 
 [tool.uv.sources]
-galaxy-tool-xml = { workspace = true }
+galaxy-tool-source = { workspace = true }
 galaxy-tool-xml-fmt = { workspace = true }
 galaxy-tool-refactor-registry = { workspace = true }

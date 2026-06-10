@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from galaxy_tool_xml.binding import load_tool
-from galaxy_tool_xml.profiles import latest_profile
+from galaxy_tool_source.binding import load_tool
+from galaxy_tool_source.profiles import latest_profile
 
 from galaxy_tool_refactor_registry.macro_profile import (
     ProfileTokenPlan,

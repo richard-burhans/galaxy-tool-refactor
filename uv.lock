@@ -14,7 +14,7 @@ members = [
     "galaxy-tool-refactor-mcp",
     "galaxy-tool-refactor-registry",
     "galaxy-tool-refactor-rules",
-    "galaxy-tool-xml",
+    "galaxy-tool-source",
     "galaxy-tool-xml-check",
     "galaxy-tool-xml-codemod",
     "galaxy-tool-xml-fmt",
@@ -485,7 +485,7 @@ source = { editable = "galaxy-tool-refactor-cli" }
 dependencies = [
     { name = "click" },
     { name = "galaxy-tool-refactor-registry" },
-    { name = "galaxy-tool-xml" },
+    { name = "galaxy-tool-source" },
     { name = "galaxy-tool-xml-fmt" },
 ]
 
@@ -500,7 +500,7 @@ dev = [
 requires-dist = [
     { name = "click", specifier = ">=8" },
     { name = "galaxy-tool-refactor-registry", editable = "galaxy-tool-refactor-registry" },
-    { name = "galaxy-tool-xml", editable = "galaxy-tool-xml" },
+    { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
     { name = "galaxy-tool-xml-fmt", editable = "galaxy-tool-xml-fmt" },
 ]
 
@@ -518,7 +518,7 @@ source = { editable = "galaxy-tool-refactor-mcp" }
 dependencies = [
     { name = "galaxy-tool-refactor-registry" },
     { name = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-xml" },
+    { name = "galaxy-tool-source" },
     { name = "mcp" },
 ]
 
@@ -533,7 +533,7 @@ dev = [
 requires-dist = [
     { name = "galaxy-tool-refactor-registry", editable = "galaxy-tool-refactor-registry" },
     { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-xml", editable = "galaxy-tool-xml" },
+    { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
     { name = "mcp", specifier = ">=1.2" },
 ]
 
@@ -550,7 +550,7 @@ version = "0.0.1"
 source = { editable = "galaxy-tool-refactor-registry" }
 dependencies = [
     { name = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-xml" },
+    { name = "galaxy-tool-source" },
     { name = "galaxy-tool-xml-check" },
     { name = "galaxy-tool-xml-codemod" },
     { name = "galaxy-tool-xml-fmt" },
@@ -566,7 +566,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-xml", editable = "galaxy-tool-xml" },
+    { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
     { name = "galaxy-tool-xml-check", editable = "galaxy-tool-xml-check" },
     { name = "galaxy-tool-xml-codemod", editable = "galaxy-tool-xml-codemod" },
     { name = "galaxy-tool-xml-fmt", editable = "galaxy-tool-xml-fmt" },
@@ -601,9 +601,9 @@ dev = [
 ]
 
 [[package]]
-name = "galaxy-tool-xml"
+name = "galaxy-tool-source"
 version = "0.1.0"
-source = { editable = "galaxy-tool-xml" }
+source = { editable = "galaxy-tool-source" }
 dependencies = [
     { name = "click" },
     { name = "docutils" },
@@ -662,7 +662,7 @@ version = "0.0.1"
 source = { editable = "galaxy-tool-xml-check" }
 dependencies = [
     { name = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-xml" },
+    { name = "galaxy-tool-source" },
     { name = "lxml" },
     { name = "packaging" },
 ]
@@ -678,7 +678,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-xml", editable = "galaxy-tool-xml" },
+    { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
     { name = "lxml", specifier = ">=5" },
     { name = "packaging", specifier = ">=23" },
 ]
@@ -697,7 +697,7 @@ version = "0.0.1"
 source = { editable = "galaxy-tool-xml-codemod" }
 dependencies = [
     { name = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-xml" },
+    { name = "galaxy-tool-source" },
     { name = "lxml" },
     { name = "packaging" },
 ]
@@ -713,7 +713,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-xml", editable = "galaxy-tool-xml" },
+    { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
     { name = "lxml", specifier = ">=5" },
     { name = "packaging", specifier = ">=23" },
 ]
@@ -733,7 +733,7 @@ source = { editable = "galaxy-tool-xml-fmt" }
 dependencies = [
     { name = "click" },
     { name = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-xml" },
+    { name = "galaxy-tool-source" },
     { name = "lxml" },
 ]
 
@@ -748,7 +748,7 @@ dev = [
 requires-dist = [
     { name = "click", specifier = ">=8" },
     { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-xml", editable = "galaxy-tool-xml" },
+    { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
     { name = "lxml", specifier = ">=5" },
 ]
 

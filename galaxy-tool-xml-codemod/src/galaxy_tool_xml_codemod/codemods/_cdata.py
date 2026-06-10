@@ -16,7 +16,7 @@ flag the rare residual these fix sub-rules deliberately skip.
 
 from __future__ import annotations
 
-from galaxy_tool_xml.cdata import cdata_wrappable
+from galaxy_tool_source.cdata import cdata_wrappable
 
 from galaxy_tool_xml_codemod.change import Change
 from galaxy_tool_xml_codemod.cursor import Cursor

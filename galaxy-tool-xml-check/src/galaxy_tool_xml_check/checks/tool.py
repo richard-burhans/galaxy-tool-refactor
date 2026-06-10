@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_refactor_rules.violation import Violation
-from galaxy_tool_xml.macros import has_macros
+from galaxy_tool_source.macros import has_macros
 from lxml import etree
 from packaging.version import InvalidVersion, Version
 
@@ -17,7 +17,7 @@ from galaxy_tool_xml_check.lone_amp import classify_lone_amps
 from galaxy_tool_xml_check.rules import CheckRule
 
 if TYPE_CHECKING:
-    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_source.document import ToolDocument
 
 from galaxy_tool_xml_check.checks._shared import (
     _IUC,

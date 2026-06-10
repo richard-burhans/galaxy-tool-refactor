@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from galaxy_tool_xml.binding import load_tool
+from galaxy_tool_source.binding import load_tool
 from lxml import etree
 
 from galaxy_tool_xml_check.detect import all_checks, detect_violations

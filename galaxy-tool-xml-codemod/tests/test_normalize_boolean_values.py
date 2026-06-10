@@ -11,7 +11,7 @@ validity.
 
 from __future__ import annotations
 
-from galaxy_tool_xml.binding import newest_valid_profile
+from galaxy_tool_source.binding import newest_valid_profile
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemods.normalize_boolean_values import (

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import pytest
-from galaxy_tool_xml.document import ToolDocument
+from galaxy_tool_source.document import ToolDocument
 from lxml import etree
 
 
