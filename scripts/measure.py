@@ -5287,14 +5287,15 @@ def _run_rename_macro_spread(args: argparse.Namespace) -> None:
 #
 # Sizes the auto-fixable population for a `16_04_fix_interpreter` codemod (GTR016;
 # docs/upgrade_research/16_04_fix_interpreter.md). Tools with a deprecated
-# `<command interpreter=…>` split into: A (bucket-A: single-token standard interpreter
+# `<command interpreter=…>` split into: A (bucket-A: any non-empty interpreter value
 # + literal leading script token that exists beside the XML — exactly what the codemod
-# rewrites), A-missing (would-be-A but the named script isn't co-located), B
-# (leading-Cheetah / non-literal first token), C (non-standard / multi-token
-# interpreter — java -jar, docker, Rscript --no-save, …). Classification reuses the
-# codemod's own eligibility predicate (`codemods/_interpreter.py`) so the measure and
-# the codemod agree by construction. Writes docs/interpreter_bucket_stats.md. Needs
-# the corpus, so not run in CI.
+# rewrites; the legacy `interpreter + " " + command` composition is verbatim, so
+# flag-bearing / non-script values rewrite too), A-missing (would-be-A but the named
+# script isn't co-located), B (leading-Cheetah / non-literal first token), empty
+# (`interpreter=""` — legacy gated on `if interpreter:`, so it was ignored; nothing to
+# reproduce). Classification reuses the codemod's own eligibility predicate
+# (`codemods/_interpreter.py`) so the measure and the codemod agree by construction.
+# Writes docs/interpreter_bucket_stats.md. Needs the corpus, so not run in CI.
 
 
 @dataclass
@@ -5306,19 +5307,18 @@ class _InterpreterBucketResult:
     bucket_a: int  # auto-fixable now (literal script, exists beside the XML)
     bucket_a_missing: int  # structurally A, but the named script is not co-located
     bucket_b: int  # leading Cheetah / non-literal first token
-    bucket_c: int  # non-standard / multi-token interpreter
+    bucket_empty: int  # interpreter="" — legacy-ignored, nothing to reproduce
     interpreter_values: dict[str, int]  # interpreter attribute value -> tools
 
 
 def _measure_interpreter_buckets(*, corpus_root: Path) -> _InterpreterBucketResult:
     """Classify every `<command interpreter=…>` tool by codemod auto-fixability."""
     from galaxy_tool_xml_codemod.codemods._interpreter import (
-        _STANDARD_INTERPRETERS,
         interpreter_rewrite_target,
     )
 
     seen: set[str] = set()
-    n_tools = n_with = a = a_missing = b = c = 0
+    n_tools = n_with = a = a_missing = b = empty = 0
     values: Counter[str] = Counter()
     for path in _iter_corpus_tool_xmls(corpus_root):
         if not path.is_file():
@@ -5339,10 +5339,10 @@ def _measure_interpreter_buckets(*, corpus_root: Path) -> _InterpreterBucketResu
             continue
         n_with += 1
         values[interpreter] += 1
-        if interpreter not in _STANDARD_INTERPRETERS:
-            c += 1
+        if not interpreter:
+            empty += 1  # legacy `if interpreter:` ignored it — the codemod skips too
             continue
-        # Standard interpreter: A vs A-missing vs B turns on the body + co-location.
+        # Non-empty interpreter: A vs A-missing vs B turns on the body + co-location.
         structural = interpreter_rewrite_target(root)
         if structural is None:
             b += 1
@@ -5356,7 +5356,7 @@ def _measure_interpreter_buckets(*, corpus_root: Path) -> _InterpreterBucketResu
         bucket_a=a,
         bucket_a_missing=a_missing,
         bucket_b=b,
-        bucket_c=c,
+        bucket_empty=empty,
         interpreter_values=dict(values),
     )
 
@@ -5402,22 +5402,25 @@ def _render_interpreter_bucket_page(result: _InterpreterBucketResult) -> str:
             "| Bucket | Tools | Share | Meaning |",
             "|---|--:|--:|---|",
             f"| **A — auto-fixable** | {result.bucket_a:,} | {pct(result.bucket_a)} "
-            "| single-token standard interpreter + literal leading script that exists "
-            "beside the XML |",
+            "| any non-empty interpreter (incl. flags / `java -jar` — the legacy "
+            "composition is verbatim concatenation) + literal leading script that "
+            "exists beside the XML |",
             f"| A-missing | {result.bucket_a_missing:,} | {pct(result.bucket_a_missing)} "
             "| structurally A but the named script isn't co-located — still rewritten "
             "(the codemod has no file-exists gate; the split is a measurement refinement) |",
             f"| B — leading Cheetah / non-literal | {result.bucket_b:,} "
             f"| {pct(result.bucket_b)} | command starts with a `#`-directive or `$var`, "
             "so the script isn't statically first |",
-            f"| C — non-standard interpreter | {result.bucket_c:,} | {pct(result.bucket_c)} "
-            "| multi-token / non-script (`java -jar`, `docker`, `Rscript --no-save`, …) |",
+            f"| empty `interpreter=\"\"` | {result.bucket_empty:,} "
+            f"| {pct(result.bucket_empty)} | legacy gated on `if interpreter:` — the "
+            "attribute was ignored, so there is no composition to reproduce |",
             "",
             f"Buckets **A + A-missing** ({result.bucket_a + result.bucket_a_missing:,} "
             "tools) are the codemod's target — the file-exists split is a measurement-only "
             "refinement, not a codemod gate (`fix_interpreter.py` calls the eligibility "
-            "predicate with no `tool_dir`). Only **B/C** remain detect/warn-only (the §23 "
-            "upgrade warning) — they need author intent or a richer parse.",
+            "predicate with no `tool_dir`). Only **B** (and the degenerate empty "
+            "attribute) remains detect/warn-only (the §23 upgrade warning) — the "
+            "rendered first token needs author intent or a richer parse.",
             "",
             "## Interpreter values",
             "",
@@ -5438,7 +5441,7 @@ def _report_interpreter_buckets(result: _InterpreterBucketResult) -> None:
         f"  A (auto-fixable):     {result.bucket_a}\n"
         f"  A-missing (no script): {result.bucket_a_missing}\n"
         f"  B (leading cheetah):  {result.bucket_b}\n"
-        f"  C (non-standard):     {result.bucket_c}"
+        f"  empty interpreter=\"\": {result.bucket_empty}"
     )
 
 

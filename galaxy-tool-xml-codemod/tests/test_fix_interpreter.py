@@ -1,10 +1,12 @@
 """Tests for the ``FixInterpreter`` (GTR016) runtime-gated codemod.
 
-Rewrites a deprecated ``<command interpreter="python">script.py …</command>`` to
-``<command>python '$__tool_directory__/script.py' …</command>`` (dropping the
-attribute), reproducing what Galaxy did at runtime before profile 16.04. Acts only
-on "bucket A" (single-token standard interpreter + literal-script first token);
-bucket B/C are left for the §23 warning.
+Rewrites a deprecated ``<command interpreter="I">script.py …</command>`` to
+``<command>I '$__tool_directory__/script.py' …</command>`` (dropping the
+attribute), reproducing what Galaxy did at runtime before profile 16.04 — verbatim
+``interpreter + " " + command`` concatenation, so **any** non-empty interpreter
+value rewrites (flags, ``java -jar``, compound prefixes), provided the command's
+first token is a literal script (bucket A). Bucket B (leading Cheetah) and an
+empty ``interpreter=""`` (legacy ignored it) are left for the §23 warning.
 """
 
 from __future__ import annotations
@@ -104,9 +106,62 @@ def test_bucket_b_leading_cheetah_is_no_op() -> None:
     assert etree.tostring(module.document.root) == before
 
 
-def test_bucket_c_multitoken_interpreter_is_no_op() -> None:
+def test_multitoken_interpreter_rewrites_verbatim() -> None:
+    # Legacy Galaxy composed `interpreter + " " + command` by verbatim string
+    # concatenation (release_16.04..release_20.01 evaluation.py, byte-identical),
+    # so `java -jar` ran exactly as written — the rewrite reproduces it.
     module = parse_module(
         _HEAD + b'<command interpreter="java -jar">app.jar x</command></tool>'
+    )
+    changes = list(FixInterpreter().detect(module))
+    assert len(changes) == 1
+    FixInterpreter().apply(module)
+    assert _command_text(module.document.root) == (
+        "java -jar '$__tool_directory__/app.jar' x"
+    )
+    command = module.document.root.find("command")
+    assert command is not None and command.get("interpreter") is None
+
+
+def test_flags_interpreter_rewrites_verbatim() -> None:
+    module = parse_module(
+        _HEAD
+        + b'<command interpreter="Rscript --no-save">run.R $input</command></tool>'
+    )
+    FixInterpreter().apply(module)
+    assert _command_text(module.document.root) == (
+        "Rscript --no-save '$__tool_directory__/run.R' $input"
+    )
+
+
+def test_compound_interpreter_prefix_rewrites_verbatim() -> None:
+    # Even a shell-compound interpreter value worked by concatenation:
+    # `export X=1; java -jar /abs/app.jar x`.
+    module = parse_module(
+        _HEAD + b'<command interpreter="export X=1; java -jar">'
+        b"app.jar x</command></tool>"
+    )
+    FixInterpreter().apply(module)
+    assert _command_text(module.document.root) == (
+        "export X=1; java -jar '$__tool_directory__/app.jar' x"
+    )
+
+
+def test_empty_interpreter_is_no_op() -> None:
+    # Legacy gated on `if interpreter:` — an empty attribute was ignored, so the
+    # body was already run as-is; the rewrite shape doesn't apply.
+    module = parse_module(
+        _HEAD + b'<command interpreter="">script.py $i</command></tool>'
+    )
+    assert not list(FixInterpreter().detect(module))
+
+
+def test_multitoken_interpreter_leading_cheetah_still_no_op() -> None:
+    # The widening does not touch the literal-first-token requirement: a former
+    # bucket-C tool whose command leads with Cheetah stays unprovable (bucket B).
+    module = parse_module(
+        _HEAD + b'<command interpreter="java -jar">'
+        b"#if $c\napp.jar\n#end if</command></tool>"
     )
     assert not list(FixInterpreter().detect(module))
 

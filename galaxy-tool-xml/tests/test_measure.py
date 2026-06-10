@@ -1008,9 +1008,16 @@ def test_measure_interpreter_buckets_classifies(tmp_path: Path) -> None:
         '<tool><command interpreter="python">#if $c\nx.py\n#end if</command></tool>',
         encoding="utf-8",
     )
-    # C: non-standard / multi-token interpreter.
+    # Multi-token interpreter is bucket A since the verbatim-composition widening
+    # (here A: the jar is co-located).
     (repo / "c.xml").write_text(
         '<tool><command interpreter="java -jar">app.jar</command></tool>',
+        encoding="utf-8",
+    )
+    (repo / "app.jar").write_bytes(b"")
+    # Empty interpreter: legacy-ignored -> its own bucket, never rewritten.
+    (repo / "empty.xml").write_text(
+        '<tool><command interpreter="">run.py $in</command></tool>',
         encoding="utf-8",
     )
     # No interpreter attribute -> not counted in the population.
@@ -1019,12 +1026,12 @@ def test_measure_interpreter_buckets_classifies(tmp_path: Path) -> None:
     )
 
     result = _measure_interpreter_buckets(corpus_root=tmp_path)
-    assert result.n_tools == 5
-    assert result.n_with_interpreter == 4
-    assert result.bucket_a == 1
+    assert result.n_tools == 6
+    assert result.n_with_interpreter == 5
+    assert result.bucket_a == 2
     assert result.bucket_a_missing == 1
     assert result.bucket_b == 1
-    assert result.bucket_c == 1
+    assert result.bucket_empty == 1
     assert result.interpreter_values["python"] == 2
     assert result.interpreter_values["java -jar"] == 1
 

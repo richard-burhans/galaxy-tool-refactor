@@ -43,7 +43,7 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR013 | XMLOrder | ✓ | ✓ | codemod | default | Reorder `<tool>` child elements to the IUC convention. |
 | GTR014 | — | ✓ | ✓ | upgrade | — | Strip surrounding whitespace from `<data from_work_dir>` (literal at profile >= 21.09). |
 | GTR015 | OutputsFormatInput | ✓ | ✓ | upgrade | — | Replace output `<data format="input">` with format_source for a tool with a single top-level data input. |
-| GTR016 | CommandInterpreterDeprecated | ✓ | ✓ | upgrade | — | Inline a deprecated `<command interpreter=I>`script ...`</command>` as `<command>`I '$__tool_directory__/script' ...`</command>` (single-token interpreter, literal-script first token). |
+| GTR016 | CommandInterpreterDeprecated | ✓ | ✓ | upgrade | — | Inline a deprecated `<command interpreter=I>`script ...`</command>` as `<command>`I '$__tool_directory__/script' ...`</command>` (any non-empty interpreter, literal-script first token). |
 | GTR017 | — | ✓ | ✓ | codemod | default | Normalize Python-style boolean attribute values (True/Yes/…) to canonical xs:boolean so a globally-invalid tool validates. |
 | GTR018.1 | — | ✓ | ✓ | codemod | default | Wrap a pure-text `<command>` body in CDATA (IUC #34). |
 | GTR018.2 | — | ✓ | ✗ | check | strict | `<command>` CDATA residual the fix can't reach (mixed-content / ]]>). |

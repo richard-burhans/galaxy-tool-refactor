@@ -43,13 +43,14 @@ def test_interpreter_rewrite_returns_full_plan() -> None:
     assert plan == ("python", "myscript.py", 0)
 
 
-def test_interpreter_rewrite_none_for_bucket_b_and_c() -> None:
+def test_interpreter_rewrite_none_for_bucket_b_and_empty() -> None:
     bucket_b = _root(
         '<tool><command interpreter="python">#if $c\nx.py\n#end if</command></tool>'
     )
-    bucket_c = _root('<tool><command interpreter="java -jar">app.jar</command></tool>')
+    empty = _root('<tool><command interpreter="">x.py</command></tool>')
     assert interpreter_rewrite(bucket_b) is None
-    assert interpreter_rewrite(bucket_c) is None
+    # Legacy gated on `if interpreter:` — an empty attribute was ignored.
+    assert interpreter_rewrite(empty) is None
 
 
 def test_first_command_token_skips_blanks_and_comments() -> None:
@@ -87,13 +88,15 @@ def test_target_none_for_var_first_token() -> None:
     assert interpreter_rewrite_target(root) is None
 
 
-def test_target_none_for_non_standard_interpreter() -> None:
-    # multi-token / non-script "interpreters" are out of scope
+def test_target_resolves_for_any_nonempty_interpreter() -> None:
+    # Legacy composition is verbatim `interpreter + " " + command`
+    # (release_16.04..release_20.01 evaluation.py), so flag-bearing / non-script
+    # interpreter values are in scope — the literal first token is the only gate.
     for interp in ("java -jar", "docker", "Rscript --no-save", "python -W ignore"):
         root = _root(
             f'<tool><command interpreter="{interp}">app.jar x</command></tool>'
         )
-        assert interpreter_rewrite_target(root) is None
+        assert interpreter_rewrite_target(root) == "app.jar"
 
 
 def test_target_none_when_first_token_not_a_filename() -> None:

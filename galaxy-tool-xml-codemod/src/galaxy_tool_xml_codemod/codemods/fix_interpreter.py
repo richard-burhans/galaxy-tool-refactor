@@ -3,17 +3,21 @@
 Before profile 16.04 Galaxy ran ``<command interpreter="python">script.py …</command>``
 as ``python '<tool_dir>/script.py' …`` at runtime — it took the first whitespace
 token of the *substituted* command line, resolved it under the tool directory, and
-prepended the interpreter (``.local/galaxy-src`` ``evaluation.py:781-787``). From 16.04
+prepended the interpreter attribute **verbatim** (``interpreter + " " +
+command_line``; byte-identical ``release_16.04`` ``evaluation.py:478-484`` through
+``release_20.01`` ``:509-514``, the whole era honoring the attribute). From 16.04
 the ``interpreter`` attribute is ignored, so an upgraded tool breaks unless the command
 is rewritten (Galaxy's ``16_04_fix_interpreter`` *must-fix* upgrade code).
 
 This is a **runtime-gated fix** (like GTR014/GTR015): the construct is XSD-valid at
 every profile, so the ``upgrade`` path applies it once a tool *crosses* the 16.04
 boundary (``runtime_fixes.py``; crossing-gate, codemod ``docs/decisions.md`` §24). It
-acts only on "bucket A" — a single-token standard ``interpreter`` whose body begins
-with a literal script filename (``codemods/_interpreter.py``); bucket B (leading
-Cheetah / ``$var`` first token) and bucket C (multi-token interpreter) cannot be
-rewritten statically and stay in the §23 warning.
+acts on "bucket A" — **any non-empty** ``interpreter`` whose body begins with a
+literal script filename (``codemods/_interpreter.py``; the verbatim-concatenation
+proof above is what admits flag-bearing and non-script values). Bucket B (leading
+Cheetah / ``$var`` first token) cannot be rewritten statically and stays in the §23
+warning, as does an empty ``interpreter=""`` (legacy-ignored; no composition to
+reproduce).
 
 **Positional splice, not ``str.replace`` over the raw body.** The rewrite is anchored
 at the offset ``first_command_token_span`` located (the first non-blank, non-``##``
@@ -67,7 +71,7 @@ class FixInterpreter(RuntimeGatedFix):
         code="GTR016",
         summary=(
             "Inline a deprecated <command interpreter=I>script ...</command> as"
-            " <command>I '$__tool_directory__/script' ...</command> (single-token"
+            " <command>I '$__tool_directory__/script' ...</command> (any non-empty"
             " interpreter, literal-script first token)."
         ),
         since="0.0.1",
@@ -87,7 +91,7 @@ class FixInterpreter(RuntimeGatedFix):
         # which the corpus sweep correctly flags as non-idempotent.
         plan = interpreter_rewrite(document.root)
         if plan is None:
-            return  # bucket B/C — left for the §23 semantic warning
+            return  # bucket B / empty interpreter — left for the §23 warning
         interpreter, token, offset = plan
         command = document.root.find("command")
         if command is None:  # defensive: interpreter_rewrite already found it
