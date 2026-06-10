@@ -1458,6 +1458,18 @@ galaxy_tool_xml_codemod.codemods.trim_attribute_whitespace:TrimAttributeWhitespa
   0 crashed** (`docs/corpus_rule_stats.md`); the canonical `format` pipeline stays
   idempotent (fmt sweep: 8,608 idempotent, 0 non-idempotent).
 
+**Addendum (2026-06-10, the proofs-tightening pass):** GTR035 became a
+**partition** — `GTR035.1` (this codemod, now `<requirement version>` only:
+conda receives the spec verbatim, `conda_util.py:461-465`, so a
+whitespace-bearing version never resolved — an unconditional repair proof) and
+`GTR035.2` (a new check-tier advisory for `<tool name>` edge whitespace: its
+preservation argument is a *display-contract* claim — `parse_name` reads the
+attribute raw, `xml.py:220-221`, render-identical in HTML but byte-visible in
+API JSON — below the construction bar fixable rules now hold to). The
+`ToolNameWhitespace` planemo alias moved to `.2`; parity coverage is unchanged.
+Behaviour-preservation ledger, "GTR035 advisory" proposal, applied at the
+maintainer's direction.
+
 ## 34. `ReplaceOutputElement` (GTR036) — deprecated `<output type="data">` → `<data>`
 
 **Date:** 2026-06-06. Second planemo-parity *fix*

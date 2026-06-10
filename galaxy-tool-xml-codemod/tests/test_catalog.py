@@ -23,7 +23,7 @@ _EXPECTED_CODES = {
     "GTR018.1",  # WrapCommandCdata (fix half of the GTR018 partition)
     "GTR019.1",  # WrapHelpCdata (fix half of the GTR019 partition)
     "GTR020.1",  # SingleQuoteCommandVars (fix half of the GTR020 partition)
-    "GTR035",  # TrimAttributeWhitespace (name + requirement version)
+    "GTR035.1",  # TrimAttributeWhitespace (requirement version; fix half of GTR035)
     "GTR036",  # ReplaceOutputElement (<output type="data"> -> <data>)
     "GTR037",  # DropRedundantParamName (name == argument-derived)
     "GTR089.1",  # RepairHelpRst (fix half of the GTR089 partition)

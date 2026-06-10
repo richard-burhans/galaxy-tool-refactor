@@ -157,16 +157,15 @@ incidence sizes impact, never soundness.*
   widening was **reverted as unsound** (Cheetah renders values as literal text)
   and the full record lives in
   `docs/upgrade_research/cheetah_bashlex_boundary_oracle.md`.
-- **GTR035 TrimAttributeWhitespace** (codemod §33): two attribute-specific
-  proofs. `<requirement version>`: Galaxy composes the conda spec **verbatim**
-  — `package_specifier = f"{self.package}={self.version}"`
-  (`tool_util/deps/conda_util.py:461-465`), passed as a CLI argument — so a
-  whitespace-bearing version never resolved; trimming only repairs. `<tool
-  name>`: a **display-contract** claim (the GTR089.1 style): `parse_name` reads
-  the attribute raw (`parser/xml.py:220-221`) but the name is a display/metadata
-  string — not an addressing key (tools are addressed by `id`) — and HTML
-  rendering collapses edge whitespace. `id`/`version` are excluded precisely
-  because they ARE raw identity keys.
+- **GTR035 — now a partition** (codemod §33 addendum, check D33): `GTR035.1`
+  keeps the unconditional proof — Galaxy composes the conda spec **verbatim**
+  (`package_specifier = f"{self.package}={self.version}"`,
+  `tool_util/deps/conda_util.py:461-465`), so a whitespace-bearing
+  `<requirement version>` never resolved and trimming only repairs. The `<tool
+  name>` leg's **display-contract** claim (`parse_name` raw,
+  `parser/xml.py:220-221`; render-identical, byte-visible in API JSON) was
+  judged below the fixable bar and moved to the `GTR035.2` advisory.
+  `id`/`version` stay excluded entirely — they ARE raw identity keys.
 - **GTR036 ReplaceOutputElement** (codemod §34): Galaxy routes an
   `<output type="data">` through the same `_parse` as `<data>`
   (`tool_util/parser/xml.py:548-563`) — a parse-level no-op rename.
@@ -196,11 +195,10 @@ incidence sizes impact, never soundness.*
   now context-guarded. Two proof-carried exceptions recorded (`<macros>` text
   is dead — Galaxy clears the element, `xml_macros.py:39-45`; `<help>` keeps
   D18's renders-empty argument).
-- **GTR035's `<tool name>` leg is a display-contract claim**, now stated as
-  such (the GTR089.1 style): the trimmed name is byte-visible in API JSON but
-  render-identical in HTML. If a stricter bar is ever wanted, the name trim
-  could move to the advisory residual; the conda-version leg is unconditional
-  either way.
+- ~~**GTR035's `<tool name>` leg is a display-contract claim**~~ — **applied
+  same day at the maintainer's direction:** GTR035 partitioned into `GTR035.1`
+  (the unconditional version trim, fixable) + `GTR035.2` (the name-whitespace
+  advisory, check tier). Codemod §33 addendum, check D33.
 - **GTR089.1 RepairHelpRst** (codemod §37; tier-1 `rst` §23): proof by
   execution, like GTR092 — repairs invalid `<help>`
   reStructuredText, but the claim is on the *rendered* help (Galaxy renders RST to HTML

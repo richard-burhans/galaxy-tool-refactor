@@ -99,6 +99,43 @@ class IdCharset(CheckRule):
             )
 
 
+class NameWhitespace(CheckRule):
+    """GTR035.2 — a ``<tool>`` ``name`` should carry no edge whitespace.
+
+    The advisory residual of the GTR035 partition (codemod §33 addendum): the
+    trim is *display-contract* preserving (``parse_name`` reads the attribute
+    raw, ``tool_util/parser/xml.py:220-221``; HTML rendering collapses edge
+    whitespace but the byte difference is visible in API JSON), which is below
+    the construction bar for an auto-fix — so it is reported here and the
+    ``<requirement version>`` half stays fixable as GTR035.1.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR035.2",
+        parent="GTR035",
+        summary=(
+            "A <tool> 'name' should have no leading/trailing whitespace "
+            "(display-contract residual of GTR035; report-only)."
+        ),
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+        rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset({"ToolNameWhitespace"}),
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        name = root.get("name")
+        if name is not None and name != name.strip():
+            yield _violation(
+                document,
+                root,
+                self.meta,
+                "<tool> 'name' has leading/trailing whitespace",
+            )
+
+
 class VersionFormat(CheckRule):
     """GTR024 — the tool ``version`` should be PEP 440 or a ``@...@`` macro."""
 
