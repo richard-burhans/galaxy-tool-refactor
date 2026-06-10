@@ -221,7 +221,7 @@ only via its NEW-simpleType row — listed below by hand.
 |---|---|---|---|
 | **G1 (+G3, G5)** | the 22.01 **stdio tightening**: `ExitCode.range` required, `Regex.match` required, `RangeType` pattern (whose *sole* consumer is `ExitCode.range`) | **All proven** (Galaxy `xml.py:1248-1280`, `1318-1324`): `range` falls back to the `value` attribute (aliases); an `<exit_code>` with neither — or with `range=""` (the only stranded `RangeType` form; `int("")` path) — is silently skipped, as is a `<regex>` without `match`; the runtime range parser strips all whitespace | one codemod, three fixes: rename `value=`→`range=`; delete runtime-dead `<exit_code>`/`<regex>` elements |
 | **G2** | `AssertHasSize.value`/`delta` → `Bytes` (22.01) | **Proven** (follow-up read): values flow through `galaxy.util.size_to_bytes`, which accepts forms the pattern rejects (`"2 TB"`, `"1 MiB"`, decimals); any parseable value canonicalizes to its exact integer byte count — always pattern-valid | normalize to `str(size_to_bytes(v))` when pattern-invalid + parseable |
-| **G4** | `Repeat.name` (22.01) / `Conditional.name` (24.0) required | hazard identified: a synthesized name leaks into the tool's API surface (workflows/tests address params by qualified name) — likely a decline | check what pre-boundary Galaxy did with nameless groups; expect "document, don't fix" |
+| **G4** | `Repeat.name` (22.01) / `Conditional.name` (24.0) required | **Declined (verified 2026-06-10):** `Group.__init__` stores `name=None`, but every downstream prefixed-name construction concatenates it (`prefix + input.name` → `TypeError`) — a nameless group was *broken at runtime all along*, so there is no working behavior to preserve; and any synthesized name would leak into the workflow-addressable API surface | none — documented decline |
 | **G6** | `MacroImportType` element-content pattern (21.01) — forbids `/` in `<import>` paths | **unprovable** (the path is meaningful; no rewrite preserves it) | document-only |
 | — | `ParamConversion`/`RequestParameter` required ×4 (18.01) | pre-broken class: `data_source`-tool internals, missing values likely nonfunctional pre-18.01 | low priority; verify-then-decline |
 
@@ -235,8 +235,13 @@ only via its NEW-simpleType row — listed below by hand.
    `galaxy.util.bytesize.parse_bytesize`, *not* `size_to_bytes` — so
    plain-`B`/word-suffix forms were never runtime-working and stay out; the
    provable class is whitespace, suffix case, and integral scientific forms.
-3. **G4** — expect a documented decline (API-surface hazard).
+3. **G4** — ✅ **declined as predicted** (verified: nameless groups were
+   runtime-broken — `TypeError` in prefixed-name construction — plus the
+   API-surface hazard). Recorded above; no code.
 4. **G6 / 18.01 row** — document-only.
+
+**G-series complete (2026-06-10):** every gap shipped (§42), declined with a
+verified reason (G4), or documented as unprovable (G6, 18.01).
 
 G-series ranking approved by the maintainer 2026-06-10. The follow-up source
 reads then *collapsed* G3 and G5 into G1 (RangeType's sole consumer is
