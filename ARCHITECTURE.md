@@ -359,7 +359,8 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   display/idiom, option-filters (`GTR054`–`GTR079`) — the `tests.py` surface
   (`GTR080`–`GTR088`), and `<help>` reStructuredText validity (`GTR089`, which carries
   the `docutils` dependency — now split into the `GTR089.1` repair + `GTR089.2` residual
-  partition, with the predicate in tier 1, xml §23). The whole tier is now **68 checks**
+  partition, with the predicate in tier 1, xml §23; GTR035.2 — the name-whitespace
+  residual of the GTR035 partition, check D33). The whole tier is now **69 checks**
   (`GTR018.2`/`GTR019.2`/`GTR020.2`/`GTR089.2` + the flat IUC advisories above + this
   wave). A recurring soundness rule across the wave: a check that would mis-fire when a
   `<macro>` injects the construct it inspects skips that tool (the tier-1
