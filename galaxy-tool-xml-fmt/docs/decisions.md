@@ -1009,5 +1009,8 @@ galaxy-tool-xml-fmt/tests/test_rule_indent.py`.
   schema — deriving it removes a drift class instead of adding one. The
   tier-1 tests pin the known members both ways (payload tags present,
   structural tags absent, the collision tags honestly included).
-- **Corpus impact:** regenerated with the branch's final sweep (GTR004/GTR001
-  counts shift as the widened guard preserves more whitespace-only bodies).
+- **Corpus impact** (the branch's final sweep): GTR001 detect 6,648 → 6,643
+  tools / edits 863,667 → 857,669 (−5,998 — whitespace inside newly-protected
+  text-bearing subtrees preserved); GTR004 touched 1,404 → 1,370 / edits 2,468
+  → 2,429 (ws-only option/filter/description/… bodies kept). Idempotence and
+  validity unaffected across all sweeps.

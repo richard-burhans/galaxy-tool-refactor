@@ -12,10 +12,10 @@ Structural canonical codemods and cosmetic fmt rules. A finding here means `form
 
 | Rule | Tier | Tools flagged | % of tools | Findings | What it flags |
 |---|---|---:|---:|---:|---|
-| GTR001 | fmt | 6,648 | 71.6% | 310,466 | Canonical 4-space indentation; no tabs. |
+| GTR001 | fmt | 6,643 | 71.5% | 309,376 | Canonical 4-space indentation; no tabs. |
 | GTR002 | codemod | 6,627 | 71.3% | 37,334 | Reorder every `<param>` element's attributes to the IUC convention. |
-| GTR003 | fmt | 9,230 | 99.4% | 69,838 | One blank line between top-level children of `<tool>`. |
-| GTR004 | fmt | 1,219 | 13.1% | 2,129 | Collapse empty-with-whitespace leaves to `<foo/>` form. |
+| GTR003 | fmt | 9,230 | 99.4% | 69,837 | One blank line between top-level children of `<tool>`. |
+| GTR004 | fmt | 1,214 | 13.1% | 2,122 | Collapse empty-with-whitespace leaves to `<foo/>` form. |
 | GTR005 | codemod | 1,064 | 11.5% | 1,064 | Reorder the root `<tool>` element's attributes to the documented prefix. |
 | GTR006 | codemod | 30 | 0.3% | 30 | Repair near-miss spelling typos so a globally-invalid tool validates. |
 | GTR013 | codemod | 5,009 | 53.9% | 5,009 | Reorder `<tool>` child elements to the IUC convention. |
@@ -23,7 +23,7 @@ Structural canonical codemods and cosmetic fmt rules. A finding here means `form
 | GTR018.1 | codemod | 3,254 | 35.0% | 3,254 | Wrap a pure-text `<command>` body in CDATA (IUC #34). |
 | GTR019.1 | codemod | 3,732 | 40.2% | 3,975 | Wrap a pure-text `<help>` body in CDATA (IUC #42). |
 | GTR020.1 | codemod | 4,902 | 52.8% | 4,902 | Single-quote provably-single-valued Cheetah variables in `<command>` (bare single-token params, $__…__ path built-ins, space-free attrs). |
-| GTR035 | codemod | 26 | 0.3% | 26 | Trim accidental leading/trailing whitespace from a `<tool>` 'name' and a `<requirement>` 'version' (the behaviour-preserving subset; a `<tool>` 'id'/'version' are identity-significant and left for the advisory check). |
+| GTR035.1 | codemod | 0 | 0.0% | 0 | Trim accidental leading/trailing whitespace from a `<requirement>` 'version' (a whitespace-bearing value never resolved — conda gets the spec verbatim; the `<tool>` 'name' trim is the GTR035.2 advisory). |
 | GTR036 | codemod | 1 | 0.0% | 1 | Replace a deprecated `<outputs>``<output type="data">` with `<data>` (collection / expression outputs are left for the advisory check). |
 | GTR037 | codemod | 343 | 3.7% | 1,846 | Drop a `<param>` 'name' that equals the name Galaxy derives from its 'argument' (redundant; argument implies the same name). |
 | GTR089.1 | codemod | 63 | 0.7% | 63 | Repair deterministically-fixable invalid `<help>` reStructuredText (short title underlines, missing blank lines) behind a behaviour-preserving gate. |
@@ -48,6 +48,7 @@ Detect-only IUC best-practice checks. Advisory: `check` reports them but does no
 | GTR032 | check | 0 | 0.0% | 0 | Join shell commands with && not a lone & (not yet implemented). |
 | GTR033 | check | 275 | 3.0% | 661 | Package `<requirement>`s should pin a version. |
 | GTR034 | check | 189 | 2.0% | 467 | Input `<param>` is never referenced in the tool. |
+| GTR035.2 | check | 26 | 0.3% | 26 | A `<tool>` 'name' should have no leading/trailing whitespace (display-contract residual of GTR035; report-only). |
 | GTR038 | check | 6,710 | 72.2% | 6,710 | Tool should declare a non-empty `<citation>` (doi/bibtex). |
 | GTR039 | check | 47 | 0.5% | 47 | `<command>`/`<help>` should not contain 'TODO' placeholder text. |
 | GTR040 | check | 11 | 0.1% | 11 | Output `<data>`/`<collection>` names must be unique. |

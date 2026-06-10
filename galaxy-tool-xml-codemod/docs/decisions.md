@@ -1467,8 +1467,10 @@ preservation argument is a *display-contract* claim — `parse_name` reads the
 attribute raw, `xml.py:220-221`, render-identical in HTML but byte-visible in
 API JSON — below the construction bar fixable rules now hold to). The
 `ToolNameWhitespace` planemo alias moved to `.2`; parity coverage is unchanged.
-Behaviour-preservation ledger, "GTR035 advisory" proposal, applied at the
-maintainer's direction.
+**Corpus:** all 26 detected whitespace instances are *name* cases — GTR035.2
+now reports all 26, and GTR035.1 (version) is zero-corpus novel-tool insurance
+(0 modified in the rules sweep). Behaviour-preservation ledger, "GTR035
+advisory" proposal, applied at the maintainer's direction.
 
 ## 34. `ReplaceOutputElement` (GTR036) — deprecated `<output type="data">` → `<data>`
 
