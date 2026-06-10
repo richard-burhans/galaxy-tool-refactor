@@ -191,6 +191,10 @@ schema, and expose a typed view — **without ever serialising**.
   server vs client renderers; the `[markdown]` extra): `rst_to_commonmark` /
   `conversion_is_render_equivalent` / `convert_help_rst` power the GTR092 opt-in
   `convert-help` conversion and the `help-rst-md-convert` measure (xml §24; codemod §38).
+- **`schema_content.text_bearing_tags()`** — `schema_content.py` — the
+  schema-derived set of element tags whose content model admits text, unioned
+  across all 28 vendored XSDs; the source of truth behind fmt's payload guard
+  (GTR001/GTR004 whitespace soundness — fmt §D20, xml §25).
 
 **Contract:** the lxml tree is the single representation; tier 1 emits no XML.
 *(xml `docs/decisions.md` §3 representation, §9 three-tier vision, §10 corpus
@@ -287,6 +291,10 @@ and a throwaway temp-dir round-trip for macro expansion — neither is output.)
   `CanonicalIndent` (`rule_indent.py`), `GTR003` `BlankLineBetweenSections`
   (`rule_blank_line.py`, tool-only), `GTR004` `EmptyElementShorthand`
   (`rule_empty_element.py`). *(GTR002/GTR005 — attribute order — moved to tier 2.)*
+  GTR001 and GTR004 share the **schema-derived payload guard** (`payload.py` over
+  tier-1 `schema_content`, fmt §D20): whitespace inside a text-bearing element is
+  never rewritten, with two proof-carried exceptions (configfiles-context
+  `<inputs>`, cleared `<macros>`).
 - **`Edit` + `apply_edits`** — `edits.py` — a frozen discriminated union
   (`NoOp | SetText | SetTail | ClearText`); `apply_edits` is the **single place**
   the tree is mutated and the single place the CDATA whitespace-only guard is
