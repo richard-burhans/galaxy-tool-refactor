@@ -402,7 +402,7 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
   — `registry.py` — the cached `code -> RuleHandle` index. `registry()` is the
   **selectable** set (canonical codemods + cosmetic fmt + advisory checks);
   `all_handles()` additionally includes the **non-selectable** codemods
-  (GTR007–GTR012 — internal to `UpgradeToLatest` — plus the runtime-gated
+  (GTR007–GTR012 + GTR093 — internal to `UpgradeToLatest` — plus the runtime-gated
   GTR014–GTR016, applied by the facade's `upgrade`, plus the opt-in-command-only
   GTR092, applied by `convert-help`; `adapters.non_selectable_codemods` /
   `OPT_IN_COMMAND_BY_CODE`).
@@ -700,7 +700,7 @@ Each abstraction → its file → the decision record that justifies it.
 | GTR005 | `ReorderToolAttributes` | `galaxy-tool-xml-codemod/.../reorder_tool_attributes.py` | codemod (canonical) |
 | GTR006 | `FixTypos` | `galaxy-tool-xml-codemod/.../fix_typos.py` | codemod (canonical, validation-driven) |
 | GTR007 | `UpdateProfile` | `galaxy-tool-xml-codemod/.../update_profile.py` | codemod (upgrade-only) |
-| GTR008–011 | `Upgrade19_01` … `Upgrade25_1` | `galaxy-tool-xml-codemod/.../upgrade_*.py` | codemod (upgrade-only) |
+| GTR008–011, GTR093 | `Upgrade19_01` … `Upgrade25_1`, `Upgrade21_09` | `galaxy-tool-xml-codemod/.../upgrade_*.py` | codemod (upgrade-only) |
 | GTR012 | `UpgradeToLatest` | `galaxy-tool-xml-codemod/.../upgrades.py` | codemod (upgrade-only orchestrator) |
 | GTR013 | `ReorderToolChildren` | `galaxy-tool-xml-codemod/.../reorder_tool_children.py` | codemod (canonical) |
 | GTR014 | `FixFromWorkDirWhitespace` | `galaxy-tool-xml-codemod/.../fix_from_work_dir_whitespace.py` | codemod (upgrade-only, runtime-gated) |

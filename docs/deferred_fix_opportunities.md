@@ -35,22 +35,18 @@ backlog entry.
 
 ## Open opportunities
 
-### A1. Collection-type whitespace normalization (a would-be `Upgrade22_1`)
+### A1. Collection-type whitespace — **SHIPPED 2026-06-10 as `Upgrade21_09` / GTR093** (codemod §41)
 
-- **Where:** codemod `PLAN.md` ("Considered and declined — collection-type
-  whitespace normalization").
-- **What:** strip stray whitespace from `collection_type` / `type` values
-  (`"list, list:paired"` → `"list,list:paired"`) on the 22.01 boundary — the
-  exact mechanical class as the shipped `Upgrade24_1` `format`/`ftype`
-  normalization.
-- **Why deferred:** *"exactly **1** corpus value is whitespace-fixable … a
-  one-tool codemod … does not earn its keep. Not built."* Pure rarity; the
-  transform itself is provably safe by the same argument as 24.1's.
-- **Sizing:** 1 corpus tool (`measure.py collection-type-normalization`);
-  vs `Upgrade24_1`'s ~97.
-- **What it would take:** small — a 24.1-pattern codemod; the corpus *sweep*
-  additionally needs an eligibility-anchor relaxation to exercise its one tool
-  (a harness concern, not a soundness one).
+Closed, third item worked top-down. The proof the decline never sought:
+Galaxy's runtime strips each comma token itself
+(`DataCollectionToolParameter.__init__`), so the rewrite is a behaviour no-op
+that gains 22.01 validity. Scoped precisely by the same runtime line —
+`collection_type=""` drops (falsy = absent), whitespace-only stays (a
+matches-nothing restriction), colon-inner whitespace and the single-value
+`CollectionType` sites stay (no runtime strip — construction, not corpus).
+The 1 corpus tool remains sweep-invisible (eligibility-anchor artifact) but
+`UpgradeToLatest` reaches it; novel tools writing `"list, paired"` now upgrade
+cleanly. Full record: codemod `docs/decisions.md` §41.
 
 ### A2. Phase-3c `@TOOL_VERSION@` / `@VERSION_SUFFIX@` extraction (parked, PR #31)
 
@@ -178,7 +174,7 @@ Criteria: **(i)** novel-tool benefit (likelihood × severity of the gap),
 |---|---|---|
 | 1 | **C2 — GTR016 bucket-C flags slice** | ✅ **shipped** (codemod §39): the proof admitted all of bucket C, not just flags — 25 tools by shape, 17 rescued from the stuck residual (316 → 299) |
 | 2 | **C1 — GTR015 nested sole input** | ✅ **shipped** (codemod §40): qualified `format_source` for conditional/section nesting; 0 corpus tools (the 1 nested corpus tool is repeat-nested — correctly still bailed), pure novel-tool insurance |
-| 3 | **A1 — collection-type whitespace** | fully provable today by a shipped precedent's argument; trivially small; unblocks the 22.01 crossing for novel tools |
+| 3 | **A1 — collection-type whitespace** | ✅ **shipped** (`Upgrade21_09` / GTR093, codemod §41): runtime comma-token strip proves the no-op; 1 corpus tool + novel-tool insurance |
 | 4 | **C3 — GTR036 collection variant** | provable by source-mirroring (method already used for the data case); modernizes a deprecated construct; ~0 corpus so pure novel-tool insurance |
 | 5 | **A2 — 3c version tokenization** | the largest corpus count (75) but style-tier payoff (no validity/behavior unlock) and the highest cost (macros creation) |
 | 6 | **A3 — GTR032 precise detector** | revisit condition met, but advisory-only payoff on a ~1-tool pattern; build when the CT3 classifier is wanted for other command checks anyway |

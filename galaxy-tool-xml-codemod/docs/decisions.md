@@ -1719,3 +1719,37 @@ galaxy_tool_xml_codemod.codemods.fix_output_format_input:FixOutputFormatInput`.
   post-validate-failed, 0 crashed**. Pure novel-tool insurance in the GTR036
   spirit ("not gated on corpus frequency") — shipped for the proof, not the
   count.
+
+## 41. `Upgrade21_09` (GTR093) — collection_type whitespace: the one-tool decline reversed
+
+**Date:** 2026-06-10. Item 3 of `../../docs/deferred_fix_opportunities.md`
+(reversing `PLAN.md`'s "Considered and declined — collection-type whitespace
+normalization", which declined a provably-safe fix on **one-tool corpus
+incidence**). Reproduced-by: `uv run --package galaxy-tool-xml-codemod pytest
+galaxy-tool-xml-codemod/tests/test_upgrade_21_09.py`; sizing
+`uv run python -m scripts.measure collection-type-normalization`.
+
+- **The boundary.** 22.01's XSD types `collection_type` for the first time:
+  `<param collection_type>` → `CollectionTypeList`
+  (`(list|paired)([:,](list|paired))*`, whitespace-rejecting); the single-value
+  sites (output `<collection type>`, `<output collection_type>`, test
+  `<output_collection type>`) → `CollectionType`. 21.09 had free `xs:string`.
+- **The proof (the part the decline never asked for).** Galaxy's runtime strips
+  each comma token itself — `DataCollectionToolParameter.__init__`:
+  `[t.strip() for t in collection_types.split(",")]`, unconditional — so
+  comma-adjacent whitespace is runtime-insignificant and stripping it is a
+  behaviour no-op that gains 22.01 validity. The same line proves two edges:
+  `collection_type=""` is **dropped** (`if collection_types:` falsy — identical
+  to absent), while a whitespace-only value is **left** (it strips to a
+  matches-nothing restriction; lifting it would change behaviour).
+- **What stays out, and why it is construction-not-corpus:** colon-inner
+  whitespace (`type_description.py` splits `:` raw — runtime-significant), the
+  single-value `CollectionType` sites (no runtime strip exists), and case
+  (`List` — runtime comparisons exact). All left stuck + reported.
+- **Corpus.** Exactly **1** tool (`qiime2_core__tools__import_fastq`,
+  `"list, list:paired"`) — and even it is invisible to the codemod *sweep*
+  (declares 22.05 but validates only to 21.09, so the sweep's
+  `corpus_test_profile_for` anchor drops it; a harness-policy artifact, not a
+  codemod gate — `UpgradeToLatest` itself reaches it fine via
+  `UPGRADE_CODEMODS["21.09"]`). Shipped under the novel-tool soundness
+  principle: the proof, not the count, is the admission ticket.

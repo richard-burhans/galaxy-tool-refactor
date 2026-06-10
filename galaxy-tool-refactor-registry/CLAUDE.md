@@ -37,7 +37,7 @@ the CLI and the MCP server (`galaxy-tool-refactor-mcp`) sit on top of it.
   to a uniform `meta` / `family` / `fixable` / `detect` / `apply` shape; the
   registry asserts the GTR code namespace is collision-free.
 - **Selectable ≠ all.** `registry()` is the selectable set (canonical codemods +
-  cosmetic fmt + advisory checks). The non-selectable codemods — GTR007–GTR012
+  cosmetic fmt + advisory checks). The non-selectable codemods — GTR007–GTR012 + GTR093
   (validity-gated, internal to `UpgradeToLatest`), GTR014–GTR016 (runtime-gated,
   applied by `upgrade`), and the opt-in-command-only GTR092 (applied by
   `convert-help`; `adapters.OPT_IN_COMMAND_BY_CODE`) — appear only in

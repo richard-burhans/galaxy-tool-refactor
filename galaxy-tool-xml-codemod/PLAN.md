@@ -197,7 +197,11 @@ tool is excluded from the codemod sweep anyway — it declares profile `22.05` b
 only validates up to 21.09, so the eligibility anchor (`corpus_test_profile_for`,
 which scans the declared profile forward) drops it. Versus `Upgrade24_1`'s ~97
 tools, a one-tool codemod (that also requires relaxing the eligibility anchor to
-even exercise it) does not earn its keep. Not built. The other corpus
+even exercise it) does not earn its keep. Not built. *(Reversed 2026-06-10:
+built as `Upgrade21_09` / GTR093 under the novel-tool soundness principle —
+`docs/decisions.md` §41, `../../docs/deferred_fix_opportunities.md` A1. The
+eligibility anchor stays unrelaxed: it is a sweep-policy artifact;
+`UpgradeToLatest` reaches the tool regardless.)* The other corpus
 pattern-violations are not whitespace (the `pdf`/`tabular` values above);
 `paired_or_unpaired` is correct schema evolution (valid 25.0+), not a violation.
 

@@ -407,9 +407,9 @@ def list_rules(*, include_upgrade: bool = False) -> list[RuleInfo]:
     """Structured metadata for every rule, sorted by code.
 
     With ``include_upgrade=True`` the non-selectable codemods are listed too —
-    the upgrade-only ones (GTR007–GTR012 plus the runtime-gated GTR014–GTR016)
-    and the opt-in ``convert-help`` conversion (GTR092); by default only the
-    selectable rules appear.
+    the upgrade-pipeline ones (GTR007–GTR012 + GTR093, plus the runtime-gated
+    GTR014–GTR016) and the opt-in ``convert-help`` conversion (GTR092); by
+    default only the selectable rules appear.
     """
     handles = all_handles() if include_upgrade else registry()
     code_map = ruleset_codes()
