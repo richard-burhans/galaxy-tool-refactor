@@ -2,12 +2,40 @@
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import pytest
 
 from galaxy_tool_refactor_registry import facade
 from galaxy_tool_refactor_registry.errors import UnknownRuleCode
 from galaxy_tool_refactor_registry.planemo import planemo_index
 from galaxy_tool_refactor_registry.resolve import resolve_codes
+
+# Every Linter subclass in galaxy.tool_util.linters at the clone commit the parity
+# roadmap is keyed to (c6e0ee3, 2026-06-01) — the canonical universe the aliases and
+# the parity Summary count against. Regenerate by re-running the AST scan in
+# docs/planemo_linter_parity.md's source note if the roadmap is re-keyed.
+_CANONICAL_LINTERS = Path(__file__).resolve().parent / "data" / (
+    "planemo_linters_c6e0ee3.txt"
+)
+_PARITY_DOC = (
+    Path(__file__).resolve().parents[2] / "docs" / "planemo_linter_parity.md"
+)
+
+# Linters the parity roadmap marks HAVE with deliberately no metadata alias: XSD is
+# covered by tier-1 ``validate_tool``, which is not a selectable rule.
+_ALIAS_FREE_HAVE = frozenset({"XSD"})
+
+# Aliased linters the roadmap does NOT count as HAVE: ``--select ValidDatatypes``
+# resolves to GTR010 (the upgrade-tier case-normalizer, the closest rule we have),
+# but full datatype-registry membership validation remains unbuilt (DETECT).
+_ALIASED_NOT_HAVE = frozenset({"ValidDatatypes"})
+
+
+def _canonical_names() -> frozenset[str]:
+    lines = _CANONICAL_LINTERS.read_text(encoding="utf-8").splitlines()
+    return frozenset(line for line in lines if line)
 
 
 def test_index_maps_planemo_names_to_covering_codes() -> None:
@@ -56,3 +84,36 @@ def test_rule_info_carries_planemo_linters() -> None:
     assert rules["GTR028"].planemo_linters == ("HelpEmpty", "HelpMissing")
     # An own-rule with no planemo equivalent.
     assert rules["GTR001"].planemo_linters == ()
+
+
+def test_every_alias_is_a_canonical_planemo_linter() -> None:
+    """Typo guard: each ``planemo_linters`` name is a real planemo Linter class."""
+    canonical_lower = {name.lower() for name in _canonical_names()}
+    unknown = set(planemo_index()) - canonical_lower
+    assert not unknown, f"aliases naming no planemo Linter class: {sorted(unknown)}"
+
+
+def test_parity_summary_have_count_matches_metadata() -> None:
+    """The hand-maintained Summary HAVE count is derivable from rule metadata.
+
+    HAVE = aliased canonical linters − the aliased-but-not-HAVE exceptions + the
+    alias-free HAVE allowlist. Fails when an alias lands without the Summary being
+    updated (or vice versa), naming both figures.
+    """
+    canonical = _canonical_names()
+    aliased = {name for name in canonical if name.lower() in planemo_index()}
+    assert aliased >= _ALIASED_NOT_HAVE
+    assert not _ALIAS_FREE_HAVE & aliased
+    assert canonical >= _ALIAS_FREE_HAVE
+    expected_have = len(aliased) - len(_ALIASED_NOT_HAVE) + len(_ALIAS_FREE_HAVE)
+
+    text = _PARITY_DOC.read_text(encoding="utf-8")
+    have_row = re.search(r"\| \*\*HAVE\*\* \| (\d+) \|", text)
+    total_row = re.search(r"\| \*\*Total\*\* \| (\d+) \|", text)
+    assert have_row is not None and total_row is not None, "Summary rows missing"
+    assert int(total_row.group(1)) == len(canonical)
+    assert int(have_row.group(1)) == expected_have, (
+        f"parity Summary says HAVE={have_row.group(1)} but rule metadata derives "
+        f"{expected_have} — update docs/planemo_linter_parity.md's Summary (or the "
+        "exception sets in this test) when planemo_linters aliases change"
+    )

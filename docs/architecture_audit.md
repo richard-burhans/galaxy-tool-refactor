@@ -163,6 +163,10 @@ tier scouts.
   would start resolving) or to annotate it as alias-free coverage, then pin the
   Summary count with a test against `planemo_index()` + an explicit alias-free
   allowlist. Needs per-linter judgment; not applied.
+  **Follow-up (2026-06-10): proposal applied** — 8 verified-covered aliases added,
+  `BioToolsValid` re-marked HAVE\* (consistency with `EDAMTermsValid`),
+  `ValidDatatypes` kept aliased-but-DETECT, Summary now metadata-derived (HAVE 111)
+  and pinned by `test_planemo_aliases.py`. Registry `docs/decisions.md` D17.
 
 **Low, recorded with no action:**
 
@@ -171,6 +175,8 @@ tier scouts.
   byte-pinned parity table regenerates from the same metadata, making the typo
   visible in the table diff. A stronger guard means vendoring planemo's canonical
   linter-name list → **[proposal]**, folded into M3's reconciliation.
+  **Follow-up (2026-06-10): applied with M3** — canonical list vendored
+  (`tests/data/planemo_linters_c6e0ee3.txt`), every alias checked against it.
 - **L3 — parity freshness test "brittleness"** — refuter killed the sub-claims (the
   render includes all codes; the sort is stable); the residual (broken renderer +
   same-change regeneration) is genuinely low. **[accepted]**, no action.

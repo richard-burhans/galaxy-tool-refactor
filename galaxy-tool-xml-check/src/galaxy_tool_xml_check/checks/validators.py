@@ -364,6 +364,7 @@ class ValidatorRequiredAttributes(CheckRule):
         planemo_linters=frozenset(
             {
                 "ValidatorDatasetMetadataEqualValue",
+                "ValidatorDatasetMetadataEqualValueOrJson",
                 "ValidatorMetadataCheckSkip",
                 "ValidatorMetadataName",
                 "ValidatorMinMax",
