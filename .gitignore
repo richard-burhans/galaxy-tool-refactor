@@ -19,3 +19,4 @@ gcc2026-abstract.txt
 # Claude Code session scratch (the tracked .claude/ settings + skills stay; this
 # runtime lock for scheduled wakeups is machine-local).
 .claude/scheduled_tasks.lock
+.claude/worktrees/
