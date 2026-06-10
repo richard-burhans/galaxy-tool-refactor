@@ -4,11 +4,16 @@ Reimplements planemo's `ToolNameWhitespace` / `RequirementVersionWhitespace` lin
 (`galaxy.tool_util.linters.general`) — which only *report* — as a fixer, but **only for
 the subset where trimming is behaviour-preserving**:
 
-- ``<tool name="…">`` — the display name; trailing/leading whitespace is invisible and
-  carries no runtime meaning.
-- ``<requirement version="…">`` — the conda package version; a whitespace-bearing value
-  cannot resolve (the solve fails), so a *working* tool never has one — trimming only
-  ever repairs an already-broken requirement, never changes a working tool.
+- ``<tool name="…">`` — a **display-contract** claim: ``parse_name`` reads the
+  attribute raw (``tool_util/parser/xml.py:220-221``) but the name is a
+  display/metadata string, not an addressing key (tools are addressed by ``id``),
+  and HTML rendering collapses edge whitespace — the rendered display is
+  identical.
+- ``<requirement version="…">`` — Galaxy composes the conda spec **verbatim**:
+  ``package_specifier = f"{self.package}={self.version}"``
+  (``tool_util/deps/conda_util.py:461-465``), passed as a conda CLI argument — a
+  whitespace-bearing value never resolved, so a *working* tool never has one;
+  trimming only ever repairs an already-broken requirement.
 
 A ``<tool>``'s ``id`` and ``version`` are **deliberately excluded** even though planemo
 flags whitespace on them too (`ToolIDWhitespace` / `ToolVersionWhitespace`): Galaxy uses

@@ -75,33 +75,130 @@ holds on the strength of its tier-1 render-equivalence gate (below).
 re-verification against Galaxy source / the rule's contract there is no behaviour
 change. See their entries.
 
-## Holds — the proof basis
+## Proofs — construction-grade, source-cited (tightened 2026-06-10)
 
-Each was attacked by ≥2 executed skeptics; none produced a verified break, and the
-refutation pass's own evidence affirmed the invariant. Concise basis:
+Each pre-2026-06-10 entry was attacked by ≥2 executed skeptics; none produced a
+verified break. The 2026-06-10 **proofs-tightening pass** then upgraded every
+basis from "argued" to **source-cited**: each entry below names the exact Galaxy
+code (clone `.local/galaxy-src`, `dev` @ `c6e0ee3` unless a release branch is
+named) or spec clause the invariant rests on. The standing bar: *a fixable
+rule's preservation claim must hold by construction for novel tools — corpus
+incidence sizes impact, never soundness.*
 
-- **GTR002 / GTR005** (codemods `reorder_param_attributes.py` /
-  `reorder_tool_attributes.py`, sharing the canonical order in `_attribute_ordering.py`):
-  reorder a `<param>`'s / the `<tool>`'s attributes into a canonical order. Attribute
-  order is semantically irrelevant in XML; no element text/tail is touched. Idempotent
-  and validity-preserving.
-- **GTR003** (blank-line trivia; fmt D4): emits `SetTail` only for the non-last
-  children of a `<tool>` root and `safe_set_tail` writes only when the current tail is
-  None/whitespace — never touches significant text.
-- **GTR013 ReorderToolChildren** (codemod §17): `<tool>` is `xs:all` in every vendored
-  XSD (order-free), so reordering its children cannot change validity or runtime.
-- **GTR017 NormalizeBooleanValues** (codemod §26): rewrites `True`/`False` →
-  `true`/`false` only on a tool the lenient model already accepts; a validity-restoring
-  case fix with no runtime change.
-- **GTR007 / GTR008 / GTR010 / GTR011** (`UpdateProfile` + `upgrade_vN`; codemod §22):
-  **structural-only** claim — XSD-valid at the reached profile + idempotent; runtime
-  surfaced via `behavior_preserving`. Verified on that (correct) boundary.
+- **GTR002 / GTR005** (attribute reorder, shared `_attribute_ordering.py`): two
+  legs. (i) XML 1.0 §3.1: *"the order of attribute specifications … is not
+  significant."* (ii) Galaxy consumes attributes exclusively by name —
+  `elem.get("…")` throughout `lib/galaxy/tool_util/parser/xml.py` — and its
+  parser (like every conformant one) exposes no attribute order. No text/tail
+  is touched. Idempotent, validity-preserving.
+- **GTR003** (blank-line trivia; fmt D4): `<tool>` has an **element-only content
+  model** (`xs:all` in all 28 vendored XSDs), where XML 1.0 declares
+  inter-element whitespace non-significant; the rule emits `SetTail` only for
+  `<tool>`'s non-last children and `safe_set_tail` writes only a None/ws tail.
+  (Contrast GTR001's fmt §D19 guard: *mixed* content is exactly where that
+  spec clause stops holding.)
+- **GTR013 ReorderToolChildren** (codemod §17): same two legs at the element
+  level — `xs:all` (order-free by schema) and Galaxy's child access is
+  tag-keyed (`root.find("command")`, `findall("…")` — never positional) across
+  `tool_util/parser/xml.py`.
+- **GTR017 NormalizeBooleanValues** (codemod §26): every Galaxy boolean read
+  goes through `galaxy.util.string_as_bool` —
+  `str(string).lower() in ("true", "yes", "on", "1")`
+  (`lib/galaxy/util/__init__.py:1104-1108`) — so `True` ≡ `true` at runtime;
+  the rewrite restores XSD validity with a provable runtime no-op.
+- **GTR018.1 / GTR019.1** (CDATA wraps; codemod §29): a CDATA section and the
+  equivalently-escaped character data parse to the **identical** `.text` (XML
+  1.0 §2.7) — Galaxy reads tool XML through its parser, never the raw bytes —
+  and the `cdata_wrappable` predicate excludes the one representable-but-lossy
+  case (`\r`, which CDATA cannot carry; the #112 fix).
+- **GTR007 / GTR008 / GTR011** (`UpdateProfile` + `upgrade_vN`; codemod §22):
+  **structural-only** claim — XSD-valid at the reached profile + idempotent;
+  runtime behaviour changes are the `upgrade` contract's point and are surfaced
+  via `behavior_preserving` + the §23 warnings. Verified on that boundary.
+- **GTR010 Upgrade24_1** (format/ftype normalization): the strongest cite of
+  the pass — the codemod **is Galaxy's own parse applied statically**:
+  `parse_extensions` returns
+  `[extension.strip().lower() for extension in self.get("format", "data").split(",")]`
+  (`tool_util/parser/xml.py:1453`), the registry lowercases datatype extensions
+  at load (`datatypes/registry.py:1028-1042` `get_extension`), and a test
+  `ftype` that misses the registry never matched (repair class).
+- **GTR093 Upgrade21_09** (collection_type + stdio + has_size; codemod §41-§42):
+  each slice carries its own runtime cite — the comma-token strip mirrors
+  `DataCollectionToolParameter.__init__` (`parameters/basic.py:2717`); the
+  stdio repairs mirror the parser's alias-fallback and log-and-skip paths
+  (`parser/xml.py:1248-1280`, `:1318-1324`); the Bytes canonicalizer mirrors
+  `galaxy.util.bytesize.parse_bytesize`.
 - **GTR014** (from_work_dir strip; codemod §24): byte-identical to Galaxy's own
-  `output.from_work_dir.strip()` for `profile < 21.09`, applied only under the crossing
-  gate `< 21.09 <= reached`.
-- **GTR015** (format=input→format_source; codemod §24): runtime-equivalent on the
-  single-top-level-data-input subset, format_source-guarded, profile unchanged.
-- **GTR089.1 RepairHelpRst** (codemod §37; tier-1 `rst` §23): repairs invalid `<help>`
+  pre-21.09 compatibility shim — `parser/xml.py:596-603`: for
+  `profile < 21.09`, `output.from_work_dir = output.from_work_dir.strip()`
+  (*"Prior to quoting, trailing spaces had no effect … ensures that old tools
+  continue to work"*) — applied only under the crossing gate
+  `baseline < 21.09 <= reached`.
+- **GTR015** (format=input→format_source; codemod §24 + §40): the sole data
+  input — top-level or qualified-nested — is runtime-addressable because Galaxy
+  keys `input_datasets` by prefixed name (`tools/actions/__init__.py:222`) and
+  `determine_output_format` looks `format_source` up in exactly that map
+  (`:1283-1286`); the absent-at-runtime corner resolves to `"data"` on both
+  sides (`random_input_ext` walk vs the parsed `get("format", "data")` default,
+  `parser/xml.py:1453`); qualified references are upstream-tested
+  (`test/functional/tools/format_source_in_conditional.xml`). Repeat nesting
+  (instance-indexed prefix) and multi-input (Galaxy's own `TODO`-marked
+  random-ext nondeterminism) are construction-unprovable and stay out.
+- **GTR016 FixInterpreter** (codemod §27 + §39): the interpreter attribute is
+  interpolated **verbatim in every composition form Galaxy ever shipped**
+  (prepend, `release_16.04` `evaluation.py:478-484` … `release_20.01`;
+  token-splice + `shlex.quote`, `release_20.09` … `dev:781-787`), the forms
+  coinciding exactly on the literal-leading-token shape the codemod requires;
+  the mixed-content skip and positional splice close the audited break classes.
+- **GTR020.1 SingleQuoteCommandVars** (codemod §30/§32 + tier-1 §16): the
+  value-domain proof — quote only references whose every possible runtime value
+  is a single shell word (param-type domains; select/drill_down narrowed to
+  provable single-token option sets after the §32 audit); the bashlex-oracle
+  widening was **reverted as unsound** (Cheetah renders values as literal text)
+  and the full record lives in
+  `docs/upgrade_research/cheetah_bashlex_boundary_oracle.md`.
+- **GTR035 TrimAttributeWhitespace** (codemod §33): two attribute-specific
+  proofs. `<requirement version>`: Galaxy composes the conda spec **verbatim**
+  — `package_specifier = f"{self.package}={self.version}"`
+  (`tool_util/deps/conda_util.py:461-465`), passed as a CLI argument — so a
+  whitespace-bearing version never resolved; trimming only repairs. `<tool
+  name>`: a **display-contract** claim (the GTR089.1 style): `parse_name` reads
+  the attribute raw (`parser/xml.py:220-221`) but the name is a display/metadata
+  string — not an addressing key (tools are addressed by `id`) — and HTML
+  rendering collapses edge whitespace. `id`/`version` are excluded precisely
+  because they ARE raw identity keys.
+- **GTR036 ReplaceOutputElement** (codemod §34): Galaxy routes an
+  `<output type="data">` through the same `_parse` as `<data>`
+  (`tool_util/parser/xml.py:548-563`) — a parse-level no-op rename.
+- **GTR037 DropRedundantParamName** (codemod §35): Galaxy derives the name as
+  `argument.lstrip("-").replace("-", "_")` (`tool_util/parser/util.py:44`); the
+  codemod drops `name` only when byte-equal to that derivation, mirrored in
+  `_derived_name`.
+- **GTR092 ConvertHelpToMarkdown** (codemod §38; tier-1 xml §24): proof **by
+  execution** — kept only when the markdown-it rendering (exactly Galaxy's
+  client path) is semantically equal to the docutils rendering (exactly
+  Galaxy's server path); negative-controlled.
+- **GTR004 EmptyElementShorthand** (fmt D5 + D18): the positive leg — a
+  whitespace-only `.text` on an element-only-content leaf is layout (the same
+  XML 1.0 clause as GTR003), and a whitespace-only `<help>` renders empty
+  either way; the verbatim-payload leg is the D18 denylist
+  (`command`/`configfile`/`token`, Galaxy reads them `strip=False`).
+
+### Proposals from the tightening pass (not applied — maintainer decision)
+
+- **GTR004's `_CONTENT_BEARING_TAGS` could be derived from the XSD** instead of
+  hand-maintained: an element whose schema type carries text content is exactly
+  the set whose ws-only body may be payload. The hand list is correct today
+  (and the GTR001 §D19 `_PAYLOAD_TAGS` mirrors it +`help`); a derivation would
+  make both robust to future schema additions. Medium effort; the explicit-list
+  convention (N2) argues for the status quo — flagging, not recommending.
+- **GTR035's `<tool name>` leg is a display-contract claim**, now stated as
+  such (the GTR089.1 style): the trimmed name is byte-visible in API JSON but
+  render-identical in HTML. If a stricter bar is ever wanted, the name trim
+  could move to the advisory residual; the conda-version leg is unconditional
+  either way.
+- **GTR089.1 RepairHelpRst** (codemod §37; tier-1 `rst` §23): proof by
+  execution, like GTR092 — repairs invalid `<help>`
   reStructuredText, but the claim is on the *rendered* help (Galaxy renders RST to HTML
   server-side). The tier-1 gate keeps a repaired round only when it strictly reduces
   serious docutils messages, adds no new error class, **and** leaves the doctree

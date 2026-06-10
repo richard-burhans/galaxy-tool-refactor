@@ -19,6 +19,12 @@ profile's vocabulary (an attribute is ``xs:boolean`` only under some profiles),
 and stops at the first profile that validates; if none do, a deep-copy snapshot
 is restored, leaving the document byte-identical. ``profile=`` is never written.
 See ``docs/decisions.md`` §26.
+
+Runtime proof (2026-06-10 tightening pass): every Galaxy boolean read goes
+through ``galaxy.util.string_as_bool`` — ``str(string).lower() in ("true",
+"yes", "on", "1")`` (``lib/galaxy/util/__init__.py:1104-1108``) — so ``True``
+and ``true`` are runtime-identical wherever the lenient model already accepted
+the value; the rewrite is a validity restoration with a provable runtime no-op.
 """
 
 from __future__ import annotations
