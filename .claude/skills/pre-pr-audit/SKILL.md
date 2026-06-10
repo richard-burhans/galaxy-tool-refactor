@@ -35,6 +35,15 @@ git diff --name-status main...HEAD
 the surrounding contract (the docstring that now lies, the sibling field that's now
 dead). No shortcuts; this is the explicit standing ask.
 
+**Audit credit.** One exception to full reads: if `docs/architecture_audit.md`
+records an audit whose **audited commit lies on this branch** (an in-flight
+branch audit, like the 2026-06-10b record), the adversarially-audited range is
+already covered — full-read only the commits *after* that audited commit plus
+any uncommitted changes, keep the Step 1–5 dimension sweeps for the whole
+diff, and cite the audit record in the verdict. Don't re-derive what a
+30-agent escalation just verified hours earlier; equally, don't credit an
+audit whose record predates the branch.
+
 ---
 
 ## Step 1 — Coding standards (dignified-python governs)
@@ -68,8 +77,14 @@ Every docstring, inline comment, `README.md`, `CLAUDE.md`, `docs/decisions.md`, 
 `ARCHITECTURE.md` touched-or-implicated by the change must describe what the code
 **actually does now**. Specifically:
 
-- **Cross-references resolve** — cited `§`/`D`-numbers exist (grep the decisions
-  headers); `[[memory]]` / file links point at real targets.
+- **Cross-references resolve** — citations **anchored to a `decisions.md` path**
+  (`…decisions.md §30`, cross-package shorthand like ``codemod `docs/decisions.md`
+  §30``) are guarded by
+  `galaxy-tool-refactor-registry/tests/test_decision_citations.py` (in the gate)
+  — don't re-grep those by hand (manual header-grepping has produced false
+  MISSINGs; the header formats differ per package). Eyeball only what the guard
+  scopes out: *unanchored* shorthand ("check D34" with no path nearby) and
+  `[[memory]]` / file links.
 - **Consumer claims** — "X is consumed by Y", "the facade composes Z" still true.
 - A new decision lands in the owning package's `docs/decisions.md` (date + a
   `Reproduced by` command when it cites a measurement).
@@ -95,9 +110,11 @@ Sweep for things the change silently invalidated:
 
 - Numbers cited in docs must match the committed stat artifacts
   (`docs/*_stats.md`, `docs/corpus_data/`).
-- **Never fabricate or hand-edit a measured corpus number.** If a number changed,
-  it must come from re-running the standing measurement
-  (`scripts/measure.py` / `scripts/corpus_check.py`), not a typed-in guess.
+- The measured-number conventions (**never fabricate or hand-edit a corpus
+  number**; the known false-positive traps — un-headered stats pages,
+  corpus-`check`-owned pages outside the measure list) are **canonical in the
+  `/architecture-audit` skill** ("Known false-positive traps") — follow them
+  from there rather than restating them here, so they can't drift apart.
 - **Rule coverage of the stat pages is guarded** by
   `galaxy-tool-refactor-registry/tests/test_stat_artifact_coverage.py` (run in the
   gate): if you added a rule, it fails naming each stale `docs/*_stats.md` page and
@@ -118,10 +135,15 @@ Sweep for things the change silently invalidated:
 bash scripts/qa_gate.sh        # ruff + mypy strict ×8 + pytest ×8
 ```
 
+Green runs are **cached per working-tree state** (`.git/qa-gate-green`), so the
+pre-push hook's re-run minutes later is a free cache hit instead of a duplicate
+full run; any file change invalidates it (`QA_GATE_FORCE=1` bypasses).
+
 Only once Steps 1–5 are clean **and** the gate is green:
 
 1. Commit (branch first if on `main` — never commit straight to the default branch).
-2. `git push` (the pre-push hook re-runs the gate).
+2. `git push` (the pre-push hook re-runs the gate — cached green if the tree is
+   unchanged since Step 6).
 3. Open the PR with `GH_TOKEN=x gh pr create …` (the `x` placeholder lets the proxy
    inject real auth — see the gh-token memory).
 4. Watch the `qa` CI check to a pass.

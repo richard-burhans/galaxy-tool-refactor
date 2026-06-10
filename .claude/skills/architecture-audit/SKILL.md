@@ -72,8 +72,12 @@ Capture, per layer/tier:
 - a **reference index**: abstraction → file → the decision section that justifies it.
 
 **Verify before you ship it:** every named symbol resolves to real code; every
-file path exists; every decision-section citation actually exists (grep the
-`decisions.md` headers). A citation to a phantom section is itself a finding.
+file path exists. Decision-section citations **anchored to a `decisions.md`
+path** are machine-checked by
+`galaxy-tool-refactor-registry/tests/test_decision_citations.py` (in the gate)
+— don't hand-grep those (header formats differ per package and manual greps
+have produced false MISSINGs); eyeball only unanchored shorthand ("check D34"
+with no path nearby). A citation to a phantom section is itself a finding.
 
 Add a one-line pointer to `ARCHITECTURE.md` from the root `CLAUDE.md` / `README`.
 
@@ -134,12 +138,22 @@ present-tense claim / count / status marker / number against the code:
   claims (package counts, gate scope, tier vocabulary, worked-example tables) and **no
   guard test covers them**; sweep them like any other doc. (A real catch: the pre-pr-audit
   skill said "pytest ×7" after the workspace grew to eight packages.)
+- **Generator-embedded prose** — the blurbs inside `scripts/corpus_check.py` /
+  `scripts/measure.py` that *become* the stats pages. They are code, so no doc sweep's
+  file list reaches them, and the drift guards check rule summaries, not blurbs. (A real
+  catch: the check-stats blurb still called GTR032 "a reserved placeholder … flags
+  nothing" after GTR032 graduated to a real detector — the audit fixed six docs and
+  missed this seventh because it lives in a script.) **Convention: blurbs state only
+  timeless facts**; per-rule status claims belong in `RuleMeta` summaries, which the
+  summary-drift guard covers.
 - **Pipeline / roster enumerations** — any doc that spells out an ordered member list
   (e.g. a `canonical_codemods()` front-to-back enumeration in `ARCHITECTURE.md`, a package
   `CLAUDE.md`/`README`, or the defining module's own docstring) rots when membership
   changes; cross-check each against the live derived value, not against each other.
 
-**Known false-positive traps (don't re-flag):** corpus-`check`-backed stats pages
+**Known false-positive traps (don't re-flag)** — this list is **canonical**: the
+pre-pr-audit skill links here instead of restating it, so amend it here only.
+Corpus-`check`-backed stats pages
 (`corpus_stats`, `combined`, `toolshed`, `corpus_format`, `corpus_check`, `corpus_rule`)
 are documented under CLAUDE.md's **`corpus_check`** section, not the measure list — a
 scan of only the measure list will wrongly call them "undocumented". Manually-regenerated

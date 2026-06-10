@@ -39,8 +39,8 @@ the CLI and the MCP server (`galaxy-tool-refactor-mcp`) sit on top of it.
 - **Selectable ≠ all.** `registry()` is the selectable set (canonical codemods +
   cosmetic fmt + advisory checks). The non-selectable codemods — GTR007–GTR012 + GTR093
   (validity-gated, internal to `UpgradeToLatest`), GTR014–GTR016 (runtime-gated,
-  applied by `upgrade`), and the opt-in-command-only GTR092 (applied by
-  `convert-help`; `adapters.OPT_IN_COMMAND_BY_CODE`) — appear only in
+  applied by `upgrade`), and the opt-in-command-only GTR092/GTR094 (applied by
+  `convert-help` / `tokenize-version`; `adapters.OPT_IN_COMMAND_BY_CODE`) — appear only in
   `all_handles()` / `list_rules(include_upgrade=True)`. `--select`/`--ignore`
   on one of them raises `UnknownRuleCode` with a hint naming where it lives.
 - **Apply ordering reproduces `format`.** Codemods in `canonical_codemods()` order,
