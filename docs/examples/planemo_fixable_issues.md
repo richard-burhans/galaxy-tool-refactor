@@ -20,18 +20,21 @@ deliberately don't auto-fix — doing so wouldn't be behaviour-preserving).
 
 ---
 
-## ✅ GTR035 — leading/trailing whitespace in `name` / `requirement version`
+## ✅ GTR035.1 — leading/trailing whitespace in a `requirement version`
 
-**Covers planemo:** `ToolNameWhitespace`, `RequirementVersionWhitespace`
-(`galaxy.tool_util.linters.general`).
+**Covers planemo:** `RequirementVersionWhitespace`
+(`galaxy.tool_util.linters.general`). Its sibling `ToolNameWhitespace` is the
+**GTR035.2 advisory** (reported under `--ruleset strict`, never auto-fixed —
+the name trim is a display-contract change, byte-visible in API JSON; the
+GTR035 partition, codemod §33 addendum / check D33).
 
-A display `name` or a conda `<requirement>` `version` accidentally padded with
-whitespace. planemo warns *"…is pre/suffixed by whitespace, this may cause errors"*; we
-trim it under `format`.
+A conda `<requirement>` `version` accidentally padded with whitespace. planemo
+warns *"…is pre/suffixed by whitespace, this may cause errors"*; we trim it
+under `format`.
 
 **Before:**
 ```xml
-<tool id="demo" name="My Demo Tool " version="1.0">
+<tool id="demo" name="My Demo Tool" version="1.0">
     <requirements>
         <requirement type="package" version=" 1.20 ">samtools</requirement>
     </requirements>
@@ -44,12 +47,13 @@ trim it under `format`.
     </requirements>
 ```
 
-**Why it's safe:** the `name` is display-only (surrounding whitespace renders to
-nothing); a `requirement version` with whitespace can't resolve in conda, so a
-*working* tool never has one — trimming only ever repairs an already-broken
-requirement. **Corpus:** 26 tools carry the issue (`docs/corpus_check_stats.md`);
-GTR035 fixes **20** in the codemod sweep — **0 non-idempotent, 0 post-validate-failed**
-(`docs/corpus_rule_stats.md`).
+**Why it's safe:** Galaxy composes the conda spec verbatim
+(`package_specifier = f"{package}={version}"`, `conda_util.py:461-465`), so a
+whitespace-bearing version never resolved — a *working* tool never has one and
+trimming only ever repairs an already-broken requirement. **Corpus:** per-rule
+counts live in `docs/corpus_check_stats.md` / `docs/corpus_rule_stats.md`
+(regenerated with the partition) — **0 non-idempotent, 0 post-validate-failed**
+across every sweep.
 
 ## 🛑 `id` / tool `version` whitespace — detect, don't fix
 
@@ -136,7 +140,7 @@ stay **advisory** (planned `check`-tier rules), reported but not auto-fixed.
 
 ## How this list grows
 
-The auto-fixable subset of planemo's linters is now **complete**: **GTR035** (whitespace
+The auto-fixable subset of planemo's linters is now **complete**: **GTR035.1** (whitespace
 trims), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`).
 Every other candidate, on inspection, is either *identity-changing* (`id`/`version`
 whitespace) or has *no mechanical modern equivalent* (`<output type="collection">`,
