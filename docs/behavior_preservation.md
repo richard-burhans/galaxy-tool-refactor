@@ -63,8 +63,8 @@ holds on the strength of its tier-1 render-equivalence gate (below).
 | GTR011 | Upgrade25_1 | structural | hold | 25.1→26.0 validity + idempotence |
 | GTR013 | ReorderToolChildren | runtime | hold | `<tool>` is `xs:all` (order-free); reorder is validity-safe |
 | GTR014 | from_work_dir strip | runtime (conditional) | hold | matches Galaxy's own `<21.09` `strip()`; crossing-gated |
-| GTR015 | format=input→source | runtime | hold | single-top-data-input; format_source-guarded |
-| GTR016 | FixInterpreter | runtime | **REFUTED → FIXED** | mixed-content `<command>`: `set_text` kept comment/`<expand>` children → flag duplicated (PR #114) |
+| GTR015 | format=input→source | runtime | hold | sole data input (top-level or qualified-nested, §40); format_source-guarded |
+| GTR016 | FixInterpreter | runtime | **REFUTED → FIXED** | mixed-content `<command>`: `set_text` kept comment/`<expand>` children → flag duplicated (PR #114); scope since widened to any non-empty interpreter (§39, verbatim-composition proof) |
 | GTR017 | NormalizeBooleanValues | runtime | hold | `True`→`true` only where the lenient model already accepts it; validity-restore |
 | GTR018.1 | WrapCommandCdata | runtime | **REFUTED → FIXED** | body with `\r` → CDATA can't carry `&#13;` → CR lost, non-idempotent (PR #112) |
 | GTR019.1 | WrapHelpCdata | runtime | **REFUTED → FIXED** | same `\r`-through-CDATA bug (shared `cdata_wrappable` predicate) (PR #112) |
