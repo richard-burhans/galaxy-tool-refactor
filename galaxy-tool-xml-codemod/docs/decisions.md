@@ -1753,3 +1753,35 @@ galaxy-tool-xml-codemod/tests/test_upgrade_21_09.py`; sizing
   codemod gate — `UpgradeToLatest` itself reaches it fine via
   `UPGRADE_CODEMODS["21.09"]`). Shipped under the novel-tool soundness
   principle: the proof, not the count, is the admission ticket.
+
+## 42. `Upgrade21_09` grows the proven 22.01 repairs: stdio (G1+G3+G5) + has_size Bytes (G2)
+
+**Date:** 2026-06-10. The first two items of the approved G-series
+(`../../docs/deferred_fix_opportunities.md`, "Profile-step gap audit").
+Reproduced-by: `uv run --package galaxy-tool-xml-codemod pytest
+galaxy-tool-xml-codemod/tests/test_upgrade_21_09.py`.
+
+- **stdio (G1, with G3+G5 folded in by the source reads).** Galaxy's stdio
+  parser (`lib/galaxy/tool_util/parser/xml.py`) proves three behaviour-no-op
+  repairs for the 22.01 `use="required"` tightenings: `range` falls back to the
+  `value` attribute (`:1248-1250` — runtime aliases ⇒ rename `value=`→`range=`;
+  a `value` alongside `range` is never read ⇒ dropped); an `<exit_code>` with
+  neither attribute, or whose range strips to empty (the parser does
+  `re.sub(r"\s", "", …)` then hits the singular `int("")` path), is logged and
+  skipped ⇒ the dead element is deleted; a `<regex>` without `match=`
+  (`:1318-1324`) is likewise logged and skipped ⇒ deleted. `RangeType`'s only
+  consumer is `ExitCode.range`, so the 22.01 pattern change reduces entirely to
+  the empty form — G5 needed no work of its own.
+- **has_size Bytes (G2, proof corrected during the read).** The runtime parser
+  is `galaxy.util.bytesize.parse_bytesize` — *not* `size_to_bytes` — so the
+  provable class is exactly: whitespace forms (`int()` tolerates them),
+  wrong-case suffixes (`100MI` ≡ `100Mi` after `upper()`), and integral
+  float/scientific forms (`129e6` ≡ `129000000`). Plain-`B`/word-suffix forms
+  (`"2 TB"`, `"10 bytes"`) are **not** in the suffix table — they were never
+  runtime-working, so they are left (nothing to preserve). Canonical form:
+  the case/whitespace fix when it round-trips, else the exact integer byte
+  count; non-integral parses are left. The suffix-grammar mirror lives in this
+  codemod (`galaxy.util` stays confined to tier-1 `macros.py`), pinned by tests.
+- **Corpus.** 0 tools for every one of these shapes (greps over 1,795
+  `<exit_code>` elements and all `has_size` values) — like §40, shipped purely
+  as novel-tool insurance under the ledger's principle.

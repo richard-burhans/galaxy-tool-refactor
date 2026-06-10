@@ -227,10 +227,14 @@ only via its NEW-simpleType row — listed below by hand.
 
 ### Proposed ranking
 
-1. **G1 (+G3, G5)** — all proofs complete; one stdio-repair codemod with three
-   fixes; `<exit_code>` is common in legacy tools (1,795 corpus elements even
-   though none currently trip it).
-2. **G2** — proof complete (the `size_to_bytes` read); a small canonicalizer.
+1. **G1 (+G3, G5)** — ✅ **shipped** (codemod §42): the stdio repair joined
+   `Upgrade21_09` — `value=`→`range=` alias rename, dead-`value` drop, and
+   deletion of runtime-skipped `<exit_code>`/`<regex>` elements.
+2. **G2** — ✅ **shipped** (codemod §42): the `has_size` Bytes canonicalizer.
+   One proof correction along the way: the runtime parser is
+   `galaxy.util.bytesize.parse_bytesize`, *not* `size_to_bytes` — so
+   plain-`B`/word-suffix forms were never runtime-working and stay out; the
+   provable class is whitespace, suffix case, and integral scientific forms.
 3. **G4** — expect a documented decline (API-surface hazard).
 4. **G6 / 18.01 row** — document-only.
 
