@@ -14,7 +14,9 @@ upgrade map (what each profile bump requires, and the validity-vs-behaviour
 soundness boundary) see [`docs/profile_upgrades.md`](docs/profile_upgrades.md); for
 the per-rule behaviour-preservation claims, their adversarial verdicts, and the
 open remediation backlog see
-[`docs/behavior_preservation.md`](docs/behavior_preservation.md).
+[`docs/behavior_preservation.md`](docs/behavior_preservation.md); the canonical
+per-rule **proof documents** (coverage-guarded) are
+[`docs/proofs/`](docs/proofs/README.md).
 
 ---
 
