@@ -215,7 +215,7 @@ only via its NEW-simpleType row — listed below by hand.
 - Widenings/moot: 22.05 `Bytes` (now allows 0), 25.0 collection types (new
   alternatives).
 
-### Open gap candidates (G-series)
+### Gap candidates (G-series) — all closed 2026-06-10 (see the ranking below)
 
 | ID | Delta (boundary) | Status of proof | What it would take |
 |---|---|---|---|
