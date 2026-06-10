@@ -219,22 +219,22 @@ only via its NEW-simpleType row — listed below by hand.
 
 | ID | Delta (boundary) | Status of proof | What it would take |
 |---|---|---|---|
-| **G1** | `ExitCode.range` required (22.01) | **Proven** (Galaxy `xml.py:1248-1253`): `range` falls back to the `value` attribute (aliases), and an element with *neither* is silently skipped (`continue`) | two small fixes in one codemod: rename `value=`→`range=`; delete the dead no-range-no-value `<exit_code>` |
-| **G2** | `AssertHasSize.value`/`delta` → `Bytes` (22.01) | half-proven: `delta` was `xs:integer` (whitespace collapses by facet — strip is a schema no-op); `value` was `xs:string` — needs the assertion parser's size-string handling read | confirm the `has_size` parser strips/int()s, then a strip normalizer |
-| **G3** | `Regex.match` required (22.01) | unproven — needs the stdio `<regex>` parser's missing-`match` default read | one source read, then either a default-injection or a documented decline |
+| **G1 (+G3, G5)** | the 22.01 **stdio tightening**: `ExitCode.range` required, `Regex.match` required, `RangeType` pattern (whose *sole* consumer is `ExitCode.range`) | **All proven** (Galaxy `xml.py:1248-1280`, `1318-1324`): `range` falls back to the `value` attribute (aliases); an `<exit_code>` with neither — or with `range=""` (the only stranded `RangeType` form; `int("")` path) — is silently skipped, as is a `<regex>` without `match`; the runtime range parser strips all whitespace | one codemod, three fixes: rename `value=`→`range=`; delete runtime-dead `<exit_code>`/`<regex>` elements |
+| **G2** | `AssertHasSize.value`/`delta` → `Bytes` (22.01) | **Proven** (follow-up read): values flow through `galaxy.util.size_to_bytes`, which accepts forms the pattern rejects (`"2 TB"`, `"1 MiB"`, decimals); any parseable value canonicalizes to its exact integer byte count — always pattern-valid | normalize to `str(size_to_bytes(v))` when pattern-invalid + parseable |
 | **G4** | `Repeat.name` (22.01) / `Conditional.name` (24.0) required | hazard identified: a synthesized name leaks into the tool's API surface (workflows/tests address params by qualified name) — likely a decline | check what pre-boundary Galaxy did with nameless groups; expect "document, don't fix" |
-| **G5** | `RangeType` pattern change (22.01) | unproven — old pattern admitted `""` and degenerate colon forms | read the in_range validator's parse of those forms |
 | **G6** | `MacroImportType` element-content pattern (21.01) — forbids `/` in `<import>` paths | **unprovable** (the path is meaningful; no rewrite preserves it) | document-only |
 | — | `ParamConversion`/`RequestParameter` required ×4 (18.01) | pre-broken class: `data_source`-tool internals, missing values likely nonfunctional pre-18.01 | low priority; verify-then-decline |
 
 ### Proposed ranking
 
-1. **G1** — proof complete today, two fixes, `<exit_code>` is common in legacy
-   tools (1,795 corpus elements even though none currently trip it).
-2. **G2** — half-proven, trivially small once the parser read confirms.
-3. **G3** — one source read away from a verdict either way.
-4. **G5** — research; small population by construction.
-5. **G4** — expect a documented decline (API-surface hazard).
-6. **G6 / 18.01 row** — document-only.
+1. **G1 (+G3, G5)** — all proofs complete; one stdio-repair codemod with three
+   fixes; `<exit_code>` is common in legacy tools (1,795 corpus elements even
+   though none currently trip it).
+2. **G2** — proof complete (the `size_to_bytes` read); a small canonicalizer.
+3. **G4** — expect a documented decline (API-surface hazard).
+4. **G6 / 18.01 row** — document-only.
 
-G-series ranking approved by the maintainer 2026-06-10; G1 proceeds first.
+G-series ranking approved by the maintainer 2026-06-10. The follow-up source
+reads then *collapsed* G3 and G5 into G1 (RangeType's sole consumer is
+`ExitCode.range`; `<regex>` shares the skip pattern) and completed G2's proof —
+the approved order is preserved, just denser.
