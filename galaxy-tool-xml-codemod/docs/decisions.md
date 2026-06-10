@@ -1608,10 +1608,11 @@ In `coded_codemods()` (the GTR catalog) but **not** `canonical_codemods()` and
 **not** `AUTO_UPGRADE_CODEMODS`. The parity table renders its tier as `codemod`
 with ruleset `—` (registry's `_OPT_IN_COMMAND_CODES` exception).
 
-**Corpus** (`docs/corpus_rule_stats.md`): 8,607 eligible → **777 modified** (the
+**Corpus** (`docs/corpus_rule_stats.md`): 8,607 eligible → **796 modified** (the
 convertible ∩ already-at-profile-≥24.2 population — the rest skip on the profile
-gate or the equivalence gate), **0 non-idempotent, 0 post-validation failures, 0
-crashes** — every conversion the gate admits is XSD-valid and stable.
+gate or the equivalence gate; 777 before the GFM table/line-block extension,
+xml §24), **0 non-idempotent, 0 post-validation failures, 0 crashes** — every
+conversion the gate admits is XSD-valid and stable.
 
 ### Reproduced by
 

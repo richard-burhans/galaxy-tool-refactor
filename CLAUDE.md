@@ -216,7 +216,7 @@ uv run python -m scripts.measure help-formats
 # heuristic); help-rst-md-convert runs the REAL doctree->CommonMark converter + the
 # render-equivalence gate (docutils html4css1 vs markdown-it-py "js-default", html:false
 # — each side rendered exactly as Galaxy does; semantic-skeleton equality) and reports
-# the true behaviour-equivalent convertible population: 72.2% PASS / 24.3% bail / 3.5%
+# the true behaviour-equivalent convertible population: 73.4% PASS / 21.2% bail / 5.4%
 # gate-fail (needs markdown-it-py, a galaxy-tool-xml dev dep). Markdown target =
 # markdown-it ^14 default preset (CommonMark+tables+strikethrough, html:false):
 uv run python -m scripts.measure help-rst-errors

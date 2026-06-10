@@ -73,7 +73,7 @@ Each codemod applied alone to every eligible tool, checked for idempotence and p
 | GTR036 | ReplaceOutputElement | 8,607 | 1 | 8,607 | 0 | 0 | 1 | 0 |
 | GTR037 | DropRedundantParamName | 8,607 | 332 | 8,607 | 0 | 0 | 0 | 0 |
 | GTR089.1 | RepairHelpRst | 8,607 | 54 | 8,607 | 0 | 0 | 0 | 0 |
-| GTR092 | ConvertHelpToMarkdown | 8,607 | 777 | 8,607 | 0 | 0 | 0 | 0 |
+| GTR092 | ConvertHelpToMarkdown | 8,607 | 796 | 8,607 | 0 | 0 | 0 | 0 |
 
 ## Upgrade discovery (GTR012 `UpgradeToLatest`, isolated)
 
