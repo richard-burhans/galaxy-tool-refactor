@@ -6,7 +6,7 @@ The **structure** tier of the Galaxy refactoring architecture:
 | Tier | Layer | Package | Role |
 |---|---|---|---|
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | shared `RuleMeta` descriptor |
-| 1 | **parsing & validation** | `galaxy-tool-xml` | parse · profile-aware validate · typed view |
+| 1 | **parsing & validation** | `galaxy-tool-source` | parse · profile-aware validate · typed view |
 | 2 | **structure** | **`galaxy-tool-xml-codemod`** *(this repo)* | structural refactors |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | cosmetic `black`-like formatter |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only checks |

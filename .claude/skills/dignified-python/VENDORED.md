@@ -27,6 +27,6 @@ The directory is reproduced verbatim; no files were modified.
 ## Role in this repository
 
 `dignified-python` is the **governing** coding standard for all hand-written
-Python in this repository. The xsdata-generated `src/galaxy_tool_xml/models/`
+Python in this repository. The xsdata-generated `src/galaxy_tool_source/models/`
 directory is exempt (it is generated code, not hand-written). On any conflict
 with the `optimized-python` reference skill, **dignified-python governs**.

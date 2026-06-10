@@ -1,14 +1,14 @@
 [project]
 name = "galaxy-tool-xml-codemod"
 version = "0.0.1"
-description = "Structural-refactor framework for Galaxy tool XML — tier 2 of the galaxy-tool-xml ecosystem."
+description = "Structural-refactor framework for Galaxy tool XML — tier 2 of the galaxy-tool-source ecosystem."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Richard Burhans" }]
 dependencies = [
     "galaxy-tool-refactor-rules",
-    "galaxy-tool-xml",
+    "galaxy-tool-source",
     "lxml>=5",
     "packaging>=23",       # version comparison in profile_semantics / runtime_fixes
 ]
@@ -22,7 +22,7 @@ dev = [
     "pytest>=8",
     "ruff>=0.5",
     "mypy>=1.10",
-    # the galaxy-tool-xml[shell-oracle] extra, so GTR020.1's widen/narrow tests run.
+    # the galaxy-tool-source[shell-oracle] extra, so GTR020.1's widen/narrow tests run.
     "bashlex>=0.18",
 ]
 
@@ -47,4 +47,4 @@ testpaths = ["tests"]
 
 [tool.uv.sources]
 galaxy-tool-refactor-rules = { workspace = true }
-galaxy-tool-xml = { workspace = true }
+galaxy-tool-source = { workspace = true }

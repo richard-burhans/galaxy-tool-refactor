@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from galaxy_tool_xml.binding import load_tool
+from galaxy_tool_source.binding import load_tool
 from lxml import etree
 
 from galaxy_tool_xml_codemod.cursor import Cursor

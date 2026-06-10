@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from galaxy_tool_xml.document import ToolDocument
+from galaxy_tool_source.document import ToolDocument
 from lxml import etree
 
 from galaxy_tool_xml_fmt.format import format_tool_document

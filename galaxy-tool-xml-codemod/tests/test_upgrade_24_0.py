@@ -11,7 +11,7 @@ discovery sweep to report. See ``docs/decisions.md`` §14.
 
 from __future__ import annotations
 
-from galaxy_tool_xml.binding import newest_valid_profile
+from galaxy_tool_source.binding import newest_valid_profile
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemods.upgrade_24_0 import Upgrade24_0

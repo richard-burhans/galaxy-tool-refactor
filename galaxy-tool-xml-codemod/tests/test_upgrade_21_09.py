@@ -15,7 +15,7 @@ is NOT (stripping it would flip a matches-nothing restriction into none).
 
 from __future__ import annotations
 
-from galaxy_tool_xml.binding import newest_valid_profile
+from galaxy_tool_source.binding import newest_valid_profile
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemods.upgrade_21_09 import Upgrade21_09

@@ -60,7 +60,7 @@ for p in facade.list_rulesets():
 
 The facade composes them, but each is usable standalone:
 
-- `galaxy_tool_xml` — `load_tool` / `parse_tool`, `validate_tool`,
+- `galaxy_tool_source` — `load_tool` / `parse_tool`, `validate_tool`,
   `newest_valid_profile`, typed model views. (No serializer.)
 - `galaxy_tool_xml_fmt` — `format_tool_document(document) -> bytes` (the *only*
   serializer in the stack).

@@ -27,7 +27,7 @@ from galaxy_tool_refactor_registry.adapters import fmt_rule_by_code
 from galaxy_tool_refactor_registry.registry import registry
 
 if TYPE_CHECKING:
-    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_source.document import ToolDocument
 
 
 def apply_selection(document: ToolDocument, *, codes: frozenset[str]) -> bytes:

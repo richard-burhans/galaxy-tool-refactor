@@ -25,7 +25,7 @@ the definitions living in a separate `<macros>` file). The Galaxy XSD is a
 
 ### 1.1 The load-bearing fact: expansion is lossy
 
-`galaxy-tool-xml/src/galaxy_tool_xml/macros.py` exposes the expander
+`galaxy-tool-source/src/galaxy_tool_source/macros.py` exposes the expander
 (`expand_from_path` / `expand_from_tree`, wrapping Galaxy's
 `xml_macros.load_with_references`). It returns a **throwaway** expanded `ElementTree` with
 **no provenance** — no map from an expanded node back to the file (inline tool vs which

@@ -55,8 +55,8 @@ def test_rules_tier_imports_only_stdlib_and_self() -> None:
 def test_guard_detects_a_planted_violation() -> None:
     """The scan would actually catch a forbidden import (not a vacuous pass)."""
     assert _imported_roots("import lxml.etree") == {"lxml"}
-    assert _imported_roots("from galaxy_tool_xml.binding import load_tool") == {
-        "galaxy_tool_xml"
+    assert _imported_roots("from galaxy_tool_source.binding import load_tool") == {
+        "galaxy_tool_source"
     }
     # stdlib + self + a relative import are all allowed (subtract to empty).
     allowed = _imported_roots(

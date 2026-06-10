@@ -1,7 +1,7 @@
 """The bundled codemod pipelines — ordered contracts consumed by the app tier.
 
 Tier 2 (this package) and Tier 3 (``galaxy-tool-xml-fmt``) are independent
-siblings of Tier 1 (``galaxy-tool-xml``); neither runs the user-facing
+siblings of Tier 1 (``galaxy-tool-source``); neither runs the user-facing
 workflow. The orchestration — read a file, apply a pipeline, write the result
 via fmt's serializer — lives in the top-level app tier
 (``galaxy-tool-refactor-cli``). This module only declares *which* codemods run

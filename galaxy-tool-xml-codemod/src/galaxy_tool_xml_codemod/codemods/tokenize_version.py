@@ -36,7 +36,7 @@ import re
 from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
-from galaxy_tool_xml.macros import expand_from_tree, token_definitions
+from galaxy_tool_source.macros import expand_from_tree, token_definitions
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand

@@ -13,7 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import scripts.corpus_check as corpus_check
-from galaxy_tool_xml.profiles import latest_profile
+from galaxy_tool_source.profiles import latest_profile
 from galaxy_tool_xml_codemod.catalog import coded_codemods
 
 from galaxy_tool_xml_fmt.format import all_rules
@@ -136,7 +136,7 @@ def test_rule_stats_page_has_reference_table_above_isolation_tables() -> None:
 
 def test_rule_stats_upgrade_discovery_lists_sticking_points() -> None:
     """UpgradeToLatest's isolated discovery shows reach + sticking-point rows."""
-    from galaxy_tool_xml.profiles import latest_profile
+    from galaxy_tool_source.profiles import latest_profile
 
     state = corpus_check._CodemodSweepState(eligible=5)
     state.final_profiles[latest_profile()] = 3
@@ -244,7 +244,7 @@ def test_check_rule_registry_spans_three_tiers() -> None:
 
 def test_check_detect_reports_fixable_and_advisory() -> None:
     """The unified detect yields both fixable and advisory findings."""
-    from galaxy_tool_xml.binding import load_tool
+    from galaxy_tool_source.binding import load_tool
 
     registry = corpus_check._check_rule_registry()
     codes = {v.code for v in corpus_check._check_detect(load_tool(_FLAT_TOOL))}

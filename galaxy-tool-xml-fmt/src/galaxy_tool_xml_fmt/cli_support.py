@@ -21,8 +21,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import click
-from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_macros, load_tool
-from galaxy_tool_xml.document import MacroDocument, ToolDocument
+from galaxy_tool_source.binding import ToolXmlSyntaxError, load_macros, load_tool
+from galaxy_tool_source.document import MacroDocument, ToolDocument
 
 
 @dataclass(frozen=True)

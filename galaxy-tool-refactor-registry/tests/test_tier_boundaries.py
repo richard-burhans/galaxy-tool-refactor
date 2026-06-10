@@ -28,7 +28,7 @@ _WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 # Package directory -> import package name.
 _PACKAGES: dict[str, str] = {
     "galaxy-tool-refactor-rules": "galaxy_tool_refactor_rules",
-    "galaxy-tool-xml": "galaxy_tool_xml",
+    "galaxy-tool-source": "galaxy_tool_source",
     "galaxy-tool-xml-codemod": "galaxy_tool_xml_codemod",
     "galaxy-tool-xml-fmt": "galaxy_tool_xml_fmt",
     "galaxy-tool-xml-check": "galaxy_tool_xml_check",
@@ -42,20 +42,20 @@ _ALL = frozenset(_PACKAGES.values())
 # `pyproject.toml` dependency declarations and the §1 dependency diagram.
 _ALLOWED: dict[str, frozenset[str]] = {
     "galaxy_tool_refactor_rules": frozenset(),  # tier 0.5 — dependency-free
-    "galaxy_tool_xml": frozenset(),  # tier 1 — no workspace deps
+    "galaxy_tool_source": frozenset(),  # tier 1 — no workspace deps
     "galaxy_tool_xml_codemod": frozenset(
-        {"galaxy_tool_refactor_rules", "galaxy_tool_xml"}
+        {"galaxy_tool_refactor_rules", "galaxy_tool_source"}
     ),
     "galaxy_tool_xml_fmt": frozenset(
-        {"galaxy_tool_refactor_rules", "galaxy_tool_xml"}
+        {"galaxy_tool_refactor_rules", "galaxy_tool_source"}
     ),
     "galaxy_tool_xml_check": frozenset(
-        {"galaxy_tool_refactor_rules", "galaxy_tool_xml"}
+        {"galaxy_tool_refactor_rules", "galaxy_tool_source"}
     ),
     "galaxy_tool_refactor_registry": frozenset(
         {
             "galaxy_tool_refactor_rules",
-            "galaxy_tool_xml",
+            "galaxy_tool_source",
             "galaxy_tool_xml_codemod",
             "galaxy_tool_xml_fmt",
             "galaxy_tool_xml_check",
@@ -64,12 +64,12 @@ _ALLOWED: dict[str, frozenset[str]] = {
     # The CLI is a thin front-end: registry facade + fmt's cli_support engine + tier-1
     # parsing — never codemod / check directly (cli `docs/decisions.md` D4).
     "galaxy_tool_refactor_cli": frozenset(
-        {"galaxy_tool_xml", "galaxy_tool_xml_fmt", "galaxy_tool_refactor_registry"}
+        {"galaxy_tool_source", "galaxy_tool_xml_fmt", "galaxy_tool_refactor_registry"}
     ),
     "galaxy_tool_refactor_mcp": frozenset(
         {
             "galaxy_tool_refactor_rules",
-            "galaxy_tool_xml",
+            "galaxy_tool_source",
             "galaxy_tool_refactor_registry",
         }
     ),
@@ -98,12 +98,12 @@ def imported_workspace_packages(pkg_import_name: str, /) -> set[str]:
 def test_import_regex_extracts_top_level_package() -> None:
     """The scanner reads the top-level package, distinguishing xml from xml_codemod."""
     text = (
-        "from galaxy_tool_xml.binding import load_tool\n"
+        "from galaxy_tool_source.binding import load_tool\n"
         "import galaxy_tool_xml_codemod.catalog\n"
         "    from galaxy_tool_refactor_rules.meta import RuleMeta  # indented\n"
     )
     assert _imported_packages(text) == {
-        "galaxy_tool_xml",
+        "galaxy_tool_source",
         "galaxy_tool_xml_codemod",
         "galaxy_tool_refactor_rules",
     }

@@ -8,12 +8,12 @@ from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_refactor_rules.violation import Violation
-from galaxy_tool_xml.rst import has_macro_token, repair_help_rst, rst_is_invalid
+from galaxy_tool_source.rst import has_macro_token, repair_help_rst, rst_is_invalid
 
 from galaxy_tool_xml_check.rules import CheckRule
 
 if TYPE_CHECKING:
-    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_source.document import ToolDocument
 
 from galaxy_tool_xml_check.checks._shared import (
     _IUC,
@@ -29,7 +29,7 @@ class HelpRstResidual(CheckRule):
     safely auto-fix: non-fixable error classes (unexpected indentation, unclosed inline
     markup, …), the residual of a mixed body, and macro-bearing help (which the fix
     leaves alone). Both halves call the same tier-1 predicate
-    (``galaxy_tool_xml.rst``: ``rst_is_invalid`` / ``repair_help_rst``), so the
+    (``galaxy_tool_source.rst``: ``rst_is_invalid`` / ``repair_help_rst``), so the
     fix/advisory boundary can't drift. Reimplements planemo `HelpInvalidRST`
     (`galaxy.tool_util.linters.help`). Help with ``format="markdown"`` and
     whole-help-via-macro tools are skipped. Detect-only.

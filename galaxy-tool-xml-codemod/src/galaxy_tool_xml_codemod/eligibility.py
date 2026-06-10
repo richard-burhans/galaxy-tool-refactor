@@ -15,9 +15,9 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
-from galaxy_tool_xml.binding import parse_tool, validate_tool
-from galaxy_tool_xml.document import ToolDocument
-from galaxy_tool_xml.profiles import available_profiles
+from galaxy_tool_source.binding import parse_tool, validate_tool
+from galaxy_tool_source.document import ToolDocument
+from galaxy_tool_source.profiles import available_profiles
 
 
 def corpus_test_profile_for(

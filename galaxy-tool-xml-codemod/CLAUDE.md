@@ -11,7 +11,7 @@ and the shared tier-0.5 rules metadata):
 | Tier | Layer | Package | What it owns |
 |---|---|---|---|
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | shared `RuleMeta` + `Violation` |
-| 1 | **parsing & validation** | `galaxy-tool-xml` | parsing, profile-aware XSD validation, typed views |
+| 1 | **parsing & validation** | `galaxy-tool-source` | parsing, profile-aware XSD validation, typed views |
 | 2 | **structure** | `galaxy-tool-xml-codemod` *(this repo)* | structural mutations (attribute order, element shape) |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | whitespace / indentation / shorthand; the only tier that serialises canonical output XML |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only IUC best-practice checks |
@@ -87,7 +87,7 @@ consume these contracts (see ``galaxy-tool-xml-fmt/docs/decisions.md``
 §D12).
 
 The architecture rationale lives in `docs/architecture.md` (a working
-copy forked from `galaxy-tool-xml/docs/codemod-architecture.md` —
+copy forked from `galaxy-tool-source/docs/codemod-architecture.md` —
 predates the M1-M3.5 implementation; the current shape is recorded in
 `docs/decisions.md`). Milestone status and remaining work are in
 `PLAN.md`.
@@ -122,7 +122,7 @@ reference; **dignified-python governs on conflict**.
 - **Decisions are recorded** in `docs/decisions.md` once they land
   (mirror the parent's `docs/decisions.md` conventions: §-numbered,
   each entry citing date and a reproduction command when relevant).
-- See `galaxy-tool-xml/docs/decisions.md` §9 for the three-tier
+- See `galaxy-tool-source/docs/decisions.md` §9 for the three-tier
   rationale.
 
 ## Commands
@@ -138,10 +138,10 @@ Run these from the **workspace root** (`galaxy-tool-refactor/`):
 
 ## Useful workspace references
 
-- `galaxy-tool-xml/README.md` — tier-1 public API
-- `galaxy-tool-xml/docs/decisions.md` §3 (trivia contract), §6 (corpus
+- `galaxy-tool-source/README.md` — tier-1 public API
+- `galaxy-tool-source/docs/decisions.md` §3 (trivia contract), §6 (corpus
   stats), §9 (three-tier vision)
-- `galaxy-tool-xml/docs/codemod-architecture.md` — the original tier-2 design
+- `galaxy-tool-source/docs/codemod-architecture.md` — the original tier-2 design
 - `galaxy-tool-refactor-registry/src/galaxy_tool_refactor_registry/apply.py` —
   the tier-3.6 facade that runs ``canonical_codemods()`` order (consumed by
   ``run`` / the app's ``format``); `rulesets.py` derives the `default` ruleset from

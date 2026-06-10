@@ -34,7 +34,7 @@ load-bearing rule:
 | Tier | Layer | Package | Owns |
 |---|---|---|---|
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | `RuleMeta` descriptor, `Violation` diagnostic, the `Ruleset` catalog, `render_rule_reference_table`. Dependency-free; shared by every higher tier. |
-| 1 | **parsing & validation** | `galaxy-tool-xml` | `ToolDocument` / `MacroDocument` (mutable lxml tree = source of truth), `load_tool` / `parse_tool` / `validate_tool`, `newest_valid_profile`, profile resolution, typed xsdata views. **No serializer.** |
+| 1 | **parsing & validation** | `galaxy-tool-source` | `ToolDocument` / `MacroDocument` (mutable lxml tree = source of truth), `load_tool` / `parse_tool` / `validate_tool`, `newest_valid_profile`, profile resolution, typed xsdata views. **No serializer.** |
 | 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework, `Cursor` mutation primitives, `Change` + `apply_changes`, the bundled codemods, `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` contracts. |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic `Rule`s (indent / blank line / shorthand), the `Edit` union + `apply_edits`, `format_tool_document` + the net-diff `detect_tool_document`, the shared `cli_support` engine, the serializer. **The only tier that serialises canonical output XML.** |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice + planemo-parity checks (69; `CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
@@ -108,7 +108,7 @@ the tiers it exists to keep apart. *(rules `docs/decisions.md` §D1.)*
 
 ---
 
-## 3. Tier 1 — `galaxy-tool-xml` (parsing & validation)
+## 3. Tier 1 — `galaxy-tool-source` (parsing & validation)
 
 The foundation: parse Galaxy tool XML, validate it against the right per-release
 schema, and expose a typed view — **without ever serialising**.
@@ -380,7 +380,7 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   `has_macros` raw-tree guard) — `detect()` reads the **un-expanded** tree.
   Per-group rationale + corpus counts: check `docs/decisions.md` D12–D31; the full
   planemo→GTR map: `docs/planemo_linter_parity.md`.
-- **`command_text.py`** (in **tier 1**, `galaxy_tool_xml.command_text`) — the
+- **`command_text.py`** (in **tier 1**, `galaxy_tool_source.command_text`) — the
   read-only lexer `GTR020.2` reads `<command>` text through: a single character scan
   tracking `'…'` / `"…"` quote state **across newlines** and skipping Cheetah
   directive/comment lines, yielding each unquoted `$var` with its character span.
@@ -389,7 +389,7 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   so it needs none of the mutation machinery. It moved to tier 1 (with `command_vars.py`, the quoting-safety
   classifier, and `cdata.py`, the CDATA-wrappability predicate) so the `GTR020.1` /
   `GTR018.1` / `GTR019.1` codemods (tier 2) can share them with these checks; see
-  `galaxy-tool-xml/docs/decisions.md` §16.
+  `galaxy-tool-source/docs/decisions.md` §16.
 
 **Contract:** detect-only, LBYL, no mutation, no dependency on the mutating tiers.
 Findings are advisory — informational unless the user opts into `--strict`.
@@ -490,8 +490,8 @@ codemod / check tiers directly. Ten subcommands (`format`, `upgrade`, `check`,
 `find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`,
 `convert-help`, `tokenize-version`) —
 `find-references` is a read-only query for a parameter's Cheetah `$var` reference sites
-(`galaxy_tool_xml.cheetah_refs`; cli `docs/decisions.md` §D8) and `rename-param` is its
-mutating sibling (the first Cheetah mutator, `galaxy_tool_xml.cheetah_rename`; cli §D9):
+(`galaxy_tool_source.cheetah_refs`; cli `docs/decisions.md` §D8) and `rename-param` is its
+mutating sibling (the first Cheetah mutator, `galaxy_tool_source.cheetah_rename`; cli §D9):
 
 - **`format`** — apply a ruleset's (or selection's) fixable rules then cosmetic
   formatting; never changes `profile=`. Advisory rules in a selection are reported
@@ -673,20 +673,25 @@ The invariants above are enforced by standing tooling, not goodwill (`scripts/`)
 
 Each abstraction → its file → the decision record that justifies it.
 
+> **Naming note:** tier 1 was renamed `galaxy-tool-xml` → **`galaxy-tool-source`**
+> (2026-06-10, pre-PyPI; xml `docs/decisions.md` §26). Dated records — decisions
+> entries, audit records, research notes — keep the old name verbatim; the "xml"
+> shorthand in the Rationale column refers to the renamed package.
+
 | Abstraction | File | Rationale |
 |---|---|---|
 | `RuleMeta`, `Violation` | `galaxy-tool-refactor-rules/src/.../meta.py`, `violation.py` | rules `docs/decisions.md` §D1 |
-| `ToolDocument` / `MacroDocument` | `galaxy-tool-xml/src/.../document.py` | xml `docs/decisions.md` §3, §15 |
-| `load_tool` / `validate_tool` / `newest_valid_profile` | `galaxy-tool-xml/src/.../binding.py` | xml `docs/decisions.md` §1, §10 |
-| profile resolution | `galaxy-tool-xml/src/.../profiles.py` | xml `docs/decisions.md` §10 |
-| `unquoted_cheetah_vars` (command lexer) | `galaxy-tool-xml/src/.../command_text.py` | xml `docs/decisions.md` §16 |
-| `provably_quotable` (quoting-safety classifier) | `galaxy-tool-xml/src/.../command_vars.py` | xml `docs/decisions.md` §16 |
-| `cdata_wrappable` / `needs_cdata` / `is_cdata_wrapped` | `galaxy-tool-xml/src/.../cdata.py` | xml `docs/decisions.md` §16; registry D10 |
-| `cheetah_spans` / `CheetahSpan` (faithful CT3 lexer) | `galaxy-tool-xml/src/.../cheetah_cdm.py` | xml `docs/decisions.md` §19 |
-| `tool_cheetah_references` / `CheetahRef` (reference model) | `galaxy-tool-xml/src/.../cheetah_refs.py` | xml `docs/decisions.md` §18 |
-| `rename_param` / `rename_param_plan` / `RenameOutcome` / `RenamePlan` | `galaxy-tool-xml/src/.../cheetah_rename.py` | xml `docs/decisions.md` §20 |
-| `ToolBundle` / `load_bundle` / `rename_param_in_bundle` | `galaxy-tool-xml/src/.../bundle.py` | xml `docs/decisions.md` §21 |
-| `rst_is_invalid` / `repair_help_rst` (help-RST predicate + repair) | `galaxy-tool-xml/src/.../rst.py` | xml `docs/decisions.md` §23 |
+| `ToolDocument` / `MacroDocument` | `galaxy-tool-source/src/.../document.py` | xml `docs/decisions.md` §3, §15 |
+| `load_tool` / `validate_tool` / `newest_valid_profile` | `galaxy-tool-source/src/.../binding.py` | xml `docs/decisions.md` §1, §10 |
+| profile resolution | `galaxy-tool-source/src/.../profiles.py` | xml `docs/decisions.md` §10 |
+| `unquoted_cheetah_vars` (command lexer) | `galaxy-tool-source/src/.../command_text.py` | xml `docs/decisions.md` §16 |
+| `provably_quotable` (quoting-safety classifier) | `galaxy-tool-source/src/.../command_vars.py` | xml `docs/decisions.md` §16 |
+| `cdata_wrappable` / `needs_cdata` / `is_cdata_wrapped` | `galaxy-tool-source/src/.../cdata.py` | xml `docs/decisions.md` §16; registry D10 |
+| `cheetah_spans` / `CheetahSpan` (faithful CT3 lexer) | `galaxy-tool-source/src/.../cheetah_cdm.py` | xml `docs/decisions.md` §19 |
+| `tool_cheetah_references` / `CheetahRef` (reference model) | `galaxy-tool-source/src/.../cheetah_refs.py` | xml `docs/decisions.md` §18 |
+| `rename_param` / `rename_param_plan` / `RenameOutcome` / `RenamePlan` | `galaxy-tool-source/src/.../cheetah_rename.py` | xml `docs/decisions.md` §20 |
+| `ToolBundle` / `load_bundle` / `rename_param_in_bundle` | `galaxy-tool-source/src/.../bundle.py` | xml `docs/decisions.md` §21 |
+| `rst_is_invalid` / `repair_help_rst` (help-RST predicate + repair) | `galaxy-tool-source/src/.../rst.py` | xml `docs/decisions.md` §23 |
 | `CodemodCommand`, `Cursor`, `Change` | `galaxy-tool-xml-codemod/src/.../codemod.py`, `cursor.py`, `change.py` | codemod `docs/decisions.md` §6, §19 |
 | `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` | `galaxy-tool-xml-codemod/src/.../canonical.py` | codemod `docs/decisions.md` §16, §36 |
 | upgrade codemods | `galaxy-tool-xml-codemod/src/.../upgrades.py`, `codemods/upgrade_*.py` | codemod `docs/decisions.md` §11–14 |

@@ -30,7 +30,7 @@ from pathlib import Path
 logger = logging.getLogger("fetch_schemas")
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_SCHEMA_DIR = _REPO_ROOT / "galaxy-tool-xml" / "src" / "galaxy_tool_xml" / "schema"
+_SCHEMA_DIR = _REPO_ROOT / "galaxy-tool-source" / "src" / "galaxy_tool_source" / "schema"
 _MANIFEST_PATH = _SCHEMA_DIR / "manifest.json"
 _PROVENANCE_PATH = _SCHEMA_DIR / "PROVENANCE.md"
 
@@ -47,7 +47,7 @@ _XSD_PATHS = (
     "lib/galaxy/tools/xsd/galaxy.xsd",
 )
 _VERSION_RE = re.compile(r"^\d+\.\d+$")
-_USER_AGENT = "galaxy-tool-xml-fetch-schemas"
+_USER_AGENT = "galaxy-tool-source-fetch-schemas"
 _HTTP_TIMEOUT = 30
 
 

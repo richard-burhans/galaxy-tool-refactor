@@ -22,10 +22,10 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 
 | Capability | Tier | Status | Source |
 |---|---|---|---|
-| Parse tool XML preserving CDATA / comments / attribute order | `galaxy-tool-xml` | ✅ Shipped | `load_tool`/`parse_tool` |
-| Profile-aware validation against the per-release Galaxy XSD | `galaxy-tool-xml` | ✅ Shipped | `validate_tool`, ~28 vendored XSDs |
-| Find a tool's newest valid profile | `galaxy-tool-xml` | ✅ Shipped | `newest_valid_profile` |
-| Near-miss typo suggestions | `galaxy-tool-xml` | ✅ Shipped | `corrections.py` |
+| Parse tool XML preserving CDATA / comments / attribute order | `galaxy-tool-source` | ✅ Shipped | `load_tool`/`parse_tool` |
+| Profile-aware validation against the per-release Galaxy XSD | `galaxy-tool-source` | ✅ Shipped | `validate_tool`, ~28 vendored XSDs |
+| Find a tool's newest valid profile | `galaxy-tool-source` | ✅ Shipped | `newest_valid_profile` |
+| Near-miss typo suggestions | `galaxy-tool-source` | ✅ Shipped | `corrections.py` |
 
 ### Fix (structural codemods + cosmetic formatting)
 
@@ -103,8 +103,8 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 
 | Capability | Status | Source |
 |---|---|---|
-| Find every Cheetah `$param` reference across a tool **and its imported macro files** | ✅ Shipped | `find-references` (`galaxy_tool_xml.cheetah_refs` + the tool bundle) |
-| Rename a parameter across the definition, every reference, by-name cross-ref attributes, `<tests>` mirrors, **and output `<filter>` Python expressions** — **across a tool and its imported macro files**, atomically (rewrite all or skip with a reason) | ✅ Shipped | `rename-param`; 96.3% of definitions rename cleanly, and 1.7% reach into an imported macro the old single-file path silently left dangling (`galaxy_tool_xml.cheetah_rename` + `bundle`; `docs/rename_macro_spread_stats.md`) |
+| Find every Cheetah `$param` reference across a tool **and its imported macro files** | ✅ Shipped | `find-references` (`galaxy_tool_source.cheetah_refs` + the tool bundle) |
+| Rename a parameter across the definition, every reference, by-name cross-ref attributes, `<tests>` mirrors, **and output `<filter>` Python expressions** — **across a tool and its imported macro files**, atomically (rewrite all or skip with a reason) | ✅ Shipped | `rename-param`; 96.3% of definitions rename cleanly, and 1.7% reach into an imported macro the old single-file path silently left dangling (`galaxy_tool_source.cheetah_rename` + `bundle`; `docs/rename_macro_spread_stats.md`) |
 | Gate a cross-file rename that touches a macro **shared** by other tools (edit only when sole-owned within `--repo-root`, else skip + report) | ✅ Shipped | `rename-param --repo-root` (`galaxy_tool_refactor_registry.bundle_rename`) |
 | Rename a parameter across **every importer** of a shared macro in lockstep (consensus — only when they all agree) | ✅ Shipped | `rename-param --across-importers` (`rename_param_consensus`) |
 | Minimal-diff offset rename for editors (LSP `WorkspaceEdit`) | 🟡 Partial | `rename_param_plan` (Tier-B API) shipped — 96.8% parity, 0 mismatches; editor binding is an open PR (see Roadmap) |
@@ -128,7 +128,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 - **Editor "Rename Symbol" + "Find References" via `galaxy-language-server`** — the
   foundational Tier-B offset API (`rename_param_plan`) shipped; the galaxyls binding is an
   **open PR** (galaxyproject/galaxy-language-server#331, not draft, CI-green; cross-file
-  across imported macros), gated only on publishing `galaxy-tool-xml` to PyPI.
+  across imported macros), gated only on publishing `galaxy-tool-source` to PyPI.
 - **General macro-expansion provenance** — a side-table mapping each expanded node to its
   source file, to edit *arbitrary* macro-supplied content. The literal-`format`/`ftype`
   slice (Phase 2a) shipped via locate-in-source (`normalize-macros`); the general layer is

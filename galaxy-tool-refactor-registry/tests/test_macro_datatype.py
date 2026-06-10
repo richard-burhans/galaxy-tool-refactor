@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from galaxy_tool_xml.binding import load_macros
+from galaxy_tool_source.binding import load_macros
 
 from galaxy_tool_refactor_registry.macro_datatype import normalize_macro_files
 

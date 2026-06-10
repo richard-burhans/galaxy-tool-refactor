@@ -15,7 +15,7 @@ connection is today:
 |---|---|---|
 | **AI agents (MCP)** | Agents call `format`/`upgrade`/`check`/`list_*` directly while authoring or reviewing tools. | **Exists** — the MCP server ships (vision Goal 1). |
 | **`galaxy-mcp`** (sibling MCP) | Coexist in the agent ecosystem; complementary surface. | **Exists** (separate project) — positioning, not a built link. |
-| **`galaxy-language-server`** (editor LSP) | Surface fixes as editor quick-fixes — reach authors at *write-time*, before a PR exists. | 🟡 **In progress** — the Tier-B rename API (`rename_param_plan`) shipped; a "Rename Symbol" + "Find References" binding is an **open PR** (galaxyproject/galaxy-language-server#331, not draft, CI-green, cross-file across imported macros), gated only on publishing `galaxy-tool-xml` to PyPI. |
+| **`galaxy-language-server`** (editor LSP) | Surface fixes as editor quick-fixes — reach authors at *write-time*, before a PR exists. | 🟡 **In progress** — the Tier-B rename API (`rename_param_plan`) shipped; a "Rename Symbol" + "Find References" binding is an **open PR** (galaxyproject/galaxy-language-server#331, not draft, CI-green, cross-file across imported macros), gated only on publishing `galaxy-tool-source` to PyPI. |
 | **`planemo` / `planemo-ci-action`** | Run as a fix/upgrade backend alongside planemo's lint/test; feed the Action that lints changed-tool PRs. | 🔭 **Potential** — the most concrete "streamline reviews" path. |
 | **`gx-tool-db` / `galaxy_codex`** (tool catalogs) | Feed check/upgrade signals at catalog scale for community-wide tool-health views. | 🔭 **Potential**. |
 | **Galaxy core / ToolShed** | Publish-time or load-time validation & repair. | 🔭 **Potential**. |

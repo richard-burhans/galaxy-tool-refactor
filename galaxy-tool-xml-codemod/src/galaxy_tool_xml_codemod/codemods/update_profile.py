@@ -31,8 +31,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
-from galaxy_tool_xml.binding import newest_valid_profile
-from galaxy_tool_xml.profiles import is_newer_profile
+from galaxy_tool_source.binding import newest_valid_profile
+from galaxy_tool_source.profiles import is_newer_profile
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
 from galaxy_tool_xml_codemod.codemods._coarse_detect import coarse_detect

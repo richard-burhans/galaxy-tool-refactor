@@ -29,7 +29,7 @@ from galaxy_tool_xml_fmt.format import all_rules, rules_for_kind
 
 if TYPE_CHECKING:
     from galaxy_tool_refactor_rules.meta import RuleMeta
-    from galaxy_tool_xml.document import MacroDocument, ToolDocument
+    from galaxy_tool_source.document import MacroDocument, ToolDocument
     from lxml import etree
 
     from galaxy_tool_xml_fmt.rules import Rule

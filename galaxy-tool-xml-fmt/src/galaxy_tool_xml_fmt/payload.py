@@ -2,7 +2,7 @@
 
 GTR004 (empty-element collapse) and GTR001 (indent) must not rewrite whitespace
 that could be content. The tag set is **derived from the vendored schemas**
-(tier-1 ``galaxy_tool_xml.schema_content.text_bearing_tags`` — an element is
+(tier-1 ``galaxy_tool_source.schema_content.text_bearing_tags`` — an element is
 text-bearing iff its content model admits character data, unioned across every
 Galaxy release), replacing the hand-maintained lists (behaviour-preservation
 ledger, GTR004 derivation proposal, applied 2026-06-10).
@@ -25,7 +25,7 @@ from __future__ import annotations
 from functools import cache
 from typing import TYPE_CHECKING
 
-from galaxy_tool_xml.schema_content import text_bearing_tags
+from galaxy_tool_source.schema_content import text_bearing_tags
 
 if TYPE_CHECKING:
     from lxml import etree

@@ -41,7 +41,7 @@ rewrite (fmt decisions §D3).
 
 **Why element-order is a safe codemod.** The Galaxy schema's `<tool>` content
 model is **`xs:all`** (order-free), not `xs:sequence` — verified against
-`galaxy-tool-xml/.../schema/galaxy-26.1.xsd`. Child-element order is therefore
+`galaxy-tool-source/.../schema/galaxy-26.1.xsd`. Child-element order is therefore
 **not** XSD-enforced: reordering can never regress validity, and the IUC order
 is a pure convention this codemod normalises toward. The codemod's only real
 invariant is idempotence (proven over the corpus). It joins `CANONICAL_CODEMODS`

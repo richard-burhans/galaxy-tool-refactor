@@ -11,25 +11,25 @@ not depend on codemod (the former `[canonical]` extra was removed — see
 `galaxy-tool-xml-fmt/docs/decisions.md` §D12).
 
 The original architecture lives in `docs/architecture.md` (a working
-copy forked from `galaxy-tool-xml/docs/codemod-architecture.md`); it
+copy forked from `galaxy-tool-source/docs/codemod-architecture.md`); it
 predates the M1–M3.5 implementation. Decisions adopted during
 implementation are recorded in `docs/decisions.md`; this file tracks
 milestone status and the open architectural questions still to be
 answered.
 
-## Foundation needed from galaxy-tool-xml
+## Foundation needed from galaxy-tool-source
 
-Per `docs/architecture.md` §"What galaxy-tool-xml should add":
+Per `docs/architecture.md` §"What galaxy-tool-source should add":
 
 1. **Macro file resolution** — given a `ToolDocument`, return every
    `Path` involved (tool + transitively-imported macros). Lets codemods
    touch the right files. **Not yet shipped.**
-2. **Trivia contract documented** in `galaxy-tool-xml/README.md`
+2. **Trivia contract documented** in `galaxy-tool-source/README.md`
    (structure / attrs / order / comments / CDATA / text / encoding /
    `sourceline` survive; indentation / blank lines / quote style /
    empty-element shorthand / attribute spacing do not). **Partial.**
 3. **Trivia contract pinned in tests** via
-   `galaxy-tool-xml/scripts/corpus_check.py::check_roundtrip`. **Done.**
+   `galaxy-tool-source/scripts/corpus_check.py::check_roundtrip`. **Done.**
 4. **Macro provenance per element** (which file / which macro defined
    it). Side table keyed by a stable locator. **Later — wait for a
    codemod that needs it.**
@@ -42,7 +42,7 @@ M1+ milestones use ad-hoc parent-repo internals.
 ### M0 — scaffold *(done)*
 
 - `pyproject.toml`, `src/galaxy_tool_xml_codemod/`, `tests/`
-- `galaxy-tool-xml` as a workspace dependency (all three tiers share a
+- `galaxy-tool-source` as a workspace dependency (all three tiers share a
   single uv workspace under `galaxy-tool-refactor/`)
 - ruff / mypy / pytest configured the same as the other packages
 - Smoke test importing the package — passing
@@ -295,8 +295,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import cached_property
 
-from galaxy_tool_xml.document import ToolDocument
-from galaxy_tool_xml.models.any_tool import AnyTool
+from galaxy_tool_source.document import ToolDocument
+from galaxy_tool_source.models.any_tool import AnyTool
 
 from galaxy_tool_xml_codemod.cursor import Cursor
 
@@ -378,8 +378,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from galaxy_tool_xml.binding import load_tool
-from galaxy_tool_xml.document import ToolDocument
+from galaxy_tool_source.binding import load_tool
+from galaxy_tool_source.document import ToolDocument
 
 from galaxy_tool_xml_codemod.module import Module
 
@@ -447,7 +447,7 @@ Minimal M1 acceptance tests:
 
 Run from the workspace root (`galaxy-tool-refactor/`):
 
-1. `uv sync` succeeds; `galaxy-tool-xml` resolves via the workspace reference.
+1. `uv sync` succeeds; `galaxy-tool-source` resolves via the workspace reference.
 2. `uv run pytest galaxy-tool-xml-codemod/tests/` runs the smoke test green.
 3. `uv run ruff check galaxy-tool-xml-codemod/src` is clean.
 4. `uv run mypy --config-file galaxy-tool-xml-codemod/pyproject.toml galaxy-tool-xml-codemod/src` reports no issues.

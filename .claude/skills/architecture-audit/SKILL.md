@@ -233,7 +233,7 @@ orchestration lives in the registry facade (3.6); the CLI/MCP are thin front-end
 | Tier | Package | Owns |
 |---|---|---|
 | 0.5 | `galaxy-tool-refactor-rules` | `RuleMeta`, `Violation` — dependency-free shared vocabulary |
-| 1 | `galaxy-tool-xml` | `ToolDocument` (lxml tree = source of truth), `load/parse/validate`; no serializer |
+| 1 | `galaxy-tool-source` | `ToolDocument` (lxml tree = source of truth), `load/parse/validate`; no serializer |
 | 2 | `galaxy-tool-xml-codemod` | `CodemodCommand`/`Cursor`/`Change`; CANONICAL vs AUTO_UPGRADE |
 | 3 | `galaxy-tool-xml-fmt` | cosmetic `Rule`/`Edit`; the only serializer of canonical output |
 | 3.5 | `galaxy-tool-xml-check` | detect-only IUC `CheckRule`s |

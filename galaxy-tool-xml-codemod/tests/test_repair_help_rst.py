@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from galaxy_tool_xml.rst import rst_is_invalid
+from galaxy_tool_source.rst import rst_is_invalid
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemods.repair_help_rst import RepairHelpRst

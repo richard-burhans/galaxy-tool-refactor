@@ -1,7 +1,7 @@
 [project]
 name = "galaxy-tool-xml-check"
 version = "0.0.1"
-description = "Advisory (detect-only) IUC best-practice checks for Galaxy tool XML — tier 3.5 of the galaxy-tool-xml ecosystem."
+description = "Advisory (detect-only) IUC best-practice checks for Galaxy tool XML — tier 3.5 of the galaxy-tool-source ecosystem."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -11,9 +11,9 @@ authors = [{ name = "Richard Burhans" }]
 # mutating tiers (codemod / fmt) — the app composes this alongside them.
 dependencies = [
     # GTR089.2 validates <help> reStructuredText via the shared tier-1 predicate
-    # (`galaxy_tool_xml.rst`), so docutils is a transitive dep of tier 1, not declared here.
+    # (`galaxy_tool_source.rst`), so docutils is a transitive dep of tier 1, not declared here.
     "galaxy-tool-refactor-rules",
-    "galaxy-tool-xml",
+    "galaxy-tool-source",
     "lxml>=5",
     "packaging>=23",
 ]
@@ -27,7 +27,7 @@ dev = [
     "pytest>=8",
     "ruff>=0.5",
     "mypy>=1.10",
-    # the galaxy-tool-xml[shell-oracle] extra: GTR020.2's residual uses the shared
+    # the galaxy-tool-source[shell-oracle] extra: GTR020.2's residual uses the shared
     # quote_is_behavior_preserving policy, which consults bashlex when present.
     "bashlex>=0.18",
 ]
@@ -53,4 +53,4 @@ testpaths = ["tests"]
 
 [tool.uv.sources]
 galaxy-tool-refactor-rules = { workspace = true }
-galaxy-tool-xml = { workspace = true }
+galaxy-tool-source = { workspace = true }

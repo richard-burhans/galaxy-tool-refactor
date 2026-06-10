@@ -24,8 +24,8 @@ import logging
 from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
-from galaxy_tool_xml.binding import newest_valid_profile
-from galaxy_tool_xml.profiles import latest_profile
+from galaxy_tool_source.binding import newest_valid_profile
+from galaxy_tool_source.profiles import latest_profile
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
 from galaxy_tool_xml_codemod.codemods._coarse_detect import coarse_detect

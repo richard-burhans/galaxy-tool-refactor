@@ -1,7 +1,7 @@
 """Codemod: convert an RST ``<help>`` body to Markdown (opt-in, never canonical).
 
 GTR092 — the conversion **swaps the rendering engine** (server-side docutils →
-client-side markdown-it, see tier-1 ``galaxy_tool_xml.rst_markdown``), so it is
+client-side markdown-it, see tier-1 ``galaxy_tool_source.rst_markdown``), so it is
 behaviour-changing by construction and belongs to **no ruleset**: it never runs in
 ``format``/``upgrade`` and is applied only by the dedicated opt-in ``convert-help``
 surface. Three gates keep it sound:
@@ -13,7 +13,7 @@ surface. Three gates keep it sound:
   when the markdown-it rendering is semantically equal to the docutils rendering
   (invalid RST is first passed through the GTR089.1 surgical repair, itself gated).
 - **dependency gate** — conversion without the equivalence gate is unsound, so a
-  missing ``galaxy-tool-xml[markdown]`` extra means no-op, never a blind convert.
+  missing ``galaxy-tool-source[markdown]`` extra means no-op, never a blind convert.
 
 See ``docs/decisions.md`` §38.
 """
@@ -23,10 +23,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
-from galaxy_tool_xml.cdata import is_cdata_wrapped
-from galaxy_tool_xml.profiles import is_newer_profile, resolve_profile
-from galaxy_tool_xml.rst import has_macro_token
-from galaxy_tool_xml.rst_markdown import convert_help_rst, markdown_renderer_available
+from galaxy_tool_source.cdata import is_cdata_wrapped
+from galaxy_tool_source.profiles import is_newer_profile, resolve_profile
+from galaxy_tool_source.rst import has_macro_token
+from galaxy_tool_source.rst_markdown import (
+    convert_help_rst,
+    markdown_renderer_available,
+)
 
 from galaxy_tool_xml_codemod.codemod import CodemodCommand
 from galaxy_tool_xml_codemod.codemods._coarse_detect import coarse_detect
@@ -53,7 +56,7 @@ def conversion_skip_reason(module: Module, /) -> str | None:
     """
     if not markdown_renderer_available():
         return (
-            "markdown renderer unavailable — install the galaxy-tool-xml[markdown] "
+            "markdown renderer unavailable — install the galaxy-tool-source[markdown] "
             "extra (conversion without the render-equivalence gate is unsound)"
         )
     root = module.document.root

@@ -11,7 +11,7 @@ from galaxy_tool_refactor_rules.violation import Violation
 from lxml import etree
 
 if TYPE_CHECKING:
-    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_source.document import ToolDocument
 
 
 _IUC = "https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html"

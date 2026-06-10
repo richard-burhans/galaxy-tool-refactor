@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from galaxy_tool_xml.cdata import is_cdata_wrapped as _tier1_is_cdata_wrapped
+from galaxy_tool_source.cdata import is_cdata_wrapped as _tier1_is_cdata_wrapped
 from lxml import etree
 
 
@@ -72,7 +72,7 @@ class Cursor:
     @property
     def element(self) -> etree._Element:
         """The underlying lxml element — for tier-1 predicates that take an element
-        (e.g. ``galaxy_tool_xml.cdata.cdata_wrappable``)."""
+        (e.g. ``galaxy_tool_source.cdata.cdata_wrappable``)."""
         return self._element
 
     def get_attribute(self, name: str, /) -> str | None:
@@ -105,7 +105,7 @@ class Cursor:
     def is_cdata_wrapped(self) -> bool:
         """Whether the element's body is a leading ``<![CDATA[…]]>`` section.
 
-        Delegates to the **shared tier-1 predicate** (``galaxy_tool_xml.cdata``) —
+        Delegates to the **shared tier-1 predicate** (``galaxy_tool_source.cdata``) —
         the one definition the GTR018/GTR019 CDATA practice partitions on, used by
         both the ``.1`` fix codemods and the ``.2`` advisory residuals. Leading
         whitespace before the section still counts as wrapped.

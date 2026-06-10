@@ -27,7 +27,7 @@ jobs:
           enable-cache: true
 
       - name: Sync workspace
-        # Installs all eight packages + dev deps; the galaxy-tool-xml build hook
+        # Installs all eight packages + dev deps; the galaxy-tool-source build hook
         # regenerates the per-version xsdata models from the vendored XSDs.
         run: uv sync
 

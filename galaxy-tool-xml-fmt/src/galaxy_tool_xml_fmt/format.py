@@ -22,7 +22,7 @@ from galaxy_tool_xml_fmt.rules import Rule
 from galaxy_tool_xml_fmt.serializer import to_bytes
 
 if TYPE_CHECKING:
-    from galaxy_tool_xml.document import MacroDocument, ToolDocument
+    from galaxy_tool_source.document import MacroDocument, ToolDocument
     from lxml import etree
 
 

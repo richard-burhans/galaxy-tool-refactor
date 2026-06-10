@@ -90,7 +90,7 @@ def test_skips_when_macros_import_files() -> None:
 def test_expansion_equality_holds() -> None:
     # The gate's own invariant, asserted directly: expanding the tokenized tool
     # reproduces the original expansion (modulo the cleared <macros> block).
-    from galaxy_tool_xml.macros import expand_from_tree
+    from galaxy_tool_source.macros import expand_from_tree
 
     module = parse_module(_tool())
     before, errors = expand_from_tree(module.document.root, source_dir=None)

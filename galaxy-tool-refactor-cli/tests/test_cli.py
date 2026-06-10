@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 from galaxy_tool_refactor_registry.registry import advisory_codes
-from galaxy_tool_xml.profiles import latest_profile
+from galaxy_tool_source.profiles import latest_profile
 
 from galaxy_tool_refactor_cli.cli import main
 

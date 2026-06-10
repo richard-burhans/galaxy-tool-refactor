@@ -28,7 +28,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_macros
+from galaxy_tool_source.binding import ToolXmlSyntaxError, load_macros
 from galaxy_tool_xml_codemod.datatype_format import normalize_datatype_attributes
 from galaxy_tool_xml_fmt.cli_support import make_backup
 from galaxy_tool_xml_fmt.format import format_macro_document

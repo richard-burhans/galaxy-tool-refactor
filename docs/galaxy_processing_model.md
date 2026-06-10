@@ -43,7 +43,7 @@ Upstream files (`github.com/galaxyproject/galaxy`):
 | `lib/galaxy/util/rst_to_html.py` | `rst_to_html` (docutils RST→HTML) — **vendored locally** |
 | `client/src/components/Tool/{ToolHelp,ToolHelpMarkdown,ToolHelpRst,ToolCard}.vue` | client-side help format dispatch + markdown/RST rendering |
 
-Project-local corroboration: `galaxy-tool-xml/src/galaxy_tool_xml/schema/galaxy-26.1.xsd`
+Project-local corroboration: `galaxy-tool-source/src/galaxy_tool_source/schema/galaxy-26.1.xsd`
 (`Command` and `Help` complexTypes); `.venv/.../galaxy/util/{template,rst_to_html}.py`.
 
 ---

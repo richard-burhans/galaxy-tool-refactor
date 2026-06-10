@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from galaxy_tool_xml.binding import load_tool
+from galaxy_tool_source.binding import load_tool
 from packaging.version import Version
 
 from galaxy_tool_xml_codemod.profile_semantics import (

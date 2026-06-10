@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from galaxy_tool_refactor_rules.violation import Violation
-    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_source.document import ToolDocument
     from galaxy_tool_xml_check.rules import CheckRule
     from galaxy_tool_xml_codemod.codemod import CodemodCommand
     from galaxy_tool_xml_fmt.rules import Rule

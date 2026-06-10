@@ -17,7 +17,7 @@ from galaxy_tool_refactor_rules.meta import RuleMeta
 
 if TYPE_CHECKING:
     from galaxy_tool_refactor_rules.violation import Violation
-    from galaxy_tool_xml.document import ToolDocument
+    from galaxy_tool_source.document import ToolDocument
 
 
 class CheckRule(ABC):

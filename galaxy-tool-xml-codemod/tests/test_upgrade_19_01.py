@@ -10,7 +10,7 @@ the latest profile. See ``docs/decisions.md`` §14.
 
 from __future__ import annotations
 
-from galaxy_tool_xml.binding import newest_valid_profile
+from galaxy_tool_source.binding import newest_valid_profile
 from lxml import etree
 
 from galaxy_tool_xml_codemod.codemods.upgrade_19_01 import Upgrade19_01

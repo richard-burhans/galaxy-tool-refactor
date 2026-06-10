@@ -29,7 +29,7 @@ files. All rule orchestration is delegated to the tier-3.6 registry facade
 - ``find-references`` — read-only query: print every Cheetah ``$NAME`` reference site
   (``file:line  [section]  $ref``) across a tool's templated sections. Mutates nothing,
   not a rule (no selection); the first read-only consumer of the Cheetah reference model
-  (``galaxy_tool_xml.cheetah_refs``). See ``docs/decisions.md`` §D8.
+  (``galaxy_tool_source.cheetah_refs``). See ``docs/decisions.md`` §D8.
 - ``rename-param`` — the mutating sibling of ``find-references``: rename a parameter
   OLD to NEW across every Cheetah section, by-name cross-reference attribute, and
   ``<tests>`` mirror, plus the definition. Atomic per file (rewrites everything or skips
@@ -77,8 +77,8 @@ from galaxy_tool_refactor_registry.resolve import (
     resolve_codes,
     resolve_upgrade_codes,
 )
-from galaxy_tool_xml.binding import ToolXmlSyntaxError, load_macros, load_tool
-from galaxy_tool_xml.document import MacroDocument, ToolDocument
+from galaxy_tool_source.binding import ToolXmlSyntaxError, load_macros, load_tool
+from galaxy_tool_source.document import MacroDocument, ToolDocument
 from galaxy_tool_xml_fmt.cli_support import (
     Action,
     RunOptions,
@@ -540,7 +540,7 @@ def find_references_command(
     includes NAME (so ``$NAME``, ``$cond.NAME`` and ``$NAME.ext`` all match). PATHS may
     be files or directories; non-tool XML is skipped. Occurrences are de-duplicated, so
     a macro shared by several scanned tools is reported once. Conservative — may include
-    occurrences in comments/``#raw`` (see ``galaxy_tool_xml.cheetah_refs``). Non-zero
+    occurrences in comments/``#raw`` (see ``galaxy_tool_source.cheetah_refs``). Non-zero
     exit on errors.
     """
     total = scanned = skipped = errored = 0
@@ -902,7 +902,7 @@ def convert_help_command(paths: tuple[Path, ...], check: bool, backup: bool) -> 
     repair). Anything unprovable is skipped with the reason. This conversion
     swaps Galaxy's rendering engine (server-side docutils -> client-side
     markdown-it), which is why it is a deliberate, separate command — never part
-    of ``format``/``upgrade``. Needs the ``galaxy-tool-xml[markdown]`` extra.
+    of ``format``/``upgrade``. Needs the ``galaxy-tool-source[markdown]`` extra.
     """
     converted = skipped = errored = 0
     for target in iter_targets(paths):
