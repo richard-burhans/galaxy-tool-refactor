@@ -355,8 +355,11 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   *non-provable* unquoted `$var` the `GTR020.1` fix can't safely quote), and `GTR089.2`
   (the invalid `<help>` RST the `GTR089.1` repair can't safely fix). Each reuses
   the shared tier-1 predicate its fix uses, so the partition is sound.
-  **GTR032** (`CommandAndJoining`, `&&`-vs-lone-`&`) remains a reserved no-op stub
-  — its anti-pattern is ~1 tool corpus-wide (D3). **GTR034** (`UnusedParam`) is a
+  **GTR032** (`CommandAndJoining`, `&&`-vs-lone-`&`) is a real detector since
+  check D34 (the D3 no-op era ended when its revisit condition — the CT3 lexer —
+  was met): the quote/redirect/pipe-aware classifier in `lone_amp.py` (shared
+  with the `command-lone-amp` measure, which imports it) flags only the genuine
+  *joining* class. **GTR034** (`UnusedParam`) is a
   *reference-usage* advisory (not presence/shape): an `<inputs>` `<param>` never
   referenced anywhere the tool uses it, via the tier-1 all-text identifier scan.
 - **The planemo-parity wave — `GTR038`–`GTR091`** (54 rules, across the `checks/`
@@ -728,7 +731,7 @@ Each abstraction → its file → the decision record that justifies it.
 | GTR035.1 / .2 | `TrimAttributeWhitespace` (fix, requirement version) + `NameWhitespace` (advisory) | codemod + check | **partition** GTR035 (codemod §33 addendum, check D33) |
 | GTR089.1 / .2 | `RepairHelpRst` (fix) + `HelpRstResidual` (advisory) | codemod + check | **partition** GTR089 (xml §23, codemod §37, check D31) |
 | GTR021, GTR023–029 | `TestsPresent` … (presence/shape) | `galaxy-tool-xml-check/.../checks/tool.py` | check (flat advisory) |
-| GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory, reserved no-op stub — D3) |
+| GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks/tool.py` (+ `lone_amp.py`) | check (advisory — D3 deferral ended by D34) |
 | GTR033 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory — D7) |
 | GTR034 | `UnusedParam` | `galaxy-tool-xml-check/.../checks/inputs.py` | check (advisory — reference-usage) |
 | GTR038–GTR091 | planemo-parity wave (`NoTodoText`, `CommandPresent`, `InputsPresent`, … 54 input/output/test/validator/help checks; GTR089 is the partition row above) | `galaxy-tool-xml-check/.../checks/` (`tool`/`outputs`/`inputs`/`validators`/`tests`/`help`) | check (advisory — planemo parity, D12–D32) |
