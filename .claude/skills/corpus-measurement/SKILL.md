@@ -42,7 +42,7 @@ Two standing rules for this repo, one workflow:
    - `_run_<slug>(args) -> None` — the thin arg wrapper.
    - Register the slug in the `_MEASUREMENTS` dict at the bottom.
 
-3. **Pin it with a test** in `galaxy-tool-xml/tests/test_measure.py`: import
+3. **Pin it with a test** in `galaxy-tool-source/tests/test_measure.py`: import
    `_measure_<slug>`, build a small **synthetic fixture** (hand-written tool/macro XML
    or a few `rows`), and assert the exact counts. This locks the counting rule so a
    later refactor can't silently shift a published number.

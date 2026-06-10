@@ -5,7 +5,7 @@ code in this repository.
 
 ## Project
 
-`galaxy-tool-xml` is a foundation library and CLI for parsing, profile-aware
+`galaxy-tool-source` is a foundation library and CLI for parsing, profile-aware
 validation, and typed inspection of Galaxy tool definition XML. It is the
 foundation for a separate, `black`-like Galaxy tool linter/formatter — it has
 **no serializer**: it exposes the mutable lxml tree and callers serialize it
@@ -16,21 +16,21 @@ themselves.
 Run these from the **workspace root** (`galaxy-tool-refactor/`):
 
 - `uv sync` — install dependencies; the build hook generates the per-version models.
-- `uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/` — run this package's tests.
-- `uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_binding.py::test_load_tool_returns_document` — run a single test.
-- `uv run --package galaxy-tool-xml pytest -m slow galaxy-tool-xml/tests/` — run the xsdata codegen sweep over every vendored XSD.
-- `uv run ruff check galaxy-tool-xml/src` — lint.
-- `uv run mypy --config-file galaxy-tool-xml/pyproject.toml galaxy-tool-xml/src` — type-check (strict).
+- `uv run --package galaxy-tool-source pytest galaxy-tool-source/tests/` — run this package's tests.
+- `uv run --package galaxy-tool-source pytest galaxy-tool-source/tests/test_binding.py::test_load_tool_returns_document` — run a single test.
+- `uv run --package galaxy-tool-source pytest -m slow galaxy-tool-source/tests/` — run the xsdata codegen sweep over every vendored XSD.
+- `uv run ruff check galaxy-tool-source/src` — lint.
+- `uv run mypy --config-file galaxy-tool-source/pyproject.toml galaxy-tool-source/src` — type-check (strict).
 - `uv run python -m scripts.fetch_schemas` — download release XSDs (`--force` re-downloads all).
 - `uv run python -m scripts.regenerate` — regenerate the per-version typed models from every vendored XSD.
 - `uv run python -m scripts.corpus_check validate` — sweep public Galaxy tool repositories for crashes (maintainer QA).
-- `uv run galaxy-tool-xml validate <file>` / `suggest <file>` / `profiles` — the CLI.
-- `uv build --package galaxy-tool-xml` — build the wheel (the build hook generates the per-version models).
+- `uv run galaxy-tool-source validate <file>` / `suggest <file>` / `profiles` — the CLI.
+- `uv build --package galaxy-tool-source` — build the wheel (the build hook generates the per-version models).
 
 ## Naming
 
 The repo directory, the distribution, and the CLI command are all
-`galaxy-tool-xml`; the import package is `galaxy_tool_xml`.
+`galaxy-tool-source`; the import package is `galaxy_tool_source`.
 
 ## Architecture
 

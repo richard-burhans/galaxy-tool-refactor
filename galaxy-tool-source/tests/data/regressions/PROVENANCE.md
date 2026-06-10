@@ -1,6 +1,6 @@
 # Regression fixtures — provenance
 
-Real tools from the public Galaxy tool corpus that crashed `galaxy-tool-xml` or
+Real tools from the public Galaxy tool corpus that crashed `galaxy-tool-source` or
 exposed a violated invariant, retained by `scripts/corpus_check.py` so the
 finding can never silently return. Each fixture lives in `<name>/tool.xml`,
 alongside any macro files it imports.

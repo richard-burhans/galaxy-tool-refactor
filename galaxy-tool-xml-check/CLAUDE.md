@@ -11,7 +11,7 @@ never mutate.
 | Tier | Layer | Package |
 |---|---|---|
 | 0.5 | rule metadata | `galaxy-tool-refactor-rules` |
-| 1 | parsing & validation | `galaxy-tool-xml` |
+| 1 | parsing & validation | `galaxy-tool-source` |
 | 2 | structure | `galaxy-tool-xml-codemod` |
 | 3 | formatting | `galaxy-tool-xml-fmt` |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` *(this repo)* |
@@ -42,8 +42,8 @@ D3 no-op era ended): the `lone_amp.py` classifier flags only the genuine
 practice** (D9/D31; registry D10): `GTR018.2` / `GTR019.2` (the `<command>` / `<help>`
 CDATA mixed-content residual), `GTR020.2` (the non-provable unquoted-`$var`
 residual, via the **read-only `command_text` lexer** in **tier 1**
-`galaxy_tool_xml.command_text`), and `GTR089.2` (`HelpRstResidual` — the invalid
-`<help>` RST the repair can't safely fix, via the tier-1 `galaxy_tool_xml.rst`
+`galaxy_tool_source.command_text`), and `GTR089.2` (`HelpRstResidual` — the invalid
+`<help>` RST the repair can't safely fix, via the tier-1 `galaxy_tool_source.rst`
 predicate). Each `.2` reuses the same tier-1 predicate its fixable sibling
 (`GTR018.1` / `GTR019.1` / `GTR020.1` / `GTR089.1`, codemod tier) uses, so the
 partition is sound and the check never depends on the codemod tier.
@@ -52,7 +52,7 @@ On top of those, the tier hosts the **planemo-parity wave `GTR038`–`GTR091`** 
 rules) — a reimplementation of every mechanically-reimplementable
 `galaxy.tool_util.lint` linter, grouped by source area (citations/TODO, outputs,
 embedded expressions, the full `inputs.py` correctness surface, `tests.py`, and
-`<help>` RST validity via the tier-1 `galaxy_tool_xml.rst` predicate — `GTR089`, now
+`<help>` RST validity via the tier-1 `galaxy_tool_source.rst` predicate — `GTR089`, now
 split into the `GTR089.1` repair + `GTR089.2` residual partition, so docutils is a
 tier-1 dep, not declared here — plus output reference integrity and data-param
 format, `GTR090`–`GTR091`; the `GTR035.2` name-whitespace residual, D33). The
@@ -87,7 +87,7 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
 - `galaxy-tool-refactor-rules/src/galaxy_tool_refactor_rules/violation.py` — the
   shared `Violation` these checks yield; `meta.py` — `RuleMeta` (the
   `detect_only` flag this tier sets).
-- `galaxy-tool-xml/README.md` — tier-1 public API (`ToolDocument`,
+- `galaxy-tool-source/README.md` — tier-1 public API (`ToolDocument`,
   `newest_valid_profile`, the typed model) the checks query.
 - `galaxy-tool-refactor-cli/src/galaxy_tool_refactor_cli/cli.py` — the app
   `check` command that runs these alongside the codemod + fmt detect phases.

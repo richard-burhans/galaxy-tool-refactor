@@ -60,8 +60,8 @@ failing is grounds to revise a row.
 The committed per-release XSDs are the source of truth. For any transition:
 
 ```bash
-diff galaxy-tool-xml/src/galaxy_tool_xml/schema/galaxy-<from>.xsd \
-     galaxy-tool-xml/src/galaxy_tool_xml/schema/galaxy-<to>.xsd
+diff galaxy-tool-source/src/galaxy_tool_source/schema/galaxy-<from>.xsd \
+     galaxy-tool-source/src/galaxy_tool_source/schema/galaxy-<to>.xsd
 ```
 
 Vendored set + commit/branch provenance: `…/schema/manifest.json` (28 XSDs,
@@ -70,7 +70,7 @@ signal used to classify each row (net-new / net-gone element & attribute
 declarations, plus `pattern`/`use="required"`/`enumeration` churn) is produced by:
 
 ```bash
-# from galaxy-tool-xml/src/galaxy_tool_xml/schema/
+# from galaxy-tool-source/src/galaxy_tool_source/schema/
 for adjacent pair (a,b): diff a b | grep -E '^[<>]' \
   | grep -oE '<xs:(element|attribute|group|attributeGroup) name="[^"]+"'   # added vs removed decls
   ; diff a b | grep -cE 'pattern value|use="required"|xs:enumeration'      # restriction churn

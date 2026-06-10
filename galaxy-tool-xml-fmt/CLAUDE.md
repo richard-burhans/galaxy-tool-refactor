@@ -11,7 +11,7 @@ and the shared tier-0.5 rules metadata):
 | Tier | Layer | Package | Owns |
 |---|---|---|---|
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | shared `RuleMeta` + `Violation` |
-| 1 | **parsing & validation** | `galaxy-tool-xml` | parse · XSD validate · typed views |
+| 1 | **parsing & validation** | `galaxy-tool-source` | parse · XSD validate · typed views |
 | 2 | **structure** | `galaxy-tool-xml-codemod` | structural mutations |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` *(this repo)* | cosmetic formatting (+ non-mutating `detect`); the only tier that serialises canonical output XML |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only IUC best-practice checks |
@@ -34,7 +34,7 @@ runs on tools only. `format_macro_document` is the `<macros>` counterpart to
 **Tier independence.** This package — both the library
 (`format_tool_document`) and the `galaxy-tool-xml-fmt` CLI — is
 **cosmetic-only** and does **not** depend on `galaxy-tool-xml-codemod`.
-It works with just `galaxy-tool-xml + galaxy-tool-xml-fmt` installed.
+It works with just `galaxy-tool-source + galaxy-tool-xml-fmt` installed.
 
 For the fully-canonical and profile-upgrade workflows, use the
 `galaxy-tool-refactor` app CLI (`galaxy-tool-refactor-cli`, tier 4),
@@ -71,7 +71,7 @@ Hand-written code follows **dignified-python**, vendored at the workspace root
 - **Decisions are recorded** in `docs/decisions.md` once they land
   (mirror the parent's conventions: each entry cites a date and a
   reproducible measurement command).
-- See `galaxy-tool-xml/docs/decisions.md` §3 (representation /
+- See `galaxy-tool-source/docs/decisions.md` §3 (representation /
   trivia contract) and §9 (three-tier vision) for the rationale this
   tool inherits.
 
@@ -88,9 +88,9 @@ Run these from the **workspace root** (`galaxy-tool-refactor/`):
 
 ## Useful workspace references
 
-- `galaxy-tool-xml/README.md` — tier-1 public API and the trivia
+- `galaxy-tool-source/README.md` — tier-1 public API and the trivia
   contract this formatter respects
-- `galaxy-tool-xml/docs/decisions.md` §3 (representation), §9
+- `galaxy-tool-source/docs/decisions.md` §3 (representation), §9
   (three-tier vision)
 - `galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/canonical.py` —
   the `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` contracts the tier-3.6

@@ -222,7 +222,7 @@ indistinguishable from a literal value). Across the public Galaxy tool corpus,
 
 *`rename-param` is the mutating sibling of `find-references`, and the first
 member of the "edit the code inside Cheetah sections" family. See
-`galaxy-tool-xml/docs/decisions.md` §20 (the single-tool mutator) and §21 (the
+`galaxy-tool-source/docs/decisions.md` §20 (the single-tool mutator) and §21 (the
 cross-file **bundle** rename), the sole-owned macro gate in
 `galaxy-tool-refactor-registry/docs/decisions.md` D12, and the roadmap in
 `docs/upgrade_research/cheetah_section_editing.md` (M5.3).*

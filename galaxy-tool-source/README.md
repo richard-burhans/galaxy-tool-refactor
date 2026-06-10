@@ -1,4 +1,4 @@
-# galaxy-tool-xml
+# galaxy-tool-source
 
 A Python library and small CLI for parsing, profile-aware validation, and typed
 inspection of [Galaxy](https://galaxyproject.org/) tool definition XML — the
@@ -25,7 +25,7 @@ uv sync
 ## Usage
 
 ```python
-from galaxy_tool_xml.binding import load_tool, validate_tool
+from galaxy_tool_source.binding import load_tool, validate_tool
 
 document = load_tool("my_tool.xml")
 print(document.profile)
@@ -39,9 +39,9 @@ if not result.valid:
 From the command line:
 
 ```sh
-uv run galaxy-tool-xml validate my_tool.xml
-uv run galaxy-tool-xml suggest my_tool.xml
-uv run galaxy-tool-xml profiles
+uv run galaxy-tool-source validate my_tool.xml
+uv run galaxy-tool-source suggest my_tool.xml
+uv run galaxy-tool-source profiles
 ```
 
 ## Public API
@@ -50,20 +50,20 @@ The downstream formatter project may rely on exactly these symbols. Everything
 else is private and may change without notice.
 
 ```python
-from galaxy_tool_xml.binding import load_tool, parse_tool, validate_tool, newest_valid_profile
-from galaxy_tool_xml.binding import load_macros
-from galaxy_tool_xml.binding import ParseResult, ValidationResult, XmlError, ToolXmlSyntaxError
-from galaxy_tool_xml.document import ToolDocument, MacroDocument
-from galaxy_tool_xml.macros import MacroError, imported_macro_paths, token_definitions, TokenDefinition, expanded_detection_root
-from galaxy_tool_xml.corrections import suggest_corrections, Correction
-from galaxy_tool_xml.boolean_values import suggest_boolean_normalizations, normalize_boolean_token, BooleanNormalization
-from galaxy_tool_xml.cheetah_refs import tool_cheetah_references, CheetahRef
-from galaxy_tool_xml.cheetah_rename import rename_param, rename_param_plan, RenameOutcome, RenameEdit, RenamePlan
-from galaxy_tool_xml.bundle import ToolBundle, load_bundle, rename_param_in_bundle, BundleRenameOutcome
-from galaxy_tool_xml.profiles import available_profiles, latest_profile, UnknownProfileError
-from galaxy_tool_xml.schema_content import text_bearing_tags
-from galaxy_tool_xml.models.registry import model_module, tool_class
-from galaxy_tool_xml.models.any_tool import AnyTool
+from galaxy_tool_source.binding import load_tool, parse_tool, validate_tool, newest_valid_profile
+from galaxy_tool_source.binding import load_macros
+from galaxy_tool_source.binding import ParseResult, ValidationResult, XmlError, ToolXmlSyntaxError
+from galaxy_tool_source.document import ToolDocument, MacroDocument
+from galaxy_tool_source.macros import MacroError, imported_macro_paths, token_definitions, TokenDefinition, expanded_detection_root
+from galaxy_tool_source.corrections import suggest_corrections, Correction
+from galaxy_tool_source.boolean_values import suggest_boolean_normalizations, normalize_boolean_token, BooleanNormalization
+from galaxy_tool_source.cheetah_refs import tool_cheetah_references, CheetahRef
+from galaxy_tool_source.cheetah_rename import rename_param, rename_param_plan, RenameOutcome, RenameEdit, RenamePlan
+from galaxy_tool_source.bundle import ToolBundle, load_bundle, rename_param_in_bundle, BundleRenameOutcome
+from galaxy_tool_source.profiles import available_profiles, latest_profile, UnknownProfileError
+from galaxy_tool_source.schema_content import text_bearing_tags
+from galaxy_tool_source.models.registry import model_module, tool_class
+from galaxy_tool_source.models.any_tool import AnyTool
 ```
 
 ## Architecture

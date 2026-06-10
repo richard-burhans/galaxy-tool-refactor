@@ -1,4 +1,4 @@
-# galaxy-tool-xml — Implementation Plan
+# galaxy-tool-source — Implementation Plan
 
 > **Status: SUPERSEDED — historical document, retained for reference.**
 >
@@ -19,7 +19,7 @@
 
 ## Context
 
-The working directory `/home/rcb112/project/claude/galaxy-tool-xml` is **empty** — no code,
+The working directory `/home/rcb112/project/claude/galaxy-tool-source` is **empty** — no code,
 not a git repo (it already carries the correct name; the earlier rename is done). There is
 nothing to analyze, so the user chose to **plan a new project from scratch**.
 
@@ -41,7 +41,7 @@ rules, no formatter/serializer, no downstream tool. It provides:
 
 | Decision | Choice |
 |---|---|
-| Naming | Repo directory + distribution + CLI command all **`galaxy-tool-xml`**; import package **`galaxy_tool_xml`** (standard hyphen→underscore convention) |
+| Naming | Repo directory + distribution + CLI command all **`galaxy-tool-source`**; import package **`galaxy_tool_source`** (standard hyphen→underscore convention) |
 | Data-binding | **xsdata** — typed dataclasses generated from an XSD |
 | Schema source | **Vendor Galaxy's official tool XSD** — one copy per Galaxy release |
 | Profile-aware validation | XSD picked by the tool's `profile`; `on_missing` = `nearest` (default) / `exact` / `latest` |
@@ -138,7 +138,7 @@ no-re-exports rule.
 ## Project structure
 
 ```
-galaxy-tool-xml/                         (repo root)
+galaxy-tool-source/                         (repo root)
 ├── PLAN.md                              this file — the implementation plan
 ├── pyproject.toml  uv.lock  .python-version  .gitignore  README.md  CLAUDE.md  LICENSE
 ├── .claude/skills/
@@ -147,7 +147,7 @@ galaxy-tool-xml/                         (repo root)
 ├── scripts/
 │   ├── fetch_schemas.py                 downloads release XSDs + writes manifest & PROVENANCE.md
 │   └── regenerate.py                    re-runs xsdata against the latest vendored XSD
-├── src/galaxy_tool_xml/
+├── src/galaxy_tool_source/
 │   ├── __init__.py                      minimal — no re-exports (dignified-python)
 │   ├── py.typed
 │   ├── schema/                          vendored XSDs — internal, downloaded once
@@ -172,13 +172,13 @@ galaxy-tool-xml/                         (repo root)
 
 ### 1. Initialize the project with uv
 
-- The working directory is already named `galaxy-tool-xml`; all steps run inside it.
-- `uv init --lib --build-backend uv --name galaxy-tool-xml` — scaffolds `pyproject.toml`,
+- The working directory is already named `galaxy-tool-source`; all steps run inside it.
+- `uv init --lib --build-backend uv --name galaxy-tool-source` — scaffolds `pyproject.toml`,
   `src/` layout, `.python-version`, `.gitignore`, `README.md`, and a git repo with a correct
-  `uv_build` pin. Distribution `galaxy-tool-xml`; import package `galaxy_tool_xml` at
-  `src/galaxy_tool_xml/`.
+  `uv_build` pin. Distribution `galaxy-tool-source`; import package `galaxy_tool_source` at
+  `src/galaxy_tool_source/`.
 - Flesh out `README.md`: short description, a minimal usage example
-  (`from galaxy_tool_xml.binding import load_tool, validate_tool`), and an explicit
+  (`from galaxy_tool_source.binding import load_tool, validate_tool`), and an explicit
   **Public API** list (see step 12).
 - Add an MIT `LICENSE`; extend `.gitignore` with `.pytest_cache/`, `.mypy_cache/`,
   `.ruff_cache/`. **Do not** gitignore `models/` or `schema/` — both are committed.
@@ -206,7 +206,7 @@ Vendor both skills under `.claude/skills/` so they travel with the repo. Commit 
 
 ```toml
 [project]
-name = "galaxy-tool-xml"
+name = "galaxy-tool-source"
 version = "0.1.0"
 description = "Foundation library for parsing, profile-aware validation, and typed inspection of Galaxy tool XML"
 authors = [{ name = "Richard Burhans", email = "richard.burhans@gmail.com" }]
@@ -221,7 +221,7 @@ dependencies = [
 ]
 
 [project.scripts]
-galaxy-tool-xml = "galaxy_tool_xml.cli:main"
+galaxy-tool-source = "galaxy_tool_source.cli:main"
 
 [dependency-groups]
 dev = ["xsdata[cli]>=26.2", "pytest>=8", "ruff", "mypy"]
@@ -238,7 +238,7 @@ addopts = "-m 'not slow'"          # the codegen sweep is deselected by default
 [tool.ruff]
 src = ["src"]
 target-version = "py310"
-extend-exclude = ["src/galaxy_tool_xml/models"]   # generated code — don't lint/format
+extend-exclude = ["src/galaxy_tool_source/models"]   # generated code — don't lint/format
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM", "PTH"]   # incl. bugbear (B904) and use-pathlib
@@ -246,7 +246,7 @@ select = ["E", "F", "I", "B", "UP", "SIM", "PTH"]   # incl. bugbear (B904) and u
 [tool.mypy]
 files = ["src"]
 strict = true
-exclude = "src/galaxy_tool_xml/models/"   # generated code — still imported for types
+exclude = "src/galaxy_tool_source/models/"   # generated code — still imported for types
 ```
 
 `lxml` is the representation, validator, and `recover=True` syntax-error collector; `click` is
@@ -286,7 +286,7 @@ Each run:
 3. Download `galaxy.xsd` from `raw.githubusercontent.com/galaxyproject/galaxy/<branch>/<path>`,
    trying `lib/galaxy/tool_util/xsd/galaxy.xsd` then `lib/galaxy/tools/xsd/galaxy.xsd`;
    releases with neither (predating the XSD) are skipped (logged).
-4. Write each XSD to `src/galaxy_tool_xml/schema/galaxy-<version>.xsd`, and update **both**:
+4. Write each XSD to `src/galaxy_tool_source/schema/galaxy-<version>.xsd`, and update **both**:
    - `schema/manifest.json` — per-version `{version, release_branch, commit, path_in_repo,
      file, retrieved}` + a `latest` key.
    - `schema/PROVENANCE.md` — regenerated: a methodology preamble, a per-XSD table (version,
@@ -312,12 +312,12 @@ from xsdata.codegen.transformer import ResourceTransformer
 from xsdata.models.config import GeneratorConfig
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SCHEMA_DIR = REPO_ROOT / "src" / "galaxy_tool_xml" / "schema"
+SCHEMA_DIR = REPO_ROOT / "src" / "galaxy_tool_source" / "schema"
 
 def main() -> int:
     latest = json.loads((SCHEMA_DIR / "manifest.json").read_text(encoding="utf-8"))["latest"]
     config = GeneratorConfig()
-    config.output.package = "galaxy_tool_xml.models"
+    config.output.package = "galaxy_tool_source.models"
     with tempfile.TemporaryDirectory() as tmp:
         staged = Path(tmp) / "galaxy.xsd"           # stable name -> stable models/galaxy.py
         shutil.copy(SCHEMA_DIR / f"galaxy-{latest}.xsd", staged)
@@ -331,7 +331,7 @@ if __name__ == "__main__":
 
 Invoke with `uv run python scripts/regenerate.py`. Run once; **commit the generated
 `models/`**. xsdata's generated `models/__init__.py` re-exports every class, so
-`from galaxy_tool_xml.models import Tool` is stable.
+`from galaxy_tool_source.models import Tool` is stable.
 
 ### 6. `profiles.py` — profile/version registry and XSD resolution
 
@@ -339,7 +339,7 @@ Pure-Python (lxml + `packaging`). Per dignified-python, no module-level I/O — 
 `@functools.cache` accessors. Version handling uses **`packaging.version.Version`** directly.
 
 - `_manifest() -> dict` — `@cache`; loads `manifest.json` via
-  `importlib.resources.files("galaxy_tool_xml")` (`encoding="utf-8"`).
+  `importlib.resources.files("galaxy_tool_source")` (`encoding="utf-8"`).
 - `available_profiles() -> list[str]` / `latest_profile() -> str`.
 - `resolve_profile(profile: str | None, *, on_missing="nearest") -> str` — `None` →
   Galaxy's 16.01 default → nearest vendored (16.10; revised 2026-06-01, see decisions §1.5);
@@ -476,7 +476,7 @@ actual generated `models/galaxy.py` once step 5 has run — is:
 
 ### 11. `cli.py` — the click CLI
 
-A `click` command group `galaxy-tool-xml`; installs a logging handler. Per dignified-python
+A `click` command group `galaxy-tool-source`; installs a logging handler. Per dignified-python
 each command is an **error boundary**: catch, `click.echo(..., err=True)`,
 `raise SystemExit(1) from e`.
 
@@ -498,13 +498,13 @@ formatter may rely on; everything else is private and may change. Non-public hel
 underscore-prefixed. The supported surface:
 
 ```
-from galaxy_tool_xml.binding import load_tool, parse_tool, validate_tool
-from galaxy_tool_xml.binding import ParseResult, ValidationResult, XmlError, ToolXmlSyntaxError
-from galaxy_tool_xml.document import ToolDocument
-from galaxy_tool_xml.macros import MacroError
-from galaxy_tool_xml.corrections import suggest_corrections, Correction
-from galaxy_tool_xml.profiles import available_profiles, latest_profile, UnknownProfileError
-from galaxy_tool_xml.models import Tool
+from galaxy_tool_source.binding import load_tool, parse_tool, validate_tool
+from galaxy_tool_source.binding import ParseResult, ValidationResult, XmlError, ToolXmlSyntaxError
+from galaxy_tool_source.document import ToolDocument
+from galaxy_tool_source.macros import MacroError
+from galaxy_tool_source.corrections import suggest_corrections, Correction
+from galaxy_tool_source.profiles import available_profiles, latest_profile, UnknownProfileError
+from galaxy_tool_source.models import Tool
 ```
 
 The version lives only in `pyproject.toml` (read via `importlib.metadata` if needed).
@@ -557,10 +557,10 @@ Prefixed with the required header. Concise; only non-discoverable things:
   `uv run pytest tests/test_binding.py::test_name`; codegen sweep `uv run pytest -m slow`;
   `uv run ruff check .`; `uv run ruff format .`; `uv run mypy src`;
   `uv run python scripts/fetch_schemas.py` (`--force` re-downloads all);
-  `uv run python scripts/regenerate.py`; `uv run galaxy-tool-xml validate <file>`;
-  `uv run galaxy-tool-xml suggest <file>`; `uv build`.
-- **Naming**: repo directory, distribution, and CLI command are all `galaxy-tool-xml`; the
-  import package is `galaxy_tool_xml`.
+  `uv run python scripts/regenerate.py`; `uv run galaxy-tool-source validate <file>`;
+  `uv run galaxy-tool-source suggest <file>`; `uv build`.
+- **Naming**: repo directory, distribution, and CLI command are all `galaxy-tool-source`; the
+  import package is `galaxy_tool_source`.
 - **Architecture**: foundation for a separate `black`-like Galaxy tool linter/formatter — it
   has **no serializer**. `ToolDocument` (`document.py`) wraps a mutable lxml tree = the source
   of truth; `binding.py` parses/validates; `profiles.py` resolves the per-release XSD;
@@ -631,14 +631,14 @@ Prefixed with the required header. Concise; only non-discoverable things:
 4. `uv run pytest` — default tests pass; `uv run pytest -m slow` — the codegen sweep generates
    models from **every** vendored XSD with no errors.
 5. `uv run ruff check .` and `uv run mypy src` (`--strict`) — clean.
-6. `uv run galaxy-tool-xml profiles` — lists every vendored version, latest marked.
-7. `uv run galaxy-tool-xml validate tests/data/minimal_tool.xml` — exits 0, reports the schema
+6. `uv run galaxy-tool-source profiles` — lists every vendored version, latest marked.
+7. `uv run galaxy-tool-source validate tests/data/minimal_tool.xml` — exits 0, reports the schema
    version; `... invalid_tool.xml` — non-zero with schema errors; `... malformed_tool.xml` —
    non-zero listing every syntax error; `... tool_with_macros.xml` — exits 0 under the default
    `expand`, and `--macro-handling off` on the same file reports spurious `<expand>` errors;
    `... --profile 99.9 --on-missing exact tests/data/minimal_tool.xml` — non-zero "unknown
    profile".
-8. `uv run galaxy-tool-xml suggest tests/data/tool_with_typos.xml` — reports the misspelled
+8. `uv run galaxy-tool-source suggest tests/data/tool_with_typos.xml` — reports the misspelled
    attribute / tag / enum value with "did you mean?" suggestions and exits non-zero.
 9. `uv build` — produces a wheel; `unzip -l dist/*.whl` confirms `models/` **and** the whole
    `schema/` directory are included. If `uv_build` excludes the data files, add the needed

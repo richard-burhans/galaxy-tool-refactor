@@ -7,7 +7,7 @@ facade (`galaxy-tool-refactor-registry`).
 | Tier | Layer | Package |
 |---|---|---|
 | 0.5 | rule metadata | `galaxy-tool-refactor-rules` |
-| 1 | parsing & validation | `galaxy-tool-xml` |
+| 1 | parsing & validation | `galaxy-tool-source` |
 | 2 | structure | `galaxy-tool-xml-codemod` |
 | 3 | formatting | `galaxy-tool-xml-fmt` |
 | 3.5 | advisory checks | `galaxy-tool-xml-check` |

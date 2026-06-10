@@ -77,7 +77,11 @@ _PACKAGE_BY_QUALIFIER = {
     "cli": "galaxy-tool-refactor-cli",
     "mcp": "galaxy-tool-refactor-mcp",
     "rules": "galaxy-tool-refactor-rules",
+    # Tier 1 renamed galaxy-tool-xml -> galaxy-tool-source (its decisions §26):
+    # dated records still say "xml §N", new prose may say "source §N" — both
+    # resolve to the renamed package.
     "xml": "galaxy-tool-source",
+    "source": "galaxy-tool-source",
 }
 # The qualifier must sit directly before the path with no intervening bracket:
 # in "the GTR020.1 codemod (`docs/decisions.md` D8)" the parenthetical cites the

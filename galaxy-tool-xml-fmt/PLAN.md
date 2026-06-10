@@ -73,7 +73,7 @@ See `galaxy-tool-xml-codemod/docs/decisions.md` §11–14 for the others.
 ### M0 — scaffold ✅
 
 `pyproject.toml`, `src/galaxy_tool_xml_fmt/`, `tests/`,
-`galaxy-tool-xml` declared as a dependency, ruff / mypy / pytest
+`galaxy-tool-source` declared as a dependency, ruff / mypy / pytest
 configured.
 
 ### M1 — format(document) returning bytes ✅

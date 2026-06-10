@@ -1,4 +1,4 @@
-# A LibCST-shaped codemod tool over `galaxy-tool-xml`
+# A LibCST-shaped codemod tool over `galaxy-tool-source`
 
 > **Historical design note — predates implementation.** The original tier-2
 > design (placeholder package names, pre-implementation assumptions). The tool
@@ -12,7 +12,7 @@ with a single concern:
 
 | Tier | Package | Status | Job |
 |------|---------|--------|-----|
-| 1 | `galaxy-tool-xml` | exists (this repo) | Parse · validate · typed view. No serializer. Mutable lxml tree is the source of truth. |
+| 1 | `galaxy-tool-source` | exists (this repo) | Parse · validate · typed view. No serializer. Mutable lxml tree is the source of truth. |
 | 2 | `galaxy-tool-codemod` *(name TBD)* | new | LibCST-shaped framework for **structural refactors**. Does **not** preserve whitespace / quote style / shorthand. |
 | 3 | `galaxy-tool-fmt` *(name TBD)* | new | `black`-like, opinionated. The **only** thing that writes XML to disk. Imposes canonical formatting on whatever tier 2 produced. |
 
@@ -27,7 +27,7 @@ additive shape changes in this repo that smooth its job.
 ## TL;DR
 
 **Build the codemod tool as a separate package depending on
-`galaxy-tool-xml`. Its visitor concept is *inspired by* LibCST but the
+`galaxy-tool-source`. Its visitor concept is *inspired by* LibCST but the
 surface is lxml-shaped: typed cursors that mutate in place, not
 pure-functional reconstruction.** Reuse LibCST's *names* for the
 codemod harness, context, matchers, and `CodemodTest`. Drop
@@ -35,14 +35,14 @@ codemod harness, context, matchers, and `CodemodTest`. Drop
 `FlattenSentinel`, and `MaybeSentinel` — those presuppose immutable
 nodes and don't fit lxml. The node *taxonomy* diverges (Galaxy XML
 elements, not Python grammar; and there are 28 of them, one per
-vendored profile). The current `galaxy-tool-xml` already supplies the
+vendored profile). The current `galaxy-tool-source` already supplies the
 foundational primitives the codemod tool needs; add 3 small,
 non-breaking items here and put everything else in the new tool. Do
 **not** vendor LibCST's trivia-preserving node model — tier 3 owns
 trivia, and lxml's in-place mutation already preserves comments and
 CDATA on every subtree the codemod does not touch.
 
-## What `galaxy-tool-xml` supplies today (enough to start)
+## What `galaxy-tool-source` supplies today (enough to start)
 
 | Need | Available via | Where |
 |------|---------------|-------|
@@ -65,7 +65,7 @@ pure-functional reshape primitives with lxml-native cursor mutations.
 
 | LibCST | Codemod tool analog | Why |
 |--------|---------------------|-----|
-| `cst.parse_module(source)` | `parse_module(source)` — returns a cursor over the tool root | Named `parse_module` (not `parse_tool`) to avoid a name clash with `galaxy_tool_xml.binding.parse_tool`. |
+| `cst.parse_module(source)` | `parse_module(source)` — returns a cursor over the tool root | Named `parse_module` (not `parse_tool`) to avoid a name clash with `galaxy_tool_source.binding.parse_tool`. |
 | `cst.CSTVisitor`, `cst.CSTTransformer` | `ToolVisitor` | One class — there is no transformer/visitor split when mutation is in-place. |
 | `visit_X(node) -> bool \| None` | same, pre-order; return `False` to skip children. May mutate via cursor methods. | |
 | `leave_X(original, updated) -> X` | — | Dropped. No `updated` to return when the cursor mutated in place; the walk just unwinds. |
@@ -120,7 +120,7 @@ Two design responses:
       its own design question, deferred here.
 
 Recommend (b) as the long-term direction, (a) as an acceptable v0. This
-design choice belongs in the codemod tool; `galaxy-tool-xml` exposes
+design choice belongs in the codemod tool; `galaxy-tool-source` exposes
 the per-profile xsdata models (and `AnyTool`) and leaves the cursor
 layer to tier 2.
 
@@ -146,7 +146,7 @@ layer to tier 2.
 - **Multi-file edit orchestration.** A refactor that spans the tool +
   its imported macro files needs to load each as its own `ToolDocument`,
   mutate each, and hand each off to tier 3 for emit. The codemod tool
-  coordinates; `galaxy-tool-xml` supplies the file list via additive
+  coordinates; `galaxy-tool-source` supplies the file list via additive
   item 1.
 
 - **Atomicity via deep-copy snapshot.** LibCST gets free atomicity from
@@ -182,7 +182,7 @@ layer to tier 2.
 - **Post-transform validation + profile comparison.** The harness must
   run `validate_tool` after every codemod, and additionally compute
   before-vs.-after profile state, both already supported by
-  `galaxy-tool-xml`:
+  `galaxy-tool-source`:
 
   - `before = document.profile` (declared) and
     `before_valid = newest_valid_profile(document)` (actually required).
@@ -202,7 +202,7 @@ layer to tier 2.
   Default to `warn` because the declared profile is a maintainer
   *contract* about minimum required Galaxy version, not a passive
   best-fit; silently bumping it can violate that contract. The
-  comparison logic is the codemod harness's job — `galaxy-tool-xml`
+  comparison logic is the codemod harness's job — `galaxy-tool-source`
   already supplies both `ToolDocument.profile` and
   `newest_valid_profile` (`binding.py:285`); no additive item here.
 
@@ -231,7 +231,7 @@ layer to tier 2.
 ### Naming — resolved
 
 The codemod tool's entry point is **`parse_module(source)`**, not
-`parse_tool`. Reasons: (1) `galaxy_tool_xml.binding.parse_tool` already
+`parse_tool`. Reasons: (1) `galaxy_tool_source.binding.parse_tool` already
 exists with a different return type (`ParseResult`), and same-named
 imports from different packages are a debugging tax; (2) `parse_module`
 mirrors LibCST's `cst.parse_module`, where "module" is the closest
@@ -239,7 +239,7 @@ analog for "a single parseable unit" — even though we've otherwise
 dropped the LibCST mirror, the name resonates with the developers
 most likely to recognise the shape.
 
-## What `galaxy-tool-xml` should add (small, additive, non-breaking)
+## What `galaxy-tool-source` should add (small, additive, non-breaking)
 
 Goal: anything the codemod tool would otherwise reach into private
 internals for, expose as a real public API. Public-API budget in
@@ -247,15 +247,15 @@ internals for, expose as a real public API. Public-API budget in
 
 | # | Item | Critical file | Now / later |
 |---|------|---------------|-------------|
-| 1 | **Macro file resolution** — given a `ToolDocument`, return the set of `Path`s involved (the tool + every transitively-imported macro file). Codemods that touch macros need this to know which files to edit. | `src/galaxy_tool_xml/macros.py` | **now** |
-| 2 | **Macro provenance per element** — for each element in an expanded tree, record which source file (and which macro definition) it came from. Lets codemods decide "edit the macro vs. inline vs. refuse." Side table keyed by a stable identifier: `id(element)` is fine within a single process but breaks across a tier-3 round-trip, so the API should accept either a cursor (in-process) or a path-based locator (cross-process). | `src/galaxy_tool_xml/macros.py` | later (wait for a codemod that needs it) |
+| 1 | **Macro file resolution** — given a `ToolDocument`, return the set of `Path`s involved (the tool + every transitively-imported macro file). Codemods that touch macros need this to know which files to edit. | `src/galaxy_tool_source/macros.py` | **now** |
+| 2 | **Macro provenance per element** — for each element in an expanded tree, record which source file (and which macro definition) it came from. Lets codemods decide "edit the macro vs. inline vs. refuse." Side table keyed by a stable identifier: `id(element)` is fine within a single process but breaks across a tier-3 round-trip, so the API should accept either a cursor (in-process) or a path-based locator (cross-process). | `src/galaxy_tool_source/macros.py` | later (wait for a codemod that needs it) |
 | 3 | **Document the trivia contract** in `README.md` Architecture section. Codemod authors need to know what survives the parse → mutate → re-parse cycle (structure, attrs & order, comments, CDATA, text, encoding, `sourceline`) and what does not (indentation, blank lines, quote style, empty-element shorthand, attribute spacing, macro provenance until item 2 ships). | `README.md` | **now** |
-| 4 | **Pin the trivia contract in tests** — extend `scripts/corpus_check.py::check_roundtrip` with explicit asserts for each preserved item, so a regression in `galaxy-tool-xml` cannot silently break the codemod tool's assumptions. | `scripts/corpus_check.py` | **now** |
+| 4 | **Pin the trivia contract in tests** — extend `scripts/corpus_check.py::check_roundtrip` with explicit asserts for each preserved item, so a regression in `galaxy-tool-source` cannot silently break the codemod tool's assumptions. | `scripts/corpus_check.py` | **now** |
 
 Visitor/transformer base classes do **not** live in this repo — they
 belong in the codemod tool, on top of the typed model, because the visitor
 API needs `with_changes`/`RemoveFromParent`/etc. and those are codemod-tool
-concepts. `galaxy-tool-xml` provides the *node taxonomy*; the codemod tool
+concepts. `galaxy-tool-source` provides the *node taxonomy*; the codemod tool
 provides the *traversal/mutation framework*.
 
 ## Risks
@@ -296,7 +296,7 @@ Two independent prototypes before the codemod tool's API is locked in:
 
 1. **Foundation sufficiency** — pick one realistic refactor (e.g. rename
    a `<param>`'s `name=` and every Cheetah reference in `<command>`),
-   prototype it as a script depending on `galaxy-tool-xml` only.
+   prototype it as a script depending on `galaxy-tool-source` only.
    Confirm the prototype needs nothing beyond: the lxml tree, the typed
    model, macro file resolution (item 1), and a Cheetah parser it
    brings itself. Any other gap → fold into this document before splitting
@@ -310,5 +310,5 @@ Two independent prototypes before the codemod tool's API is locked in:
    return-value sentinels).
 
 Concrete in-repo work proposed by this document: items 1, 3, 4 from "What
-`galaxy-tool-xml` should add" — all additive, none breaking the public
+`galaxy-tool-source` should add" — all additive, none breaking the public
 API in `README.md:52-60`.

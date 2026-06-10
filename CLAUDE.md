@@ -8,7 +8,7 @@
 ```
 galaxy-tool-refactor/
 ├── galaxy-tool-refactor-rules/ Tier 0.5 (shared RuleMeta + glossary renderer)
-├── galaxy-tool-xml/          Tier 1 (parsing & validation)
+├── galaxy-tool-source/          Tier 1 (parsing & validation)
 ├── galaxy-tool-xml-codemod/  Tier 2 (structure)
 ├── galaxy-tool-xml-fmt/      Tier 3 (formatting)
 ├── galaxy-tool-xml-check/    Tier 3.5 (advisory detect-only checks)
@@ -40,7 +40,7 @@ uv sync          # installs all eight packages + dev deps into .venv
 
 ```bash
 uv run --package galaxy-tool-refactor-rules pytest galaxy-tool-refactor-rules/tests/
-uv run --package galaxy-tool-xml            pytest galaxy-tool-xml/tests/
+uv run --package galaxy-tool-source            pytest galaxy-tool-source/tests/
 uv run --package galaxy-tool-xml-codemod    pytest galaxy-tool-xml-codemod/tests/
 uv run --package galaxy-tool-xml-fmt        pytest galaxy-tool-xml-fmt/tests/
 uv run --package galaxy-tool-xml-check      pytest galaxy-tool-xml-check/tests/
@@ -52,9 +52,9 @@ uv run --package galaxy-tool-refactor-mcp   pytest galaxy-tool-refactor-mcp/test
 ## Lint / type-check
 
 ```bash
-uv run ruff check galaxy-tool-refactor-rules/src galaxy-tool-xml/src galaxy-tool-xml-codemod/src galaxy-tool-xml-fmt/src galaxy-tool-xml-check/src galaxy-tool-refactor-registry/src galaxy-tool-refactor-cli/src galaxy-tool-refactor-mcp/src
+uv run ruff check galaxy-tool-refactor-rules/src galaxy-tool-source/src galaxy-tool-xml-codemod/src galaxy-tool-xml-fmt/src galaxy-tool-xml-check/src galaxy-tool-refactor-registry/src galaxy-tool-refactor-cli/src galaxy-tool-refactor-mcp/src
 uv run mypy --config-file galaxy-tool-refactor-rules/pyproject.toml galaxy-tool-refactor-rules/src
-uv run mypy --config-file galaxy-tool-xml/pyproject.toml         galaxy-tool-xml/src
+uv run mypy --config-file galaxy-tool-source/pyproject.toml         galaxy-tool-source/src
 uv run mypy --config-file galaxy-tool-xml-codemod/pyproject.toml galaxy-tool-xml-codemod/src
 uv run mypy --config-file galaxy-tool-xml-fmt/pyproject.toml     galaxy-tool-xml-fmt/src
 uv run mypy --config-file galaxy-tool-xml-check/pyproject.toml   galaxy-tool-xml-check/src
@@ -146,7 +146,7 @@ uv run python -m scripts.measure macro-profile-ownership
 # pure value-domain rule — now WIDENED 0 (the no-split/assignment-RHS widening was
 # reverted as unsound: Cheetah renders values as literal text, so VAR=$x splits) /
 # NARROWED 0 (no value-domain-safe fd-dup target corpus-wide); needs the
-# galaxy-tool-xml[shell-oracle] extra (tier-1 §17, codemod §31);
+# galaxy-tool-source[shell-oracle] extra (tier-1 §17, codemod §31);
 # select-quoting-safety sizes the GTR020.1 select/drill_down scope-narrowing (codemod
 # §32): of the bare select/drill_down refs GTR020.1 would quote, 85.0% are provable
 # (single-token option values, still auto-quoted) and 406 occ across 269 tools were
@@ -222,7 +222,7 @@ uv run python -m scripts.measure help-formats
 # render-equivalence gate (docutils html4css1 vs markdown-it-py "js-default", html:false
 # — each side rendered exactly as Galaxy does; semantic-skeleton equality) and reports
 # the true behaviour-equivalent convertible population: 73.4% PASS / 21.2% bail / 5.4%
-# gate-fail (needs markdown-it-py, a galaxy-tool-xml dev dep). Markdown target =
+# gate-fail (needs markdown-it-py, a galaxy-tool-source dev dep). Markdown target =
 # markdown-it ^14 default preset (CommonMark+tables+strikethrough, html:false):
 uv run python -m scripts.measure help-rst-errors
 uv run python -m scripts.measure help-rst-features
@@ -235,18 +235,18 @@ uv run python -m scripts.measure help-rst-md-convert
 # docs/cheetah_command_stats.md (needs the corpus, so not run in CI):
 uv run python -m scripts.measure cheetah-command-complexity
 
-# Parity + scope sizing for the SHIPPED faithful CDM lexer (galaxy_tool_xml.cheetah_cdm,
+# Parity + scope sizing for the SHIPPED faithful CDM lexer (galaxy_tool_source.cheetah_cdm,
 # M5.1): run cheetah_spans() over every pure-text <command> body; report the parse-clean
 # rate (vs the ~0.4% bail-to-regex) and the rename scope-shadowing population (clean
 # bodies whose directive spans carry a #set/#for/#def local). Reproduces the Phase-0
 # spike with shipped code. Needs the corpus (CT3 is now a base dep), print-only,
-# not run in CI. Backs galaxy-tool-xml/docs/decisions.md §19:
+# not run in CI. Backs galaxy-tool-source/docs/decisions.md §19:
 uv run python -m scripts.measure cheetah-cdm-coverage
 
 # Save the ~0.4% of pure-text <command> bodies CT3 cannot compile (cheetah_spans -> None,
 # where command_text/cheetah_refs fall back to the regex) as a retained corpus for later
 # CT3-bail work. Writes docs/corpus_data/cheetah_cdm_bail_cases.json. Needs the corpus;
-# not run in CI. Backs galaxy-tool-xml/docs/decisions.md §19:
+# not run in CI. Backs galaxy-tool-source/docs/decisions.md §19:
 uv run python -m scripts.measure cheetah-cdm-bails
 
 # Coverage of the first Cheetah MUTATOR (M5.3): attempt to rename every input definition
@@ -257,7 +257,7 @@ uv run python -m scripts.measure cheetah-cdm-bails
 # Tier-B parity: rename_param_plan (offset-returning) must reach the same verdict as the
 # tree mutator (96.8% same-verdict, 0 mismatches; the rest soundly decline). Needs the
 # corpus (CT3 is now a base dep), print-only, not run in CI. Backs
-# galaxy-tool-xml/docs/decisions.md §20:
+# galaxy-tool-source/docs/decisions.md §20:
 uv run python -m scripts.measure rename-coverage
 
 # Cross-file rename sizing (tool bundle + sole-owned gate): rename every input definition
@@ -265,7 +265,7 @@ uv run python -m scripts.measure rename-coverage
 # vs shared) / bailed, plus the silent-break-today count (the bug the bundle fixes: 1.7% of
 # renames). Reuses the shipped build_importer_map / rename_param_in_bundle. Writes
 # docs/rename_macro_spread_stats.md. Needs the corpus (CT3 is now a base dep); not in CI. Backs
-# galaxy-tool-xml/docs/decisions.md §21:
+# galaxy-tool-source/docs/decisions.md §21:
 uv run python -m scripts.measure rename-macro-spread
 
 # The per-release XSD tightening ladder behind the Upgrade_vN gap audit
@@ -326,7 +326,7 @@ Tiers, each independently installable:
 | Tier | Layer | Package | Owns |
 |---|---|---|---|
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | `RuleMeta` descriptor + `render_rule_reference_table`. Dependency-free; shared by tiers 2 & 3 so the GTR registry spans both. |
-| 1 | **parsing & validation** | `galaxy-tool-xml` | `load_tool` / `parse_tool` / `validate_tool`, typed xsdata views. **No serializer.** |
+| 1 | **parsing & validation** | `galaxy-tool-source` | `load_tool` / `parse_tool` / `validate_tool`, typed xsdata views. **No serializer.** |
 | 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework + bundled structural codemods (each carries a `RuleMeta` GTR code; see `catalog.coded_codemods()`) + `canonical_codemods()` contract. |
 | 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic rules (indent / blank line / empty-element shorthand) + the shared `cli_support` CLI engine. The only tier that serialises canonical output XML. |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice checks (`GTR` codes, `RuleMeta.detect_only`); read-only LBYL queries over tier 1 yielding `Violation`. Depends only on tiers 1 + 0.5. |
@@ -394,7 +394,7 @@ developer-defined — no user-defined rules.
 dependency (the former `[canonical]` extra is gone). The library
 (`format_tool_document`) is likewise cosmetic-only.
 
-See `galaxy-tool-xml/docs/decisions.md` §9 for the three-tier
+See `galaxy-tool-source/docs/decisions.md` §9 for the three-tier
 rationale; `galaxy-tool-refactor-cli/docs/decisions.md` §D1,
 `galaxy-tool-xml-fmt/docs/decisions.md` §D12, and
 `galaxy-tool-xml-codemod/docs/decisions.md` §16 for the app tier, the

@@ -8,7 +8,7 @@ The **formatting** tier of the Galaxy refactoring architecture:
 | Tier | Layer | Package | Role |
 |---|---|---|---|
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | shared `RuleMeta` descriptor |
-| 1 | **parsing & validation** | `galaxy-tool-xml` | parse · profile-aware validate · typed view |
+| 1 | **parsing & validation** | `galaxy-tool-source` | parse · profile-aware validate · typed view |
 | 2 | **structure** | `galaxy-tool-xml-codemod` | structural refactors |
 | 3 | **formatting** | **`galaxy-tool-xml-fmt`** *(this repo)* | cosmetic formatter |
 | 3.5 | **advisory checks** | `galaxy-tool-xml-check` | detect-only checks |
@@ -38,7 +38,7 @@ tier owns the trivia-loss boundary: a format pass on a touched file
 will rewrite indentation / quote style / empty-element shorthand to
 the project's opinion, even when the structural change was a no-op.
 
-The design rationale lives in `galaxy-tool-xml/docs/decisions.md`
+The design rationale lives in `galaxy-tool-source/docs/decisions.md`
 §3 (lxml-as-source-of-truth) and §9 (three-tier vision); the
 cosmetic-only CLI split is `docs/decisions.md` §D12.
 

@@ -1,4 +1,4 @@
-# Per-version xsdata models for galaxy-tool-xml
+# Per-version xsdata models for galaxy-tool-source
 
 > **Status: IMPLEMENTED — historical design plan.** This describes the
 > per-version model refactor as proposed; it has since shipped. The
@@ -9,8 +9,8 @@
 
 ## Context
 
-`galaxy-tool-xml` generates one xsdata typed-model package
-(`galaxy_tool_xml.models`, file `models/galaxy.py`, ~11.7k lines) from **only the
+`galaxy-tool-source` generates one xsdata typed-model package
+(`galaxy_tool_source.models`, file `models/galaxy.py`, ~11.7k lines) from **only the
 latest** vendored XSD (`galaxy-26.0`). A tool of any profile is bound leniently
 against that single latest-XSD model.
 
@@ -45,7 +45,7 @@ full API over every tool in `galaxyproject/tools-iuc` and retains any tool that
 crashes the library as a permanent regression fixture.
 
 > **Public-API change.** With per-version models there is no single `Tool`, so
-> the bare `from galaxy_tool_xml.models import Tool` is **removed** from the
+> the bare `from galaxy_tool_source.models import Tool` is **removed** from the
 > public API; the latest model class is `tool_class(latest_profile())`. The
 > library is at 0.1.0 with no released consumers, so the API is corrected now
 > rather than carried.
@@ -53,7 +53,7 @@ crashes the library as a permanent regression fixture.
 ## Target layout
 
 ```
-src/galaxy_tool_xml/
+src/galaxy_tool_source/
 ├── _codegen.py            NEW, hand-written — the codegen engine (no hatchling dep)
 └── models/
     ├── __init__.py        REWRITE — package docstring only (matches the repo's
@@ -71,22 +71,22 @@ defined once as `version_to_module()` in `registry.py`.
 
 ## Implementation
 
-### 1. Codegen engine — `src/galaxy_tool_xml/_codegen.py`
+### 1. Codegen engine — `src/galaxy_tool_source/_codegen.py`
 
 A package module, hand-written, importing only stdlib and `registry` at module
 scope — **no hatchling, and no xsdata until the `__main__` path** — so
 `regenerate.py` and the tests import it freely. It self-locates `schema/` and
 `models/` via `__file__`.
 
-- **Entry point** — `python -m galaxy_tool_xml._codegen <version> <output_root>`
+- **Entry point** — `python -m galaxy_tool_source._codegen <version> <output_root>`
   runs xsdata for one version *in that fresh process*: stages
   `galaxy-{version}.xsd` as `galaxy.xsd` in a tempdir, sets
-  `GeneratorConfig.output.package = "galaxy_tool_xml.models." +
+  `GeneratorConfig.output.package = "galaxy_tool_source.models." +
   version_to_module(version)` and `output.unnest_classes = True` (unconditional —
   required for Galaxy 24.2+, harmless older), `chdir`s to `output_root`, runs
   `ResourceTransformer`. xsdata is imported only here.
 - `generate_one(version, *, output_root)` — runs that entry point in a fresh
-  subprocess, with `PYTHONPATH` set to `src/` so it imports `galaxy_tool_xml`
+  subprocess, with `PYTHONPATH` set to `src/` so it imports `galaxy_tool_source`
   even at build time, before the package is installed. A fresh process per
   version is mandatory — xsdata caches its resolved output path within a process.
   `check=True`; stderr is surfaced on failure.
@@ -116,8 +116,8 @@ development (tests, mypy, IDE all need the generated files present).
 - `[build-system]`: `requires = ["hatchling>=1.27", "xsdata[lxml]>=26.2"]`,
   `build-backend = "hatchling.build"`. `xsdata[lxml]` is now also a build
   dependency; it stays in `[project] dependencies` (the runtime parser needs it).
-- `[tool.hatch.build.targets.wheel]`: `packages = ["src/galaxy_tool_xml"]`;
-  `artifacts = ["src/galaxy_tool_xml/models/v*/", "src/galaxy_tool_xml/models/any_tool.py"]`
+- `[tool.hatch.build.targets.wheel]`: `packages = ["src/galaxy_tool_source"]`;
+  `artifacts = ["src/galaxy_tool_source/models/v*/", "src/galaxy_tool_source/models/any_tool.py"]`
   (whitelists the gitignored generated files into the wheel). Default sdist
   inclusion suffices — `hatch_build.py`, `scripts/`, `schema/` are VCS-tracked;
   the hook regenerates models when a wheel is built from the sdist.
@@ -126,8 +126,8 @@ development (tests, mypy, IDE all need the generated files present).
   dependencies, e.g. `toposort`); it is required at build time (`[build-system]`)
   and kept in the dev group for `regenerate.py` and the codegen test.
 - Narrow the lint excludes so hand-written code is checked, generated code exempt:
-  ruff `extend-exclude = ["src/galaxy_tool_xml/models/v*", "src/galaxy_tool_xml/models/any_tool.py"]`;
-  mypy `exclude = "src/galaxy_tool_xml/models/(v[0-9].*|any_tool\\.py)"`.
+  ruff `extend-exclude = ["src/galaxy_tool_source/models/v*", "src/galaxy_tool_source/models/any_tool.py"]`;
+  mypy `exclude = "src/galaxy_tool_source/models/(v[0-9].*|any_tool\\.py)"`.
 
 ### 4. `models/registry.py` (new, hand-written, public)
 
@@ -146,12 +146,12 @@ module, so it is safe to import at build time.
 ### 5. `models/__init__.py` (rewrite)
 
 Package docstring only — no re-exports, no `__all__` — matching
-`galaxy_tool_xml/__init__.py`'s existing "exposes no re-exports" convention. The
+`galaxy_tool_source/__init__.py`'s existing "exposes no re-exports" convention. The
 sanctioned re-export exception is now the xsdata-generated `v*/__init__.py` files.
 
 ### 6. `document.py` — profile-aware `model()`
 
-Drop `from galaxy_tool_xml.models import Tool`. Import `resolve_profile`
+Drop `from galaxy_tool_source.models import Tool`. Import `resolve_profile`
 (`profiles.py`) and `tool_class` (`registry.py`); import `AnyTool` **only** under
 `if TYPE_CHECKING:` from `models.any_tool` — `document.py` has `from __future__
 import annotations`, so the annotation is a string and no generated module is
@@ -202,7 +202,7 @@ see `docs/decisions.md` §10.5). The worst case is 28 validations, and
 
 ### 9. `scripts/regenerate.py`
 
-Thin wrapper: `from galaxy_tool_xml._codegen import regenerate_all_models`; call
+Thin wrapper: `from galaxy_tool_source._codegen import regenerate_all_models`; call
 it with `force=True`. No `sys.path` manipulation — it runs in the project venv
 where the package is installed editable.
 
@@ -255,9 +255,9 @@ keep the fixture so the bug can never silently return.
 
 ### 12. Docs
 
-- `README.md` — Public API block: remove `from galaxy_tool_xml.models import
-  Tool`; add `from galaxy_tool_xml.models.any_tool import AnyTool`,
-  `from galaxy_tool_xml.models.registry import model_module, tool_class`, and
+- `README.md` — Public API block: remove `from galaxy_tool_source.models import
+  Tool`; add `from galaxy_tool_source.models.any_tool import AnyTool`,
+  `from galaxy_tool_source.models.registry import model_module, tool_class`, and
   `newest_valid_profile` to the `binding` line; note `model()` is profile-aware
   with a `version=` override. Refresh the Architecture paragraph.
 - `CLAUDE.md` — `models/` is now 28 per-version generated packages plus
@@ -271,18 +271,18 @@ keep the fixture so the bug can never silently return.
 ### 13. Git hygiene
 
 `git rm` the committed `models/galaxy.py` and old generated `models/__init__.py`.
-Add to `.gitignore`: `src/galaxy_tool_xml/models/v*/`,
-`src/galaxy_tool_xml/models/any_tool.py`, and `.local/corpus/` (the cached tools-iuc
+Add to `.gitignore`: `src/galaxy_tool_source/models/v*/`,
+`src/galaxy_tool_source/models/any_tool.py`, and `.local/corpus/` (the cached tools-iuc
 clone). Committed under `models/` afterward: only `__init__.py` and `registry.py`.
 
 ## Public API: before → after
 
 | Before | After |
 |--------|-------|
-| `from galaxy_tool_xml.models import Tool` | *removed* |
-| — | `from galaxy_tool_xml.models.any_tool import AnyTool` |
-| — | `from galaxy_tool_xml.models.registry import model_module, tool_class` |
-| — | `from galaxy_tool_xml.binding import newest_valid_profile` |
+| `from galaxy_tool_source.models import Tool` | *removed* |
+| — | `from galaxy_tool_source.models.any_tool import AnyTool` |
+| — | `from galaxy_tool_source.models.registry import model_module, tool_class` |
+| — | `from galaxy_tool_source.binding import newest_valid_profile` |
 | `ToolDocument.model()` | `ToolDocument.model(*, version=None)` (profile-aware) |
 
 ## Files
@@ -290,13 +290,13 @@ clone). Committed under `models/` afterward: only `__init__.py` and `registry.py
 | File | Change |
 |------|--------|
 | `hatch_build.py` | **New** — thin hatchling build hook |
-| `src/galaxy_tool_xml/_codegen.py` | **New** — codegen engine (no hatchling dep) |
-| `src/galaxy_tool_xml/models/registry.py` | **New** — `version_to_module`, `model_module`, `tool_class` |
-| `src/galaxy_tool_xml/models/__init__.py` | **Rewrite** — docstring-only |
-| `src/galaxy_tool_xml/models/galaxy.py` | **Delete** (`git rm`) |
-| `src/galaxy_tool_xml/document.py` | Profile-aware `model(*, version=None) -> AnyTool` |
-| `src/galaxy_tool_xml/corrections.py` | Profile-aware `_walk` |
-| `src/galaxy_tool_xml/binding.py` | Add `newest_valid_profile()` |
+| `src/galaxy_tool_source/_codegen.py` | **New** — codegen engine (no hatchling dep) |
+| `src/galaxy_tool_source/models/registry.py` | **New** — `version_to_module`, `model_module`, `tool_class` |
+| `src/galaxy_tool_source/models/__init__.py` | **Rewrite** — docstring-only |
+| `src/galaxy_tool_source/models/galaxy.py` | **Delete** (`git rm`) |
+| `src/galaxy_tool_source/document.py` | Profile-aware `model(*, version=None) -> AnyTool` |
+| `src/galaxy_tool_source/corrections.py` | Profile-aware `_walk` |
+| `src/galaxy_tool_source/binding.py` | Add `newest_valid_profile()` |
 | `scripts/regenerate.py` | Thin wrapper over `regenerate_all_models` |
 | `scripts/corpus_check.py` | **New** — real-world tools-iuc corpus sweep (§11) |
 | `pyproject.toml` | Backend → hatchling; hook/artifacts config; narrowed excludes |
@@ -328,7 +328,7 @@ clone). Committed under `models/` afterward: only `__init__.py` and `registry.py
   binary search would be wrong; the newest-first scan is correct regardless.
 - **Footprint** — ~28 × ~300 KB ≈ 8–9 MB of generated Python; repo unaffected
   (gitignored), wheel roughly triples.
-- Each xsdata run is its own subprocess (`python -m galaxy_tool_xml._codegen`) —
+- Each xsdata run is its own subprocess (`python -m galaxy_tool_source._codegen`) —
   sharing a process reintroduces xsdata's output-path caching bug. The subprocess
   gets `PYTHONPATH=src/` so it works at build time, before the package is
   installed.
@@ -336,7 +336,7 @@ clone). Committed under `models/` afterward: only `__init__.py` and `registry.py
 
 ## Verification
 
-1. `rm -rf src/galaxy_tool_xml/models/v* src/galaxy_tool_xml/models/any_tool.py`,
+1. `rm -rf src/galaxy_tool_source/models/v* src/galaxy_tool_source/models/any_tool.py`,
    then `uv sync` → all 28 `models/v*/` packages + `any_tool.py` reappear.
 2. `uv run pytest` → `test_models.py`, `test_corrections.py`, `test_validate.py`,
    `test_binding.py`, `test_regressions.py` pass.
@@ -346,7 +346,7 @@ clone). Committed under `models/` afterward: only `__init__.py` and `registry.py
 5. Manual REPL check: a tool with `profile="19.05"` →
    `type(doc.model()).__module__` ends `v19_05`; `doc.model(version="24.0")` →
    `v24_0`; `newest_valid_profile(tool)` returns the expected ceiling.
-6. `uv run galaxy-tool-xml validate tests/data/representative_tool.xml` and
+6. `uv run galaxy-tool-source validate tests/data/representative_tool.xml` and
    `suggest …` → CLI still works.
 7. `uv build` → `unzip -l dist/*.whl` shows all 28 `models/v*/` packages,
    `any_tool.py`, and the `schema/` XSDs; build a wheel from the sdist to confirm

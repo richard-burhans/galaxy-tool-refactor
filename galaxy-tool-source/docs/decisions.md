@@ -1263,3 +1263,21 @@ resolve conservatively). The derivation is honest about name collisions
 proof-carried exceptions live in the consumer (fmt `payload.py`, fmt §D20),
 not here. Tier direction is clean: tier 1 owns the schemas, fmt consumes the
 derived fact.
+
+## 26. Renamed: `galaxy-tool-xml` → `galaxy-tool-source` (2026-06-10)
+
+The package (dist `galaxy-tool-xml`, import `galaxy_tool_xml`) is now
+**`galaxy-tool-source`** / **`galaxy_tool_source`** — aligned with Galaxy's own
+`ToolSource` vocabulary (`galaxy.tool_util.parser`) and with what the tier
+actually owns: the *tool source* (parsing, validation, profile resolution,
+Cheetah views), not XML cosmetics. Renamed before the first PyPI publish so
+the old name is never published. The three sibling dists
+(`galaxy-tool-xml-codemod`/`-fmt`/`-check`) keep their names — "xml" describes
+their own domain (they codemod/format/check the tool XML), which stays true.
+
+**Historical entries in this file (and every dated record — audit records,
+research notes, the deferral ledger) keep the old name verbatim**; only
+current-state docs were rewritten. Execution record:
+`~/.claude/plans/rename-galaxy-tool-source-plan.md`; two sed traps found and
+guarded — the sibling *dist* names need `[^-]`, and the sibling *import*
+names (`galaxy_tool_xml_codemod` et al.) equally need `[^_]`.

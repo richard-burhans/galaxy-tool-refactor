@@ -9,7 +9,7 @@ definition XML.
 | Package | PyPI status | Role |
 |---|---|---|
 | [`galaxy-tool-refactor-rules`](galaxy-tool-refactor-rules/README.md) | pre-alpha | Shared `RuleMeta` descriptor + `Violation` diagnostic + glossary renderer. Dependency-free; underpins the GTR rule registry across the tiers. |
-| [`galaxy-tool-xml`](galaxy-tool-xml/README.md) | pre-release | Parse, validate, and inspect Galaxy tool XML. Foundation for the other tiers. |
+| [`galaxy-tool-source`](galaxy-tool-source/README.md) | pre-release | Parse, validate, and inspect Galaxy tool XML. Foundation for the other tiers. |
 | [`galaxy-tool-xml-codemod`](galaxy-tool-xml-codemod/README.md) | pre-alpha | Detect-primitive `CodemodCommand` framework + bundled structural codemods (`canonical_codemods()`, `AUTO_UPGRADE_CODEMODS`); each rule has a detect (lint) and a fix phase. |
 | [`galaxy-tool-xml-fmt`](galaxy-tool-xml-fmt/README.md) | pre-release | Opinionated `black`-like cosmetic formatter (with a non-mutating `detect`). The only tier that serialises canonical output XML. |
 | [`galaxy-tool-xml-check`](galaxy-tool-xml-check/README.md) | pre-alpha | Advisory, detect-only IUC best-practice checks (`GTR` codes); read-only, reports but never mutates. Depends only on tiers 1 + 0.5. |
@@ -34,7 +34,7 @@ composes them into the user-facing workflow:
 ```
    galaxy-tool-refactor-rules     ← shared RuleMeta + Violation (dependency-free, tier 0.5)
                   ↑          ↑
-                  galaxy-tool-xml ← parse, validate, typed views (lxml tree = source of truth)
+                  galaxy-tool-source ← parse, validate, typed views (lxml tree = source of truth)
               ↑        ↑        ↑
  galaxy-tool-xml-   galaxy-tool-   galaxy-tool-xml-check
  codemod (tier 2)   xml-fmt (3)    (advisory checks, tier 3.5)
@@ -71,11 +71,11 @@ which the app CLI consumes:
   are informational unless `--strict`.
 - `galaxy-tool-refactor find-references NAME PATHS` — read-only query (not a rule):
   print every Cheetah `$NAME` reference site across a tool's templated sections
-  (`galaxy_tool_xml.cheetah_refs`).
+  (`galaxy_tool_source.cheetah_refs`).
 - `galaxy-tool-refactor rename-param OLD NEW PATHS` — the mutating sibling of
   `find-references`: rename a parameter across every Cheetah section, by-name
   cross-ref attribute and `<tests>` mirror, plus the definition; atomic per file
-  (`--check` previews). The first Cheetah mutator (`galaxy_tool_xml.cheetah_rename`).
+  (`--check` previews). The first Cheetah mutator (`galaxy_tool_source.cheetah_rename`).
 - `galaxy-tool-refactor rulesets` / `rules` — list the baked-in rulesets and rules.
 - `galaxy-tool-refactor normalize-macros` — opt-in, repo-scoped: lowercase literal
   `format`/`ftype` in `<macros>`-root files (the macro-library fix the per-tool
@@ -86,7 +86,7 @@ Rule selection (`--ruleset NAME`, `--select CODE…`, `--ignore CODE…`) is sha
 `format`/`upgrade`/`check`, ruff-style (`--ignore` ▸ `--select` ▸ `--ruleset`).
 Rulesets and rules are developer-defined — there are no user-defined rules.
 
-For the full rationale, see `galaxy-tool-xml/docs/decisions.md` §9 (three-tier
+For the full rationale, see `galaxy-tool-source/docs/decisions.md` §9 (three-tier
 vision), `galaxy-tool-refactor-cli/docs/decisions.md` §D1–D4 (the app tier, the
 `format`/`upgrade`/`check` commands, and the move onto the registry facade),
 `galaxy-tool-refactor-registry/docs/decisions.md` D1–D4 (the facade, rulesets, and
@@ -100,7 +100,7 @@ cosmetic-only) + §D14/§D15 (cosmetic detect + per-rule subset seams),
 
 ```bash
 uv run --package galaxy-tool-refactor-rules pytest galaxy-tool-refactor-rules/tests/
-uv run --package galaxy-tool-xml            pytest galaxy-tool-xml/tests/
+uv run --package galaxy-tool-source            pytest galaxy-tool-source/tests/
 uv run --package galaxy-tool-xml-codemod    pytest galaxy-tool-xml-codemod/tests/
 uv run --package galaxy-tool-xml-fmt        pytest galaxy-tool-xml-fmt/tests/
 uv run --package galaxy-tool-xml-check      pytest galaxy-tool-xml-check/tests/

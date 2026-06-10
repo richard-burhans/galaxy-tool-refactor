@@ -11,7 +11,7 @@ facade.
 | Tier | Layer | Package |
 |---|---|---|
 | 0.5 | rule metadata | `galaxy-tool-refactor-rules` |
-| 1 | parsing & validation | `galaxy-tool-xml` |
+| 1 | parsing & validation | `galaxy-tool-source` |
 | 2 | structure | `galaxy-tool-xml-codemod` |
 | 3 | formatting | `galaxy-tool-xml-fmt` |
 | 3.5 | advisory checks | `galaxy-tool-xml-check` |
@@ -44,7 +44,7 @@ longer imports the codemod / check tiers directly. It exposes the
   `--strict`. Macro files are checked for cosmetic (fixable) drift too.
 - `find-references` — read-only query (mutates nothing, not a rule): print every
   Cheetah `$NAME` reference site (`file:line  [section]  $ref`) across a tool **and its
-  imported macro files** (`galaxy_tool_xml.cheetah_refs` + the bundle); see
+  imported macro files** (`galaxy_tool_source.cheetah_refs` + the bundle); see
   `docs/decisions.md` §D8, §D10.
 - `rename-param` — the mutating sibling of `find-references` (not a rule): rename a
   parameter OLD→NEW across every Cheetah section, by-name cross-ref attribute, and
@@ -58,7 +58,7 @@ longer imports the codemod / check tiers directly. It exposes the
 - `convert-help` — opt-in: convert an RST `<help>` body to Markdown
   (`format="markdown"`, GTR092) when provable — profile ≥ 24.2 (XSD gate; the skip
   says "run `upgrade` first") + the tier-1 render-equivalence gate (needs the
-  `galaxy-tool-xml[markdown]` extra). Behaviour-changing by construction (swaps the
+  `galaxy-tool-source[markdown]` extra). Behaviour-changing by construction (swaps the
   rendering engine), so a deliberate, separate command — never part of
   `format`/`upgrade` (cli §D12; codemod §38).
 - `normalize-macros` — opt-in, repo-scoped pass that lowercases literal
@@ -73,7 +73,7 @@ files are formatted/checked standalone as encountered — cosmetic formatting is
 regardless of sharing; cli §D5). But `rename-param` / `find-references` **are
 bundle-aware** (cli §D10): they operate over a tool *and its imported macro files*,
 with a sole-owned `--repo-root` gate for the macro edits a rename makes (registry D12;
-`galaxy-tool-xml/docs/decisions.md` §21). All five mutating commands accept `--backup`
+`galaxy-tool-source/docs/decisions.md` §21). All five mutating commands accept `--backup`
 (`<file>.bak` before overwrite).
 
 Selection (`--ruleset` / `--select` / `--ignore`) is shared by
