@@ -566,7 +566,9 @@ marks which sets a rule belongs to right on the rule; the registry derives `name
   `canonical.canonical_codemods()` is now derived (codemods declaring `"default"`, sorted
   by `meta.order`), and `apply.py` orders the codemod phase by `meta.order` instead of a
   tuple index. `selectable_codemods()` = codemods with a non-empty `rulesets`;
-  `upgrade_only_codemods()` = those with none.
+  `upgrade_only_codemods()` = those with none. *(Renamed `non_selectable_codemods()`
+  in the 2026-06-10 audit: GTR092 — opt-in-command-only, not upgrade — joined the
+  no-ruleset set, so "upgrade-only" stopped being accurate.)*
 - **Union selection.** `resolve_codes(*, rulesets, select, ignore)` takes the **union** of
   the named sets as its base (default `{"default"}`); `--select` replaces, `--ignore`
   subtracts (precedence unchanged). `UnknownPreset` → `UnknownRuleset`;
@@ -684,7 +686,9 @@ fmt stays the only serializer; nothing but the `<help>` element changes.
 Registry classification: GTR092 lands in `upgrade_only_codemods()` (no ruleset →
 not selectable; introspection via `list_rules(include_upgrade=True)`), but the
 parity table's tier column keeps its real family via the `_OPT_IN_COMMAND_CODES`
-exception — it is applied by `convert-help`, not `upgrade`.
+exception — it is applied by `convert-help`, not `upgrade`. *(Both renamed in the
+2026-06-10 audit: `non_selectable_codemods()` / `adapters.OPT_IN_COMMAND_BY_CODE`;
+`--select GTR092` now hints at the dedicated command instead of a bare "unknown".)*
 
 ### Reproduction
 

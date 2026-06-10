@@ -12,7 +12,10 @@ from __future__ import annotations
 
 import re
 
-from galaxy_tool_refactor_registry.adapters import upgrade_only_codemods
+from galaxy_tool_refactor_registry.adapters import (
+    OPT_IN_COMMAND_BY_CODE,
+    non_selectable_codemods,
+)
 from galaxy_tool_refactor_registry.registry import all_handles
 
 # A rule summary like "declare <requirements>" carries bare XML tags; in a markdown
@@ -28,12 +31,6 @@ def _quote_tags(text: str, /) -> str:
 
 # The narrowest-first ruleset order (the sets nest: cosmetic ⊂ default = iuc ⊂ strict).
 _NARROW_ORDER = ("cosmetic", "default", "iuc", "strict")
-
-# The opt-in conversion codemod: rulesets are empty (so it is not selectable, like
-# the upgrade-only codemods) but it is applied by the dedicated ``convert-help``
-# command, NOT ``upgrade`` — so its tier column stays its real family ("codemod").
-# Hand-known exception, mirroring _NO_OP_DETECT (codemod ``docs/decisions.md`` §38).
-_OPT_IN_COMMAND_CODES = frozenset({"GTR092"})
 
 # The one reserved no-op detector — documented in check ``docs/decisions.md`` D3.
 # It carries a ``detect`` method (uniform interface) but never fires, so the table
@@ -51,7 +48,13 @@ END_MARKER = "<!-- END GENERATED -->"
 
 def render_parity_table() -> str:
     """Return the GTR coverage table as markdown (header + separator + rows)."""
-    upgrade_codes = {cls.meta.code for cls in upgrade_only_codemods()}
+    # Non-selectable minus the opt-in-command-only codemods (applied by their own
+    # dedicated command, e.g. ``convert-help``, NOT ``upgrade``) = the upgrade
+    # pipeline; only those render the synthetic "upgrade" tier — an opt-in-command
+    # codemod keeps its real family ("codemod"). Codemod ``docs/decisions.md`` §38.
+    upgrade_codes = {
+        cls.meta.code for cls in non_selectable_codemods()
+    } - set(OPT_IN_COMMAND_BY_CODE)
     handles = all_handles()
     rows = [_HEADER, _SEPARATOR]
     for code in sorted(handles):
@@ -60,11 +63,7 @@ def render_parity_table() -> str:
         planemo = ", ".join(names) if names else "—"
         detect = "—" if code in _NO_OP_DETECT else "✓"
         fix = "✗" if meta.detect_only else "✓"
-        tier = (
-            "upgrade"
-            if code in upgrade_codes - _OPT_IN_COMMAND_CODES
-            else handles[code].family
-        )
+        tier = "upgrade" if code in upgrade_codes else handles[code].family
         ruleset = next((name for name in _NARROW_ORDER if name in meta.rulesets), "—")
         rows.append(
             f"| {code} | {planemo} | {detect} | {fix} | {tier} | {ruleset} "

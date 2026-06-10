@@ -11,11 +11,19 @@ from __future__ import annotations
 
 
 class UnknownRuleCode(ValueError):
-    """A rule code passed to ``--select`` / ``--ignore`` is not a known rule."""
+    """A rule code passed to ``--select`` / ``--ignore`` is not a selectable rule.
 
-    def __init__(self, code: str, /) -> None:
+    *hint* explains a code that exists but is deliberately not selectable (a
+    non-selectable codemod, e.g. the opt-in-command-only GTR092) — appended so
+    the user learns where the rule actually lives instead of "unknown".
+    """
+
+    def __init__(self, code: str, /, *, hint: str | None = None) -> None:
         self.code = code
-        super().__init__(f"unknown rule code: {code!r}")
+        message = f"unknown rule code: {code!r}"
+        if hint is not None:
+            message = f"{message} ({hint})"
+        super().__init__(message)
 
 
 class UnknownRuleset(ValueError):

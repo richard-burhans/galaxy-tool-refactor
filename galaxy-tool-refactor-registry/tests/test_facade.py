@@ -317,9 +317,11 @@ def test_introspection_lists_rulesets_and_rules() -> None:
 
     rules = facade.list_rules()
     codes = {r.code for r in rules}
-    assert "GTR012" not in codes  # upgrade-only excluded by default
+    assert "GTR012" not in codes  # upgrade-pipeline: excluded by default
+    assert "GTR092" not in codes  # opt-in-command-only: excluded by default
     with_upgrade = {r.code for r in facade.list_rules(include_upgrade=True)}
     assert "GTR012" in with_upgrade
+    assert "GTR092" in with_upgrade
     # Each fixable rule is in at least one ruleset; advisory rules in strict only.
     default_rule = next(r for r in rules if r.code == "GTR002")
     assert "default" in default_rule.rulesets and default_rule.fixable

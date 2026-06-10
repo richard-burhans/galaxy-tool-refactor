@@ -4,13 +4,15 @@ Three builders, one per family, plus the family class enumerations the registry
 and apply phase consume. The *selectable* codemods are those that declare at least
 one ruleset (``RuleMeta.rulesets`` — typo repair + the reorderers + the CDATA/quote
 fixes, the safe format-time rules); the remaining GTR codemods declare no ruleset
-and are the upgrade-only steps (``UpdateProfile`` + the per-version ``Upgrade*`` +
-the ``UpgradeToLatest`` orchestrator) which are internal to the ``upgrade`` pipeline
-and not independently selectable — they are exposed for introspection only.
+and are **non-selectable**: the upgrade-pipeline steps (``UpdateProfile`` + the
+per-version ``Upgrade*`` + the ``UpgradeToLatest`` orchestrator + the runtime-gated
+fixes) and the opt-in-command-only codemods (``OPT_IN_COMMAND_BY_CODE``) — all
+exposed for introspection only.
 """
 
 from __future__ import annotations
 
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from galaxy_tool_xml_check.detect import all_checks
@@ -22,11 +24,21 @@ from galaxy_tool_xml_fmt.format import all_rules, format_tool_document_subset
 from galaxy_tool_refactor_registry.handle import RuleHandle
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from galaxy_tool_refactor_rules.violation import Violation
     from galaxy_tool_xml.document import ToolDocument
     from galaxy_tool_xml_check.rules import CheckRule
     from galaxy_tool_xml_codemod.codemod import CodemodCommand
     from galaxy_tool_xml_fmt.rules import Rule
+
+# The opt-in-command-only codemods: no ruleset (never selectable) and not part of
+# the upgrade pipeline either — each is applied solely by its own dedicated
+# command (codemod ``docs/decisions.md`` §38, registry D18). Hand-known, code →
+# command name; pinned by a partition tripwire in ``test_ruleset_membership.py``.
+OPT_IN_COMMAND_BY_CODE: Mapping[str, str] = MappingProxyType(
+    {"GTR092": "convert-help"}
+)
 
 
 def selectable_codemods() -> tuple[type[CodemodCommand], ...]:
@@ -34,12 +46,12 @@ def selectable_codemods() -> tuple[type[CodemodCommand], ...]:
     return tuple(cls for cls in coded_codemods() if cls.meta.rulesets)
 
 
-def upgrade_only_codemods() -> tuple[type[CodemodCommand], ...]:
+def non_selectable_codemods() -> tuple[type[CodemodCommand], ...]:
     """The GTR codemods with no ruleset → not independently selectable.
 
-    The ``upgrade``-internal codemods (GTR007–GTR016) plus the opt-in
-    ``convert-help`` conversion codemod (GTR092); exposed for introspection
-    (``list_rules(include_upgrade=True)``) only.
+    The ``upgrade``-pipeline codemods (GTR007–GTR016) plus the opt-in-command-only
+    ones (``OPT_IN_COMMAND_BY_CODE`` — today the ``convert-help`` conversion,
+    GTR092); exposed for introspection (``list_rules(include_upgrade=True)``) only.
     """
     return tuple(cls for cls in coded_codemods() if not cls.meta.rulesets)
 

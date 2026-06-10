@@ -84,7 +84,25 @@ def test_unknown_code_raises() -> None:
     with pytest.raises(UnknownRuleCode):
         resolve_codes(select=["GTR999"])
     with pytest.raises(UnknownRuleCode):
-        resolve_codes(ignore=["GTR012"])  # upgrade-only: not selectable
+        resolve_codes(ignore=["GTR012"])  # upgrade-pipeline: not selectable
+
+
+def test_genuinely_unknown_code_carries_no_hint() -> None:
+    with pytest.raises(UnknownRuleCode, match=r"^unknown rule code: 'GTR999'$"):
+        resolve_codes(select=["GTR999"])
+
+
+def test_opt_in_command_code_raises_with_a_pointer_to_its_command() -> None:
+    """`--select GTR092` is rejected by design — but says where the rule lives."""
+    with pytest.raises(UnknownRuleCode, match="convert-help"):
+        resolve_codes(select=["GTR092"])
+    with pytest.raises(UnknownRuleCode, match="convert-help"):
+        resolve_upgrade_codes(select=["GTR092"])
+
+
+def test_upgrade_pipeline_code_raises_with_an_upgrade_hint() -> None:
+    with pytest.raises(UnknownRuleCode, match="upgrade"):
+        resolve_codes(select=["GTR012"])
 
 
 def test_upgrade_base_is_fixtypos_plus_cosmetic() -> None:

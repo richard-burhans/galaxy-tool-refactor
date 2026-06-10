@@ -16,11 +16,32 @@ from collections.abc import Iterable
 from galaxy_tool_refactor_rules.rulesets import DEFAULT_RULESET
 from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 
-from galaxy_tool_refactor_registry.adapters import fmt_rules
+from galaxy_tool_refactor_registry.adapters import OPT_IN_COMMAND_BY_CODE, fmt_rules
 from galaxy_tool_refactor_registry.errors import UnknownRuleCode, UnknownRuleset
 from galaxy_tool_refactor_registry.planemo import planemo_index
-from galaxy_tool_refactor_registry.registry import expand_codes, known_codes
+from galaxy_tool_refactor_registry.registry import (
+    all_handles,
+    expand_codes,
+    known_codes,
+)
 from galaxy_tool_refactor_registry.rulesets import ruleset_codes
+
+
+def _non_selectable_hint(token: str, /) -> str | None:
+    """A hint when *token* names a real rule that is deliberately not selectable.
+
+    ``None`` for a genuinely unknown token. For a non-selectable codemod the hint
+    names where the rule actually lives: its dedicated command
+    (``OPT_IN_COMMAND_BY_CODE``, e.g. ``convert-help`` for GTR092) or the
+    ``upgrade`` pipeline.
+    """
+    code = token.upper()
+    if code not in all_handles():
+        return None
+    command = OPT_IN_COMMAND_BY_CODE.get(code)
+    if command is not None:
+        return f"{code} is applied only by the dedicated `{command}` command"
+    return f"{code} is internal to the `upgrade` pipeline, not selectable"
 
 
 def _expand_selection(tokens: Iterable[str], /) -> frozenset[str]:
@@ -43,7 +64,7 @@ def _expand_selection(tokens: Iterable[str], /) -> frozenset[str]:
         elif token.lower() in index:
             out |= index[token.lower()]
         else:
-            raise UnknownRuleCode(token)
+            raise UnknownRuleCode(token, hint=_non_selectable_hint(token))
     return frozenset(out)
 
 

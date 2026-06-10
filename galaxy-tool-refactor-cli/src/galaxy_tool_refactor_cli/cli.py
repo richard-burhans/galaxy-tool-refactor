@@ -808,7 +808,10 @@ def rulesets_command() -> None:
 @click.option(
     "--include-upgrade",
     is_flag=True,
-    help="Also list the upgrade-only codemods (not independently selectable).",
+    help=(
+        "Also list the non-selectable codemods: the upgrade-pipeline steps and "
+        "the opt-in-command-only rules (e.g. GTR092, applied by convert-help)."
+    ),
 )
 def rules_command(include_upgrade: bool) -> None:
     """List the baked-in rules: code, family, fixable/advisory, rulesets, planemo.

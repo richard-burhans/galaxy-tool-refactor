@@ -2,9 +2,9 @@
 
 ``registry()`` is the **selectable** set — the codemod canonical rules, the fmt
 cosmetic rules, and the advisory checks — keyed by ``RuleMeta.code``. The
-upgrade-only codemods (GTR007–GTR012 validity-gated; GTR014–GTR016 runtime-gated)
-are not selectable; they are kept in the internal index purely so the
-duplicate-code guard sees the whole GTR namespace and so
+non-selectable codemods (GTR007–GTR012 validity-gated; GTR014–GTR016
+runtime-gated; the opt-in-command-only GTR092) are kept in the internal index
+purely so the duplicate-code guard sees the whole GTR namespace and so
 ``list_rules(include_upgrade=True)`` can enumerate them.
 
 Every rule carries a single ``GTR###`` code; fixability is a rule property
@@ -25,8 +25,8 @@ from galaxy_tool_refactor_registry.adapters import (
     codemod_handle,
     fmt_handle,
     fmt_rules,
+    non_selectable_codemods,
     selectable_codemods,
-    upgrade_only_codemods,
 )
 from galaxy_tool_refactor_registry.errors import UnknownRuleCode
 from galaxy_tool_refactor_registry.handle import RuleHandle
@@ -103,7 +103,7 @@ def _index() -> dict[str, tuple[RuleHandle, bool]]:
     """
     entries: list[tuple[RuleHandle, bool]] = []
     entries.extend((codemod_handle(cls), True) for cls in selectable_codemods())
-    entries.extend((codemod_handle(cls), False) for cls in upgrade_only_codemods())
+    entries.extend((codemod_handle(cls), False) for cls in non_selectable_codemods())
     entries.extend((fmt_handle(cls), True) for cls in fmt_rules())
     entries.extend((check_handle(cls), True) for cls in advisory_checks())
     index = _build_index(entries)
@@ -112,12 +112,12 @@ def _index() -> dict[str, tuple[RuleHandle, bool]]:
 
 
 def registry() -> dict[str, RuleHandle]:
-    """The selectable ``code -> RuleHandle`` map (excludes upgrade-only codes)."""
+    """The selectable ``code -> RuleHandle`` map (excludes non-selectable codes)."""
     return {code: handle for code, (handle, sel) in _index().items() if sel}
 
 
 def all_handles() -> dict[str, RuleHandle]:
-    """Every ``code -> RuleHandle``, including the upgrade-only codemods."""
+    """Every ``code -> RuleHandle``, including the non-selectable codemods."""
     return {code: handle for code, (handle, _sel) in _index().items()}
 
 
