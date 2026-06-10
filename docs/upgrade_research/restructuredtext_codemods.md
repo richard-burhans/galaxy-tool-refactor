@@ -9,9 +9,10 @@ can happen in Markdown, which — unlike RST — has faithful, source-mapped par
 deterministically-fixable docutils error classes, shipped as a **`GTR089.1` partition-fix** (the
 fixable `.1` half; GTR089 stays the advisory `.2` residual), mirroring GTR018/019/020. It repairs
 the corpus's deterministically-fixable invalid help *and any novel tool* exhibiting those classes.
-**RST→Markdown** is a strong *secondary* (75 % convert with no fix; the gateway to tractable help
-codemods) but is **behaviour-changing → opt-in/upgrade-style**, deferred. **Normalize is not
-recommended** (no canonical RST style; changes rendering; low value).
+**RST→Markdown** is a strong *secondary* (**72.2 % convert behaviour-equivalently** through a real
+converter + render-equivalence gate, R4 below; the gateway to tractable help codemods) but is
+**behaviour-changing → opt-in/upgrade-style**, deferred. **Normalize is not recommended** (no
+canonical RST style; changes rendering; low value).
 
 > **SHIPPED (2026-06-09).** `RepairHelpRst` (**GTR089.1**) is live in the default `format`
 > pipeline; the old `GTR089` advisory became the **GTR089.2** residual. A corpus `format` sweep
@@ -40,17 +41,30 @@ the Cheetah lexer was built to avoid. Both viable paths stay *surgical*: **the f
 source at the **line the docutils reporter names**; **the converter** transduces the doctree to a
 *different* format (Markdown), so it never needs an RST writer.
 
-**The Markdown target is pinned.** Galaxy renders `<help format="markdown">` client-side via
-`client/src/components/ObjectStore/configurationMarkdown.ts` → `markdown-it ^14` (`client/package.json`)
-with `MarkdownIt({ html: false }).render(...)` — the **"default" preset (CommonMark + GFM tables +
-strikethrough)**, no plugins, and **raw HTML disabled** (so a converter must emit pure markdown-it
-Markdown and must **not** fall back to raw HTML — it would render as escaped text).
+**The full rendering model (verified in the Galaxy clone).** The two help formats render on
+**opposite sides of the wire**:
+
+- **RST renders server-side**: `lib/galaxy/tools/__init__.py` (`if raw_help.format ==
+  "restructuredtext": render_help()`) → `galaxy.util.rst_to_html` = the docutils **html4css1**
+  writer with Galaxy's custom template (`docutils_template.txt`), `doctitle_xform=False`,
+  `embed_stylesheet=False`. The client component (`ToolHelpRst.vue`) just `v-html`s the
+  already-rendered HTML.
+- **Markdown renders client-side**: the raw content is sent as-is →
+  `ToolHelpMarkdown.vue` → `configurationMarkdown.ts` → `MarkdownIt({ html: false }).render(...)`
+  (`markdown-it ^14`, `client/package.json`) — the **"default" preset (CommonMark + GFM tables +
+  strikethrough)**, no plugins, and **raw HTML disabled** (so a converter must emit pure
+  markdown-it Markdown and must **not** fall back to raw HTML — it would render as escaped text).
+
+So an RST→Markdown conversion **swaps the rendering engine** (server docutils → client
+markdown-it), which is why it is behaviour-changing by construction and can only ever be
+**opt-in, never canonical** — and why the convert-time gate below renders *both* sides and
+demands semantic equality rather than trusting the transducer.
 
 ---
 
 ## The data (corpus, deduped; reproduced by the standing measures)
 
-All three are corpus-dependent (not run in CI), pinned by synthetic-fixture tests in
+All four are corpus-dependent (not run in CI), pinned by synthetic-fixture tests in
 `galaxy-tool-xml/tests/test_measure.py`.
 
 ### `help-rst-errors` — 7,348 RST `<help>` bodies (non-macro, deduped)
@@ -74,7 +88,7 @@ Blocking (non-CommonMark) features, by tools using them: **definition_list 800**
 **table 479**, **title_reference (the `` `x` `` default role) 358**, **field_list 254**, option_list
 118. These are real RST constructs with no markdown-it-default equivalent.
 
-### `help-rst-to-markdown` — RST→MD convertibility 2×2
+### `help-rst-to-markdown` — RST→MD convertibility 2×2 (node-type heuristic)
 
 | | MD-convertible shape | complex (non-CommonMark) |
 |---|---|---|
@@ -82,6 +96,38 @@ Blocking (non-CommonMark) features, by tools using them: **definition_list 800**
 | **invalid RST** | 84 (1.1 %) — fix-then-convert | 109 (1.5 %) |
 
 (`pandoc` is **not** on PATH; and pandoc's RST→MD dialect ≠ markdown-it anyway.)
+
+### `help-rst-md-convert` — the real converter + render-equivalence gate (R4)
+
+R3 above is a *shape heuristic* (are the node types CommonMark-expressible?). R4 answers the
+question that actually matters — *does a real conversion render the same?* — with two pieces:
+
+- **Converter**: a hand-rolled doctree → CommonMark transducer (whitelist visitor: sections →
+  ATX headings, paragraphs, emphasis/strong/literal, literal_block → fence, bullet/enum lists,
+  block_quote, transition, reference → link, image), **bailing on the first node outside the
+  whitelist** — never a lossy approximation.
+- **Gate**: render the original RST exactly as Galaxy's server does (docutils html4css1) and the
+  converted CommonMark exactly as Galaxy's client does (markdown-it-py's **"js-default"** preset,
+  `html:false` — faithful to JS `markdown-it ^14` default), reduce both renderings to a normalized
+  **semantic skeleton** (canonical tag names; `<tt>`→`<code>`; fenced `<pre><code>` → `<pre>`;
+  loose-vs-tight list `<p>` unwrapped; whitespace insignificant at block boundaries only), and
+  accept **iff the skeletons are equal**. Negative-controlled: corruptions (dropped/added word,
+  strong↔em, code→plain, dropped/reordered list item) are all rejected (pinned by
+  `test_gate_rejects_a_corrupted_conversion`).
+
+Across the corpus (7,348 deduped non-macro RST bodies):
+
+- **CONVERT + gate PASS: 5,307 (72.2 %)** — the true behaviour-equivalent convertible population.
+- converter BAIL: 1,783 (24.3 %) — genuine non-CommonMark features, led by definition_list 648,
+  table 321, title_reference 278, field_list 247, line_block 207, option_list 30.
+- gate FAIL: 258 (3.5 %) — converted but **not** render-equivalent (e.g. literal-whitespace
+  edges), correctly *not* counted convertible.
+
+So R3's 74.5 % shape heuristic was an honest proxy: ~2.3 points of it fail the real
+behaviour-equivalence test. **Headroom** (spike-side observation, not yet a standing
+measurement): a converter extension emitting GFM pipe tables for the simple-table subset and
+hard breaks for line blocks would lift the ceiling to roughly **~78–80 %**; definition and field
+lists are genuinely unmappable to the markdown-it default preset.
 
 ---
 
@@ -107,14 +153,21 @@ No canonical RST style exists, it changes rendered output, and the value is cosm
 
 ### (3) Convert valid RST → Markdown — **strong secondary, deferred (opt-in)**
 
-**74.5 % convert with no fix** — the gateway that makes *future* help codemods tractable (Markdown
-has source-mapped CommonMark parsers; the Cheetah-style surgical edit works there, not in RST). But it
-is **behaviour-changing** (server-side RST→HTML becomes client-side markdown-it render), so it is an
-**opt-in / `upgrade`-style** codemod that sets `format="markdown"`, **never canonical/auto**.
-Converter = a **hand-rolled doctree → CommonMark writer** (no faithful RST writer; pandoc absent),
-**bailing** on the 22.9 % complex (definition lists, tables, line blocks, field/option lists,
-interpreted-text roles) and on invalid RST. A **markdown-it-py** semantic-equivalence gate
-(render the MD, compare normalised HTML to docutils' RST→HTML) is the convert-time atomic bail.
+**72.2 % convert behaviour-equivalently** (R4 — a real converter + render-equivalence gate, not
+the shape heuristic) — the gateway that makes *future* help codemods tractable (Markdown has
+source-mapped CommonMark parsers; the Cheetah-style surgical edit works there, not in RST). But it
+is **behaviour-changing** (server-side docutils render becomes client-side markdown-it render —
+the verified model above), so it is an **opt-in / `upgrade`-style** codemod that sets
+`format="markdown"`, **never canonical/auto**. Converter = a **hand-rolled doctree → CommonMark
+writer** (no faithful RST writer; pandoc absent), **bailing** on the 24.3 % complex (definition
+lists, tables, line blocks, field/option lists, interpreted-text roles) and on invalid RST; the
+**markdown-it-py render-equivalence gate** (R4) is the convert-time atomic bail.
+
+> **Decision (2026-06-10): research formalized, converter still deferred.** The converter + gate
+> were promoted from a one-off spike into the standing `help-rst-md-convert` measure (pinned by
+> synthetic-fixture + negative-control tests), so the 72.2 % is reproducible on every corpus
+> refresh. Building the shipped conversion capability (a tier-1 `rst_to_markdown` + an opt-in
+> command/rule that sets `format="markdown"`) remains a **separate future decision**.
 
 *Note on the user's fix→convert→MD-codemod pipeline:* sound in spirit, but the data says the **convert
 step is the value** (5,474 already convertible); fixing first adds only **+84** to the convertible pool
@@ -137,6 +190,7 @@ chain.
 ```sh
 uv run python -m scripts.measure help-rst-errors        # R1: fixable error classes + sizing
 uv run python -m scripts.measure help-rst-features      # R2: RST node / blocking-feature inventory
-uv run python -m scripts.measure help-rst-to-markdown   # R3: convertibility 2x2
-uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_measure.py -k help_rst
+uv run python -m scripts.measure help-rst-to-markdown   # R3: convertibility 2x2 (shape heuristic)
+uv run python -m scripts.measure help-rst-md-convert    # R4: real converter + render-equivalence gate
+uv run --package galaxy-tool-xml pytest galaxy-tool-xml/tests/test_measure.py -k "help_rst or commonmark or gate"
 ```

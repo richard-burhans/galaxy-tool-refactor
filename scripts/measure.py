@@ -37,7 +37,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from lxml import etree
 from packaging.version import InvalidVersion, Version
@@ -6016,6 +6016,298 @@ def _run_help_rst_to_markdown(args: argparse.Namespace) -> None:
     )
 
 
+# --- measurement: help-rst-md-convert (R4) ----------------------------------------
+#
+# The REAL converter + semantic-equivalence gate behind R3's node-type heuristic:
+# convert each RST <help> doctree to CommonMark (whitelist visitor; bail on the first
+# non-CommonMark node), render BOTH sides — RST through docutils html4css1 (what
+# Galaxy's server-side galaxy.util.rst_to_html uses) and the CommonMark through
+# markdown-it-py's "js-default" preset with html:false (faithful to the client-side
+# `MarkdownIt({html:false}).render` of ToolHelpMarkdown.vue) — reduce each rendering
+# to a normalized semantic skeleton, and count a body convertible only when the two
+# skeletons are EQUAL (behaviour-preserving by construction). A conversion the gate
+# rejects is counted gate-FAIL: converted, but correctly NOT convertible.
+# Backs docs/upgrade_research/restructuredtext_codemods.md; needs markdown-it-py
+# (a galaxy-tool-xml dev dependency, like bashlex) + the corpus, so not run in CI
+# (the synthetic-fixture test is).
+
+# CommonMark structural ASCII punctuation, backslash-escaped in converted plain text.
+_CM_ESCAPE = re.compile(r"([\\`*_{}\[\]()#+\-.!>~|])")
+
+
+class _CmBail(Exception):
+    """Raised by the doctree visitor on the first non-CommonMark node type."""
+
+    def __init__(self, node_type: str) -> None:
+        super().__init__(node_type)
+        self.node_type = node_type
+
+
+def _cm_inline(node: Any) -> str:
+    """Render a docutils inline node as CommonMark, or raise ``_CmBail``."""
+    name = type(node).__name__
+    if name == "Text":
+        return _CM_ESCAPE.sub(r"\\\1", node.astext())
+    if name == "emphasis":
+        return "*" + "".join(_cm_inline(c) for c in node.children) + "*"
+    if name == "strong":
+        return "**" + "".join(_cm_inline(c) for c in node.children) + "**"
+    if name == "literal":
+        return "`" + node.astext() + "`"
+    if name == "reference":
+        uri = node.get("refuri")
+        label = "".join(_cm_inline(c) for c in node.children)
+        return f"[{label}]({uri})" if uri else label
+    if name == "image":
+        return f"![{node.get('alt') or ''}]({node.get('uri') or ''})"
+    if name == "problematic":
+        return node.astext()
+    if name == "target":
+        return "".join(_cm_inline(c) for c in node.children)
+    raise _CmBail(name)
+
+
+def _cm_block(node: Any, out: list[str], depth: int) -> None:
+    """Render a docutils block node into *out* as CommonMark, or raise ``_CmBail``."""
+    name = type(node).__name__
+    if name == "document":
+        for child in node.children:
+            _cm_block(child, out, depth)
+    elif name == "section":
+        for child in node.children:
+            _cm_block(child, out, depth + 1)
+    elif name == "title":
+        level = min(max(depth, 1), 6)
+        out.append("#" * level + " " + "".join(_cm_inline(c) for c in node.children))
+    elif name == "paragraph":
+        out.append("".join(_cm_inline(c) for c in node.children))
+    elif name == "literal_block":
+        out.append("```\n" + node.astext() + "\n```")
+    elif name == "bullet_list":
+        for item in node.children:
+            _cm_list_item(item, out, "- ")
+    elif name == "enumerated_list":
+        for i, item in enumerate(node.children, 1):
+            _cm_list_item(item, out, f"{i}. ")
+    elif name == "block_quote":
+        inner: list[str] = []
+        for child in node.children:
+            _cm_block(child, inner, depth)
+        out.append("\n".join("> " + ln for ln in "\n\n".join(inner).split("\n")))
+    elif name == "transition":
+        out.append("---")
+    elif name == "image":
+        out.append(f"![{node.get('alt') or ''}]({node.get('uri') or ''})")
+    elif name in ("comment", "target", "system_message"):
+        return  # invisible in the rendering
+    else:
+        raise _CmBail(name)
+
+
+def _cm_list_item(item: Any, out: list[str], marker: str) -> None:
+    inner: list[str] = []
+    for child in item.children:
+        _cm_block(child, inner, 0)
+    lines = "\n\n".join(inner).split("\n")
+    pad = " " * len(marker)
+    rendered = marker + (lines[0] if lines else "")
+    for line in lines[1:]:
+        rendered += "\n" + (pad + line if line else "")
+    out.append(rendered)
+
+
+def _rst_to_commonmark(text: str) -> tuple[str | None, str | None]:
+    """Convert RST to CommonMark; ``(markdown, None)`` or ``(None, bail_class)``."""
+    doctree = _rst_doctree(text)
+    if doctree is None:
+        return None, "parse-fail"
+    out: list[str] = []
+    try:
+        _cm_block(doctree, out, 0)
+    except _CmBail as bail:
+        return None, bail.node_type
+    return "\n\n".join(out) + "\n", None
+
+
+def _rst_html_body(text: str) -> str:
+    """Render RST the way Galaxy's server does: docutils html4css1 body."""
+    import contextlib
+    import io
+
+    import docutils.core
+    import docutils.writers.html4css1
+
+    overrides = {
+        "doctitle_xform": False,
+        "halt_level": 6,
+        "report_level": 6,
+        "output_encoding": "unicode",
+        "warning_stream": io.StringIO(),
+        "embed_stylesheet": False,
+    }
+    with contextlib.redirect_stderr(io.StringIO()):
+        parts = docutils.core.publish_parts(
+            text,
+            writer=docutils.writers.html4css1.Writer(),
+            settings_overrides=overrides,
+        )
+    return parts["body"]
+
+
+def _md_html(text: str) -> str:
+    """Render CommonMark the way Galaxy's client does: markdown-it, html:false."""
+    from markdown_it import MarkdownIt
+
+    return MarkdownIt("js-default", {"html": False}).render(text)
+
+
+# Canonical tag map for the semantic skeleton: collapse the docutils-vs-markdown-it
+# HTML spelling differences (<tt> vs <code>, <h1..6>, <ul>/<ol>) to shared names.
+_SKEL_TAG_CANON = {
+    "tt": "code", "code": "code", "pre": "pre",
+    "em": "em", "i": "em", "strong": "strong", "b": "strong",
+    "h1": "h", "h2": "h", "h3": "h", "h4": "h", "h5": "h", "h6": "h",
+    "ul": "list", "ol": "list", "li": "li",
+    "p": "p", "blockquote": "quote", "a": "a", "img": "img", "hr": "hr",
+    "table": "table", "thead": "_", "tbody": "_",
+    "tr": "tr", "th": "cell", "td": "cell",
+}
+# Structural wrappers both renderers emit freely: unwrap, keep children.
+_SKEL_UNWRAP = frozenset({"div", "span", "body", "html", "document", "root"})
+_SKEL_BLOCK_WS = re.compile(r"\s*(</?(?:p|pre|list|li|quote|h|hr|table|tr|cell|_)>)\s*")
+
+
+def _html_skeleton(html_text: str) -> str | None:
+    """Reduce rendered HTML to a normalized semantic skeleton string."""
+    from lxml import html as lxml_html
+
+    try:
+        frag = lxml_html.fragment_fromstring(html_text, create_parent="root")
+    except etree.ParserError:
+        return None
+    # A sole <p> inside a list item / cell / blockquote is loose-vs-tight spacing
+    # only (markdown-it wraps loose-list items in <p>; docutils "simple" lists
+    # don't) — unwrap it so the comparison is content-level.
+    for p in frag.iter("p"):
+        parent = p.getparent()
+        if parent is not None and parent.tag in ("li", "td", "th", "dd", "blockquote"):
+            p.drop_tag()
+    # docutils literal block = <pre>…</pre>; markdown-it fenced = <pre><code>…</code>.
+    # Unwrap the inner <code> so both reduce to <pre>.
+    for code in frag.iter("code"):
+        parent = code.getparent()
+        if parent is not None and parent.tag == "pre":
+            code.drop_tag()
+    parts: list[str] = []
+    _skel_walk(frag, parts)
+    skeleton = re.sub(r"\s+", " ", "".join(parts)).strip()
+    # Whitespace adjacent to a BLOCK tag is insignificant (tight-vs-loose layout);
+    # whitespace around INLINE tags (em/strong/code/a) is kept — it is content.
+    return _SKEL_BLOCK_WS.sub(r"\1", skeleton)
+
+
+def _skel_walk(el: Any, parts: list[str]) -> None:
+    tag = el.tag if isinstance(el.tag, str) else None
+    if tag is None:  # comment / processing instruction
+        return
+    if tag in _SKEL_UNWRAP:
+        _skel_text(el.text, parts)
+        for child in el:
+            _skel_walk(child, parts)
+            _skel_text(child.tail, parts)
+        return
+    canon = _SKEL_TAG_CANON.get(tag, tag)  # unknown -> keep raw so a mismatch shows
+    if canon == "_":  # thead/tbody: transparent
+        _skel_text(el.text, parts)
+        for child in el:
+            _skel_walk(child, parts)
+            _skel_text(child.tail, parts)
+        return
+    if canon == "a":
+        parts.append(f"<a:{(el.get('href') or '').strip()}>")
+    elif canon == "img":
+        parts.append(f"<img:{(el.get('src') or '').strip()}>")
+        return
+    else:
+        parts.append(f"<{canon}>")
+    _skel_text(el.text, parts)
+    for child in el:
+        _skel_walk(child, parts)
+        _skel_text(child.tail, parts)
+    parts.append(f"</{canon}>")
+
+
+def _skel_text(text: str | None, parts: list[str]) -> None:
+    if text and text.strip():
+        parts.append(text)
+
+
+def _gate_passes(rst_text: str, cm_text: str) -> bool:
+    """True iff the CommonMark renders to the same semantic skeleton as the RST."""
+    try:
+        rst_skeleton = _html_skeleton(_rst_html_body(rst_text))
+        md_skeleton = _html_skeleton(_md_html(cm_text))
+    except Exception:  # docutils/markdown-it render crash -> not provably equivalent
+        return False
+    return rst_skeleton is not None and rst_skeleton == md_skeleton
+
+
+@dataclass
+class _HelpRstMdConvertResult:
+    """Converter + render-equivalence-gate verdicts across corpus RST ``<help>``."""
+
+    n_rst_tools: int
+    n_pass: int  # converted AND render-equivalent: the true convertible population
+    n_bail: int  # converter bail (incl. docutils parse failure)
+    n_gate_fail: int  # converted but NOT render-equivalent -> correctly skipped
+    bail_classes: list[tuple[str, int]]  # first-unhandled node type -> bodies
+
+
+def _measure_help_rst_md_convert(*, corpus_root: Path) -> _HelpRstMdConvertResult:
+    """Convert + gate every corpus RST ``<help>`` body; tally the verdicts."""
+    n = n_pass = n_bail = n_gate_fail = 0
+    bail_classes: Counter[str] = Counter()
+    for _tool_id, text in _iter_corpus_rst_help(corpus_root):
+        n += 1
+        commonmark, bail_class = _rst_to_commonmark(text)
+        if commonmark is None:
+            n_bail += 1
+            bail_classes[bail_class or "?"] += 1
+        elif _gate_passes(text, commonmark):
+            n_pass += 1
+        else:
+            n_gate_fail += 1
+    return _HelpRstMdConvertResult(
+        n_rst_tools=n,
+        n_pass=n_pass,
+        n_bail=n_bail,
+        n_gate_fail=n_gate_fail,
+        bail_classes=bail_classes.most_common(),
+    )
+
+
+def _report_help_rst_md_convert(m: _HelpRstMdConvertResult) -> None:
+    total = m.n_rst_tools or 1
+    print("\n=== help-rst-md-convert ===")
+    print(f"RST <help> bodies (deduped, non-macro):  {m.n_rst_tools}")
+    print(f"  CONVERT + gate PASS: {m.n_pass:5d} ({m.n_pass / total * 100:.1f}%)"
+          "  <- true behaviour-equivalent convertible population")
+    print(f"  converter BAIL     : {m.n_bail:5d} ({m.n_bail / total * 100:.1f}%)"
+          "  <- genuine non-CommonMark feature (or parse-fail)")
+    print(f"  gate FAIL          : {m.n_gate_fail:5d} "
+          f"({m.n_gate_fail / total * 100:.1f}%)"
+          "  <- converted but not render-equivalent: correctly skipped")
+    print("  bail by first-unhandled node type (top 15):")
+    for node_type, count in m.bail_classes[:15]:
+        print(f"    {count:5d}  {node_type}")
+
+
+def _run_help_rst_md_convert(args: argparse.Namespace) -> None:
+    _report_help_rst_md_convert(
+        _measure_help_rst_md_convert(corpus_root=args.corpus_root)
+    )
+
+
 # --- measurement: macro-format-residual -----------------------------------------
 #
 # Sizes the population the imported-macro `format`/`ftype` normalization pass
@@ -6508,6 +6800,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "help-rst-errors": _run_help_rst_errors,
     "help-rst-features": _run_help_rst_features,
     "help-rst-to-markdown": _run_help_rst_to_markdown,
+    "help-rst-md-convert": _run_help_rst_md_convert,
     "macro-format-residual": _run_macro_format_residual,
     "macro-token-datatype-residual": _run_macro_token_residual,
 }

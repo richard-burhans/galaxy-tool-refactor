@@ -44,6 +44,11 @@ galaxy-tool-xml = "galaxy_tool_xml.cli:main"
 # bashlex: the shell-oracle extra, in dev so its tests run in CI.
 # (CT3 for the faithful lexer is now a base dependency — galaxy-util[template] above —
 # so it no longer needs a dev entry.)
+# markdown-it-py: the RST->CommonMark gate proxy for `scripts.measure
+# help-rst-md-convert` (its "js-default" preset mirrors the client-side
+# MarkdownIt({html:false}) Galaxy renders markdown <help> with); dev so the
+# measure's synthetic-fixture test runs in CI. NOT a library dependency — the
+# converter itself is research-only (no shipped RST->MD codemod).
 dev = [
     "xsdata[cli]>=26.2",
     "pytest>=8",
@@ -51,6 +56,7 @@ dev = [
     "mypy",
     "mercurial>=6",
     "bashlex>=0.18",
+    "markdown-it-py>=4",
 ]
 
 [build-system]
