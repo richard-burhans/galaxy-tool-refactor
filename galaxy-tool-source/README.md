@@ -18,6 +18,14 @@ only the foundation — no rules, no formatter, no serializer:
 
 ## Install
 
+From [PyPI](https://pypi.org/project/galaxy-tool-source/):
+
+```sh
+pip install galaxy-tool-source
+```
+
+For development, from the workspace root:
+
 ```sh
 uv sync
 ```

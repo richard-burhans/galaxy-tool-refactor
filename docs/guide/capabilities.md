@@ -126,9 +126,10 @@ that XML** through one rule set, reachable three ways — as a Python **library*
   today (`check`/`format`/`upgrade`); the *review-workflow integration* does not.
 - **Agent-authored rules** — agents contributing new codemods/checks (MCP vision Goal 2).
 - **Editor "Rename Symbol" + "Find References" via `galaxy-language-server`** — the
-  foundational Tier-B offset API (`rename_param_plan`) shipped; the galaxyls binding is an
-  **open PR** (galaxyproject/galaxy-language-server#331, not draft, CI-green; cross-file
-  across imported macros), gated only on publishing `galaxy-tool-source` to PyPI.
+  foundational Tier-B offset API (`rename_param_plan`) shipped and `galaxy-tool-source`
+  is [on PyPI](https://pypi.org/project/galaxy-tool-source/); the galaxyls binding is an
+  **open PR** (galaxyproject/galaxy-language-server#331, CI-green against the PyPI
+  release; cross-file across imported macros), awaiting maintainer review.
 - **General macro-expansion provenance** — a side-table mapping each expanded node to its
   source file, to edit *arbitrary* macro-supplied content. The literal-`format`/`ftype`
   slice (Phase 2a) shipped via locate-in-source (`normalize-macros`); the general layer is
