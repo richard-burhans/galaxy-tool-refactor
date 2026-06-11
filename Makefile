@@ -4,7 +4,8 @@
 # same logic. Run `make` (or `make help`) to list everything.
 
 .DEFAULT_GOAL := help
-.PHONY: help sync hooks qa-gate ship-pr bump fetch-corpus corpus-stats parity
+.PHONY: help sync hooks qa-gate ship-pr bump fetch-corpus corpus-stats parity \
+        blog-new blog-check
 
 help: ## List the available workflows
 	@echo "galaxy-tool-refactor — workflows (see docs/workflows.md):"
@@ -39,3 +40,13 @@ corpus-stats: ## Regenerate the corpus stat pages (needs a complete corpus)
 
 parity: ## Regenerate the planemo coverage table (docs/planemo_linter_parity.md)
 	uv run python -m scripts.gen_planemo_parity
+
+blog-new: ## Scaffold a Galaxy blog post — usage: make blog-new TITLE="..." AUTHOR=handle [TAGS=a,b]
+	@test -n "$(TITLE)" && test -n "$(AUTHOR)" || \
+	    { echo 'usage: make blog-new TITLE="..." AUTHOR=<handle> [TAGS=a,b] [HUB=path]'; exit 1; }
+	uv run python -m scripts.galaxy_blog new --title "$(TITLE)" --author "$(AUTHOR)" \
+	    $(if $(TAGS),--tags $(TAGS)) $(if $(HUB),--hub-dir $(HUB))
+
+blog-check: ## Lint a drafted Galaxy blog post — usage: make blog-check POST=<post-dir>
+	@test -n "$(POST)" || { echo "usage: make blog-check POST=<post-dir>"; exit 1; }
+	uv run python -m scripts.galaxy_blog check "$(POST)"

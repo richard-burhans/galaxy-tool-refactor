@@ -23,7 +23,8 @@ galaxy-tool-refactor/
 │   ├── measure.py              ad-hoc corpus queries
 │   ├── regenerate.py           regenerate per-version xsdata models
 │   ├── gen_planemo_parity.py   regenerate the GTR coverage table (docs/planemo_linter_parity.md)
-│   └── bump_version.py         set the lockstep version across all 9 packages
+│   ├── bump_version.py         set the lockstep version across all 9 packages
+│   └── galaxy_blog.py          scaffold/lint a Galaxy Hub news/blog post
 ├── docs/
 │   └── corpus_data/            per-tool JSON/TSV from corpus sweeps
 ├── corpus_sources.json       list of GitHub repos to clone (committed seed list)
