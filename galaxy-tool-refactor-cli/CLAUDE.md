@@ -22,7 +22,7 @@ Rule orchestration lives in the tier-3.6 **registry facade**
 (`galaxy-tool-refactor-registry`); this package depends on it (plus fmt's
 `cli_support` engine and tier-1 parsing) and does CLI plumbing only — it no
 longer imports the codemod / check tiers directly. It exposes the
-`galaxy-tool-refactor` CLI with nine subcommands:
+`galaxy-tool-refactor` CLI with ten subcommands:
 
 - `format` — apply a ruleset's fixable rules then cosmetic formatting. The default
   ruleset = `canonical_codemods()` (repair + attribute / element order + the
@@ -67,6 +67,12 @@ longer imports the codemod / check tiers directly. It exposes the
   one named (a shared macro file affects every importer), so it is a deliberate,
   separate command — never part of `format`/`upgrade` (cli §D7;
   `galaxy-tool-codemod/docs/macro-aware-normalization.md`).
+- `tokenize-version` — opt-in: factor a literal `version="<base>+galaxy<suffix>"`
+  into `@TOOL_VERSION@`/`@VERSION_SUFFIX@` tokens shared with the matching package
+  requirement, kept only when the expansion-equality gate proves the macro
+  expansion byte-identical. A multi-element style restructure (and `--macros-file` /
+  `--adopt-suffix` variants), so never part of `format`/`upgrade` (cli §D13–§D15;
+  codemod §43; registry D19–D20).
 
 Macro handling is **cosmetic-only and bundle-free for `format`/`check`** (macro
 files are formatted/checked standalone as encountered — cosmetic formatting is safe
