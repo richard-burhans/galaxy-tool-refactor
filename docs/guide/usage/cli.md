@@ -44,6 +44,8 @@ tokenize-version Factor a literal version into @TOOL_VERSION@/@VERSION_SUFFIX@
                  (opt-in; kept only when the macro expansion is provably unchanged).
                  --macros-file NAME puts the tokens in a macros file the tool imports
                  (created, or merged/shared when provably inert) instead of inline.
+                 --adopt-suffix (identity-changing) adds +galaxy0 to a bare version
+                 matching a requirement, then tokenizes (1.20 -> 1.20+galaxy0).
 convert-help     Convert an RST <help> to Markdown (format="markdown") when provably
                  render-equivalent and the profile is >= 24.2 (run upgrade first below it);
                  anything unprovable is skipped with the reason (opt-in; never part of

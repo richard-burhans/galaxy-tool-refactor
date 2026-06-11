@@ -19,6 +19,8 @@ from galaxy_tool_source.binding import parse_tool
 from galaxy_tool_source.macros import expand_from_tree, token_definitions
 from galaxy_tool_source.version_tokens import (
     VersionTokenPlan,
+    adopt_suffix_equality_holds,
+    adopt_suffix_skip_reason,
     build_version_macros_root,
     tokenization_skip_reason,
     tokenize_tree,
@@ -281,6 +283,46 @@ def test_build_version_macros_root_holds_both_tokens() -> None:
     assert macros.tag == "macros"
     pairs = {(token.get("name"), token.text) for token in macros.findall("token")}
     assert pairs == {("@TOOL_VERSION@", "1.20"), ("@VERSION_SUFFIX@", "3")}
+
+
+_BARE_TOOL = """\
+<tool id="x" name="X" version="1.20" profile="22.05">
+    <requirements>
+        <requirement type="package" version="1.20">samtools</requirement>
+    </requirements>
+    <command><![CDATA[samtools --version]]></command>
+</tool>
+"""
+
+
+def test_adopt_suffix_applies_to_bare_version_matching_requirement() -> None:
+    document = parse_tool(_BARE_TOOL.encode("utf-8")).document
+    assert adopt_suffix_skip_reason(document) is None
+    assert adopt_suffix_equality_holds(document, base="1.20") is True
+
+
+def test_adopt_suffix_skips_already_galaxy_suffixed() -> None:
+    document = parse_tool(_INLINE_TOOL.encode("utf-8")).document  # 1.20+galaxy0
+    assert adopt_suffix_skip_reason(document) is not None
+
+
+def test_adopt_suffix_skips_when_no_requirement_matches() -> None:
+    tool = _BARE_TOOL.replace('version="1.20">samtools', 'version="9.9">samtools')
+    document = parse_tool(tool.encode("utf-8")).document
+    reason = adopt_suffix_skip_reason(document)
+    assert reason is not None and "requirement" in reason
+
+
+def test_adopt_suffix_tree_changes_only_the_version() -> None:
+    # The controlled-change gate proves expansion differs only in the version; applying
+    # the tree mutation yields exactly that.
+    root = parse_tool(_BARE_TOOL.encode("utf-8")).document.root
+    tokenize_tree(root, base="1.20", suffix="0")
+    assert root.get("version") == "@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"
+    requirement = root.find("requirements/requirement")
+    assert requirement is not None and requirement.get("version") == "@TOOL_VERSION@"
+    names = {token.get("name") for token in root.find("macros").findall("token")}
+    assert names == {"@TOOL_VERSION@", "@VERSION_SUFFIX@"}
 
 
 def test_plan_apply_is_pure() -> None:

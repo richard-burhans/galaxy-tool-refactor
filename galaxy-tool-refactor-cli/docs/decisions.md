@@ -446,3 +446,26 @@ under `--backup`, a newly created one is not). The name must be a plain filename
 the directory). Per the construction-soundness-over-corpus principle the mode ships
 for novel tool suites even though the corpus payoff is tiny
 (`scripts.measure version-token-sharing`).
+
+## D15 (2026-06-11): `tokenize-version --adopt-suffix` (identity-changing authoring)
+
+`--adopt-suffix` is the opt-in, **identity-changing** sibling of `tokenize-version`:
+for a tool whose *bare* version (no `+galaxy`) equals a package `<requirement>`, it
+*adds* `+galaxy0` and tokenizes, so `version="1.20"` becomes
+`@TOOL_VERSION@+galaxy@VERSION_SUFFIX@` expanding to `1.20+galaxy0`. The published
+version changes, so unlike plain `tokenize-version` it is **not** behaviour-preserving
+and cannot use the expansion-equality gate. It is gated instead on the tier-1
+**controlled-change gate** (`adopt_suffix_equality_holds`): the macro expansion must
+differ *solely* in the root `version` attribute (`base` → `base+galaxy0`), proving the
+only effect is the intended version-identity bump and nothing leaked elsewhere.
+
+It is a flag on `tokenize-version` (not a separate command) sharing the tokenization
+machinery, but the CLI **bifurcates** to its own loop (`_run_adopt_suffix` via
+`facade.adopt_version_suffix`), reports each applied tool loudly ("published version
+changed"), and is **mutually exclusive with `--macros-file`** (inline only; rejected
+with an error if both are given). Never in `format`/`upgrade`; not exposed over MCP
+(agents should not silently bump a tool's published version). The bare-version
+population is sized by `scripts.measure version-tokenization`
+(`n_version_equals_req_no_suffix`, ~284 tools). Tier-1 `version_tokens`
+(`adopt_suffix_skip_reason` + `adopt_suffix_equality_holds`); facade
+`adopt_version_suffix`.

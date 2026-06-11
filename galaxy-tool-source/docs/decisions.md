@@ -1376,3 +1376,19 @@ block, where inline placement is the natural choice.
 Phase 1 of `~/.claude/plans/version-token-macros.md` (the offset-planner foundation);
 the CLI `--macros-file` wiring and the galaxyls Code Action follow, the latter with a
 committed CLI-vs-plan parity test (mirroring `rename_param` vs `rename_param_plan`).
+
+## 30. Adopt-suffix: the controlled-change gate (`version_tokens`, 2026-06-11)
+
+`adopt_suffix_skip_reason` / `adopt_suffix_equality_holds` back the opt-in,
+identity-changing `tokenize-version --adopt-suffix` (cli §D15): a tool whose *bare*
+version equals a package `<requirement>` gets `+galaxy0` added and is tokenized. Unlike
+plain tokenization this *changes* the published version, so the expansion-equality gate
+(§29) does not apply. Instead `adopt_suffix_equality_holds` is a **controlled-change
+gate**: it expands the original and the adopted tree, sets the original expansion's root
+`version` to `base+galaxy0`, and requires byte-equality. This proves by execution that
+the only effect is the intended version bump (no requirement that should not have moved,
+no token leaking elsewhere); anything else fails closed. The mutation reuses
+`tokenize_tree(base=version, suffix="0")` (the adopted state is just a tokenized
+`base+galaxy0` tool); only the precondition (bare version, no `+`/`@`, equal to a
+package requirement) and the gate differ. Inline only; the bare-version population is
+sized by `scripts.measure version-tokenization` (`n_version_equals_req_no_suffix`).

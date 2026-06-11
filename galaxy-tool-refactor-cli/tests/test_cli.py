@@ -905,6 +905,49 @@ def test_tokenize_version_macros_file_merges_existing(tmp_path: Path) -> None:
     assert b"<import>macros.xml</import>" in tool.read_bytes()
 
 
+_BARE_VERSION_TOOL = (
+    b'<tool id="m" name="M" version="1.20" profile="24.0">'
+    b"<command><![CDATA[echo x]]></command>"
+    b'<requirements><requirement type="package" version="1.20">samtools'
+    b"</requirement></requirements>"
+    b'<inputs><param name="i" type="text"/></inputs>'
+    b'<outputs><data name="o"/></outputs></tool>'
+)
+
+
+def test_tokenize_version_adopt_suffix(tmp_path: Path) -> None:
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(_BARE_VERSION_TOOL)
+    result = CliRunner().invoke(main, ["tokenize-version", "--adopt-suffix", str(tool)])
+    assert result.exit_code == 0, result.output
+    assert "adopted" in result.output and "published version changed" in result.output
+    written = tool.read_bytes()
+    assert b'version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"' in written
+    assert b'<token name="@VERSION_SUFFIX@">0</token>' in written
+
+
+def test_tokenize_version_adopt_suffix_check_writes_nothing(tmp_path: Path) -> None:
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(_BARE_VERSION_TOOL)
+    result = CliRunner().invoke(
+        main, ["tokenize-version", "--adopt-suffix", "--check", str(tool)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "would adopt" in result.output
+    assert tool.read_bytes() == _BARE_VERSION_TOOL
+
+
+def test_tokenize_version_adopt_suffix_rejects_macros_file(tmp_path: Path) -> None:
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(_BARE_VERSION_TOOL)
+    result = CliRunner().invoke(
+        main,
+        ["tokenize-version", "--adopt-suffix", "--macros-file", "m.xml", str(tool)],
+    )
+    assert result.exit_code == 1
+    assert "cannot be combined" in result.output
+
+
 def test_tokenize_version_macros_file_consensus(tmp_path: Path) -> None:
     # Two tools sharing the same version in one directory tokenize together into one
     # created macros.xml.

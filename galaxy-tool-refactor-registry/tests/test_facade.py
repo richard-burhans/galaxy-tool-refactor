@@ -519,6 +519,46 @@ def test_tokenize_version_macros_file_rejects_unsafe_name(tmp_path: Path) -> Non
     assert result.skip_reason is not None and "plain filename" in result.skip_reason
 
 
+_BARE_VERSION = (
+    b'<tool id="m" name="M" version="1.20" profile="24.0">'
+    b"<command><![CDATA[echo x]]></command>"
+    b'<requirements><requirement type="package" version="1.20">samtools'
+    b"</requirement></requirements>"
+    b'<inputs><param name="i" type="text"/></inputs>'
+    b'<outputs><data name="o"/></outputs></tool>'
+)
+
+
+def test_adopt_version_suffix_adds_galaxy0_and_tokenizes() -> None:
+    result = facade.adopt_version_suffix(_BARE_VERSION)
+    assert result.tokenized is True and result.skip_reason is None
+    assert b'version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"' in result.formatted
+    assert b'<token name="@TOOL_VERSION@">1.20</token>' in result.formatted
+    assert b'<token name="@VERSION_SUFFIX@">0</token>' in result.formatted
+    assert b'<requirement type="package" version="@TOOL_VERSION@">' in result.formatted
+
+
+def test_adopt_version_suffix_skips_already_suffixed() -> None:
+    result = facade.adopt_version_suffix(_TOKENIZABLE)  # 1.20+galaxy0
+    assert result.tokenized is False
+    assert result.skip_reason is not None
+
+
+def test_adopt_version_suffix_skips_without_matching_requirement() -> None:
+    plain = _BARE_VERSION.replace(b'version="1.20">samtools', b'version="9.9">samtools')
+    result = facade.adopt_version_suffix(plain)
+    assert result.tokenized is False
+    assert result.skip_reason is not None and "requirement" in result.skip_reason
+
+
+def test_adopt_version_suffix_writes_when_path_given(tmp_path: Path) -> None:
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(_BARE_VERSION)
+    result = facade.adopt_version_suffix(tool, write_path=tool)
+    assert result.tokenized is True
+    assert b'version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"' in tool.read_bytes()
+
+
 def test_tokenize_version_shared_consensus_writes_group(tmp_path: Path) -> None:
     a = tmp_path / "a.xml"
     b = tmp_path / "b.xml"

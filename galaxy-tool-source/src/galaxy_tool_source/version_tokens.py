@@ -163,17 +163,25 @@ def tokenize_tree(
         append_version_tokens(macros, base=base, suffix=suffix)
 
 
-def _expansion_bytes(
+def _expanded_root(
     root: etree._Element, *, source_dir: Path | None
-) -> bytes | None:
-    """Canonical bytes of *root*'s macro expansion (macros block dropped), or None."""
+) -> etree._Element | None:
+    """*root*'s macro expansion with every ``<macros>`` block dropped, or None."""
     expanded, errors = expand_from_tree(copy.deepcopy(root), source_dir=source_dir)
     if expanded is None or errors:
         return None
     expanded_root = expanded.getroot()
     for macros in expanded_root.findall("macros"):
         expanded_root.remove(macros)
-    return bytes(etree.tostring(expanded_root))
+    return expanded_root
+
+
+def _expansion_bytes(
+    root: etree._Element, *, source_dir: Path | None
+) -> bytes | None:
+    """Canonical bytes of *root*'s macro expansion (macros block dropped), or None."""
+    expanded_root = _expanded_root(root, source_dir=source_dir)
+    return None if expanded_root is None else bytes(etree.tostring(expanded_root))
 
 
 def expansion_equality_holds(
@@ -189,6 +197,77 @@ def expansion_equality_holds(
     tokenize_tree(trial, base=base, suffix=suffix)
     after = _expansion_bytes(trial, source_dir=source_dir)
     return after is not None and after == before
+
+
+# --------------------------------------------------------------------------- #
+# Adopt-suffix: the opt-in, identity-changing authoring action                 #
+# --------------------------------------------------------------------------- #
+
+
+def adopt_suffix_skip_reason(document: ToolDocument, /) -> str | None:
+    """Why ``--adopt-suffix`` would skip *document*, or ``None`` when it applies.
+
+    Unlike ``tokenization_skip_reason`` (which requires a literal
+    ``<base>+galaxy<suffix>``), this targets a tool whose **bare** ``version`` equals a
+    package ``<requirement>`` but does not yet carry the IUC ``+galaxy`` revision
+    suffix. Adopting it *adds* ``+galaxy0`` and tokenizes, which changes the published
+    version, so this is an authoring action, never a behaviour-preserving fix.
+    """
+    root = document.root
+    version = root.get("version")
+    if version is None:
+        return "no version= attribute to adopt a suffix for"
+    if "+" in version or "@" in version:
+        return (
+            "version is not a bare version (already has a +local segment or a token); "
+            "plain tokenize-version handles the +galaxy case"
+        )
+    if not any(
+        requirement.get("version") == version
+        for requirement in package_requirements(root)
+    ):
+        return (
+            f"no package <requirement> pins version {version!r}; @TOOL_VERSION@ would "
+            "not name the wrapped tool's version"
+        )
+    macros = root.find("macros")
+    if (
+        macros is not None
+        and macros.find("import") is not None
+        and document.source_path is None
+    ):
+        return (
+            "<macros> imports files but the tool was parsed from bytes, so the "
+            "controlled-change gate cannot resolve imports (fail closed)"
+        )
+    defined = {definition.name for definition in token_definitions(document)}
+    clashes = sorted(set(_TOKEN_NAMES) & defined)
+    if clashes:
+        return f"token(s) already defined: {', '.join(clashes)}"
+    return None
+
+
+def adopt_suffix_equality_holds(document: ToolDocument, *, base: str) -> bool:
+    """The controlled-change gate: adopting ``+galaxy0`` changes *only* the version.
+
+    Proves by execution that tokenizing the bare ``base`` (to ``base+galaxy0``) leaves
+    the macro expansion byte-identical to the original *except* the root ``version``
+    attribute, which gains ``+galaxy0``. Any other divergence (a requirement that should
+    not have moved, a token leaking elsewhere) fails the gate, so the only effect is the
+    intended version-identity bump.
+    """
+    source_path = document.source_path
+    source_dir = source_path.parent if source_path is not None else None
+    before = _expanded_root(document.root, source_dir=source_dir)
+    if before is None:
+        return False
+    trial = copy.deepcopy(document.root)
+    tokenize_tree(trial, base=base, suffix="0")
+    after = _expanded_root(trial, source_dir=source_dir)
+    if after is None:
+        return False
+    before.set("version", f"{base}+galaxy0")  # the one intended change
+    return bytes(etree.tostring(before)) == bytes(etree.tostring(after))
 
 
 # --------------------------------------------------------------------------- #
