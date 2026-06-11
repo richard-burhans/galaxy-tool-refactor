@@ -1,6 +1,6 @@
 [project]
 name = "galaxy-tool-refactor-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "MCP server exposing the Galaxy tool refactoring facade to AI agents."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -10,9 +10,9 @@ authors = [{ name = "Richard Burhans" }]
 # server is a thin protocol adapter — `service.py` (facade -> JSON, no `mcp`
 # import) carries the logic; `server.py` binds it to FastMCP.
 dependencies = [
-    "galaxy-tool-refactor-rules",
-    "galaxy-tool-refactor-registry",
-    "galaxy-tool-source",
+    "galaxy-tool-refactor-rules==0.2.0",
+    "galaxy-tool-refactor-registry==0.2.0",
+    "galaxy-tool-source==0.2.0",
     "mcp>=1.2",
 ]
 

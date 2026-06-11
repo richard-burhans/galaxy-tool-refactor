@@ -1,6 +1,6 @@
 [project]
 name = "galaxy-tool-refactor-registry"
-version = "0.0.1"
+version = "0.2.0"
 description = "Unified, code-addressable rule registry + named presets for the Galaxy tool refactoring tiers — tier 3.6, a library-first facade the CLI (and a future MCP server) compose."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,11 +12,11 @@ authors = [{ name = "Richard Burhans" }]
 # only orchestration layer below the app CLI, and serialises XML solely through
 # fmt (preserving "fmt is the only serializer").
 dependencies = [
-    "galaxy-tool-refactor-rules",
-    "galaxy-tool-source",
-    "galaxy-tool-codemod",
-    "galaxy-tool-fmt",
-    "galaxy-tool-lint",
+    "galaxy-tool-refactor-rules==0.2.0",
+    "galaxy-tool-source==0.2.0",
+    "galaxy-tool-codemod==0.2.0",
+    "galaxy-tool-fmt==0.2.0",
+    "galaxy-tool-lint==0.2.0",
 ]
 
 [build-system]
