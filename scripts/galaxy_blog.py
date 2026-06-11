@@ -156,6 +156,91 @@ def _hub_root(post_path: Path, /) -> Path | None:
     return None
 
 
+def _yaml_sequence_items(path: Path, /) -> set[str]:
+    """Items in a flat YAML sequence file (lines like ``- ai``); empty if absent."""
+    if not path.is_file():
+        return set()
+    items: set[str] = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            items.add(stripped[2:].strip().strip("\"'"))
+    return items
+
+
+def _yaml_top_level_keys(path: Path, /) -> set[str]:
+    """Top-level mapping keys in a YAML file (e.g. CONTRIBUTORS user ids); empty if
+    absent. Skips comments, indented lines, and sequence items."""
+    if not path.is_file():
+        return set()
+    keys: set[str] = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line or line[0].isspace() or line.startswith(("#", "-")):
+            continue
+        key, separator, _ = line.partition(":")
+        if separator and key.strip():
+            keys.add(key.strip())
+    return keys
+
+
+def _frontmatter_text(text: str, /) -> str:
+    """The YAML between the first two ``---`` fences, or ``""``."""
+    parts = text.split("---", 2)
+    return parts[1] if len(parts) >= 3 else ""
+
+
+def _inline_seq(block: str, key: str, /) -> list[str]:
+    """Values from a ``key: [a, b, c]`` line in *block*."""
+    match = re.search(rf"^{re.escape(key)}:\s*\[(?P<body>[^\]]*)\]", block, re.MULTILINE)
+    if match is None:
+        return []
+    return [item.strip().strip("\"'") for item in match["body"].split(",") if item.strip()]
+
+
+def _authorship_handles(block: str, /) -> list[str]:
+    """Handles under ``contributions.authorship`` (a nested ``- handle`` list)."""
+    match = re.search(
+        r"^\s*authorship:\s*\n(?P<body>(?:\s*-\s*\S+\s*\n?)+)", block, re.MULTILINE
+    )
+    if match is None:
+        return []
+    return re.findall(r"-\s*(\S+)", match["body"])
+
+
+def registry_problems(frontmatter: str, *, hub_root: Path) -> list[str]:
+    """Why the post's enum fields are not registered in galaxy-hub, or ``[]``.
+
+    galaxy-hub validates ``tags`` against ``content/TAGS.yaml``, ``subsites``
+    against ``content/SUBSITES.yaml``, and ``contributions.authorship`` against
+    ``content/CONTRIBUTORS.yaml`` (plus ORGANISATIONS). An unregistered value
+    fails their CI, so catch it here. Each registry is enforced only if it loaded,
+    so a missing or unreadable file never false-positives.
+    """
+    content = hub_root / "content"
+    problems: list[str] = []
+    tags = _yaml_sequence_items(content / "TAGS.yaml")
+    for tag in _inline_seq(frontmatter, "tags"):
+        if tags and tag not in tags:
+            problems.append(
+                f"tag {tag!r} is not in content/TAGS.yaml "
+                "(use a registered tag, or add it there)"
+            )
+    subsites = _yaml_sequence_items(content / "SUBSITES.yaml")
+    for subsite in _inline_seq(frontmatter, "subsites"):
+        if subsites and subsite not in subsites:
+            problems.append(f"subsite {subsite!r} is not in content/SUBSITES.yaml")
+    people = _yaml_top_level_keys(content / "CONTRIBUTORS.yaml") | _yaml_top_level_keys(
+        content / "ORGANISATIONS.yaml"
+    )
+    for handle in _authorship_handles(frontmatter):
+        if people and handle not in people:
+            problems.append(
+                f"author {handle!r} is not registered; add yourself to "
+                "content/CONTRIBUTORS.yaml (mandatory: name, joined)"
+            )
+    return problems
+
+
 def _cmd_new(args: argparse.Namespace, /) -> int:
     title = args.title.strip()
     if not title:
@@ -217,12 +302,12 @@ def _cmd_check(args: argparse.Namespace, /) -> int:
         print(f"ABORT: no index.md at {target}", file=sys.stderr)
         return 1
 
+    text = index.read_text(encoding="utf-8")
     problems: list[str] = []
-    slug = index.parent.name
-    slug_issue = slug_problem(slug)
+    slug_issue = slug_problem(index.parent.name)
     if slug_issue is not None:
         problems.append(slug_issue)
-    problems.extend(frontmatter_problems(index.read_text(encoding="utf-8")))
+    problems.extend(frontmatter_problems(text))
 
     if problems:
         print(f"{index}: {len(problems)} issue(s):", file=sys.stderr)
@@ -232,6 +317,17 @@ def _cmd_check(args: argparse.Namespace, /) -> int:
     print(f"{index}: naming + frontmatter pre-checks pass")
 
     hub_root = _hub_root(index)
+    if hub_root is not None:
+        registry_issues = registry_problems(_frontmatter_text(text), hub_root=hub_root)
+        if registry_issues:
+            print(
+                f"{index}: {len(registry_issues)} registry issue(s) that would "
+                "fail galaxy-hub CI:",
+                file=sys.stderr,
+            )
+            for issue in registry_issues:
+                print(f"  - {issue}", file=sys.stderr)
+            return 1
     where = f"cd {hub_root} && " if hub_root is not None else "in your galaxy-hub clone, "
     print(
         "note: before opening the PR, run galaxy-hub's authoritative frontmatter "
