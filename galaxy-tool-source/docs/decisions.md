@@ -1334,3 +1334,45 @@ the other eight; it needs its own PyPI trusted publisher.
 
 Rationale (front-door metapackage as the install convenience, libraries stay
 separately installable): the ecosystem analysis in `../docs/package_naming_plan.md`.
+
+## 29. Version-tokenization moved to tier 1 + the offset planner (`version_tokens`, 2026-06-11)
+
+GTR094 (`tokenize-version`) factors a literal `version="<base>+galaxy<suffix>"`
+into `@TOOL_VERSION@`/`@VERSION_SUFFIX@`. Its *decision* (`tokenization_skip_reason`),
+its *soundness gate* (`expansion_equality_holds`, proof by execution: tokenizing must
+not change the macro expansion), and its *tree mutation* (`tokenize_tree`) previously
+lived in the tier-2 codemod (`galaxy-tool-codemod` §43). This release moves them down
+to tier 1 (`version_tokens.py`) and adds an **offset planner**,
+`tokenize_version_plan`, alongside. The codemod is now the tree-rendering of the
+shared tier-1 decision (a thin `Module` adapter); the planner is the
+editor-and-CLI-shared rendering.
+
+This is the version-tokenization counterpart of the `cheetah_rename` /
+`rename_param_plan` dual-rendering discipline (§20): tier 1 has no serializer, so the
+planner returns minimal `(start, end, replacement)` edits over the *original* tool
+source plus, in separate-file mode, the full content of a new `macros.xml`
+(`NewMacroFile`). The CLI applies the plan and writes the file; the
+galaxy-language-server turns it into an LSP `WorkspaceEdit` (the tool edits as
+`TextEdit`s, the new file as a `CreateFile` resource operation). The planner emits
+only text edits and one fixed four-line `macros.xml` template, never a general
+document serialization (the serializer-allowlist guard scopes its single
+expansion-gate `etree.tostring` as throwaway, like the codemod's was).
+
+**Proof by execution over the rendered bytes.** Every successful plan applies its own
+edits, re-parses, macro-expands, and bails unless that expansion is byte-identical to
+the original's, so an imperfect offset anchor yields a *bail*, never wrong output.
+Two anchoring subtleties a development-time corpus parity spot-check surfaced (the
+106 tools the proven codemod would tokenize): (a) libxml2 reports `sourceline` as the
+start tag's closing `>` line, so a multi-line `<tool …>` whose `<tool` is on an
+earlier line is anchored by scanning *backward* from that line; (b) the inserted
+`<macros>` block reuses the *original* leading whitespace as its prefix, so the gate's
+`remove(<macros>)` leaves the surrounding inter-element whitespace byte-identical (a
+naive insertion swallowed a blank line into the new element's tail and failed the
+gate). Both are pinned by regression tests in `test_version_tokens.py`. With them
+fixed the planner reaches **100% inline parity** with the codemod (106/106);
+separate-file mode declines (safe bail) on the 2 tools that already carry a `<macros>`
+block, where inline placement is the natural choice.
+
+Phase 1 of `~/.claude/plans/version-token-macros.md` (the offset-planner foundation);
+the CLI `--macros-file` wiring and the galaxyls Code Action follow, the latter with a
+committed CLI-vs-plan parity test (mirroring `rename_param` vs `rename_param_plan`).
