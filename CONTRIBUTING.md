@@ -69,11 +69,30 @@ as a secondary reference (both vendored under `.claude/skills/`). The essentials
 `main` is protected: merges require the `ci` check to be green and the branch to
 be up to date. Be ready to rebase on `main` before merge.
 
+## AI-assisted and automated contributions
+
+AI coding tools are welcome here — this project is built with them. But the
+contributor, not the tool, is accountable for the result. Two requirements:
+
+- **Disclose and review.** If a PR was generated wholly or in part by an AI tool
+  or automated agent, say so in the description, and make sure you have read,
+  understood, and tested every line before opening it. An unreviewed,
+  bot-generated PR is not a contribution.
+- **Scope discipline.** A PR must change only what its issue calls for. PRs that
+  delete or rewrite working code, tests, or CI/release workflows unrelated to the
+  stated fix will be closed — a one-line feature should be a one-line change, not
+  a file rewrite.
+
+PRs that are clearly automated, don't build, fail `ci`, or remove working
+functionality will be closed (politely the first time); repeat low-effort
+automated submissions may be reported to GitHub as spam. A small, hand-verified
+change with a passing `ci` run is always welcome, however new you are.
+
 ## Releasing (maintainers)
 
 All nine distributions (the eight packages + the `galaxy-tool-refactor`
 metapackage) are versioned **in lockstep** (one version, published as a set —
-`galaxy-tool-source/docs/decisions.md` §27). To cut a release:
+`galaxy-tool-source/docs/decisions.md` §28). To cut a release:
 
 ```bash
 uv run python -m scripts.bump_version 0.3.0   # set the new version everywhere
