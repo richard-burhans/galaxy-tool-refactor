@@ -13,6 +13,7 @@ members = [
     "galaxy-tool-codemod",
     "galaxy-tool-fmt",
     "galaxy-tool-lint",
+    "galaxy-tool-refactor",
     "galaxy-tool-refactor-cli",
     "galaxy-tool-refactor-mcp",
     "galaxy-tool-refactor-registry",
@@ -580,6 +581,26 @@ dev = [
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.5" },
 ]
+
+[[package]]
+name = "galaxy-tool-refactor"
+version = "0.2.0"
+source = { editable = "galaxy-tool-refactor-meta" }
+dependencies = [
+    { name = "galaxy-tool-refactor-cli" },
+]
+
+[package.optional-dependencies]
+mcp = [
+    { name = "galaxy-tool-refactor-mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "galaxy-tool-refactor-cli", editable = "galaxy-tool-refactor-cli" },
+    { name = "galaxy-tool-refactor-mcp", marker = "extra == 'mcp'", editable = "galaxy-tool-refactor-mcp" },
+]
+provides-extras = ["mcp"]
 
 [[package]]
 name = "galaxy-tool-refactor-cli"

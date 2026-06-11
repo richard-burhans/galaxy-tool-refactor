@@ -8,6 +8,7 @@ members = [
     "galaxy-tool-codemod",
     "galaxy-tool-lint",
     "galaxy-tool-refactor-mcp",
+    "galaxy-tool-refactor-meta",
 ]
 
 [tool.pytest.ini_options]

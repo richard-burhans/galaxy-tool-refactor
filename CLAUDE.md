@@ -15,6 +15,7 @@ galaxy-tool-refactor/
 ├── galaxy-tool-refactor-registry/ Tier 3.6 (unified rule registry + rulesets; library-first facade)
 ├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + find-references + rename-param + rulesets/rules + normalize-macros + convert-help + tokenize-version)
 ├── galaxy-tool-refactor-mcp/ Tier 4 (MCP server over the registry facade; thin FastMCP adapter)
+├── galaxy-tool-refactor-meta/ Front-door metapackage (dist `galaxy-tool-refactor`; deps cli + `[mcp]` extra; no code)
 ├── scripts/                  Shared maintainer scripts (not installed)
 │   ├── corpus_check.py         validate | fmt | codemod | rules | check subcommands
 │   ├── fetch_schemas.py        download release XSDs
@@ -22,7 +23,7 @@ galaxy-tool-refactor/
 │   ├── measure.py              ad-hoc corpus queries
 │   ├── regenerate.py           regenerate per-version xsdata models
 │   ├── gen_planemo_parity.py   regenerate the GTR coverage table (docs/planemo_linter_parity.md)
-│   └── bump_version.py         set the lockstep version across all 8 packages
+│   └── bump_version.py         set the lockstep version across all 9 packages
 ├── docs/
 │   └── corpus_data/            per-tool JSON/TSV from corpus sweeps
 ├── corpus_sources.json       list of GitHub repos to clone (committed seed list)
@@ -34,7 +35,7 @@ galaxy-tool-refactor/
 ## Install
 
 ```bash
-uv sync          # installs all eight packages + dev deps into .venv
+uv sync          # installs the eight packages + the metapackage + dev deps into .venv
 ```
 
 ## Test

@@ -45,8 +45,8 @@ prefix — cf. `google-cloud-*`, `opentelemetry-*`, `pydantic` + `pydantic-core`
 - **Q2 — `rules` stays `galaxy-tool-refactor-rules`.** `RuleMeta`/`Violation` are
   the refactor framework's own descriptors (product-specific), so it belongs with
   the product family. No churn on this one.
-- **Q3 — front-door metapackage deferred** to a separate follow-up PR (it's
-  additive, not a rename).
+- **Q3 — front-door metapackage: SHIPPED** (decisions §28) — `galaxy-tool-refactor`
+  depends on the CLI with an `[mcp]` extra; pure metadata wheel, lockstep member.
 
 Final renames this pass: tier 2 `galaxy-tool-xml-codemod` → `galaxy-tool-codemod`,
 tier 3 `galaxy-tool-xml-fmt` → `galaxy-tool-fmt`, tier 3.5 `galaxy-tool-xml-check`

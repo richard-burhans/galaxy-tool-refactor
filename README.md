@@ -16,6 +16,7 @@ definition XML.
 | [`galaxy-tool-refactor-registry`](galaxy-tool-refactor-registry/README.md) | pre-alpha | Unified, code-addressable rule registry over all three families + named rulesets (`cosmetic`/`default`/`iuc`/`strict`) + a library-first `run`/`upgrade`/`detect` API. The orchestration core the CLI and the MCP server sit on. |
 | [`galaxy-tool-refactor-cli`](galaxy-tool-refactor-cli/README.md) | pre-alpha | The `galaxy-tool-refactor` app CLI — `format`, `upgrade`, report-only `check`, read-only `find-references`, mutating `rename-param`, `rulesets` / `rules`, and the opt-in `normalize-macros`, with `--ruleset` / `--select` / `--ignore` rule selection. |
 | [`galaxy-tool-refactor-mcp`](galaxy-tool-refactor-mcp/README.md) | pre-alpha | An agent-facing **MCP server** over the registry facade (CLI sibling): a thin FastMCP binding over a protocol-agnostic adapter, exposing `format_tool`/`upgrade_tool`/`check_tool`/`list_rulesets`/`list_rules`. |
+| [`galaxy-tool-refactor`](galaxy-tool-refactor-meta/README.md) | pre-alpha | Front-door **metapackage** — `pip install galaxy-tool-refactor` installs the CLI; the `[mcp]` extra adds the MCP server. No code of its own. |
 
 ## Quick start
 

@@ -18,8 +18,9 @@ from pathlib import Path
 
 _WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 
-# The eight workspace members (also the qa-gate roster). Kept explicit — a len()
-# tripwire, like the other roster lists in the tree.
+# The nine workspace members — the eight code/tier packages plus the
+# `galaxy-tool-refactor` front-door metapackage (its directory is `…-meta`). Kept
+# explicit — a len() tripwire, like the other roster lists in the tree.
 _MEMBERS = (
     "galaxy-tool-refactor-rules",
     "galaxy-tool-source",
@@ -29,6 +30,7 @@ _MEMBERS = (
     "galaxy-tool-refactor-registry",
     "galaxy-tool-refactor-cli",
     "galaxy-tool-refactor-mcp",
+    "galaxy-tool-refactor-meta",
 )
 
 _VERSION_LINE = re.compile(r'^version\s*=\s*"(?P<value>[^"]+)"', re.MULTILINE)
@@ -50,20 +52,32 @@ def _project_version(text: str) -> str:
     raise AssertionError("no [project] version found")
 
 
+_OPTIONAL_ARRAY = re.compile(r"^[A-Za-z0-9_.-]+\s*=\s*\[")
+
+
 def _intra_dep_specs(text: str) -> list[tuple[str, str]]:
-    """Every ``galaxy-tool-*`` dependency in the ``[project] dependencies`` array
-    as ``(name, specifier)`` — the specifier is ``""`` when the dep is bare."""
-    in_project = False
+    """Every ``galaxy-tool-*`` dependency as ``(name, specifier)`` — the specifier
+    is ``""`` when the dep is bare.
+
+    Covers both the ``[project] dependencies`` array and each
+    ``[project.optional-dependencies]`` extra (a metapackage pins its ``[mcp]``
+    extra there)."""
+    section: str | None = None
     in_dependencies = False
     specs: list[tuple[str, str]] = []
     for line in text.splitlines():
         stripped = line.strip()
         if stripped.startswith("[") and stripped.endswith("]"):
-            in_project = stripped == "[project]"
+            section = stripped[1:-1].strip()
             in_dependencies = False
             continue
-        if in_project and stripped.startswith("dependencies"):
+        if section == "project" and stripped.startswith("dependencies"):
             in_dependencies = "[" in stripped and "]" not in stripped
+            continue
+        if section == "project.optional-dependencies" and _OPTIONAL_ARRAY.match(
+            stripped
+        ):
+            in_dependencies = "]" not in stripped
             continue
         if in_dependencies:
             if stripped == "]":
@@ -87,7 +101,7 @@ def test_roster_matches_the_workspace() -> None:
         "test_workspace_versions._MEMBERS is out of sync with the root "
         "pyproject [tool.uv.workspace] members"
     )
-    assert len(_MEMBERS) == 8
+    assert len(_MEMBERS) == 9
 
 
 def test_all_packages_share_one_version() -> None:
