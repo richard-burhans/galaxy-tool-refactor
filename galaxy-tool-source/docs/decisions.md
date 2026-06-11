@@ -1306,7 +1306,7 @@ the product family (`galaxy-tool-refactor-{rules,registry,cli,mcp}`), and the
 `check` CLI subcommand are unchanged. The result is two deliberate families:
 `galaxy-tool-*` reusable libraries (`source`/`codemod`/`fmt`/`lint`) and
 `galaxy-tool-refactor-*` the product built on them. A `galaxy-tool-refactor`
-front-door metapackage is deferred to a follow-up.
+front-door metapackage was deferred to a follow-up — now shipped, §28.
 
 **Historical entries keep the old names verbatim** (as §26 established — this
 file's §9/§26 still show `galaxy-tool-xml-*`); only current-state docs and all
@@ -1314,3 +1314,23 @@ code/config were rewritten, via a full-token sed (`galaxy-tool-xml-{codemod,fmt,
 and the `_`-form) that never touches the bare `galaxy-tool-xml` tier-1 historical
 name. Rationale + the building-block-vs-product analysis:
 `../docs/package_naming_plan.md`.
+
+## 28. Added the `galaxy-tool-refactor` front-door metapackage (2026-06-11)
+
+The follow-up §27 deferred: a ninth workspace distribution, dist name
+**`galaxy-tool-refactor`** (directory `galaxy-tool-refactor-meta/`), so
+`pip install galaxy-tool-refactor` gives end users the product without knowing the
+package layout. It depends on `galaxy-tool-refactor-cli==<version>` (which provides
+the `galaxy-tool-refactor` command) and offers an **`[mcp]` extra** pulling
+`galaxy-tool-refactor-mcp` for the agent-facing server. Pure metapackage — no
+modules (hatchling `bypass-selection`), a metadata-only wheel.
+
+It is a full **lockstep** member: `scripts/bump_version.py` sets its version and
+pins both intra-deps (it was extended to also pin `[project.optional-dependencies]`
+extras, so the `[mcp]` pin can't drift), and `test_workspace_versions` (now nine
+members) enforces it. It is **not** in the qa-gate roster (no `src/`/`tests/`) and
+not a tier — it carries no abstraction. `release.yml` builds and publishes it with
+the other eight; it needs its own PyPI trusted publisher.
+
+Rationale (front-door metapackage as the install convenience, libraries stay
+separately installable): the ecosystem analysis in `../docs/package_naming_plan.md`.

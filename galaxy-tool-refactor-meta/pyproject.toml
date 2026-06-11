@@ -1,0 +1,37 @@
+[project]
+name = "galaxy-tool-refactor"
+version = "0.2.0"
+description = "Front-door metapackage for galaxy-tool-refactor: installs the CLI (and, with the [mcp] extra, the MCP server)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Richard Burhans" }]
+keywords = ["galaxy", "bioinformatics", "tool-xml", "linter", "formatter"]
+# The CLI is the front door (it provides the `galaxy-tool-refactor` command).
+dependencies = [
+    "galaxy-tool-refactor-cli==0.2.0",
+]
+
+[project.optional-dependencies]
+# The agent-facing MCP server (pulls the MCP SDK); opt in with
+# `pip install galaxy-tool-refactor[mcp]`.
+mcp = [
+    "galaxy-tool-refactor-mcp==0.2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/richard-burhans/galaxy-tool-refactor"
+Repository = "https://github.com/richard-burhans/galaxy-tool-refactor"
+Changelog = "https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/CHANGELOG.md"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# A pure metapackage: no Python modules, only dependency metadata.
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.uv.sources]
+galaxy-tool-refactor-cli = { workspace = true }
+galaxy-tool-refactor-mcp = { workspace = true }

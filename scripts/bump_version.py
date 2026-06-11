@@ -67,11 +67,17 @@ def _workspace_members() -> list[str]:
     return members
 
 
+# An ``[project.optional-dependencies]`` extra-array opener, e.g. ``mcp = [``.
+_OPTIONAL_ARRAY = re.compile(r"^[A-Za-z0-9_.-]+\s*=\s*\[")
+
+
 def _bump_pyproject_text(text: str, *, version: str) -> str:
     """Return *text* with the ``[project]`` version and intra-deps set to *version*.
 
-    Only the ``version =`` line inside the ``[project]`` table and the
-    ``galaxy-tool-*`` lines inside the ``dependencies`` array are touched.
+    Touches the ``version =`` line in ``[project]`` and every ``galaxy-tool-*``
+    entry in the ``dependencies`` array **and** in each
+    ``[project.optional-dependencies]`` extra (so a metapackage's ``[mcp]`` extra
+    stays pinned too).
     """
     out: list[str] = []
     section: str | None = None
@@ -83,6 +89,10 @@ def _bump_pyproject_text(text: str, *, version: str) -> str:
             in_dependencies = False
         elif section == "project" and stripped.startswith("dependencies"):
             in_dependencies = "[" in stripped and "]" not in stripped
+        elif section == "project.optional-dependencies" and _OPTIONAL_ARRAY.match(
+            stripped
+        ):
+            in_dependencies = "]" not in stripped
         elif in_dependencies and stripped == "]":
             in_dependencies = False
 

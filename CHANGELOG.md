@@ -28,6 +28,9 @@ version, so the others jump from 0.0.1 to 0.2.0 to align.)
   enforced by a registry guard test).
 
 ### Added
+- **`galaxy-tool-refactor`** front-door metapackage: `pip install galaxy-tool-refactor`
+  installs the CLI; the `[mcp]` extra adds the MCP server. (Ninth workspace
+  distribution; lockstep-versioned, no code of its own.)
 - **GTR095** (`galaxy-tool-lint`): the tool `id`/`name`/`version` missing-or-empty
   check — the half tier-1 XSD validation can't see (`version` is not XSD-required;
   empty strings are XSD-valid). Closes the last infra-free planemo DETECT gap.

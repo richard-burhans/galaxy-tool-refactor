@@ -1,7 +1,8 @@
 # Contributing to galaxy-tool-refactor
 
-Thanks for your interest! This is a uv workspace of eight packages that parse,
-lint, format, and structurally upgrade Galaxy tool XML. New contributors are
+Thanks for your interest! This is a uv workspace of eight packages (plus a thin
+front-door metapackage) that parse, lint, format, and structurally upgrade Galaxy
+tool XML. New contributors are
 welcome — this guide is the fast path from clone to merged PR.
 
 > Read [`ARCHITECTURE.md`](ARCHITECTURE.md) first for the map of the seven tiers
@@ -13,7 +14,7 @@ welcome — this guide is the fast path from clone to merged PR.
 ```bash
 git clone https://github.com/richard-burhans/galaxy-tool-refactor
 cd galaxy-tool-refactor
-uv sync                                  # installs all eight packages + dev deps
+uv sync                                  # the eight packages + metapackage + dev deps
 git config core.hooksPath .githooks      # enable the pre-push gate (one-time)
 ```
 
@@ -64,8 +65,9 @@ be up to date. Be ready to rebase on `main` before merge.
 
 ## Releasing (maintainers)
 
-All eight packages are versioned **in lockstep** (one version, published as a
-set — `galaxy-tool-source/docs/decisions.md` §27). To cut a release:
+All nine distributions (the eight packages + the `galaxy-tool-refactor`
+metapackage) are versioned **in lockstep** (one version, published as a set —
+`galaxy-tool-source/docs/decisions.md` §27). To cut a release:
 
 ```bash
 uv run python -m scripts.bump_version 0.3.0   # set the new version everywhere
@@ -73,7 +75,7 @@ uv run python -m scripts.bump_version 0.3.0   # set the new version everywhere
 git tag v0.3.0 && git push origin v0.3.0       # triggers .github/workflows/release.yml
 ```
 
-`release.yml` verifies the tag matches every package's version, builds all eight,
+`release.yml` verifies the tag matches every package's version, builds all nine,
 and publishes to PyPI via Trusted Publishing. Each package needs a one-time
 pending publisher configured on PyPI (see the `release.yml` header). Update
 `CHANGELOG.md` (one changelog for the whole set) as part of the release PR.

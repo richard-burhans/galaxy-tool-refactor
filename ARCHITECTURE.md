@@ -42,6 +42,11 @@ load-bearing rule:
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` / `convert-help` / `tokenize-version`. CLI plumbing only. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`convert_help_tool`/`tokenize_version_tool`/`list_rulesets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
 
+> Not a tier: **`galaxy-tool-refactor`** (directory `galaxy-tool-refactor-meta/`) is a
+> front-door **metapackage** — `pip install galaxy-tool-refactor` pulls the CLI, and the
+> `[mcp]` extra adds the MCP server. It carries no code and no abstraction; it's a ninth
+> published distribution for install convenience. All nine share one lockstep version.
+
 ### Dependency direction
 
 ```
