@@ -140,3 +140,15 @@ uv run python -m scripts.fetch_schemas
 # Clone/update Toolshed repos
 uv run python -m scripts.fetch_toolshed
 ```
+
+## Contributing
+
+Contributions are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md) for setup
+(`uv sync`, the pre-push gate), the coding standards, and the PR workflow. New
+here? [`ARCHITECTURE.md`](ARCHITECTURE.md) maps the seven tiers.
+
+## Security
+
+To report a vulnerability, see [`SECURITY.md`](SECURITY.md) (please use GitHub's
+private vulnerability reporting, not a public issue).
+
