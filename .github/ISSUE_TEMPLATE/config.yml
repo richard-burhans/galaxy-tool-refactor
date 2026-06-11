@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Contributing guide
+    url: https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/CONTRIBUTING.md
+    about: Setup, the quality gate, the coding standards, and the PR workflow.
+  - name: Security report
+    url: https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/SECURITY.md
+    about: Please report vulnerabilities privately, not as a public issue.
