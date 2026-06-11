@@ -1843,3 +1843,42 @@ galaxy-tool-codemod/tests/test_tokenize_version.py`.
 - **Serializer-allowlist note.** The gate's internal `etree.tostring` compares
   two throwaway expansions (proof, not output) — allowlisted with that
   justification; output still flows through fmt via the facade.
+
+## 44. `SingleQuoteCommandVars` (GTR020.1) — boolean scope narrowing (soundness fix)
+
+**Date:** 2026-06-11. Reproduced-by: `uv run --package galaxy-tool-source pytest
+galaxy-tool-source/tests/test_command_vars.py::test_boolean_is_safe_only_when_both_values_are_single_tokens`
+and `uv run --package galaxy-tool-codemod pytest
+galaxy-tool-codemod/tests/test_single_quote_command_vars.py::test_does_not_quote_flag_idiom_booleans`.
+Sizing: `uv run python -m scripts.measure iuc011-fixability`.
+
+- **The bug.** `command_vars.SAFE_SINGLE_TYPES` listed `boolean` alongside the
+  intrinsically single-token types (`integer` / `float` / `data` …), so
+  `input_param_info` classified **every** boolean `"safe"` *by type alone*, and
+  GTR020.1 single-quoted any bare `$bool` in `<command>`. That is unsound: a
+  boolean renders to its author-written `truevalue` / `falsevalue`, and the
+  dominant Galaxy idiom `truevalue="--flag" falsevalue=""` (emit a flag when true,
+  *nothing* when false) breaks under quoting — the false case `'$bool'` renders to
+  `''`, a **stray empty argument** instead of nothing, and a space-bearing
+  `truevalue=" -C"` becomes a literal leading-space token `' -C'` rather than
+  word-splitting to `-C`. Either changes the command Galaxy runs.
+- **How it surfaced.** Running `format` on `iuc/featurecounts` (an RNA-seq tool)
+  during an experimental upstream-PR pass: six of its booleans
+  (`ignore_dup` / `long_reads` / `by_read_group` / `largest_overlap` /
+  `only_both_ends` / `exclude_chimerics`, all `falsevalue=""`) were being quoted.
+  XSD validity + idempotence both held, so the corpus oracles missed it — the same
+  blind spot as the multi-flag `select` case (§32).
+- **The fix (mirrors §32).** Drop `boolean` from `SAFE_SINGLE_TYPES` and inspect its
+  values: `_boolean_values_are_single_tokens` admits a boolean as `"safe"` only when
+  **both** effective `truevalue` and `falsevalue` (Galaxy defaults `"true"` /
+  `"false"`, verified in `galaxy.tool_util.parser.util.boolean_true_and_false_values`)
+  are non-empty single shell tokens (the existing `_NOT_SINGLE_TOKEN` charset gate).
+  The `falsevalue=""` flag idiom and any whitespace/metachar value fall to `"text"`
+  (non-provable), where the advisory `GTR020.2` keeps flagging them; genuine
+  single-token booleans (`true`/`false`, `yes`/`no`) stay auto-quoted.
+- **Sizing impact.** The provable subset `{safe, attr_safe, builtin_path}` drops from
+  ~49.5% (§30) to **44.6%** of occurrences (`safe` 41.5% + `attr_safe` 0.6% +
+  `builtin_path` 2.4%) — the difference is the flag-idiom booleans correctly leaving
+  the provable set. Corpus `check`/`rules` stat pages refresh on the next scheduled
+  sweep (numbers, not coverage). The behaviour-preservation ledger records this as the
+  second GTR020.1 over-quote class fixed (after the §32 multi-flag select).

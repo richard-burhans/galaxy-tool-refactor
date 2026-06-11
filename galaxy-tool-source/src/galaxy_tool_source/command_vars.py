@@ -20,10 +20,12 @@ Heuristic: root-name resolution against ``<inputs>``, no full param-model walk.
 The provable set is ``{safe, attr_safe, builtin_path}``:
 
 - ``safe`` — a bare ``$param`` of an intrinsically single-token type (a number, a
-  Galaxy-controlled dataset path), or a ``select`` / ``drill_down`` whose option set
-  is statically known and every option ``value`` is a single shell token (an
+  Galaxy-controlled dataset path), a ``select`` / ``drill_down`` whose option set is
+  statically known and every option ``value`` is a single shell token (an
   ``<option value="-b -h">`` multi-flag dropdown is *not* safe — quoting it would
-  fuse the intended argv words into one token);
+  fuse the intended argv words into one token), or a ``boolean`` whose ``truevalue``
+  and ``falsevalue`` are both single tokens (the ubiquitous ``falsevalue=""`` flag
+  idiom is *not* safe — quoting the empty false case emits a stray ``''`` argument);
 - ``attr_safe`` — a ``$param.attr`` whose attribute is space-free regardless of the
   run (``.ext`` is a charset-restricted datatype extension; ``.file_name`` / paths
   are Galaxy-controlled server paths);
@@ -49,14 +51,16 @@ from lxml import etree
 # ``select`` / ``drill_down`` are NOT here: their value is an author-written
 # ``<option value="…">`` string with no charset constraint, and a widespread idiom
 # packs several argv words into one option value (``value="-b -h"``) precisely to
-# word-split. They are resolved separately, by inspecting the option values
-# (``_select_options_are_single_tokens``) — "safe" only for the provable subset.
+# word-split. ``boolean`` is also NOT here: its rendered value is the author-written
+# ``truevalue`` / ``falsevalue``, and the dominant ``falsevalue=""`` idiom (emit a
+# flag when true, *nothing* when false) is unsafe to quote — ``''`` is a stray empty
+# argument, not nothing. Both are resolved separately by inspecting their values
+# (``_select_options_are_single_tokens`` / ``_boolean_values_are_single_tokens``).
 SAFE_SINGLE_TYPES = frozenset(
     {
         "data",
         "integer",
         "float",
-        "boolean",
         "color",
         "hidden",
         "baseurl",
@@ -139,6 +143,8 @@ def input_param_info(root: etree._Element, /) -> tuple[dict[str, str], set[str]]
             kind = "text"
         elif ptype in OPTION_VALUED_TYPES:
             kind = "safe" if _select_options_are_single_tokens(param) else "text"
+        elif ptype == "boolean":
+            kind = "safe" if _boolean_values_are_single_tokens(param) else "text"
         elif ptype in SAFE_SINGLE_TYPES:
             kind = "safe"
         else:
@@ -212,6 +218,20 @@ def _select_options_are_single_tokens(param: etree._Element, /) -> bool:
     values = [option.get("value") for option in param.iter("option")]
     if not values:
         return False  # nothing static to prove
+    return all(value and _NOT_SINGLE_TOKEN.search(value) is None for value in values)
+
+
+def _boolean_values_are_single_tokens(param: etree._Element, /) -> bool:
+    """Whether a ``boolean`` param is provably single-token (safe to single-quote).
+
+    A boolean renders to its author-written ``truevalue`` / ``falsevalue`` (Galaxy
+    defaults: ``"true"`` / ``"false"``). Quoting a bare ``$bool`` is a strict no-op
+    only when *both* values are non-empty single shell tokens. The dominant
+    ``truevalue="--flag" falsevalue=""`` idiom fails: the empty false case quoted is
+    ``''`` (a stray empty argument, not nothing), and a whitespace-bearing value like
+    ``" --flag"`` keeps its space inside quotes instead of word-splitting away.
+    """
+    values = (param.get("truevalue", "true"), param.get("falsevalue", "false"))
     return all(value and _NOT_SINGLE_TOKEN.search(value) is None for value in values)
 
 

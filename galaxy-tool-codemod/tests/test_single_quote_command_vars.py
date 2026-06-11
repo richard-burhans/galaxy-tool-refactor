@@ -175,6 +175,31 @@ def test_quotes_single_token_select_value() -> None:
     assert _command_text(module.document.root) == "samtools view '$fmt' input.bam"
 
 
+def test_does_not_quote_flag_idiom_booleans() -> None:
+    # Behavior-preservation regression (the iuc/featurecounts shape): a boolean's
+    # rendered value is its author-written truevalue/falsevalue, NOT an intrinsically
+    # single token. The ubiquitous `truevalue="--flag" falsevalue=""` idiom MUST NOT
+    # be quoted — quoting the empty false case emits a stray `''` argument, and a
+    # space-prefixed truevalue (" -C") keeps its leading space inside the quotes
+    # instead of word-splitting. XSD validity + idempotence are both preserved, so the
+    # corpus oracles miss it; this fixture is the regression guard.
+    module = parse_module(
+        _HEAD + b"<inputs>"
+        b'<param name="empty_false" type="boolean" truevalue="--flag" falsevalue=""/>'
+        b'<param name="space_true" type="boolean" truevalue=" -C" falsevalue=""/>'
+        b'<param name="yesno" type="boolean" truevalue="yes" falsevalue="no"/>'
+        b"</inputs>"
+        b"<command><![CDATA[prog $empty_false $space_true $yesno]]></command>"
+        b"</tool>"
+    )
+    SingleQuoteCommandVars().apply(module)
+    # only the both-single-token boolean (yes/no) is quoted; the flag-idiom two are not
+    assert (
+        _command_text(module.document.root)
+        == "prog $empty_false $space_true '$yesno'"
+    )
+
+
 def test_certifier_seam_overrides_default() -> None:
     # An injected certifier replaces the default policy (the Phase-2 seam). A
     # quote-everything certifier quotes a residual text param the default leaves alone.

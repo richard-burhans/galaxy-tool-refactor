@@ -106,6 +106,31 @@ def test_drill_down_is_safe_only_when_all_nested_values_are_single_tokens() -> N
     assert kinds["dd_dyn"] == "text"
 
 
+def test_boolean_is_safe_only_when_both_values_are_single_tokens() -> None:
+    # A boolean's rendered value is its author-written truevalue/falsevalue, not an
+    # intrinsically single token like an integer. Quoting is a no-op ONLY when both
+    # are non-empty single shell tokens. The dominant Galaxy idiom
+    # truevalue="--flag" falsevalue="" is NOT safe: quoting the empty false case
+    # emits a stray '' argument, and a space-prefixed truevalue (" --flag") becomes
+    # a literal leading-space token when quoted. Galaxy defaults truevalue/falsevalue
+    # to "true"/"false" (both single tokens -> safe).
+    root = etree.fromstring(
+        b"<tool><inputs>"
+        b'<param name="default_bool" type="boolean"/>'
+        b'<param name="token_bool" type="boolean" truevalue="yes" falsevalue="no"/>'
+        b'<param name="empty_false" type="boolean" truevalue="--flag" falsevalue=""/>'
+        b'<param name="space_true" type="boolean" truevalue=" --flag" falsevalue=""/>'
+        b'<param name="multi_true" type="boolean" truevalue="-a -b" falsevalue=""/>'
+        b"</inputs></tool>"
+    )
+    kinds, _ = input_param_info(root)
+    assert kinds["default_bool"] == "safe"  # defaults true/false -> single tokens
+    assert kinds["token_bool"] == "safe"  # yes/no -> single tokens
+    assert kinds["empty_false"] == "text"  # "" false -> quoting emits a stray ''
+    assert kinds["space_true"] == "text"  # " --flag" -> leading space kept if quoted
+    assert kinds["multi_true"] == "text"  # "-a -b" word-splits -> fused if quoted
+
+
 def test_multiple_select_stays_multi_regardless_of_option_values() -> None:
     # multiple= is a deliberate splat; it outranks any option-value inspection.
     root = etree.fromstring(

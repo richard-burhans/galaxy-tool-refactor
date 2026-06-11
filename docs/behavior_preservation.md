@@ -68,7 +68,7 @@ holds on the strength of its tier-1 render-equivalence gate (below).
 | GTR017 | NormalizeBooleanValues | runtime | hold | `True`→`true` only where the lenient model already accepts it; validity-restore |
 | GTR018.1 | WrapCommandCdata | runtime | **REFUTED → FIXED** | body with `\r` → CDATA can't carry `&#13;` → CR lost, non-idempotent (PR #112) |
 | GTR019.1 | WrapHelpCdata | runtime | **REFUTED → FIXED** | same `\r`-through-CDATA bug (shared `cdata_wrappable` predicate) (PR #112) |
-| GTR020.1 | SingleQuoteCommandVars | runtime | **REFUTED → FIXED** | quoted multi-flag `select` values (PR #110) |
+| GTR020.1 | SingleQuoteCommandVars | runtime | **REFUTED → FIXED** | quoted multi-flag `select` values (PR #110); flag-idiom booleans `falsevalue=""` (2026-06-11, §44) |
 | GTR089.1 | RepairHelpRst | runtime (rendered help) | hold | repair kept only when the docutils doctree is unchanged modulo the removed error (strong gate); macro/markdown help skipped |
 
 \* GTR006 and GTR009 are cases where the adversarial refutation **overreached** — on
@@ -126,6 +126,21 @@ one value (`<option value="-b -h">`) fused argv words into one token. **Shipped*
 narrowed to the provable option-value subset + faithful-lexer var extraction. See
 codemod `docs/decisions.md` §32; regression fixtures in
 `test_single_quote_command_vars.py` / `test_command_vars.py`.
+
+### GTR020.1 — flag-idiom booleans (`falsevalue=""`) — FIXED (2026-06-11)
+
+`command_vars` listed `boolean` in `SAFE_SINGLE_TYPES`, so a bare `$bool` was quoted
+*by type alone*. The dominant `truevalue="--flag" falsevalue=""` idiom breaks under
+quoting: the false case `'$bool'` → `''` (a stray empty argument, not nothing), and a
+space-bearing `truevalue=" -C"` → `' -C'` (leading space kept, not word-split).
+Surfaced running `format` on `iuc/featurecounts` (6 booleans wrongly quoted); XSD
+validity + idempotence both held, so the corpus oracles missed it — same blind spot as
+the multi-flag `select` above. **Fixed:** `boolean` dropped from `SAFE_SINGLE_TYPES`;
+`_boolean_values_are_single_tokens` admits it as `safe` only when both
+`truevalue`/`falsevalue` are non-empty single tokens (Galaxy defaults `true`/`false`),
+else `text` (advisory `GTR020.2`). Provable subset 49.5% → 44.6%. Codemod
+`docs/decisions.md` §44; regression fixtures in `test_command_vars.py` /
+`test_single_quote_command_vars.py`.
 
 ### GTR018.1 / GTR019.1 — carriage return lost through CDATA wrap (one shared bug) — FIXED (PR #112)
 
