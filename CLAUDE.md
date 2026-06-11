@@ -90,9 +90,17 @@ six-step checklist and calls `qa_gate.sh` as its final step. For deeper,
 design-level reviews of the abstractions there is the **`/architecture-audit`
 skill**. To **merge** a PR and clean up the branch safely — without the
 `gh pr merge --delete-branch` checkout that has twice wiped the `.local` corpus —
-use the **`/ship-pr` skill** (`.claude/skills/ship-pr/`). New contributors approve
-the project hook on first use; in a session that predates the hook, open `/hooks`
-once (or restart) to load it.
+use the **`/ship-pr` skill** (`.claude/skills/ship-pr/`), which drives
+`scripts/ship-pr.sh` (the same script a non-agent maintainer runs via
+`make ship-pr`). New contributors approve the project hook on first use; in a
+session that predates the hook, open `/hooks` once (or restart) to load it.
+
+**Dual on-ramp (standing convention).** Every workflow has a human path (a `make`
+target / script) and, for Claude Code users, an agent path (a skill) — kept
+single-source (the skill calls the script). [`docs/workflows.md`](docs/workflows.md)
+is the map. When you add a *procedural* skill, also add its script + a `make`
+target + a `workflows.md` row in the same change, so non-agent collaborators are
+never second-class.
 
 ## Corpus scripts
 
