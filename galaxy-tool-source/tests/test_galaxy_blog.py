@@ -75,7 +75,10 @@ def test_new_then_check_roundtrip(tmp_path: Path) -> None:
         ]
     )
     assert rc == 0
-    index = hub / "content" / "news" / "2026" / "humans-and-agents" / "index.md"
+    index = (
+        hub / "content" / "news" / "2026"
+        / "2026-04-15-humans-and-agents" / "index.md"
+    )
     assert index.is_file()
     text = index.read_text(encoding="utf-8")
     assert 'title: "Humans and Agents"' in text and "tags: [ai, best-practices]" in text
@@ -154,4 +157,24 @@ def test_check_fails_on_unregistered_tag(tmp_path: Path) -> None:
         ["new", "--title", "T", "--author", "nekrut", "--date", "2026-01-01",
          "--tags", "ai,bogus", "--hub-dir", str(hub)]
     )
-    assert gb.main(["check", str(hub / "content" / "news" / "2026" / "t")]) == 1
+    post = hub / "content" / "news" / "2026" / "2026-01-01-t"
+    assert gb.main(["check", str(post)]) == 1
+
+
+def test_news_folder_problem() -> None:
+    # galaxy-hub requires YYYY-MM-DD-<slug> for recent posts; a bare slug fails.
+    assert gb.news_folder_problem("2026-06-11-humans-and-agents") is None
+    assert gb.news_folder_problem("humans-and-agents") is not None
+    assert gb.news_folder_problem("2026-6-11-x") is not None  # not zero-padded
+    assert gb.news_folder_problem("2026-06-11-Bad_Slug") is not None  # bad suffix
+
+
+def test_check_fails_on_undated_folder(tmp_path: Path) -> None:
+    post = tmp_path / "content" / "news" / "2026" / "undated-post"
+    post.mkdir(parents=True)
+    (post / "index.md").write_text(
+        "---\ntitle: x\ndate: '2026-06-11'\ntease: y\n"
+        "tags: [ai]\nsubsites: [all]\n---\nbody\n",
+        encoding="utf-8",
+    )
+    assert gb.main(["check", str(post)]) == 1  # folder is not date-prefixed
