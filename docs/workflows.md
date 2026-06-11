@@ -33,6 +33,7 @@ to do the work: `make help` lists the same things a skill would run.
 | Refresh corpus stats | `make fetch-corpus` then `make corpus-stats` (or the scheduled `corpus-stats.yml`) | — |
 | Add a structural codemod | read [`add-codemod`](../.claude/skills/add-codemod/SKILL.md) as a TDD how-to | `/add-codemod` |
 | Add a corpus measurement | read [`corpus-measurement`](../.claude/skills/corpus-measurement/SKILL.md); helpers in `scripts/measure.py` | `/corpus-measurement` |
+| Write a Galaxy blog post | `make blog-new TITLE=… AUTHOR=…` + `make blog-check POST=…` (= `scripts/galaxy_blog.py`) | `/galaxy-blog-post` |
 | Coding standards | [`dignified-python`](../.claude/skills/dignified-python/SKILL.md) (governs) · [`optimized-python`](../.claude/skills/optimized-python/SKILL.md) | same (auto-applied) |
 | Deep architecture audit | read [`architecture-audit`](../.claude/skills/architecture-audit/SKILL.md) + `docs/architecture_audit.md` | `/architecture-audit` |
 
