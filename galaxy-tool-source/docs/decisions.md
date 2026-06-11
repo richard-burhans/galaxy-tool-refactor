@@ -757,7 +757,11 @@ Three small, dependency-light modules analyse `<command>` / `<help>` body conten
   (`<option value="-b -h">`) word-splits, so quoting it would change behaviour. The
   unprovable residual (whitespace/glob value, a `<options from_*>` runtime source, or
   no static options) is demoted to `text` (advisory `GTR020.2`). Sized by
-  `scripts.measure select-quoting-safety` (2026-06-06).
+  `scripts.measure select-quoting-safety` (2026-06-06). A `boolean` is likewise *not*
+  safe by type: it renders to its author-written `truevalue` / `falsevalue`, so it is
+  "safe" only when both are non-empty single tokens (`_boolean_values_are_single_tokens`).
+  The ubiquitous `falsevalue=""` flag idiom is demoted to `text` — quoting the empty
+  false case emits a stray `''` argument (2026-06-11 soundness fix; codemod §44).
 - `cdata` — `cdata_wrappable` / `needs_cdata` / `is_cdata_wrapped`: predicates on an
   element deciding whether a pure-text body can be losslessly wrapped in one CDATA
   section (the GTR018/GTR019 substrate).

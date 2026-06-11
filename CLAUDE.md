@@ -153,10 +153,10 @@ uv run python -m scripts.measure macro-profile-ownership
 # tracking shell quotes, a genuinely-unquoted `$var` still fires on 73.2% of tools,
 # so GTR020.2 (unlike GTR032) has real signal (check §D4); iuc011-fixability then
 # resolves each unquoted `$var` against <inputs> and splits it into provable-vs-not
-# classes — the provable subset {safe, attr_safe, builtin_path} (50.9% of
-# occurrences) is auto-fixed by GTR020.1 (codemod §30/§32 / check §D8), while the
-# non-provable residual (30.2% #set/loop, plus text/multi/label) keeps GTR020.2
-# advisory; shell-oracle-quoting sizes the bashlex-oracle delta on GTR020.1 vs the
+# classes — the provable subset {safe, attr_safe, builtin_path} (44.6% of
+# occurrences) is auto-fixed by GTR020.1 (codemod §30/§32/§44 / check §D8), while the
+# non-provable residual (30.2% #set/loop, plus text/multi/label/flag-idiom-boolean)
+# keeps GTR020.2 advisory; shell-oracle-quoting sizes the bashlex-oracle delta on GTR020.1 vs the
 # pure value-domain rule — now WIDENED 0 (the no-split/assignment-RHS widening was
 # reverted as unsound: Cheetah renders values as literal text, so VAR=$x splits) /
 # NARROWED 0 (no value-domain-safe fd-dup target corpus-wide); needs the

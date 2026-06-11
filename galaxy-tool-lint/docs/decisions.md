@@ -294,7 +294,10 @@ param's kind). Of **49,119** occurrences across **6,699** flagged tools:
 was *also* later narrowed: `select`/`drill_down` are provable only when their option
 values are statically single tokens, and the `command_text` lexer now filters escaped
 `\$`/`#raw`/comment false positives — both predate this sizing, so the current GTR020.2
-counts are lower; see codemod `docs/decisions.md` §32.)
+counts are lower; see codemod `docs/decisions.md` §32. The `safe` row's `bool` was
+narrowed the same way (2026-06-11): a `boolean` is provable only when both
+`truevalue`/`falsevalue` are single tokens, so the `falsevalue=""` flag idiom is no
+longer auto-quoted — the provable subset is now 44.6%, not the old ~50%; codemod §44.)
 
 ### Decision
 
