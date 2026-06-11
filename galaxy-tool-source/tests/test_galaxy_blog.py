@@ -98,3 +98,60 @@ def test_new_aborts_without_a_hub_checkout(tmp_path: Path) -> None:
         ["new", "--title", "X", "--author", "y", "--hub-dir", str(tmp_path / "nope")]
     )
     assert rc == 1
+
+
+# Galaxy-hub enum validation: tags/subsites/authors must be registered, the gotcha
+# that this session hit. Covered against a synthetic hub with small registry files.
+
+
+def _hub_with_registries(tmp_path: Path) -> Path:
+    content = tmp_path / "content"
+    (content / "news").mkdir(parents=True)
+    (content / "TAGS.yaml").write_text("---\n- ai\n- tools\n", encoding="utf-8")
+    (content / "SUBSITES.yaml").write_text("---\n- all\n- global\n", encoding="utf-8")
+    (content / "CONTRIBUTORS.yaml").write_text(
+        "# header comment\nnekrut:\n  name: A. Nekrutenko\n", encoding="utf-8"
+    )
+    # _hub_root recognizes a galaxy-hub checkout by this file + content/news.
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "validate_news.py").write_text("", encoding="utf-8")
+    return tmp_path
+
+
+def test_registry_problems_flags_only_unregistered(tmp_path: Path) -> None:
+    hub = _hub_with_registries(tmp_path)
+    frontmatter = (
+        'title: "x"\n'
+        "tags: [ai, bogus]\n"
+        "subsites: [all, mars]\n"
+        "contributions:\n  authorship:\n    - nekrut\n    - stranger\n"
+    )
+    joined = " ".join(gb.registry_problems(frontmatter, hub_root=hub))
+    assert "bogus" in joined and "mars" in joined and "stranger" in joined
+    assert "'ai'" not in joined and "nekrut" not in joined  # registered ones pass
+
+
+def test_registry_problems_clean_when_all_registered(tmp_path: Path) -> None:
+    hub = _hub_with_registries(tmp_path)
+    frontmatter = (
+        "tags: [ai, tools]\n"
+        "subsites: [all, global]\n"
+        "contributions:\n  authorship:\n    - nekrut\n"
+    )
+    assert gb.registry_problems(frontmatter, hub_root=hub) == []
+
+
+def test_registry_skips_missing_registries(tmp_path: Path) -> None:
+    # No TAGS/SUBSITES/CONTRIBUTORS files present -> nothing to enforce, no false hits.
+    (tmp_path / "content" / "news").mkdir(parents=True)
+    frontmatter = "tags: [anything]\nsubsites: [whatever]\n"
+    assert gb.registry_problems(frontmatter, hub_root=tmp_path) == []
+
+
+def test_check_fails_on_unregistered_tag(tmp_path: Path) -> None:
+    hub = _hub_with_registries(tmp_path)
+    gb.main(
+        ["new", "--title", "T", "--author", "nekrut", "--date", "2026-01-01",
+         "--tags", "ai,bogus", "--hub-dir", str(hub)]
+    )
+    assert gb.main(["check", str(hub / "content" / "news" / "2026" / "t")]) == 1
