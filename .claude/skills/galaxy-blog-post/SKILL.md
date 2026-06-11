@@ -86,8 +86,8 @@ comparison, a critique, or an image never crosses into putting someone down.
 
 - **Tone:** honest, experience-report, and useful, matching the Galaxy news feed
   (for example the 2025 "Using Claude AI for Literature Searches" post). Not
-  salesy; pre-release work is framed as "lessons from building X", not "use our
-  product".
+  salesy; even now that the toolkit is published, frame the work as an honest
+  experience report ("lessons from building X"), not a product pitch.
 - **Structure:** a hook (why a Galaxy reader cares), then the concrete thing, then
   what is transferable, then a clear close (link, call to action).
 - **Grounding:** every claim should trace to something real in the repo (this

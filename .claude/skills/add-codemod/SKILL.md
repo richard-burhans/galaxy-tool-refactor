@@ -34,7 +34,7 @@ and **detect-primitive**: each codemod reports exactly what it will change.
 
 2. **Create the codemod** — `src/galaxy_tool_codemod/codemods/<verb_noun>.py`:
    - Subclass `CodemodCommand`; set `meta: ClassVar[RuleMeta]` with the **next free GTR
-     code** (013 is the current max → use `GTR014`), a `summary`, `since`, and
+     code** (the next free code; check `coded_codemods()` / the registry, which asserts no collision), a `summary`, `since`, and
      `applies_to` (default `{"tool"}` — only opt into `"macro"` for a generic rule).
    - Define `detect_<TagPascalCase>` methods (dispatch is by tag:
      `<param>` → `detect_Param`, `<change_format>` → `detect_ChangeFormat`). Each
@@ -49,12 +49,12 @@ and **detect-primitive**: each codemod reports exactly what it will change.
 3. **Register it** so the tiers see it:
    - `catalog.py::coded_codemods()` — **always** add the class (this is what the
      cross-tier registry enumerates; the registry asserts GTR codes don't collide).
-   - `canonical.py::CANONICAL_CODEMODS` — add it **only if** it's a safe, idempotent,
+   - `canonical.py::canonical_codemods()` — add it **only if** it's a safe, idempotent,
      `profile=`-preserving *format-time* codemod (then it becomes selectable and runs
-     under `format` / the `iuc` preset). Mind the order — `FixTypos` runs first;
+     under `format` / the `iuc` ruleset). Mind the order — `FixTypos` runs first;
      attribute reorders before child reorders.
    - No registry edits needed: `galaxy-tool-refactor-registry` derives its handles
-     from `coded_codemods()` / `CANONICAL_CODEMODS`.
+     from `coded_codemods()` / `canonical_codemods()`.
 
 4. **Corpus sweep + retain regressions** (QA investment is worth it — never trim this):
    ```bash
@@ -86,10 +86,10 @@ Profile upgrades are grown **empirically from the corpus**, not designed up fron
    **sticking-point** versions — the from-profiles where many tools stall because no
    `upgrade_vN` exists yet.
 2. Pick the highest-leverage sticking point; write `codemods/upgrade_<from_version>.py`
-   (next free GTR code, e.g. `GTR014`) implementing the one structural migration that
+   (the next free GTR code; see `coded_codemods()`) implementing the one structural migration that
    makes a tool valid at the next profile. Register it in `coded_codemods()` and in
    the `UPGRADE_CODEMODS` registry in `upgrades.py` (from-version → codemod) that
-   `UpgradeToLatest` loops over. These are **upgrade-only** — not in `CANONICAL_CODEMODS`,
+   `UpgradeToLatest` loops over. These are **upgrade-only** — not in `canonical_codemods()`,
    not user-selectable; they surface only via `list_rules(include_upgrade=True)`.
 3. Re-run the sweep; confirm reach-to-latest climbed and the version is no longer
    sticky. Repeat until the residual is just genuine tool bugs. Record the numbers in

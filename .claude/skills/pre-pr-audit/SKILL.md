@@ -93,7 +93,7 @@ Every docstring, inline comment, `README.md`, `CLAUDE.md`, `docs/decisions.md`, 
 
 Sweep for things the change silently invalidated:
 
-- **Tier tables / package counts** — "eight packages", the tier matrix in each
+- **Tier tables / package counts** — "nine packages", the tier matrix in each
   `CLAUDE.md` + `ARCHITECTURE.md`.
 - **Command lists** — `corpus_check` subcommands, `measure.py` slugs, CLI commands.
 - **User-facing doc suite** — when the change adds/renames a command or a user-visible

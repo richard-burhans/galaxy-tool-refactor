@@ -237,7 +237,7 @@ orchestration lives in the registry facade (3.6); the CLI/MCP are thin front-end
 | 2 | `galaxy-tool-codemod` | `CodemodCommand`/`Cursor`/`Change`; CANONICAL vs AUTO_UPGRADE |
 | 3 | `galaxy-tool-fmt` | cosmetic `Rule`/`Edit`; the only serializer of canonical output |
 | 3.5 | `galaxy-tool-lint` | detect-only IUC `CheckRule`s |
-| 3.6 | `galaxy-tool-refactor-registry` | `RuleHandle`, presets, `run/upgrade/detect` facade |
+| 3.6 | `galaxy-tool-refactor-registry` | `RuleHandle`, rulesets, `run/upgrade/detect` facade |
 | 4 | `galaxy-tool-refactor-cli` | thin user-facing CLI over the facade |
 | 4 | `galaxy-tool-refactor-mcp` | thin agent-facing MCP server over the facade |
 
