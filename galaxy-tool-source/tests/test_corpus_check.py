@@ -572,3 +572,64 @@ def test_format_reason_table_is_order_independent() -> None:
     data = {"reason-b": 3, "reason-a": 3, "reason-c": 10}
     out = corpus_check._format_reason_table("T", "intro", _Counter(data))
     assert out == corpus_check._format_reason_table("T", "intro", _reversed(data))
+
+
+# The corpus-completeness policy (the partial-corpus guard before a stats regen)
+# is pure, so its decision table is unit-testable without a corpus on disk.
+
+
+def test_corpus_completeness_missing_manifest_is_a_problem() -> None:
+    # fetch_toolshed writes manifest.json only on completion, so its absence means
+    # the fetch never finished — the dominant partial-corpus signal.
+    problem = corpus_check._corpus_completeness_problem(
+        manifest_exists=False, manifest_repo_count=0, disk_repo_count=0
+    )
+    assert problem is not None and "manifest" in problem
+
+
+def test_corpus_completeness_full_corpus_is_fine() -> None:
+    # Disk matches the manifest -> no problem (the 6 expected 404 failures keep
+    # disk a hair under the eligible count, well within the 95% ratio).
+    assert (
+        corpus_check._corpus_completeness_problem(
+            manifest_exists=True, manifest_repo_count=7678, disk_repo_count=7672
+        )
+        is None
+    )
+
+
+def test_corpus_completeness_clobbered_local_is_a_problem() -> None:
+    # Manifest present but most clones gone (a .local clobbered by a merge
+    # checkout) -> flagged with both counts named.
+    problem = corpus_check._corpus_completeness_problem(
+        manifest_exists=True, manifest_repo_count=7678, disk_repo_count=3080
+    )
+    assert problem is not None
+    assert "3080" in problem and "7678" in problem
+
+
+def test_corpus_completeness_empty_manifest_does_not_false_positive() -> None:
+    # A manifest with nothing recorded gives no baseline to compare against, so we
+    # decline to fail rather than block on a degenerate case.
+    assert (
+        corpus_check._corpus_completeness_problem(
+            manifest_exists=True, manifest_repo_count=0, disk_repo_count=0
+        )
+        is None
+    )
+
+
+def test_corpus_completeness_just_under_threshold_trips() -> None:
+    # 94% < 95% ratio -> a problem; 96% would pass. Pins the boundary.
+    assert (
+        corpus_check._corpus_completeness_problem(
+            manifest_exists=True, manifest_repo_count=1000, disk_repo_count=940
+        )
+        is not None
+    )
+    assert (
+        corpus_check._corpus_completeness_problem(
+            manifest_exists=True, manifest_repo_count=1000, disk_repo_count=960
+        )
+        is None
+    )

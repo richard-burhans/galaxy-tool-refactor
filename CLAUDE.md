@@ -86,8 +86,11 @@ stat-consistency review). That audit is the **`/pre-pr-audit` skill**
 (`.claude/skills/pre-pr-audit/`) — invoke it before opening any PR; it owns the
 six-step checklist and calls `qa_gate.sh` as its final step. For deeper,
 design-level reviews of the abstractions there is the **`/architecture-audit`
-skill**. New contributors approve the project hook on first use; in a session that
-predates the hook, open `/hooks` once (or restart) to load it.
+skill**. To **merge** a PR and clean up the branch safely — without the
+`gh pr merge --delete-branch` checkout that has twice wiped the `.local` corpus —
+use the **`/ship-pr` skill** (`.claude/skills/ship-pr/`). New contributors approve
+the project hook on first use; in a session that predates the hook, open `/hooks`
+once (or restart) to load it.
 
 ## Corpus scripts
 
@@ -303,6 +306,15 @@ uv run python -m scripts.measure macro-token-datatype-residual
 **Note:** invoke as `python -m scripts.X`, not `python scripts/X.py` — the
 scripts import from `scripts._shared`, which requires `scripts` to be
 importable as a package (i.e. the workspace root on `sys.path`).
+
+**Corpus-completeness guard:** a full (stats-regenerating) `corpus_check`
+sweep over the toolshed source aborts up front if the toolshed corpus looks
+partial — no `galaxy-toolshed/manifest.json` (`fetch_toolshed` writes it only on
+completion) or far fewer clones on disk than the manifest records (a `.local`
+clobbered by a merge checkout). Regenerating a `docs/*_stats.md` page from a
+partial corpus silently corrupts every number, so the sweep refuses; re-run
+`fetch_toolshed` (additive) or pass `--no-stats`. Partial sweeps (`--limit` /
+`--repo`) don't regenerate stats and so aren't gated.
 
 ## Coding standards
 
