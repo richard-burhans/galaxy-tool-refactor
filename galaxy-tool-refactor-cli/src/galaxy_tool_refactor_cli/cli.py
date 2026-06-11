@@ -221,6 +221,9 @@ def _resolve_upgrade(
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
+@click.version_option(
+    package_name="galaxy-tool-refactor-cli", prog_name="galaxy-tool-refactor"
+)
 def main() -> None:
     """Refactor Galaxy tool XML: structural codemods plus cosmetic formatting."""
 
