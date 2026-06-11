@@ -280,6 +280,91 @@ def _toolshed_manifest() -> dict[str, str]:
     return result
 
 
+_CORPUS_MIN_COMPLETE_RATIO = 0.95
+
+
+def _toolshed_manifest_repo_count() -> int:
+    """Number of repositories the toolshed manifest records (0 if absent/malformed).
+
+    Counts the raw ``repositories`` entries — unlike ``_toolshed_manifest`` it does
+    not filter to changeset-bearing rows, so a manifest backfilled for clones with
+    no recorded changeset still reports the true fetched size.
+    """
+    if not _TOOLSHED_MANIFEST.exists():
+        return 0
+    raw = json.loads(_TOOLSHED_MANIFEST.read_text(encoding="utf-8"))
+    repos = raw.get("repositories") if isinstance(raw, dict) else None
+    return len(repos) if isinstance(repos, dict) else 0
+
+
+def _toolshed_repo_dir_count() -> int:
+    """Number of ``<owner>/<name>`` repo directories on disk under the toolshed root."""
+    if not _TOOLSHED_ROOT.exists():
+        return 0
+    return sum(
+        1
+        for owner_dir in _TOOLSHED_ROOT.iterdir()
+        if owner_dir.is_dir()
+        for repo_dir in owner_dir.iterdir()
+        if repo_dir.is_dir()
+    )
+
+
+def _corpus_completeness_problem(
+    *, manifest_exists: bool, manifest_repo_count: int, disk_repo_count: int
+) -> str | None:
+    """A human reason the toolshed corpus looks incomplete, or ``None``.
+
+    Pure (no I/O) so the policy is unit-testable. Two failure modes — both seen in
+    practice when a fetch was interrupted or ``.local`` was clobbered by a merge
+    checkout: ``fetch_toolshed`` writes ``manifest.json`` only on completion, so its
+    absence means the fetch never finished; and far fewer repos on disk than the
+    manifest recorded means the clones were partially deleted. A manifest with no
+    recorded repositories is treated as "nothing to compare against" (no false
+    positive) rather than a failure.
+    """
+    if not manifest_exists:
+        return (
+            "the toolshed corpus is incomplete: no galaxy-toolshed/manifest.json "
+            "(fetch_toolshed writes it only on completion, so the fetch never finished)"
+        )
+    if manifest_repo_count <= 0:
+        return None
+    ratio = disk_repo_count / manifest_repo_count
+    if ratio < _CORPUS_MIN_COMPLETE_RATIO:
+        return (
+            f"the toolshed corpus looks partial: {disk_repo_count} repos on disk vs "
+            f"{manifest_repo_count} in the manifest ({ratio:.0%}) — a clobbered .local?"
+        )
+    return None
+
+
+def _toolshed_corpus_incomplete(sources: tuple[str, ...]) -> bool:
+    """Log and return ``True`` if *sources* include toolshed but the toolshed corpus
+    is too partial to regenerate stats from.
+
+    Regenerating a ``docs/*_stats.md`` page from a partial corpus silently corrupts
+    every number (the page reads as "swept everything"), so a stats-regenerating
+    sweep calls this before walking the corpus and aborts on ``True``.
+    """
+    if "toolshed" not in sources:
+        return False
+    problem = _corpus_completeness_problem(
+        manifest_exists=_TOOLSHED_MANIFEST.exists(),
+        manifest_repo_count=_toolshed_manifest_repo_count(),
+        disk_repo_count=_toolshed_repo_dir_count(),
+    )
+    if problem is None:
+        return False
+    logger.error(
+        "%s. Regenerating stats from a partial corpus silently corrupts every "
+        "number; run `uv run python -m scripts.fetch_toolshed` to complete it, or "
+        "pass --no-stats to sweep without regenerating the stat pages.",
+        problem,
+    )
+    return True
+
+
 def _iter_toolshed_sources(
     *,
     repo_filter: str | None,
@@ -1324,6 +1409,8 @@ def _validate_main(argv: list[str]) -> int:
             _TOOLSHED_ROOT.relative_to(_REPO_ROOT),
         )
         return 1
+    if collect_stats and _toolshed_corpus_incomplete(sources_to_walk):
+        return 1
     tools = 0
     repo_tool_counts: list[tuple[str, str, int]] = []
     state = _ValidateSweepState(
@@ -1907,6 +1994,10 @@ def _fmt_main(argv: list[str]) -> int:
             "no toolshed corpus at %s; populate it via scripts/fetch_toolshed.py",
             _TOOLSHED_ROOT.relative_to(_REPO_ROOT),
         )
+        return 1
+    if not (args.no_stats or args.limit or args.repo) and _toolshed_corpus_incomplete(
+        sources
+    ):
         return 1
 
     _CORPUS_ROOT.mkdir(parents=True, exist_ok=True)
@@ -2882,6 +2973,10 @@ def _rules_main(argv: list[str]) -> int:
             _TOOLSHED_ROOT.relative_to(_REPO_ROOT),
         )
         return 1
+    if not (args.no_stats or args.limit or args.repo) and _toolshed_corpus_incomplete(
+        sources
+    ):
+        return 1
 
     _CORPUS_ROOT.mkdir(parents=True, exist_ok=True)
     _FMT_REGRESSIONS.mkdir(parents=True, exist_ok=True)
@@ -3263,6 +3358,10 @@ def _check_main(argv: list[str]) -> int:
             "no toolshed corpus at %s; populate it via scripts/fetch_toolshed.py",
             _TOOLSHED_ROOT.relative_to(_REPO_ROOT),
         )
+        return 1
+    if not (args.no_stats or args.limit or args.repo) and _toolshed_corpus_incomplete(
+        sources
+    ):
         return 1
 
     state = _check_sweep(sources=sources, repo_filter=args.repo, limit=args.limit)
