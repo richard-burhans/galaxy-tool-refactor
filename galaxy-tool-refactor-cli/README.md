@@ -71,7 +71,16 @@ findings), §D4 (the registry facade + rule selection).
 
 ## Install / test
 
+End-user install (the metapackage is the front door; it pulls this CLI):
+
 ```bash
-uv sync   # from the workspace root
+pip install galaxy-tool-refactor          # provides the `galaxy-tool-refactor` command
+pip install galaxy-tool-refactor-cli      # or this package directly
+```
+
+For development, from the workspace root:
+
+```bash
+uv sync
 uv run --package galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/
 ```

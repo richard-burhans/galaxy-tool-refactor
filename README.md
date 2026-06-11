@@ -8,17 +8,33 @@ definition XML.
 
 | Package | PyPI status | Role |
 |---|---|---|
-| [`galaxy-tool-refactor-rules`](galaxy-tool-refactor-rules/README.md) | pre-alpha | Shared `RuleMeta` descriptor + `Violation` diagnostic + glossary renderer. Dependency-free; underpins the GTR rule registry across the tiers. |
-| [`galaxy-tool-source`](galaxy-tool-source/README.md) | [published](https://pypi.org/project/galaxy-tool-source/) — `pip install galaxy-tool-source` | Parse, validate, and inspect Galaxy tool XML. Foundation for the other tiers. |
-| [`galaxy-tool-codemod`](galaxy-tool-codemod/README.md) | pre-alpha | Detect-primitive `CodemodCommand` framework + bundled structural codemods (`canonical_codemods()`, `AUTO_UPGRADE_CODEMODS`); each rule has a detect (lint) and a fix phase. |
-| [`galaxy-tool-fmt`](galaxy-tool-fmt/README.md) | pre-release | Opinionated `black`-like cosmetic formatter (with a non-mutating `detect`). The only tier that serialises canonical output XML. |
-| [`galaxy-tool-lint`](galaxy-tool-lint/README.md) | pre-alpha | Advisory, detect-only IUC best-practice checks (`GTR` codes); read-only, reports but never mutates. Depends only on tiers 1 + 0.5. |
-| [`galaxy-tool-refactor-registry`](galaxy-tool-refactor-registry/README.md) | pre-alpha | Unified, code-addressable rule registry over all three families + named rulesets (`cosmetic`/`default`/`iuc`/`strict`) + a library-first `run`/`upgrade`/`detect` API. The orchestration core the CLI and the MCP server sit on. |
-| [`galaxy-tool-refactor-cli`](galaxy-tool-refactor-cli/README.md) | pre-alpha | The `galaxy-tool-refactor` app CLI — `format`, `upgrade`, report-only `check`, read-only `find-references`, mutating `rename-param`, `rulesets` / `rules`, and the opt-in `normalize-macros`, with `--ruleset` / `--select` / `--ignore` rule selection. |
-| [`galaxy-tool-refactor-mcp`](galaxy-tool-refactor-mcp/README.md) | pre-alpha | An agent-facing **MCP server** over the registry facade (CLI sibling): a thin FastMCP binding over a protocol-agnostic adapter, exposing `format_tool`/`upgrade_tool`/`check_tool`/`list_rulesets`/`list_rules`. |
-| [`galaxy-tool-refactor`](galaxy-tool-refactor-meta/README.md) | pre-alpha | Front-door **metapackage** — `pip install galaxy-tool-refactor` installs the CLI; the `[mcp]` extra adds the MCP server. No code of its own. |
+| [`galaxy-tool-refactor-rules`](galaxy-tool-refactor-rules/README.md) | [published](https://pypi.org/project/galaxy-tool-refactor-rules/), `pip install galaxy-tool-refactor-rules` | Shared `RuleMeta` descriptor + `Violation` diagnostic + glossary renderer. Dependency-free; underpins the GTR rule registry across the tiers. |
+| [`galaxy-tool-source`](galaxy-tool-source/README.md) | [published](https://pypi.org/project/galaxy-tool-source/), `pip install galaxy-tool-source` | Parse, validate, and inspect Galaxy tool XML. Foundation for the other tiers. |
+| [`galaxy-tool-codemod`](galaxy-tool-codemod/README.md) | [published](https://pypi.org/project/galaxy-tool-codemod/), `pip install galaxy-tool-codemod` | Detect-primitive `CodemodCommand` framework + bundled structural codemods (`canonical_codemods()`, `AUTO_UPGRADE_CODEMODS`); each rule has a detect (lint) and a fix phase. |
+| [`galaxy-tool-fmt`](galaxy-tool-fmt/README.md) | [published](https://pypi.org/project/galaxy-tool-fmt/), `pip install galaxy-tool-fmt` | Opinionated `black`-like cosmetic formatter (with a non-mutating `detect`). The only tier that serialises canonical output XML. |
+| [`galaxy-tool-lint`](galaxy-tool-lint/README.md) | [published](https://pypi.org/project/galaxy-tool-lint/), `pip install galaxy-tool-lint` | Advisory, detect-only IUC best-practice checks (`GTR` codes); read-only, reports but never mutates. Depends only on tiers 1 + 0.5. |
+| [`galaxy-tool-refactor-registry`](galaxy-tool-refactor-registry/README.md) | [published](https://pypi.org/project/galaxy-tool-refactor-registry/), `pip install galaxy-tool-refactor-registry` | Unified, code-addressable rule registry over all three families + named rulesets (`cosmetic`/`default`/`iuc`/`strict`) + a library-first `run`/`upgrade`/`detect` API. The orchestration core the CLI and the MCP server sit on. |
+| [`galaxy-tool-refactor-cli`](galaxy-tool-refactor-cli/README.md) | [published](https://pypi.org/project/galaxy-tool-refactor-cli/), `pip install galaxy-tool-refactor-cli` | The `galaxy-tool-refactor` app CLI: `format`, `upgrade`, report-only `check`, read-only `find-references`, mutating `rename-param`, `rulesets` / `rules`, and the opt-in `normalize-macros`, with `--ruleset` / `--select` / `--ignore` rule selection. |
+| [`galaxy-tool-refactor-mcp`](galaxy-tool-refactor-mcp/README.md) | [published](https://pypi.org/project/galaxy-tool-refactor-mcp/), `pip install galaxy-tool-refactor-mcp` | An agent-facing **MCP server** over the registry facade (CLI sibling): a thin FastMCP binding over a protocol-agnostic adapter, exposing `format_tool`/`upgrade_tool`/`check_tool`/`list_rulesets`/`list_rules`. |
+| [`galaxy-tool-refactor`](galaxy-tool-refactor-meta/README.md) | [published](https://pypi.org/project/galaxy-tool-refactor/), `pip install galaxy-tool-refactor` | Front-door **metapackage**: `pip install galaxy-tool-refactor` installs the CLI; the `[mcp]` extra adds the MCP server. No code of its own. |
 
 ## Quick start
+
+Install the CLI from PyPI:
+
+```bash
+pip install galaxy-tool-refactor          # the `galaxy-tool-refactor` command
+pip install "galaxy-tool-refactor[mcp]"   # also installs the agent-facing MCP server
+```
+
+Then run it on a tool (or a directory of tools):
+
+```bash
+galaxy-tool-refactor check tool.xml       # report IUC / style deviations (read-only)
+galaxy-tool-refactor format tool.xml      # apply the safe, behaviour-preserving fixes
+```
+
+To work on the toolkit itself, clone the workspace and use `uv` instead:
 
 ```bash
 git clone <this-repo>
