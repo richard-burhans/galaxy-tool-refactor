@@ -29,7 +29,7 @@ def test_name_collision_and_legacy_tags_are_honestly_included() -> None:
     # (simpleContent under <configfiles> — ConfigInputs), and <macros> is
     # xs:anyType in the legacy schemas. The CONTEXT handling (configfiles-only
     # for inputs; the cleared-macros exception) lives in the fmt consumer
-    # (galaxy_tool_xml_fmt.payload), not here — this module reports the schema
+    # (galaxy_tool_fmt.payload), not here — this module reports the schema
     # truth.
     tags = text_bearing_tags()
     assert {"inputs", "macros"} <= tags

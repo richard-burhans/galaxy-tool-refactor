@@ -8,7 +8,7 @@ measures where a behaviour-preserving upgrade stalls).
 
 The codes mirror Galaxy's own catalogue,
 `lib/galaxy/tool_util/upgrade/upgrade_codes.json`, vendored in
-`galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/profile_semantics.py` as
+`galaxy-tool-codemod/src/galaxy_tool_codemod/profile_semantics.py` as
 `PROFILE_UPGRADE_CODES`. Detection mirrors Galaxy's advisor
 (`lib/galaxy/tool_util/upgrade/__init__.py`). Galaxy-source citations in each note are
 from the local clone `.local/galaxy-src/` @ `c6e0ee3` (2026-06-01).

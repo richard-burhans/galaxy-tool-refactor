@@ -11,7 +11,7 @@
 
 > Galaxy-source citations are from the local clone `.local/galaxy-src/` @ `c6e0ee3`
 > (2026-06-01). Our detector/message live in
-> `galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/profile_semantics.py`.
+> `galaxy-tool-codemod/src/galaxy_tool_codemod/profile_semantics.py`.
 
 ## What the feature was
 

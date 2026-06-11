@@ -14,7 +14,7 @@ library's invariants on each tool:
 * a macro-free tool must validate the same under every ``macro_handling``;
 * ``newest_valid_profile`` must return the newest profile that validates.
 
-``fmt`` — sweep the corpus through the galaxy-tool-xml-fmt pipeline and check:
+``fmt`` — sweep the corpus through the galaxy-tool-fmt pipeline and check:
 
 * the formatter must not **crash** on tool input;
 * re-formatting the formatter's output must yield identical bytes
@@ -128,7 +128,7 @@ _UNKNOWN = "unknown"
 # --- fmt subcommand paths ----------------------------------------------------
 
 _FMT_REGRESSIONS = (
-    _REPO_ROOT / "galaxy-tool-xml-fmt" / "tests" / "data" / "regressions"
+    _REPO_ROOT / "galaxy-tool-fmt" / "tests" / "data" / "regressions"
 )
 _FMT_STATS_FILE = _REPO_ROOT / "docs" / "corpus_format_stats.md"
 _RULE_STATS_FILE = _REPO_ROOT / "docs" / "corpus_rule_stats.md"
@@ -1430,12 +1430,12 @@ from galaxy_tool_refactor_rules.meta import RuleMeta  # noqa: E402
 from galaxy_tool_refactor_rules.reference import (  # noqa: E402
     render_rule_reference_table,
 )
-from galaxy_tool_xml_codemod.catalog import coded_codemods  # noqa: E402
-from galaxy_tool_xml_fmt.detect import detect_tool_document  # noqa: E402
-from galaxy_tool_xml_fmt.edits import apply_edits  # noqa: E402
-from galaxy_tool_xml_fmt.format import all_rules  # noqa: E402
-from galaxy_tool_xml_fmt.rules import Rule  # noqa: E402
-from galaxy_tool_xml_fmt.serializer import to_bytes  # noqa: E402
+from galaxy_tool_codemod.catalog import coded_codemods  # noqa: E402
+from galaxy_tool_fmt.detect import detect_tool_document  # noqa: E402
+from galaxy_tool_fmt.edits import apply_edits  # noqa: E402
+from galaxy_tool_fmt.format import all_rules  # noqa: E402
+from galaxy_tool_fmt.rules import Rule  # noqa: E402
+from galaxy_tool_fmt.serializer import to_bytes  # noqa: E402
 
 
 @dataclass
@@ -1851,7 +1851,7 @@ def _fmt_main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m scripts.corpus_check fmt",
         description=(
-            "Sweep the Galaxy tool corpus through galaxy-tool-xml-fmt and "
+            "Sweep the Galaxy tool corpus through galaxy-tool-fmt and "
             "check format → re-format idempotence."
         ),
     )
@@ -1993,12 +1993,12 @@ def _fmt_main(argv: list[str]) -> int:
 
 import importlib  # noqa: E402
 
-from galaxy_tool_xml_codemod.codemod import CodemodCommand  # noqa: E402
-from galaxy_tool_xml_codemod.parse import parse_module  # noqa: E402
-from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest  # noqa: E402
+from galaxy_tool_codemod.codemod import CodemodCommand  # noqa: E402
+from galaxy_tool_codemod.parse import parse_module  # noqa: E402
+from galaxy_tool_codemod.upgrades import UpgradeToLatest  # noqa: E402
 
 _CODEMOD_REGRESSIONS = (
-    _REPO_ROOT / "galaxy-tool-xml-codemod" / "tests" / "data" / "regressions"
+    _REPO_ROOT / "galaxy-tool-codemod" / "tests" / "data" / "regressions"
 )
 
 
@@ -2309,7 +2309,7 @@ def _codemod_main(argv: list[str]) -> int:
         help=(
             "codemod to run, as 'dotted.module:ClassName' "
             "(e.g. "
-            "'galaxy_tool_xml_codemod.codemods.reorder_param_attributes:"
+            "'galaxy_tool_codemod.codemods.reorder_param_attributes:"
             "ReorderParamAttributes')"
         ),
     )
@@ -2952,11 +2952,11 @@ def _rules_main(argv: list[str]) -> int:
 # docs/corpus_check_stats.md.
 
 from galaxy_tool_refactor_rules.violation import Violation  # noqa: E402
-from galaxy_tool_xml_check.detect import all_checks  # noqa: E402
-from galaxy_tool_xml_check.detect import detect_violations as _detect_advisory  # noqa: E402
-from galaxy_tool_xml_codemod.canonical import canonical_codemods  # noqa: E402
-from galaxy_tool_xml_codemod.module import Module  # noqa: E402
-from galaxy_tool_xml_fmt.cli_support import is_tool_root  # noqa: E402
+from galaxy_tool_lint.detect import all_checks  # noqa: E402
+from galaxy_tool_lint.detect import detect_violations as _detect_advisory  # noqa: E402
+from galaxy_tool_codemod.canonical import canonical_codemods  # noqa: E402
+from galaxy_tool_codemod.module import Module  # noqa: E402
+from galaxy_tool_fmt.cli_support import is_tool_root  # noqa: E402
 
 _CHECK_STATS_FILE = _REPO_ROOT / "docs" / "corpus_check_stats.md"
 

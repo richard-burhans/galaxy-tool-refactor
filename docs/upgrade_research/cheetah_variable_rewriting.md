@@ -267,7 +267,7 @@ have no element children).
 
 **fmt already handles its half correctly.** Tier-3 is the only serialiser, and every
 text edit routes through `serializer.safe_set_text`, which **writes only when the
-existing text is absent or pure whitespace** (`galaxy-tool-xml-fmt/.../serializer.py:23-25`;
+existing text is absent or pure whitespace** (`galaxy-tool-fmt/.../serializer.py:23-25`;
 `edits.py` dispatch). So no formatting rule (indent / blank-line / empty-element) ever
 touches CDATA *content*, and `test_regressions.py`'s byte-idempotence sweep guards it.
 

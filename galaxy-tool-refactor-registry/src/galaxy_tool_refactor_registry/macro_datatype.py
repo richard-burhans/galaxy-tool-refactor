@@ -4,7 +4,7 @@ The macro-library analog of ``Upgrade24_1`` (GTR010). ``Upgrade24_1`` lowercases
 strips ``format`` / ``ftype`` on a tool's **own** tree, but a coercible value defined
 in an *imported* macro file (e.g. ``<data format="GTiff">`` in ``gdal_macros.xml``) is
 unreachable from the per-tool pipeline — so a handful of tools stay stuck below 24.2
-solely because of it (``galaxy-tool-xml-codemod/docs/macro-aware-normalization.md``).
+solely because of it (``galaxy-tool-codemod/docs/macro-aware-normalization.md``).
 
 This is the deliberate, opt-in, repo-scoped "normalize macro library" pass (that
 note's option D): given macro files, lowercase each **literal** ``format`` / ``ftype``
@@ -28,10 +28,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from galaxy_tool_codemod.datatype_format import normalize_datatype_attributes
+from galaxy_tool_fmt.cli_support import make_backup
+from galaxy_tool_fmt.format import format_macro_document
 from galaxy_tool_source.binding import ToolXmlSyntaxError, load_macros
-from galaxy_tool_xml_codemod.datatype_format import normalize_datatype_attributes
-from galaxy_tool_xml_fmt.cli_support import make_backup
-from galaxy_tool_xml_fmt.format import format_macro_document
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

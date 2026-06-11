@@ -249,7 +249,7 @@ galaxy-tool-refactor-registry/tests/test_macro_datatype.py`; corpus sizing
   *imported* macro file (e.g. `<data format="GTiff">` in `gdal_macros.xml`) is
   unreachable from the per-tool pipeline, so **15** corpus tools stay stuck below 24.2
   solely because of it (6 via a shared defining file, 9 sole-owned;
-  `galaxy-tool-xml-codemod/docs/macro-aware-normalization.md`). This is the first
+  `galaxy-tool-codemod/docs/macro-aware-normalization.md`). This is the first
   consumer of the macro write-back epic (`docs/macro_handling_architecture.md` §6c).
 - **What we chose (Phase 2a, the scoped slice).** `macro_datatype.normalize_macro_files`
   — the macro-library analog of `Upgrade24_1`: load each `<macros>`-root file as a

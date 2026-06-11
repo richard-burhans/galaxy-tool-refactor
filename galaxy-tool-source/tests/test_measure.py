@@ -641,7 +641,7 @@ def test_version_tuple_equates_zero_padded_versions() -> None:
 
 def _puc(code: str, profile: str, level: str) -> object:
     """A synthetic ``ProfileUpgradeCode`` for the pure-tally tests."""
-    from galaxy_tool_xml_codemod.profile_semantics import ProfileUpgradeCode
+    from galaxy_tool_codemod.profile_semantics import ProfileUpgradeCode
 
     return ProfileUpgradeCode(
         code=code, profile=profile, level=level, niche=False, message="", url=None

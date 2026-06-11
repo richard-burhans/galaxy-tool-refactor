@@ -50,8 +50,8 @@ from scripts._shared import sha256_of as _sha256_of
 from scripts._shared import unique_by_sha as _unique_by_sha
 
 if TYPE_CHECKING:
-    from galaxy_tool_xml_codemod.codemod import CodemodCommand
-    from galaxy_tool_xml_codemod.profile_semantics import ProfileUpgradeCode
+    from galaxy_tool_codemod.codemod import CodemodCommand
+    from galaxy_tool_codemod.profile_semantics import ProfileUpgradeCode
 
 logger = logging.getLogger("measure")
 
@@ -1896,9 +1896,9 @@ def _run_command_iuc_heuristics(args: argparse.Namespace) -> None:
 # was meant — is what's left. A quote-state scan (single/double) tags the quoted
 # class; the rest is classified by adjacency. Heuristic, not a shell parse (that
 # is the deferred M5 lexer); backs the GTR032 deferral in
-# `galaxy-tool-xml-check/docs/decisions.md`. Needs the corpus, not in CI.
+# `galaxy-tool-lint/docs/decisions.md`. Needs the corpus, not in CI.
 
-from galaxy_tool_xml_check.lone_amp import (  # noqa: E402 (module section)
+from galaxy_tool_lint.lone_amp import (  # noqa: E402 (module section)
     LONE_AMP_CLASSES as _LONE_AMP_CLASSES,
     classify_lone_amps as _classify_lone_amps,
 )
@@ -2600,7 +2600,7 @@ def _measure_macro_fmt_idempotence(
 ) -> _MacroFmtIdempotenceResult:
     """Sweep distinct macro files for fmt idempotence and change rate."""
     from galaxy_tool_source.binding import ToolXmlSyntaxError, load_macros
-    from galaxy_tool_xml_fmt.format import format_macro_document
+    from galaxy_tool_fmt.format import format_macro_document
 
     seen: set[str] = set()
     n_files = n_unparseable = n_changed = n_idempotent = n_non_idempotent = 0
@@ -3251,11 +3251,11 @@ def _run_upgrade_headroom(args: argparse.Namespace) -> None:
 # Galaxy's 16.01 runtime default when none is declared; target = newest_valid
 # (the pre-upgrade reachable profile — a slight undercount for the ~1.6% of tools
 # a structural upgrade_vN advances further). Pinnability per boundary is in
-# galaxy-tool-xml-codemod/docs/behavior-preserving-upgrade.md.
+# galaxy-tool-codemod/docs/behavior-preserving-upgrade.md.
 
 # Galaxy upgrade codes a future `--preserve-behaviour` mode could pin CLEANLY (a
 # single documented attribute/element restores the old behaviour); the rest have
-# no XML opt-out knob (see galaxy-tool-xml-codemod/docs/behavior-preserving-upgrade.md).
+# no XML opt-out knob (see galaxy-tool-codemod/docs/behavior-preserving-upgrade.md).
 _PINNABLE_CLEAN = frozenset(
     {
         "16_04_exit_code",
@@ -3296,7 +3296,7 @@ def _measure_semantic_upgrade_boundaries(
     ``upgrade_codes_crossed`` — the same function the warning uses (range-based,
     so a code counts whenever its profile is crossed, not whether the tool trips it).
     """
-    from galaxy_tool_xml_codemod.profile_semantics import upgrade_codes_crossed
+    from galaxy_tool_codemod.profile_semantics import upgrade_codes_crossed
 
     unique = _unique_by_sha(rows)
     per_code: Counter[str] = Counter()
@@ -3350,7 +3350,7 @@ def _measure_semantic_upgrade_boundaries(
 def _report_semantic_upgrade_boundaries(
     measurement: _SemanticBoundariesResult,
 ) -> None:
-    from galaxy_tool_xml_codemod.profile_semantics import PROFILE_UPGRADE_CODES
+    from galaxy_tool_codemod.profile_semantics import PROFILE_UPGRADE_CODES
 
     considered = measurement.n_considered
     print("\n=== semantic-upgrade-boundaries ===")
@@ -3443,7 +3443,7 @@ def _tally_applicability(
     Pure (no IO), so it is unit-tested with synthetic samples. ``tripped`` is the
     set of codes whose detector fired for that tool (range-independent).
     """
-    from galaxy_tool_xml_codemod.profile_semantics import upgrade_codes_crossed
+    from galaxy_tool_codemod.profile_semantics import upgrade_codes_crossed
 
     per_crossed: Counter[str] = Counter()
     per_applicable: Counter[str] = Counter()
@@ -3496,7 +3496,7 @@ def _measure_upgrade_codes_applicability(
     the on-disk file by sha256 (the corpus dedup key), so no fragile path
     reconstruction is needed; the file is loaded only for detection.
     """
-    from galaxy_tool_xml_codemod.profile_semantics import detect_codes_on_root
+    from galaxy_tool_codemod.profile_semantics import detect_codes_on_root
 
     row_by_sha = {
         str(row["sha256"]): row for row in rows if isinstance(row.get("sha256"), str)
@@ -3528,7 +3528,7 @@ def _measure_upgrade_codes_applicability(
 
 
 def _report_upgrade_codes_applicability(measurement: _ApplicabilityResult) -> None:
-    from galaxy_tool_xml_codemod.profile_semantics import PROFILE_UPGRADE_CODES
+    from galaxy_tool_codemod.profile_semantics import PROFILE_UPGRADE_CODES
 
     considered = measurement.n_considered
     print("\n=== upgrade-codes-applicability ===")
@@ -3600,7 +3600,7 @@ class _SetETighteningResult:
 
 def _measure_set_e_tightening(*, corpus_root: Path) -> _SetETighteningResult:
     """Count current ``set_e`` detector hits vs the sound single-command suppression."""
-    from galaxy_tool_xml_codemod.profile_semantics import (
+    from galaxy_tool_codemod.profile_semantics import (
         _command_text_is_single_simple_statement,
     )
 
@@ -3762,7 +3762,7 @@ def _classify_expansion_gap(path: Path, /) -> _GapSample:
     expanded); a failed expansion is ``"expansion_failed"`` (uncomparable).
     """
     from galaxy_tool_source.macros import expand_from_path, has_macros
-    from galaxy_tool_xml_codemod.profile_semantics import detect_codes_on_root
+    from galaxy_tool_codemod.profile_semantics import detect_codes_on_root
 
     empty: frozenset[str] = frozenset()
     root = _parse_tool_root(path)
@@ -3796,7 +3796,7 @@ def _measure_macro_expansion_detection_gap(
 
 
 def _report_macro_expansion_detection_gap(measurement: _ExpansionGapResult) -> None:
-    from galaxy_tool_xml_codemod.profile_semantics import PROFILE_UPGRADE_CODES
+    from galaxy_tool_codemod.profile_semantics import PROFILE_UPGRADE_CODES
 
     m = measurement
     print("\n=== macro-expansion-detection-gap ===")
@@ -3927,8 +3927,8 @@ def _measure_upgrade_profile_shift(*, corpus_root: Path) -> _ProfileShiftResult:
     from galaxy_tool_source.binding import newest_valid_profile
     from galaxy_tool_source.document import ToolDocument
     from galaxy_tool_source.profiles import latest_profile
-    from galaxy_tool_xml_codemod.module import Module
-    from galaxy_tool_xml_codemod.upgrades import UpgradeToLatest
+    from galaxy_tool_codemod.module import Module
+    from galaxy_tool_codemod.upgrades import UpgradeToLatest
 
     samples: list[tuple[str, str]] = []
     seen_sha: set[str] = set()
@@ -4162,8 +4162,8 @@ def _behavior_code_autofixed(
     sole-top-level-data-input tool).
     """
     from galaxy_tool_source.document import ToolDocument
-    from galaxy_tool_xml_codemod.module import Module
-    from galaxy_tool_xml_codemod.profile_semantics import detect_codes_on_root
+    from galaxy_tool_codemod.module import Module
+    from galaxy_tool_codemod.profile_semantics import detect_codes_on_root
 
     copied = copy.deepcopy(root)
     document = ToolDocument(etree.ElementTree(copied))
@@ -4174,14 +4174,14 @@ def _behavior_code_autofixed(
 def _measure_upgrade_behavior_blocks(*, corpus_root: Path) -> _BehaviorBlockResult:
     """Walk the corpus and tally where a behavior-preserving upgrade would stall."""
     from galaxy_tool_source.profiles import GALAXY_DEFAULT_PROFILE, latest_profile
-    from galaxy_tool_xml_codemod.codemods.fix_from_work_dir_whitespace import (
+    from galaxy_tool_codemod.codemods.fix_from_work_dir_whitespace import (
         FixFromWorkDirWhitespace,
     )
-    from galaxy_tool_xml_codemod.codemods.fix_interpreter import FixInterpreter
-    from galaxy_tool_xml_codemod.codemods.fix_output_format_input import (
+    from galaxy_tool_codemod.codemods.fix_interpreter import FixInterpreter
+    from galaxy_tool_codemod.codemods.fix_output_format_input import (
         FixOutputFormatInput,
     )
-    from galaxy_tool_xml_codemod.profile_semantics import (
+    from galaxy_tool_codemod.profile_semantics import (
         detect_codes_on_root,
         upgrade_codes_crossed,
     )
@@ -4237,7 +4237,7 @@ def _measure_upgrade_behavior_blocks(*, corpus_root: Path) -> _BehaviorBlockResu
 
 def _behavior_block_rows(policy: _BlockPolicyResult) -> list[tuple[str, str, str, int]]:
     """``(profile, level, code, tools-stuck)`` rows in catalogue (profile) order."""
-    from galaxy_tool_xml_codemod.profile_semantics import PROFILE_UPGRADE_CODES
+    from galaxy_tool_codemod.profile_semantics import PROFILE_UPGRADE_CODES
 
     rows: list[tuple[str, str, str, int]] = []
     for change in PROFILE_UPGRADE_CODES:
@@ -5383,7 +5383,7 @@ class _InterpreterBucketResult:
 
 def _measure_interpreter_buckets(*, corpus_root: Path) -> _InterpreterBucketResult:
     """Classify every `<command interpreter=…>` tool by codemod auto-fixability."""
-    from galaxy_tool_xml_codemod.codemods._interpreter import (
+    from galaxy_tool_codemod.codemods._interpreter import (
         interpreter_rewrite_target,
     )
 
@@ -5454,7 +5454,7 @@ def _render_interpreter_bucket_page(result: _InterpreterBucketResult) -> str:
             "deprecated `<command interpreter=…>` are split by whether the codemod can",
             "mechanically rewrite them to `interpreter '$__tool_directory__/script'`.",
             "Buckets are computed by the codemod's own eligibility predicate",
-            "(`galaxy_tool_xml_codemod.codemods._interpreter`), so the A + A-missing",
+            "(`galaxy_tool_codemod.codemods._interpreter`), so the A + A-missing",
             "total is exactly what the codemod rewrites.",
             "",
             "Regenerate with (needs the corpus, so not run in CI):",
@@ -5562,7 +5562,7 @@ class _OutputFormatInputResult:
 
 def _measure_output_format_input(*, corpus_root: Path) -> _OutputFormatInputResult:
     """Count output ``<data format="input">`` and the sole-data-input subset."""
-    from galaxy_tool_xml_codemod.codemods.fix_output_format_input import (
+    from galaxy_tool_codemod.codemods.fix_output_format_input import (
         _sole_data_input_qualified_name,
     )
 
@@ -6189,7 +6189,7 @@ def _run_help_rst_md_convert(args: argparse.Namespace) -> None:
 # below the latest profile that reach a newer one once the literal `format`/`ftype`
 # values in their *imported* macro files are lowercased — the value `Upgrade24_1`
 # cannot reach from the tool's own tree. Replaces the ad-hoc "~18" in
-# `galaxy-tool-xml-codemod/docs/macro-aware-normalization.md`. Sound by construction:
+# `galaxy-tool-codemod/docs/macro-aware-normalization.md`. Sound by construction:
 # per candidate the bundle is copied to a temp dir, normalized, and the tool
 # re-validated — counted only if its newest valid profile strictly increases. Split by
 # shared (>=2 importers) vs sole-owned defining macro file. Needs the corpus (not CI).
@@ -6425,7 +6425,7 @@ def _temp_normalize_reached(
         load_tool,
         newest_valid_profile,
     )
-    from galaxy_tool_xml_codemod.datatype_format import (
+    from galaxy_tool_codemod.datatype_format import (
         normalize_datatype_attributes,
         normalize_datatype_value,
     )
@@ -6475,7 +6475,7 @@ def _measure_macro_token_residual(*, corpus_root: Path) -> _MacroTokenResidualRe
     )
     from galaxy_tool_source.macros import imported_macro_paths, token_definitions
     from galaxy_tool_source.profiles import is_newer_profile, latest_profile
-    from galaxy_tool_xml_codemod.datatype_format import normalize_datatype_value
+    from galaxy_tool_codemod.datatype_format import normalize_datatype_value
 
     latest = latest_profile()
     token_ref = _re.compile(r"@[A-Za-z0-9_]+@")

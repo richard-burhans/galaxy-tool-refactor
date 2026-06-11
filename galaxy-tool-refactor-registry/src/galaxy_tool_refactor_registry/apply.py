@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from galaxy_tool_xml_fmt.format import format_tool_document_subset
+from galaxy_tool_fmt.format import format_tool_document_subset
 
 from galaxy_tool_refactor_registry.adapters import fmt_rule_by_code
 from galaxy_tool_refactor_registry.registry import registry

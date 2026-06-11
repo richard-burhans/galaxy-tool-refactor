@@ -142,7 +142,7 @@ written file is canonical in `test_upgrade_bumps_shared_imported_profile_token`)
 for validation. So write-back exists in exactly one place and only because `@PROFILE@` is a
 *named* construct addressable by token-name; **no** mechanism maps any other expanded node
 (e.g. a `<format>` in an imported `<macro>`, or a typo'd `<xml name>`) back to its defining
-file. Documented + deferred (`galaxy-tool-xml-codemod/PLAN.md`, `macro-aware-normalization.md`
+file. Documented + deferred (`galaxy-tool-codemod/PLAN.md`, `macro-aware-normalization.md`
 Option A) — listed as a *gap* (not just a choice) because it is the load-bearing limitation the
 "consistent expand-and-modify across inline + imported" goal must close (§6). Corpus payoff
 today ~18 tools → deferral is reasonable. **Sub-item:** that write-back is token-name-specific
@@ -260,5 +260,5 @@ The maintainer's goal reduces to one question: **leave the single-file model, or
 - `<yield>` resolution / parameterised macros (32.6% of tools — preserve, defer editing).
 - Macro-library normalisation (`format`/`ftype` in imported macros) — **shipped
   2026-06-03 (Phase 2a)** as the opt-in `normalize-macros` command; see
-  `galaxy-tool-xml-codemod/docs/macro-aware-normalization.md` and registry
+  `galaxy-tool-codemod/docs/macro-aware-normalization.md` and registry
   `docs/decisions.md` D8. (Token-supplied values await Phase 2b.)

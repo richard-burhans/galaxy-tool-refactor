@@ -97,16 +97,16 @@ commands (#39); input sanitization; python3 / PEP 8 in embedded scripts;
 `detect_errors` or `<stdio>` error handling (#40); `<section>` for advanced
 params.
 
-### Advisory `check` tier — BUILT (`galaxy-tool-xml-check`, tier 3.5)
+### Advisory `check` tier — BUILT (`galaxy-tool-lint`, tier 3.5)
 
 The mechanically-detectable subset is now a **read-only `check` (lint) that
-reports, never mutates**: the `galaxy-tool-xml-check` package (tier 3.5). Each
+reports, never mutates**: the `galaxy-tool-lint` package (tier 3.5). Each
 check carries an `GTR` code in the shared tier-0.5 registry (parallel to GTR),
 is `RuleMeta.detect_only=True`, and is an LBYL query over tier-1's
 `ToolDocument`. They surface via the report-only `galaxy-tool-refactor check`
 subcommand: `file:line  CODE  message`, marked `(advisory)`. Advisory findings
 are **informational** — `check` exits non-zero only on *fixable* (GTR) findings;
-`--strict` also fails on advisory. (See `galaxy-tool-xml-check/docs/decisions.md`
+`--strict` also fails on advisory. (See `galaxy-tool-lint/docs/decisions.md`
 D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 
 | check | Code | Status |
@@ -127,7 +127,7 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 | unused input `<param>` (general lint, not IUC) | GTR034 | **done** (conservative reference scan; check D11) |
 
 > **Scope note.** The table above is the *IUC-practice* slice of the `check` tier.
-> The same tier (`galaxy-tool-xml-check`) additionally hosts the **planemo-parity
+> The same tier (`galaxy-tool-lint`) additionally hosts the **planemo-parity
 > wave `GTR038`–`GTR095`** (55 detect-only checks reimplementing the
 > `galaxy.tool_util.lint` linters — outputs, inputs, tests, validators, `<help>` RST),
 > bringing it to **70 checks** total (the 2026-06-10 GTR090–091 batch was followed by
@@ -139,7 +139,7 @@ XSD validation can't see). `GTR089` is now a fix/advisory **partition**
 > reach. Those are a different axis (planemo coverage,
 > not the IUC tool-XML practices mapped here) and are tracked in
 > [`planemo_linter_parity.md`](planemo_linter_parity.md) +
-> `galaxy-tool-xml-check/docs/decisions.md` D12–D35, not in this document.
+> `galaxy-tool-lint/docs/decisions.md` D12–D35, not in this document.
 
 The `<command>`-CDATA-text heuristics took different paths: GTR020.2 remains
 the advisory residual of its partition, and **GTR032 shipped as a real detector

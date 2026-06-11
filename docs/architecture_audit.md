@@ -316,7 +316,7 @@ the applied fixes, re-run after the escalation follow-ups.
 
 **Verdict — healthy; boundaries hold, the abstraction absorbed the growth without strain.**
 This covers the largest tier-3.5 addition to date: the **planemo-parity advisory wave**, which
-roughly tripled `galaxy-tool-xml-check` — **52 new detect-only checks (`GTR038`–`GTR089`)**
+roughly tripled `galaxy-tool-lint` — **52 new detect-only checks (`GTR038`–`GTR089`)**
 reimplementing every mechanically-reimplementable `galaxy.tool_util.lint` linter (outputs,
 the full `inputs.py` correctness surface, `tests.py`, validators, `<help>` RST), bringing the
 tier to **66 checks total**. Method: a single deep pass across the seven dimensions, grounded
@@ -335,7 +335,7 @@ are fixed in this pass.
 
 ### Dimension-by-dimension
 
-1. **Boundary integrity ✅** — `galaxy-tool-xml-check/pyproject.toml` declares only
+1. **Boundary integrity ✅** — `galaxy-tool-lint/pyproject.toml` declares only
    `galaxy-tool-refactor-rules` (0.5), `galaxy-tool-xml` (1), `lxml`, `packaging`, and the new
    `docutils>=0.21`; a grep of `src/` confirms imports match (no codemod/fmt/registry import).
    `docutils` is genuinely used (`checks/help.py`, GTR089 only) and present in `uv.lock` —
@@ -373,7 +373,7 @@ high-water mark in four places. All fixed this pass:**
   wave paragraph (grouped by source area, with the `has_macros` raw-tree soundness rule and
   the `docutils` dependency), a `GTR038–GTR089` row to the rule-code table, a count to the
   tier-stack row (66), and `D12–D30` + `planemo_linter_parity.md` to the §6 citation footer.
-- **`galaxy-tool-xml-check/CLAUDE.md` "Scope" — Medium [fixed].** Listed only the pre-wave
+- **`galaxy-tool-lint/CLAUDE.md` "Scope" — Medium [fixed].** Listed only the pre-wave
   flat advisories + `.2` partitions. Added the planemo-parity-wave paragraph, the 66-check
   total, the macro-skip note, and the `D12–D30` / `planemo_linter_parity.md` pointers; also
   folded in `GTR034` (previously omitted from the flat-advisory list).
@@ -383,7 +383,7 @@ high-water mark in four places. All fixed this pass:**
   axis and pointing at `planemo_linter_parity.md` + `D12–D30`.
 
 **Resolved disagreement (recorded so it isn't re-litigated):** an exploration scout reported
-`galaxy-tool-xml-check/docs/decisions.md` stopped at **D21/GTR068** with `GTR069`–`089`
+`galaxy-tool-lint/docs/decisions.md` stopped at **D21/GTR068** with `GTR069`–`089`
 undocumented. Reading the file directly disproved it: it reaches **D30 (GTR089)** and fully
 documents every wave group (D12–D30, each with corpus counts). The scout had truncated its
 read. No fix needed — the decision log is current.
@@ -731,7 +731,7 @@ its error boundary), `server.py` adds the FastMCP binding. The drift was
 
 - **1.x — codemod imported `packaging` without declaring it — Medium [fixed].**
   `profile_semantics.py:73` and `runtime_fixes.py:26` use `packaging.version`, but
-  `galaxy-tool-xml-codemod/pyproject.toml` declared only `rules` / `xml` / `lxml` —
+  `galaxy-tool-codemod/pyproject.toml` declared only `rules` / `xml` / `lxml` —
   it worked solely via transitive resolution through `galaxy-tool-xml`. The
   manifest didn't encode a real, used coupling (the exact failure mode the prior
   pass flagged for `click`). Added `packaging>=23` (matching xml/check); re-synced;
@@ -810,7 +810,7 @@ predominantly genuine doc-drift, not inflated structural claims.)
   every `coded_codemods()` entry has `applies_to == {"tool"}`, so a macro-applicable
   codemod can't land on the default and silently mutate macro files.
 - **Duplicated `_version_or_none` (`profile_semantics.py` + `runtime_fixes.py`)
-  — Low. [resolved 2026-06-03].** Consolidated into `galaxy_tool_xml_codemod/
+  — Low. [resolved 2026-06-03].** Consolidated into `galaxy_tool_codemod/
   _version.py::version_or_none`; both modules now import it.
 
 **Re-confirmed intentional [accepted] (recorded so the next audit doesn't re-flag):**
@@ -853,7 +853,7 @@ recorded so it isn't re-litigated).
 **Verdict: clean.** Verified by import grep + every `pyproject.toml` dependency list.
 
 - No sibling cross-imports: fmt ⊥ codemod, codemod ⊥ fmt, check ⊥ {codemod, fmt}.
-  (The single `galaxy_tool_xml_codemod` hit inside fmt is a docstring in
+  (The single `galaxy_tool_codemod` hit inside fmt is a docstring in
   `format.py`, not an import.)
 - Nothing below tier 3.6 imports the registry.
 - The CLI (tier 4) imports the facade, fmt, and tier-1 parsing only — **not**
@@ -920,7 +920,7 @@ the current `facade.detect` / `check_command` path.
 ### 3.2 Two unrelated `_detect_advisory` names — **Low** [accepted]
 
 `facade._detect_advisory` (registry) and the import alias
-`from galaxy_tool_xml_check.detect import detect_violations as _detect_advisory`
+`from galaxy_tool_lint.detect import detect_violations as _detect_advisory`
 (`corpus_check.py:2951`) name two different things in two files. Confined to
 distinct modules, no shadowing; not worth churn. Recorded.
 
@@ -1022,7 +1022,7 @@ Documented reservation, not drift.
 ### 7.1 "writes XML to disk" imprecision — **Low** [fixed in ARCHITECTURE.md] [proposal for CLAUDE.md]
 
 Covered in 6.1. `ARCHITECTURE.md` is corrected. **Proposal:** soften the same
-phrasing in `galaxy-tool-xml-codemod/CLAUDE.md` and the tier table in other
+phrasing in `galaxy-tool-codemod/CLAUDE.md` and the tier table in other
 `CLAUDE.md`s from "writes XML to disk" to "serialises canonical XML" — left as a
 proposal because those are owned package docs and the change, while safe, touches a
 deliberately-chosen contract phrasing.
@@ -1126,7 +1126,7 @@ default is relied on implicitly by the 10 codemods. All Low / doc-only.
 ### Escalation fixes applied (QA gate re-run, PASSED)
 4. `galaxy-tool-refactor-registry/src/.../presets.py` — `preset_names()` derived
    from `presets()` (N1).
-5. `galaxy-tool-xml-codemod/pyproject.toml` — dropped unused `click` (N2);
+5. `galaxy-tool-codemod/pyproject.toml` — dropped unused `click` (N2);
    `uv.lock` re-synced.
 6. `scripts/corpus_check.py` — parity sort in `_check_detect` (N7).
 
@@ -1156,7 +1156,7 @@ here as a record of what was decided and where it landed.
    `check.detect.sort_violations` (used by both facade sites); the four active
    tier tables say "serialises canonical output XML"; `upgrade_command` docstring
    and the codemod `CLAUDE.md` `Module`/`ToolDocument` symmetry are corrected.
-   (The historical `galaxy-tool-xml-codemod/docs/architecture.md` was left as-is —
+   (The historical `galaxy-tool-codemod/docs/architecture.md` was left as-is —
    it is explicitly marked a pre-implementation design note.)
 
 ---
@@ -1221,6 +1221,6 @@ the facade applies `runtime_fixes_for(reached, *, baseline)` after `UpgradeToLat
 ### Applied this pass (safe fixes)
 `ARCHITECTURE.md` (R1, R2, R5-partial), `galaxy-tool-refactor-cli/.../cli.py` +
 `__init__.py` (R3, R5), `galaxy-tool-refactor-registry/.../registry.py` +
-`facade.py` + `CLAUDE.md` (R5), `galaxy-tool-xml-codemod/.../runtime_fixes.py`
+`facade.py` + `CLAUDE.md` (R5), `galaxy-tool-codemod/.../runtime_fixes.py`
 comment (R5), `galaxy-tool-refactor-registry/tests/test_registry.py` (R4),
 `galaxy-tool-refactor-cli/pyproject.toml` + `uv.lock` (R6). QA gate re-run.

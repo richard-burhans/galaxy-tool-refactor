@@ -2,7 +2,7 @@
 
 > **Historical design note — predates implementation.** The original tier-2
 > design (placeholder package names, pre-implementation assumptions). The tool
-> shipped as `galaxy-tool-xml-codemod`; its current shape lives in that
+> shipped as `galaxy-tool-codemod`; its current shape lives in that
 > package's `docs/decisions.md` and `PLAN.md`. Retained for design rationale.
 
 ## Context

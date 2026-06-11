@@ -1,0 +1,53 @@
+[project]
+name = "galaxy-tool-fmt"
+version = "0.0.1"
+description = "Opinionated formatter for Galaxy tool XML — tier 3 of the galaxy-tool-source ecosystem."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Richard Burhans" }]
+dependencies = [
+    "galaxy-tool-refactor-rules",
+    "galaxy-tool-source",
+    "click>=8",
+    "lxml>=5",
+]
+
+[tool.uv.sources]
+galaxy-tool-refactor-rules = { workspace = true }
+galaxy-tool-source = { workspace = true }
+
+[project.scripts]
+galaxy-tool-fmt = "galaxy_tool_fmt.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[tool.ruff]
+src = ["src"]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "PTH"]
+
+[tool.mypy]
+files = ["src"]
+strict = true
+
+[[tool.mypy.overrides]]
+# lxml ships no type information.
+module = ["lxml.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Workspace root on sys.path so tests can do ``import scripts.corpus_check``.
+pythonpath = [".."]

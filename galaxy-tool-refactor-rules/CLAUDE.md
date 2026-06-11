@@ -13,9 +13,9 @@ depend on directly; the app tier (4) reaches it transitively through the facade:
 |---|---|---|
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` *(this repo)* |
 | 1 | parsing & validation | `galaxy-tool-source` |
-| 2 | structure | `galaxy-tool-xml-codemod` |
-| 3 | formatting | `galaxy-tool-xml-fmt` |
-| 3.5 | advisory checks | `galaxy-tool-xml-check` |
+| 2 | structure | `galaxy-tool-codemod` |
+| 3 | formatting | `galaxy-tool-fmt` |
+| 3.5 | advisory checks | `galaxy-tool-lint` |
 | 3.6 | rule registry / rulesets | `galaxy-tool-refactor-registry` |
 | 4 | app / CLI | `galaxy-tool-refactor-cli` |
 
@@ -32,7 +32,7 @@ It owns the shared rule **metadata + diagnostics** vocabulary — three things:
 runtime dependency here. The whole point of this package is to be a shared
 primitive that does not drag the tiers into each other — adding a dependency
 would defeat that and risk re-coupling fmt to codemod (see
-`galaxy-tool-xml-fmt/docs/decisions.md` §D10). The behavioral rule/codemod base
+`galaxy-tool-fmt/docs/decisions.md` §D10). The behavioral rule/codemod base
 classes belong in their own tiers, not here.
 
 ## Coding standards
@@ -59,9 +59,9 @@ Run these from the **workspace root** (`galaxy-tool-refactor/`):
 
 ## Useful workspace references
 
-- `galaxy-tool-xml-fmt/src/galaxy_tool_xml_fmt/rules.py` — the tier-3 `Rule` ABC
+- `galaxy-tool-fmt/src/galaxy_tool_fmt/rules.py` — the tier-3 `Rule` ABC
   that carries `meta: ClassVar[RuleMeta]`.
-- `galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/catalog.py` — the tier-2
+- `galaxy-tool-codemod/src/galaxy_tool_codemod/catalog.py` — the tier-2
   catalog of GTR-coded codemods.
 - `scripts/corpus_check.py` — the stat-page generator that renders the
   cross-tier rule reference table via `render_rule_reference_table`.

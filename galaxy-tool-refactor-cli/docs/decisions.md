@@ -34,7 +34,7 @@ pulled out into the opt-in `upgrade` command here.
   fmt. It could not live in the codemod tier without inverting the tier order
   (fmt already consumes codemod's pipeline contracts). A dedicated app tier is
   the clean home; it also let fmt's CLI shed its codemod orchestration and
-  return to cosmetic-only (see `galaxy-tool-xml-fmt/docs/decisions.md` §D12).
+  return to cosmetic-only (see `galaxy-tool-fmt/docs/decisions.md` §D12).
 - **`FixTypos` runs in both pipelines.** It stays in the default `format`
   pipeline (repairing near-miss typos is safe and useful) *and* runs first in
   `upgrade` as a precondition — `UpgradeToLatest` no-ops on a tool that
@@ -102,7 +102,7 @@ uv run galaxy-tool-refactor check tool.xml   # exit 0, "clean"
 ### Decision
 
 `check` now also runs the tier-3.5 advisory checks
-(`galaxy-tool-xml-check.detect_violations`) alongside the fixable GTR detect
+(`galaxy-tool-lint.detect_violations`) alongside the fixable GTR detect
 phases. The two finding classes are distinguished by `RuleMeta.detect_only`:
 fixable (what `format` would change) versus advisory (the IUC best-practice checks).
 Per-finding output marks advisory lines `(advisory)`; the summary splits the
@@ -271,7 +271,7 @@ inline GTR007 path (§3a) does not reach.
 A sixth subcommand, `normalize-macros PATHS… [--check]`, lowercases literal
 `format`/`ftype` in `<macros>`-root files — the macro-library analog of the 24.2
 normalization the per-tool `upgrade` cannot reach (a value defined in an *imported*
-macro file; `galaxy-tool-xml-codemod/docs/macro-aware-normalization.md`, registry
+macro file; `galaxy-tool-codemod/docs/macro-aware-normalization.md`, registry
 `docs/decisions.md` D8). 15 corpus tools were stuck solely on this
 (`docs/macro_format_residual_stats.md`).
 

@@ -2,7 +2,7 @@
 
 Ten subcommands (including the two opt-in conversions, ``convert-help`` and
 ``tokenize-version``). ``format`` and ``upgrade`` share fmt's file-walking /
-drift-detection engine (``galaxy_tool_xml_fmt.cli_support``) and differ only in
+drift-detection engine (``galaxy_tool_fmt.cli_support``) and differ only in
 which rules run before serialisation; ``check`` is a report-only linter that
 mutates nothing; ``find-references`` is a read-only query for a parameter's Cheetah
 ``$var`` reference sites and ``rename-param`` is its mutating sibling (rename a
@@ -41,7 +41,7 @@ files. All rule orchestration is delegated to the tier-3.6 registry facade
   normalization the per-tool ``upgrade`` cannot reach — a value defined in an
   imported macro file). It rewrites files other than the one named (a shared
   macro file affects every importer), so it is never folded into ``format`` /
-  ``upgrade``; see ``galaxy-tool-xml-codemod/docs/macro-aware-normalization.md``.
+  ``upgrade``; see ``galaxy-tool-codemod/docs/macro-aware-normalization.md``.
 
 Selection (``--ruleset`` / ``--select`` / ``--ignore``) is shared by ``format``,
 ``upgrade`` (no ``--ruleset``), and ``check``; precedence is ruff-style
@@ -56,6 +56,18 @@ from collections.abc import Mapping
 from pathlib import Path
 
 import click
+from galaxy_tool_fmt.cli_support import (
+    Action,
+    RunOptions,
+    TransformOutcome,
+    is_macros_root,
+    is_tool_root,
+    iter_targets,
+    make_backup,
+    run,
+)
+from galaxy_tool_fmt.detect import detect_macro_document
+from galaxy_tool_fmt.format import format_macro_document
 from galaxy_tool_refactor_registry import facade
 from galaxy_tool_refactor_registry.bundle_rename import (
     BundleRenameResult,
@@ -79,18 +91,6 @@ from galaxy_tool_refactor_registry.resolve import (
 )
 from galaxy_tool_source.binding import ToolXmlSyntaxError, load_macros, load_tool
 from galaxy_tool_source.document import MacroDocument, ToolDocument
-from galaxy_tool_xml_fmt.cli_support import (
-    Action,
-    RunOptions,
-    TransformOutcome,
-    is_macros_root,
-    is_tool_root,
-    iter_targets,
-    make_backup,
-    run,
-)
-from galaxy_tool_xml_fmt.detect import detect_macro_document
-from galaxy_tool_xml_fmt.format import format_macro_document
 
 _PATH_ARGUMENT = click.argument(
     "paths",

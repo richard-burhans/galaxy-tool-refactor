@@ -12,9 +12,9 @@ facade.
 |---|---|---|
 | 0.5 | rule metadata | `galaxy-tool-refactor-rules` |
 | 1 | parsing & validation | `galaxy-tool-source` |
-| 2 | structure | `galaxy-tool-xml-codemod` |
-| 3 | formatting | `galaxy-tool-xml-fmt` |
-| 3.5 | advisory checks | `galaxy-tool-xml-check` |
+| 2 | structure | `galaxy-tool-codemod` |
+| 3 | formatting | `galaxy-tool-fmt` |
+| 3.5 | advisory checks | `galaxy-tool-lint` |
 | 3.6 | rule registry / rulesets | `galaxy-tool-refactor-registry` |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` *(this repo)* |
 
@@ -66,7 +66,7 @@ longer imports the codemod / check tiers directly. It exposes the
   normalization the per-tool `upgrade` cannot reach). Rewrites files other than the
   one named (a shared macro file affects every importer), so it is a deliberate,
   separate command — never part of `format`/`upgrade` (cli §D7;
-  `galaxy-tool-xml-codemod/docs/macro-aware-normalization.md`).
+  `galaxy-tool-codemod/docs/macro-aware-normalization.md`).
 
 Macro handling is **cosmetic-only and bundle-free for `format`/`check`** (macro
 files are formatted/checked standalone as encountered — cosmetic formatting is safe
@@ -88,7 +88,7 @@ this package — composes the lower tiers, which is *why* the orchestration sits
 below the CLI (so the MCP server reuses it). See `docs/decisions.md` §D1
 (app tier), §D2 (`check`), §D3 (advisory findings), §D4 (registry facade +
 selection); `galaxy-tool-refactor-registry/docs/decisions.md` D1–D4;
-`galaxy-tool-xml-fmt/docs/decisions.md` §D12.
+`galaxy-tool-fmt/docs/decisions.md` §D12.
 
 ## Coding standards
 
@@ -114,8 +114,8 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
 - `galaxy-tool-refactor-registry/src/galaxy_tool_refactor_registry/facade.py` —
   the `run` / `upgrade` / `detect` / `list_rulesets` / `list_rules` entry points
   this CLI wraps; `resolve.py` for `resolve_codes` / `resolve_upgrade_codes`.
-- `galaxy-tool-xml-fmt/src/galaxy_tool_xml_fmt/cli_support.py` — the shared
+- `galaxy-tool-fmt/src/galaxy_tool_fmt/cli_support.py` — the shared
   file-processing engine (`run`, `iter_targets`, `is_tool_root`,
   `TransformOutcome`).
-- `galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/canonical.py` — the
+- `galaxy-tool-codemod/src/galaxy_tool_codemod/canonical.py` — the
   `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` contracts the facade consumes.

@@ -62,10 +62,10 @@ The facade composes them, but each is usable standalone:
 
 - `galaxy_tool_source` — `load_tool` / `parse_tool`, `validate_tool`,
   `newest_valid_profile`, typed model views. (No serializer.)
-- `galaxy_tool_xml_fmt` — `format_tool_document(document) -> bytes` (the *only*
+- `galaxy_tool_fmt` — `format_tool_document(document) -> bytes` (the *only*
   serializer in the stack).
-- `galaxy_tool_xml_codemod` — the `CodemodCommand` framework + bundled codemods.
-- `galaxy_tool_xml_check` — detect-only IUC advisory checks.
+- `galaxy_tool_codemod` — the `CodemodCommand` framework + bundled codemods.
+- `galaxy_tool_lint` — detect-only IUC advisory checks.
 
 The facade is library-first by design (registry `CLAUDE.md`): inputs are
 path/bytes/`ToolDocument`, outputs are structured, files are written only when you

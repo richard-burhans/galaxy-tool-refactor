@@ -4,9 +4,9 @@ members = [
     "galaxy-tool-refactor-cli",
     "galaxy-tool-refactor-registry",
     "galaxy-tool-source",
-    "galaxy-tool-xml-fmt",
-    "galaxy-tool-xml-codemod",
-    "galaxy-tool-xml-check",
+    "galaxy-tool-fmt",
+    "galaxy-tool-codemod",
+    "galaxy-tool-lint",
     "galaxy-tool-refactor-mcp",
 ]
 
