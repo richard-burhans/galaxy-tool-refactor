@@ -631,6 +631,62 @@ class ContainerShapeRecognized(CheckRule):
             )
 
 
+class ToolIdentityPresent(CheckRule):
+    """GTR095 — the tool must declare a non-empty ``id``, ``name``, and ``version``.
+
+    Reimplements planemo `ToolIDMissing` / `ToolNameMissing` / `ToolVersionMissing`,
+    `galaxy.tool_util.linters.general`, with their exact falsy semantics: absent or
+    empty fires; whitespace-only does not (that is GTR047's job), and the *name* leg
+    mirrors ``parse_name()``'s fallback (``name or id``), so it fires only when
+    neither attribute carries a value.
+
+    Tier-1 ``validate_tool`` already rejects a missing ``id``/``name`` (XSD
+    ``use="required"`` in every vendored schema), but the trio is **not** redundant
+    with it: ``version`` is not XSD-required (Galaxy silently defaults it to
+    ``1.0.0``) and an empty string is a valid ``xs:string`` — this check is the only
+    guard for those cases (``docs/decisions.md`` D35).
+
+    Sound on the raw tree with no ``has_macros`` guard: macro expansion inserts
+    *elements* and substitutes tokens *inside* attribute values, so it can never add
+    a root ``<tool>`` attribute, and a value carrying a ``@…@`` token is non-empty.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR095",
+        summary="Tool must declare a non-empty id, name, and version.",
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+        rulesets=frozenset({"strict"}),
+        planemo_linters=frozenset(
+            {"ToolIDMissing", "ToolNameMissing", "ToolVersionMissing"}
+        ),
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        tool_id = root.get("id")
+        if not tool_id:
+            yield _violation(
+                document, root, self.meta, "tool 'id' is missing or empty"
+            )
+        if not (root.get("name") or tool_id):
+            yield _violation(
+                document,
+                root,
+                self.meta,
+                "tool 'name' is missing or empty (and no 'id' to fall back to)",
+            )
+        if not root.get("version"):
+            yield _violation(
+                document,
+                root,
+                self.meta,
+                "tool 'version' is missing or empty (Galaxy would silently "
+                "default it to 1.0.0)",
+            )
+
+
 class StdioRegexValid(CheckRule):
     """GTR053 — a ``<stdio>`` ``<regex match>`` should be a valid regular expression.
 

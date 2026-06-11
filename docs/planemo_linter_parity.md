@@ -124,6 +124,7 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR092 | — | ✓ | ✓ | codemod | — | Convert an RST `<help>` body to Markdown (format="markdown") when the markdown-it rendering is provably equivalent to the docutils rendering (opt-in convert-help only; requires profile >= 24.2). |
 | GTR093 | — | ✓ | ✓ | upgrade | — | Upgrade a tool stuck at profile 21.09 toward 22.01 (normalize collection_type + has_size Bytes; repair stdio exit_code/regex). |
 | GTR094 | — | ✓ | ✓ | codemod | — | Factor a literal version="`<base>`+galaxy`<suffix>`" into @TOOL_VERSION@/@VERSION_SUFFIX@ tokens shared with the matching package requirement (opt-in tokenize-version only). |
+| GTR095 | ToolIDMissing, ToolNameMissing, ToolVersionMissing | ✓ | ✗ | check | strict | Tool must declare a non-empty id, name, and version. |
 <!-- END GENERATED -->
 
 The remaining unmapped planemo linters (the ~80 correctness checks + the advisory-by-design
@@ -164,9 +165,9 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 114 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), **GTR077–079** (option-filter attributes/expression/references), **GTR080–084** (test assertions/compare/output-correspondence/discovered), **GTR085–088** (test param-in-inputs / expect-failure / expect-num-outputs / has-expectations), **GTR089** (help RST validity, docutils), 2026-06-06; **GTR090–091** (output structured_like/format_source reference integrity + data-param format), 2026-06-10 |
+| **HAVE** | 117 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), **GTR077–079** (option-filter attributes/expression/references), **GTR080–084** (test assertions/compare/output-correspondence/discovered), **GTR085–088** (test param-in-inputs / expect-failure / expect-num-outputs / has-expectations), **GTR089** (help RST validity, docutils), 2026-06-06; **GTR090–091** (output structured_like/format_source reference integrity + data-param format), 2026-06-10; **GTR095** (id/name/version missing-or-empty — the tier-1-residual half of the trio: `version` is not XSD-required and `""` is XSD-valid), 2026-06-11 |
 | **FIX** (new, auto-fixable) | 0 | **complete** — GTR035/036/037 shipped; the rest of the original FIX candidates reclassified to advisory/detect on inspection (identity-changing or no mechanical equivalent) |
-| **DETECT** (new advisory) | ~7 | correctness checks for the `check` tier (report-only). 54 GTR rules landed so far (GTR038–091) — the **entire `inputs.py` correctness surface**, **all mechanically-reimplementable `tests.py` checks**, and **help RST validity** (GTR089, via `docutils`), plus citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, container/filter/regex validity, output reference integrity, and data-param format. **Remaining DETECT** all need external infra: `TestsAssertionValidation`/`TestsCaseValidation` (2, need Galaxy's pydantic models), general `ToolVersionMissing`/`ToolNameMissing`/`ToolIDMissing` (3, XSD-required), `ValidDatatypes`/`DatatypesCustomConf` (2, datatype registry / filesystem) |
+| **DETECT** (new advisory) | 4 | correctness checks for the `check` tier (report-only). 55 GTR rules landed so far (GTR038–091 + GTR095) — the **entire `inputs.py` correctness surface**, **all mechanically-reimplementable `tests.py` checks**, and **help RST validity** (GTR089, via `docutils`), plus citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, container/filter/regex validity, output reference integrity, data-param format, and the id/name/version missing-or-empty trio (GTR095). **Remaining DETECT** all need external infra: `TestsAssertionValidation`/`TestsCaseValidation` (2, need Galaxy's pydantic models), `ValidDatatypes`/`DatatypesCustomConf` (2, datatype registry / filesystem) |
 | **SKIP** (pass-state) | ~14 | `valid`/`info` reporters — nothing to build |
 | **n/a** (out of scope) | ~11 | CWL (9), filesystem (`required_files`), `ResourceRequirementExpression` |
 | **Total** | 146 | |
@@ -193,8 +194,8 @@ they're **SKIP**.
 
 By our tier, for the **buildable** rows (HAVE + FIX + DETECT):
 - **codemod** (structural fix): the FIX rows below + GTR013/015/016/**035** — ~15
-- **check** (advisory): the DETECT bulk + the advisory HAVEs — **68 GTR check rules shipped**
-  (GTR021–GTR091, detect-only), ~7 planemo advisories still to build
+- **check** (advisory): the DETECT bulk + the advisory HAVEs — **69 GTR check rules shipped**
+  (GTR021–GTR095, detect-only), 4 planemo advisories still to build
 - **parse/validate**: 1 (XSD)
 
 **Headline:** planemo only *reports*; we *fix* the provably-safe subset (**GTR035/036/037**,
@@ -260,9 +261,9 @@ name/id/version (XSD-required), and datatypes (registry/filesystem).
 | ToolVersionPEP404 | warn | check | **HAVE** | = **GTR024** (version not PEP 440) |
 | ToolProfileInvalid | error | check | **HAVE** | **GTR045** profile not `<year>.<minor>` |
 | RequirementNameMissing | error | check | **HAVE** | **GTR046** package requirement names no package |
-| ToolVersionMissing | error | check | DETECT | (XSD-required attr; detect TBD) |
-| ToolNameMissing | error | check | DETECT | (XSD-required attr; detect TBD) |
-| ToolIDMissing | error | check | DETECT | (XSD-required attr; detect TBD) |
+| ToolVersionMissing | error | check | **HAVE** | **GTR095** — NOT covered by tier-1 `validate`: `version` is not XSD-required (Galaxy defaults it to `1.0.0`), so the check is the only guard (check D35) |
+| ToolNameMissing | error | check | **HAVE** | **GTR095** — a *missing* `name` also fails tier-1 `validate` (XSD `use="required"`); the check adds the XSD-valid `name=""` case, with planemo's name→id fallback (check D35) |
+| ToolIDMissing | error | check | **HAVE** | **GTR095** — a *missing* `id` also fails tier-1 `validate` (XSD `use="required"`); the check adds the XSD-valid `id=""` case (check D35) |
 | ResourceRequirementExpression | warn | n/a | — | unsupported feature warning |
 | BioToolsValid | warn | check | **HAVE\*** | ≈ **GTR027** (xrefs/EDAM presence); full bio.tools validation needs network — same approximation as `EDAMTermsValid` |
 | ToolVersionValid · ToolNameValid · ToolProfileLegacy · ToolProfileValid | valid | — | SKIP | pass-states |

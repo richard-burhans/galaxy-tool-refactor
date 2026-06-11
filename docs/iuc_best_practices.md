@@ -128,17 +128,18 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 
 > **Scope note.** The table above is the *IUC-practice* slice of the `check` tier.
 > The same tier (`galaxy-tool-xml-check`) additionally hosts the **planemo-parity
-> wave `GTR038`–`GTR089`** (52 detect-only checks reimplementing the
+> wave `GTR038`–`GTR095`** (55 detect-only checks reimplementing the
 > `galaxy.tool_util.lint` linters — outputs, inputs, tests, validators, `<help>` RST),
-> bringing it to **68 checks** total (the 2026-06-10 GTR090–091 batch closed the
-last infra-free planemo linters: output reference integrity + data-param format). `GTR089` is now a fix/advisory **partition**
+> bringing it to **70 checks** total (the 2026-06-10 GTR090–091 batch was followed by
+GTR095, 2026-06-11: the id/name/version missing-or-empty trio — the half tier-1
+XSD validation can't see). `GTR089` is now a fix/advisory **partition**
 > like GTR018/019/020: the deterministically-fixable invalid `<help>` RST is
 > auto-repaired by the `GTR089.1` codemod (tier 2, in the default `format`
 > pipeline), and the `GTR089.2` advisory reports the residual the repair can't
 > reach. Those are a different axis (planemo coverage,
 > not the IUC tool-XML practices mapped here) and are tracked in
 > [`planemo_linter_parity.md`](planemo_linter_parity.md) +
-> `galaxy-tool-xml-check/docs/decisions.md` D12–D31, not in this document.
+> `galaxy-tool-xml-check/docs/decisions.md` D12–D35, not in this document.
 
 The `<command>`-CDATA-text heuristics took different paths: GTR020.2 remains
 the advisory residual of its partition, and **GTR032 shipped as a real detector
