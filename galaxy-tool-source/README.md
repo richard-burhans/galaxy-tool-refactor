@@ -68,7 +68,7 @@ from galaxy_tool_source.boolean_values import suggest_boolean_normalizations, no
 from galaxy_tool_source.cheetah_refs import tool_cheetah_references, CheetahRef
 from galaxy_tool_source.cheetah_rename import rename_param, rename_param_plan, RenameOutcome, RenameEdit, RenamePlan
 from galaxy_tool_source.bundle import ToolBundle, load_bundle, rename_param_in_bundle, BundleRenameOutcome
-from galaxy_tool_source.version_tokens import tokenization_skip_reason, expansion_equality_holds, tokenize_tree, tokenize_version_plan, VersionTokenPlan, VersionEdit, NewMacroFile
+from galaxy_tool_source.version_tokens import tokenization_skip_reason, expansion_equality_holds, GALAXY_SUFFIX_VERSION, package_requirements, retarget_version, append_version_tokens, build_version_macros_root, tokenize_tree, tokenize_version_plan, VersionTokenPlan, VersionEdit, NewMacroFile
 from galaxy_tool_source.profiles import available_profiles, latest_profile, UnknownProfileError
 from galaxy_tool_source.schema_content import text_bearing_tags
 from galaxy_tool_source.models.registry import model_module, tool_class

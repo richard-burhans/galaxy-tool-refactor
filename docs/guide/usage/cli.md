@@ -41,7 +41,9 @@ rulesets         List the available rulesets and the rule codes each one selects
 rules            List the baked-in rules: code, family, fixable/advisory, rulesets.
 normalize-macros Lowercase literal format/ftype in <macros>-root files (opt-in, repo-scoped).
 tokenize-version Factor a literal version into @TOOL_VERSION@/@VERSION_SUFFIX@
-                 (opt-in; kept only when the macro expansion is provably unchanged)
+                 (opt-in; kept only when the macro expansion is provably unchanged).
+                 --macros-file NAME puts the tokens in a macros file the tool imports
+                 (created, or merged/shared when provably inert) instead of inline.
 convert-help     Convert an RST <help> to Markdown (format="markdown") when provably
                  render-equivalent and the profile is >= 24.2 (run upgrade first below it);
                  anything unprovable is skipped with the reason (opt-in; never part of

@@ -52,6 +52,7 @@ sets and ``--select`` replaces them).
 from __future__ import annotations
 
 import sys
+from collections import defaultdict
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -946,22 +947,38 @@ def convert_help_command(paths: tuple[Path, ...], check: bool, backup: bool) -> 
 @click.option(
     "--check", is_flag=True, help="Report what would tokenize and write nothing."
 )
+@click.option(
+    "--macros-file",
+    default=None,
+    metavar="NAME",
+    help=(
+        "Put the two tokens in a separate macros file NAME (e.g. macros.xml) the "
+        "tool imports, instead of an inline <macros> block (the default). NAME is "
+        "created when absent, or the tokens are merged into an existing NAME when "
+        "proven not to change any other importer; tools in a directory that share "
+        "NAME at the same version are tokenized together."
+    ),
+)
 @_BACKUP_OPTION
 def tokenize_version_command(
-    paths: tuple[Path, ...], check: bool, backup: bool
+    paths: tuple[Path, ...], check: bool, macros_file: str | None, backup: bool
 ) -> None:
     """Factor a literal version into @TOOL_VERSION@/@VERSION_SUFFIX@ (opt-in, gated).
 
     Rewrites ``version="<base>+galaxy<suffix>"`` as
     ``@TOOL_VERSION@+galaxy@VERSION_SUFFIX@``, retargets the matching package
     ``<requirement>`` versions to ``@TOOL_VERSION@``, and defines the two
-    tokens in the tool's inline ``<macros>`` — only when *provable*: the
+    tokens in the tool's inline ``<macros>`` (or, with ``--macros-file``, in a
+    separate macros file the tool imports), only when *provable*: the
     expansion-equality gate keeps the change solely when macro-expanding the
     tokenized tool reproduces the original expansion byte-for-byte. Anything
     unprovable is skipped with the reason. A multi-element style restructure,
-    which is why it is a deliberate, separate command — never part of
+    which is why it is a deliberate, separate command, never part of
     ``format``/``upgrade``. Files are passed by path so imported macros resolve.
     """
+    if macros_file is not None:
+        _run_tokenize_shared(paths, macros_file=macros_file, check=check, backup=backup)
+        return
     tokenized = skipped = errored = 0
     for target in iter_targets(paths):
         try:
@@ -981,10 +998,73 @@ def tokenize_version_command(
                 if backup:
                     make_backup(target)
                 target.write_bytes(result.formatted)
-            click.echo(f"{'would tokenize' if check else 'tokenized'} {target}")
+            verb = "would tokenize" if check else "tokenized"
+            click.echo(f"{verb} {target}")
         else:
             skipped += 1
             click.echo(f"skipped {target}: {result.skip_reason}")
+    click.echo(
+        f"{tokenized} tokenized, {skipped} skipped"
+        + (f", {errored} error(s)" if errored else "")
+    )
+    if errored:
+        raise SystemExit(1)
+
+
+def _run_tokenize_shared(
+    paths: tuple[Path, ...], *, macros_file: str, check: bool, backup: bool
+) -> None:
+    """``tokenize-version --macros-file``: group tools by directory, tokenize each set.
+
+    Each directory's target tools that share ``macros_file`` at the same version are
+    tokenized together (consensus), defining the shared tokens once. See
+    ``galaxy_tool_refactor_registry.version_token_share``.
+    """
+    if "/" in macros_file or "\\" in macros_file or macros_file in {"", ".", ".."}:
+        click.echo(
+            f"error: --macros-file must be a plain filename, not {macros_file!r}",
+            err=True,
+        )
+        raise SystemExit(1)
+    groups: dict[Path, list[Path]] = defaultdict(list)
+    errored = 0
+    for target in iter_targets(paths):
+        try:
+            raw = target.read_bytes()
+        except OSError as error:
+            click.echo(f"error: cannot read {target}: {error}", err=True)
+            errored += 1
+            continue
+        if is_tool_root(raw):
+            groups[target.parent].append(target)
+    tokenized = skipped = 0
+    verb = "would tokenize" if check else "tokenized"
+    for directory, tools in sorted(groups.items()):
+        plan = facade.tokenize_version_shared(
+            directory / macros_file, target_tools=tools
+        )
+        for tool_path, reason in plan.skipped:
+            click.echo(f"skipped {tool_path}: {reason}")
+            skipped += 1
+        if not plan.tool_edits:
+            unreported = len(tools) - len(plan.skipped)
+            if plan.skip_reason is not None and unreported > 0:
+                click.echo(f"skipped {directory} ({macros_file}): {plan.skip_reason}")
+                skipped += unreported
+            continue
+        if not check:
+            if plan.macros_content is not None:
+                if not plan.macros_created and backup:
+                    make_backup(plan.macros_path)
+                plan.macros_path.write_bytes(plan.macros_content)
+            for edit in plan.tool_edits:
+                if backup:
+                    make_backup(edit.path)
+                edit.path.write_bytes(edit.content)
+        file_note = f"{'created' if plan.macros_created else 'updated'} {macros_file}"
+        for edit in plan.tool_edits:
+            click.echo(f"{verb} {edit.path} (-> {file_note})")
+        tokenized += len(plan.tool_edits)
     click.echo(
         f"{tokenized} tokenized, {skipped} skipped"
         + (f", {errored} error(s)" if errored else "")

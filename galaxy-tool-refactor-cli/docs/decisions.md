@@ -431,3 +431,18 @@ reporting, non-zero only on I/O or parse errors), with one deliberate
 difference: **files are passed to the facade by path, not bytes**, so the
 expansion-equality gate can resolve `<import>`ed macro files against the tool's
 own directory (a bytes-parsed tool with imports fails closed by design).
+
+## D14 (2026-06-11): `tokenize-version --macros-file` shared-macros mode
+
+`--macros-file NAME` puts the two version tokens in a macros file the tool
+`<import>`s instead of an inline `<macros>` block (registry D20). The command
+**bifurcates** on the flag: without it, the per-file inline loop (D13) is unchanged;
+with it, targets are **grouped by directory** and each directory's set is planned by
+`facade.tokenize_version_shared` (create the file, merge into an existing one when
+proven inert for its other importers, or tokenize a same-version group together).
+The created-vs-merged distinction drives backup (a merged existing file is backed up
+under `--backup`, a newly created one is not). The name must be a plain filename
+(rejected otherwise, so the import resolves beside the tool and we never write outside
+the directory). Per the construction-soundness-over-corpus principle the mode ships
+for novel tool suites even though the corpus payoff is tiny
+(`scripts.measure version-token-sharing`).

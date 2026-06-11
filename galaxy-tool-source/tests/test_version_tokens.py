@@ -19,7 +19,9 @@ from galaxy_tool_source.binding import parse_tool
 from galaxy_tool_source.macros import expand_from_tree, token_definitions
 from galaxy_tool_source.version_tokens import (
     VersionTokenPlan,
+    build_version_macros_root,
     tokenization_skip_reason,
+    tokenize_tree,
     tokenize_version_plan,
 )
 
@@ -247,6 +249,38 @@ def test_skip_reason_matches_plan_bail() -> None:
     # The decision the codemod and the planner share: a clean candidate => None.
     document = parse_tool(_INLINE_TOOL.encode("utf-8")).document
     assert tokenization_skip_reason(document) is None
+
+
+def test_tokenize_tree_inline_defines_tokens() -> None:
+    root = parse_tool(_INLINE_TOOL.encode("utf-8")).document.root
+    tokenize_tree(root, base="1.20", suffix="0")
+    assert root.get("version") == "@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"
+    macros = root.find("macros")
+    assert macros is not None
+    assert macros.find("import") is None
+    names = {token.get("name") for token in macros.findall("token")}
+    assert names == {"@TOOL_VERSION@", "@VERSION_SUFFIX@"}
+
+
+def test_tokenize_tree_macros_file_emits_import() -> None:
+    root = parse_tool(_INLINE_TOOL.encode("utf-8")).document.root
+    tokenize_tree(root, base="1.20", suffix="0", macros_file="macros.xml")
+    macros = root.find("macros")
+    assert macros is not None
+    assert macros.find("token") is None  # tokens live in the separate file
+    importer = macros.find("import")
+    assert importer is not None
+    assert importer.text == "macros.xml"
+    requirement = root.find("requirements/requirement")
+    assert requirement is not None
+    assert requirement.get("version") == "@TOOL_VERSION@"
+
+
+def test_build_version_macros_root_holds_both_tokens() -> None:
+    macros = build_version_macros_root(base="1.20", suffix="3")
+    assert macros.tag == "macros"
+    pairs = {(token.get("name"), token.text) for token in macros.findall("token")}
+    assert pairs == {("@TOOL_VERSION@", "1.20"), ("@VERSION_SUFFIX@", "3")}
 
 
 def test_plan_apply_is_pure() -> None:

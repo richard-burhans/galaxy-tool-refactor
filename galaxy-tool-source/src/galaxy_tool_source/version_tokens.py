@@ -104,20 +104,63 @@ def tokenization_skip_reason(document: ToolDocument, /) -> str | None:
     return None
 
 
-def tokenize_tree(root: etree._Element, *, base: str, suffix: str) -> None:
-    """Apply the tokenization to *root* in place (preconditions already held)."""
+def append_version_tokens(parent: etree._Element, *, base: str, suffix: str) -> None:
+    """Append the two ``<token>`` definitions to *parent* (a ``<macros>`` element)."""
+    for name, value in (("@TOOL_VERSION@", base), ("@VERSION_SUFFIX@", suffix)):
+        token = etree.SubElement(parent, "token")
+        token.set("name", name)
+        token.text = value
+
+
+def build_version_macros_root(*, base: str, suffix: str) -> etree._Element:
+    """A fresh ``<macros>`` root holding the two version ``<token>`` definitions.
+
+    The content of a separate ``macros.xml`` (the ``--macros-file`` mode): a caller
+    wraps it in a ``MacroDocument`` and serialises it through fmt
+    (``format_macro_document``), so fmt stays the only serializer.
+    """
+    macros = etree.Element("macros")
+    append_version_tokens(macros, base=base, suffix=suffix)
+    return macros
+
+
+def retarget_version(root: etree._Element, *, base: str) -> None:
+    """Rewrite ``version=`` to the tokenized form and matching requirements.
+
+    The token-reference half of the tokenization (no ``<macros>`` change): the
+    ``<tool version>`` becomes ``@TOOL_VERSION@+galaxy@VERSION_SUFFIX@`` and each
+    package ``<requirement>`` pinning *base* becomes ``@TOOL_VERSION@``. Used on its
+    own when the token *definitions* live in an already-imported macros file the
+    caller edits separately (the merge-into-existing path).
+    """
     root.set("version", _TOKENIZED_VERSION)
     for requirement in package_requirements(root):
         if requirement.get("version") == base:
             requirement.set("version", "@TOOL_VERSION@")
+
+
+def tokenize_tree(
+    root: etree._Element, *, base: str, suffix: str, macros_file: str | None = None
+) -> None:
+    """Apply the tokenization to *root* in place (preconditions already held).
+
+    With ``macros_file=None`` the two ``<token>`` definitions go in the tool's inline
+    ``<macros>`` (created when absent). With a ``macros_file`` name the tool instead
+    gains a ``<macros><import>macros_file</import></macros>`` and the tokens live in
+    that separate file (built by ``build_version_macros_root``); the macro expansion
+    is identical either way, so the expansion-equality gate (run on the inline form)
+    proves both.
+    """
+    retarget_version(root, base=base)
     macros = root.find("macros")
     if macros is None:
         macros = etree.Element("macros")
         root.insert(0, macros)
-    for name, value in (("@TOOL_VERSION@", base), ("@VERSION_SUFFIX@", suffix)):
-        token = etree.SubElement(macros, "token")
-        token.set("name", name)
-        token.text = value
+    if macros_file is not None:
+        importer = etree.SubElement(macros, "import")
+        importer.text = macros_file
+    else:
+        append_version_tokens(macros, base=base, suffix=suffix)
 
 
 def _expansion_bytes(

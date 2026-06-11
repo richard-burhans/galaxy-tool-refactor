@@ -837,3 +837,87 @@ def test_tokenize_version_reports_skip_reason(tmp_path: Path) -> None:
     result = CliRunner().invoke(main, ["tokenize-version", str(tool)])
     assert result.exit_code == 0
     assert "skipped" in result.output and "+galaxy" in result.output
+
+
+_TOKENIZABLE_TOOL = (
+    b'<tool id="m" name="M" version="1.20+galaxy0" profile="24.0">'
+    b"<command><![CDATA[echo x]]></command>"
+    b'<requirements><requirement type="package" version="1.20">samtools'
+    b"</requirement></requirements>"
+    b'<inputs><param name="i" type="text"/></inputs>'
+    b'<outputs><data name="o"/></outputs></tool>'
+)
+
+
+def test_tokenize_version_macros_file_creates_separate_file(tmp_path: Path) -> None:
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(_TOKENIZABLE_TOOL)
+    result = CliRunner().invoke(
+        main, ["tokenize-version", "--macros-file", "macros.xml", str(tool)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "tokenized" in result.output and "macros.xml" in result.output
+    written = tool.read_bytes()
+    assert b"<import>macros.xml</import>" in written
+    assert b'<token name="@TOOL_VERSION@">' not in written  # not inline
+    macros = tmp_path / "macros.xml"
+    assert macros.exists()
+    assert b'<token name="@TOOL_VERSION@">1.20</token>' in macros.read_bytes()
+
+
+def test_tokenize_version_macros_file_named(tmp_path: Path) -> None:
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(_TOKENIZABLE_TOOL)
+    result = CliRunner().invoke(
+        main, ["tokenize-version", "--macros-file", "version_macros.xml", str(tool)]
+    )
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "version_macros.xml").exists()
+    assert b"<import>version_macros.xml</import>" in tool.read_bytes()
+
+
+def test_tokenize_version_macros_file_check_writes_nothing(tmp_path: Path) -> None:
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(_TOKENIZABLE_TOOL)
+    result = CliRunner().invoke(
+        main, ["tokenize-version", "--check", "--macros-file", "macros.xml", str(tool)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "would tokenize" in result.output
+    assert tool.read_bytes() == _TOKENIZABLE_TOOL
+    assert not (tmp_path / "macros.xml").exists()
+
+
+def test_tokenize_version_macros_file_merges_existing(tmp_path: Path) -> None:
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(_TOKENIZABLE_TOOL)
+    (tmp_path / "macros.xml").write_text(
+        '<macros><token name="@CITE@">ref</token></macros>', encoding="utf-8"
+    )
+    result = CliRunner().invoke(
+        main, ["tokenize-version", "--macros-file", "macros.xml", str(tool)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "tokenized" in result.output and "updated macros.xml" in result.output
+    macros = (tmp_path / "macros.xml").read_bytes()
+    assert b'<token name="@CITE@">ref</token>' in macros  # kept
+    assert b'<token name="@TOOL_VERSION@">1.20</token>' in macros  # added
+    assert b"<import>macros.xml</import>" in tool.read_bytes()
+
+
+def test_tokenize_version_macros_file_consensus(tmp_path: Path) -> None:
+    # Two tools sharing the same version in one directory tokenize together into one
+    # created macros.xml.
+    a = tmp_path / "a.xml"
+    b = tmp_path / "b.xml"
+    a.write_bytes(_TOKENIZABLE_TOOL.replace(b'id="m"', b'id="a"'))
+    b.write_bytes(_TOKENIZABLE_TOOL.replace(b'id="m"', b'id="b"'))
+    result = CliRunner().invoke(
+        main, ["tokenize-version", "--macros-file", "macros.xml", str(tmp_path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "2 tokenized" in result.output
+    assert (tmp_path / "macros.xml").exists()
+    for tool in (a, b):
+        assert b"<import>macros.xml</import>" in tool.read_bytes()
+        assert b'version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"' in tool.read_bytes()

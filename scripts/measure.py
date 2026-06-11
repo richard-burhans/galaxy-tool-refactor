@@ -6606,6 +6606,157 @@ def _run_macro_token_residual(args: argparse.Namespace) -> None:
         print(f"\nwrote {_display_path(out_path)}")
 
 
+# --- measurement: version-token-sharing -----------------------------------------
+#
+# Sizing for the shared-macros tokenization (`tokenize-version --macros-file`,
+# version_token_share): for every macros file imported by >=2 tools, do the
+# importers agree on a single tokenizable version="<base>+galaxy<suffix>" (so one
+# shared @TOOL_VERSION@/@VERSION_SUFFIX@ pair could serve them all -- the consensus
+# case) or diverge. The corpus payoff is tiny today (the ecosystem is already
+# tokenized), but the feature is built for the *construction* (a novel tool suite),
+# not the corpus frequency. ALSO exercises plan_shared_tokenization on every
+# tokenizable corpus tool and RETAINS any that crashes as a regression corpus
+# (docs/corpus_data/version_token_sharing_errors.json -- the standing
+# retain-failures order). Needs the corpus; print-only, not run in CI.
+
+
+@dataclass
+class _TokenSharingResult:
+    tools_scanned: int
+    tokenizable: int
+    distinct_macros: int
+    single_importer: int
+    shared: int
+    full_consensus: int
+    consensus_tools: int
+    divergent: int
+    partial: int
+    no_tokenizable: int
+    plan_probed: int
+    errors: list[dict[str, str]]
+
+
+def _tokenizable_base_suffix(root: etree._Element) -> tuple[str, str] | None:
+    """The ``(base, suffix)`` of a GTR094-eligible tool root, else ``None``."""
+    from galaxy_tool_source.version_tokens import GALAXY_SUFFIX_VERSION
+
+    match = GALAXY_SUFFIX_VERSION.fullmatch(root.get("version") or "")
+    if match is None:
+        return None
+    base = match["base"]
+    packages = (
+        requirement
+        for requirement in root.findall("requirements/requirement")
+        if requirement.get("type") == "package"
+    )
+    if not any(requirement.get("version") == base for requirement in packages):
+        return None
+    return base, match["suffix"]
+
+
+def _measure_version_token_sharing(*, corpus_root: Path) -> _TokenSharingResult:
+    from galaxy_tool_source.macros import imported_macro_paths
+    from galaxy_tool_refactor_registry.version_token_share import (
+        plan_shared_tokenization,
+    )
+
+    by_macros: dict[Path, list[tuple[str, str] | None]] = defaultdict(list)
+    tokenizable_in_dir: dict[Path, list[Path]] = defaultdict(list)
+    tools = tokenizable = 0
+    errors: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        tools += 1
+        base_suffix = _tokenizable_base_suffix(root)
+        if base_suffix is not None:
+            tokenizable += 1
+            tokenizable_in_dir[path.parent].append(path)
+        for macros_path in imported_macro_paths(path):
+            by_macros[macros_path].append(base_suffix)
+
+    shared = {mp: vs for mp, vs in by_macros.items() if len(vs) >= 2}
+    full_consensus = consensus_tools = divergent = partial = no_tokenizable = 0
+    for importers in shared.values():
+        tok = [bs for bs in importers if bs is not None]
+        if not tok:
+            no_tokenizable += 1
+        elif len(set(tok)) == 1 and len(tok) == len(importers):
+            full_consensus += 1
+            consensus_tools += len(importers)
+        elif len(set(tok)) == 1:
+            partial += 1
+        else:
+            divergent += 1
+
+    # Exercise the real planner on each directory holding tokenizable tools and retain
+    # any crash as a regression fixture (the standing retain-failures order).
+    plan_probed = 0
+    for directory, tool_paths in sorted(tokenizable_in_dir.items()):
+        macros_path = directory / "macros.xml"
+        plan_probed += 1
+        try:
+            plan_shared_tokenization(macros_path, target_tools=tool_paths)
+        except Exception as error:  # noqa: BLE001 -- retain any crash as a fixture
+            for tool_path in tool_paths:
+                source = (
+                    str(tool_path.relative_to(corpus_root))
+                    if tool_path.is_relative_to(corpus_root)
+                    else tool_path.name
+                )
+                errors.append(
+                    {"source": source, "error": f"{type(error).__name__}: {error}"}
+                )
+
+    return _TokenSharingResult(
+        tools_scanned=tools,
+        tokenizable=tokenizable,
+        distinct_macros=len(by_macros),
+        single_importer=sum(1 for vs in by_macros.values() if len(vs) == 1),
+        shared=len(shared),
+        full_consensus=full_consensus,
+        consensus_tools=consensus_tools,
+        divergent=divergent,
+        partial=partial,
+        no_tokenizable=no_tokenizable,
+        plan_probed=plan_probed,
+        errors=errors,
+    )
+
+
+def _run_version_token_sharing(args: argparse.Namespace) -> None:
+    result = _measure_version_token_sharing(corpus_root=args.corpus_root)
+    print("\n=== version-token-sharing (shared-macros tokenization consensus) ===")
+    print(f"tools scanned: {result.tools_scanned}  tokenizable: {result.tokenizable}")
+    print(f"distinct imported macros files: {result.distinct_macros}")
+    print(f"  single-importer (sole-owned): {result.single_importer}")
+    print(f"  shared (>=2 importers): {result.shared}")
+    print(f"    full consensus (all importers, one version): {result.full_consensus}"
+          f"  covering {result.consensus_tools} tools")
+    print(f"    partial (subset agrees): {result.partial}")
+    print(f"    divergent versions: {result.divergent}")
+    print(f"    no tokenizable importer: {result.no_tokenizable}")
+    print(f"planner probed on {result.plan_probed} directories; "
+          f"crashes retained: {len(result.errors)}")
+    if not args.all:
+        out_path = (
+            _repo_root() / "docs" / "corpus_data" / "version_token_sharing_errors.json"
+        )
+        out_path.write_text(
+            json.dumps(result.errors, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        print(f"\nwrote {_display_path(out_path)} ({len(result.errors)} crash case(s))")
+
+
 # --- passthrough: corpus-check --------------------------------------------------
 #
 # corpus_check.py is the canonical (and slow) sweep step. Exposing it here as a
@@ -6648,6 +6799,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "shell-oracle-quoting": _run_shell_oracle_quoting,
     "macro-fmt-idempotence": _run_macro_fmt_idempotence,
     "version-tokenization": _run_version_tokenization,
+    "version-token-sharing": _run_version_token_sharing,
     "expansion-failed-ids": _run_expansion_failed_ids,
     "cross-source-presence": _run_cross_source_presence,
     "lenient-text-fields": _run_lenient_text_fields,

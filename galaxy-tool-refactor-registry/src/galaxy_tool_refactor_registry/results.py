@@ -78,6 +78,22 @@ class ConvertHelpResult:
 
 
 @dataclass(frozen=True)
+class NewMacrosFile:
+    """A macros file a facade entry point would write beside the tool.
+
+    Attributes:
+        path: The import path, relative to the tool (e.g. ``"macros.xml"``).
+        content: The full fmt-serialised bytes of the file.
+        created: ``True`` when the file is newly created, ``False`` when the tokens
+            were merged into an existing file (the caller should back it up first).
+    """
+
+    path: str
+    content: bytes
+    created: bool = True
+
+
+@dataclass(frozen=True)
 class TokenizeVersionResult:
     """The outcome of ``tokenize_version`` (the opt-in @TOOL_VERSION@ extraction).
 
@@ -86,11 +102,14 @@ class TokenizeVersionResult:
         tokenized: Whether the version was factored into the IUC tokens.
         skip_reason: Why the tokenization did not apply (``None`` when applied) —
             the same decision path the GTR094 codemod runs.
+        new_macros: The separate ``macros.xml`` to create (``--macros-file`` mode),
+            or ``None`` for the inline default. Set only when ``tokenized``.
     """
 
     formatted: bytes
     tokenized: bool
     skip_reason: str | None = None
+    new_macros: NewMacrosFile | None = None
 
 
 @dataclass(frozen=True)

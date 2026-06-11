@@ -90,6 +90,12 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
   (one tool → defining file + target), the pure `plan_from_sites` (per-file
   importer agreement), and `apply_profile_token_plans` (bump the agreed files'
   tokens via `format_macro_document`, skip the rest). See `docs/decisions.md` D5.
+- `version_token_share.py`: shared-macros version tokenization (`tokenize-version
+  --macros-file`) via `plan_shared_tokenization` (create / merge / consensus) behind a
+  proof-by-execution gate (every retargeted tool still expands to its original; a merge
+  is inert for every other importer of the file). The facade's `tokenize_version` (one
+  tool) and `tokenize_version_shared` (a directory group) sit on top. See
+  `docs/decisions.md` D20.
 - `results.py` — the structured result + introspection dataclasses.
 - `errors.py` — `UnknownRuleCode` / `UnknownRuleset`.
 

@@ -449,3 +449,87 @@ def test_tokenize_version_reports_skip_reason() -> None:
     assert result.tokenized is False
     assert result.skip_reason is not None and "+galaxy" in result.skip_reason
     assert b'version="1.20"' in result.formatted  # unchanged tool echoed
+
+
+def test_tokenize_version_macros_file_emits_import_and_new_file(tmp_path: Path) -> None:
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(_TOKENIZABLE)
+    result = facade.tokenize_version(tool, macros_file="macros.xml")
+    assert result.tokenized is True and result.skip_reason is None
+    assert b"<import>macros.xml</import>" in result.formatted
+    assert b'<token name="@TOOL_VERSION@">' not in result.formatted  # not inline
+    assert result.new_macros is not None
+    assert result.new_macros.path == "macros.xml"
+    assert b'<token name="@TOOL_VERSION@">1.20</token>' in result.new_macros.content
+    assert b'<token name="@VERSION_SUFFIX@">0</token>' in result.new_macros.content
+
+
+def test_tokenize_version_macros_file_writes_both(tmp_path: Path) -> None:
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(_TOKENIZABLE)
+    result = facade.tokenize_version(tool, write_path=tool, macros_file="macros.xml")
+    assert result.tokenized is True
+    macros = tmp_path / "macros.xml"
+    assert macros.exists()
+    assert b'<token name="@TOOL_VERSION@">1.20</token>' in macros.read_bytes()
+    assert b"<import>macros.xml</import>" in tool.read_bytes()
+
+
+def test_tokenize_version_macros_file_merges_into_existing(tmp_path: Path) -> None:
+    # An existing macros file with no version tokens: the tokens are merged in (not
+    # refused), and the result records it was not newly created.
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(_TOKENIZABLE)
+    (tmp_path / "macros.xml").write_text(
+        '<macros><token name="@CITE@">ref</token></macros>', encoding="utf-8"
+    )
+    result = facade.tokenize_version(tool, macros_file="macros.xml")
+    assert result.tokenized is True
+    assert result.new_macros is not None and result.new_macros.created is False
+    assert b'<token name="@CITE@">ref</token>' in result.new_macros.content
+    assert b'<token name="@TOOL_VERSION@">1.20</token>' in result.new_macros.content
+    assert b"<import>macros.xml</import>" in result.formatted
+
+
+def test_tokenize_version_macros_file_declines_token_conflict(tmp_path: Path) -> None:
+    # An existing file already defines @TOOL_VERSION@ at a different value: decline.
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(_TOKENIZABLE)
+    (tmp_path / "macros.xml").write_text(
+        '<macros><token name="@TOOL_VERSION@">9.9</token>'
+        '<token name="@VERSION_SUFFIX@">9</token></macros>',
+        encoding="utf-8",
+    )
+    result = facade.tokenize_version(tool, macros_file="macros.xml")
+    assert result.tokenized is False
+    assert result.skip_reason is not None and "9.9" in result.skip_reason
+
+
+def test_tokenize_version_macros_file_needs_a_path() -> None:
+    result = facade.tokenize_version(_TOKENIZABLE, macros_file="macros.xml")
+    assert result.tokenized is False
+    assert result.skip_reason is not None and "needs a tool path" in result.skip_reason
+
+
+def test_tokenize_version_macros_file_rejects_unsafe_name(tmp_path: Path) -> None:
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(_TOKENIZABLE)
+    result = facade.tokenize_version(tool, macros_file="../evil.xml")
+    assert result.tokenized is False
+    assert result.skip_reason is not None and "plain filename" in result.skip_reason
+
+
+def test_tokenize_version_shared_consensus_writes_group(tmp_path: Path) -> None:
+    a = tmp_path / "a.xml"
+    b = tmp_path / "b.xml"
+    a.write_bytes(_TOKENIZABLE.replace(b'id="m"', b'id="a"'))
+    b.write_bytes(_TOKENIZABLE.replace(b'id="m"', b'id="b"'))
+    plan = facade.tokenize_version_shared(
+        tmp_path / "macros.xml", target_tools=[a, b], write=True
+    )
+    assert plan.skip_reason is None
+    assert {e.path.name for e in plan.tool_edits} == {"a.xml", "b.xml"}
+    assert (tmp_path / "macros.xml").exists()
+    for tool in (a, b):
+        assert b"<import>macros.xml</import>" in tool.read_bytes()
+        assert b'version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"' in tool.read_bytes()
