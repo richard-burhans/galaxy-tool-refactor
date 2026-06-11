@@ -119,7 +119,7 @@ stats and the latest sweep numbers live in `docs/corpus_format_stats.md`.
   diff display in its test harness; the `format_tool_document` API is
   already stable for that path.
 
-## v0.1 acceptance
+## v0.1 acceptance *(met; the package is published on PyPI at 0.2.0)*
 
 1. `uv sync`, `uv run pytest`, `uv run ruff check .`, `uv run ruff
    format --check .`, `uv run mypy src` all clean.

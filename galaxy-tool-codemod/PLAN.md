@@ -2,8 +2,13 @@
 
 ## Status
 
-**M1–M3.5 shipped** (2026-05-28). M4 (matcher language) and M5
-(Cheetah reference resolver) remain. The tier-4 app
+**M1–M3.5 shipped** (2026-05-28). The M5 "Cheetah reference resolver" work
+was built in **tier 1** (`galaxy-tool-source`: `cheetah_cdm` lexer,
+`cheetah_refs`, `cheetah_rename`) as the architecture evolved, and reaches
+users through the registry / CLI (`rename-param`, `find-references`,
+`tokenize-version`), so M5 is effectively done (just not in this package).
+**M4 (matcher language) is the one unshipped milestone** (a gated bet with no
+current consumer). The tier-4 app
 (`galaxy-tool-refactor-cli`) consumes this package's pipeline contracts —
 `CANONICAL_CODEMODS` (its `format` command) and `AUTO_UPGRADE_CODEMODS`
 (its `upgrade` command); fmt's library and CLI are cosmetic-only and do
@@ -123,7 +128,11 @@ been ported as proper codemods (verb-noun naming, TDD):
   `HasChild(...)`, `MatchesXPath(...)`, etc.
 - LibCST-matcher-shaped but not a drop-in.
 
-### M5 — Cheetah reference resolver
+### M5 — Cheetah reference resolver *(shipped in tier 1)*
+
+The Cheetah subsystem landed in `galaxy-tool-source` (`cheetah_cdm` /
+`cheetah_refs` / `cheetah_rename`) rather than here; this package consumes it
+indirectly via the registry. Original framing below, kept for context:
 
 - **Long pole** (`docs/architecture.md` §Risks: "Most interesting
   refactors cross the XML→Cheetah boundary"). Treat as a first-class
