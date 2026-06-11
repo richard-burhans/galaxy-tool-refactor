@@ -48,6 +48,7 @@ from galaxy_tool_refactor_rules.rulesets import (
     ruleset_description,
     ruleset_names,
 )
+from galaxy_tool_source import version_tokens
 from galaxy_tool_source.binding import Source, load_tool, newest_valid_profile
 from galaxy_tool_source.cheetah_refs import tool_cheetah_references
 from galaxy_tool_source.cheetah_rename import rename_param as _rename_in_tree
@@ -513,6 +514,38 @@ def tokenize_version_shared(
         for edit in plan.tool_edits:
             edit.path.write_bytes(edit.content)
     return plan
+
+
+def adopt_version_suffix(
+    source: Source | ToolDocument, /, *, write_path: Path | None = None
+) -> TokenizeVersionResult:
+    """Adopt the IUC ``+galaxy0`` suffix for a bare version (opt-in, identity-changing).
+
+    For a tool whose bare ``version`` equals a package ``<requirement>`` but lacks the
+    ``+galaxy`` revision suffix: *add* ``+galaxy0`` and tokenize. This **changes the
+    published version** (``1.20`` becomes ``1.20+galaxy0``), so it is never part of
+    ``run``/``upgrade`` and is not a behaviour-preserving fix; the author is adopting a
+    convention and bumping intentionally. Gated on the controlled-change gate (the macro
+    expansion differs solely in the version attribute). Inline only; ``new_macros`` is
+    always ``None``.
+    """
+    document = _to_document(source)
+    reason = version_tokens.adopt_suffix_skip_reason(document)
+    if reason is None:
+        base = document.root.get("version") or ""
+        if version_tokens.adopt_suffix_equality_holds(document, base=base):
+            version_tokens.tokenize_tree(document.root, base=base, suffix="0")
+        else:
+            reason = (
+                "adopting +galaxy0 would change more than the version (could not prove "
+                "the controlled change)"
+            )
+    formatted = apply_selection(document, codes=frozenset())
+    if reason is None and write_path is not None:
+        write_path.write_bytes(formatted)
+    return TokenizeVersionResult(
+        formatted=formatted, tokenized=reason is None, skip_reason=reason
+    )
 
 
 def list_rulesets() -> list[RulesetInfo]:

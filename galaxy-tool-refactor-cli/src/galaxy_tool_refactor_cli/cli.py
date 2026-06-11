@@ -959,9 +959,24 @@ def convert_help_command(paths: tuple[Path, ...], check: bool, backup: bool) -> 
         "NAME at the same version are tokenized together."
     ),
 )
+@click.option(
+    "--adopt-suffix",
+    is_flag=True,
+    help=(
+        "IDENTITY-CHANGING: for a tool whose bare version equals a package "
+        "<requirement> but has no +galaxy suffix, ADD +galaxy0 and tokenize. This "
+        "changes the published version (1.20 -> 1.20+galaxy0); use only when you are "
+        "intentionally adopting the convention. Inline only; not combinable with "
+        "--macros-file."
+    ),
+)
 @_BACKUP_OPTION
 def tokenize_version_command(
-    paths: tuple[Path, ...], check: bool, macros_file: str | None, backup: bool
+    paths: tuple[Path, ...],
+    check: bool,
+    macros_file: str | None,
+    adopt_suffix: bool,
+    backup: bool,
 ) -> None:
     """Factor a literal version into @TOOL_VERSION@/@VERSION_SUFFIX@ (opt-in, gated).
 
@@ -975,7 +990,21 @@ def tokenize_version_command(
     unprovable is skipped with the reason. A multi-element style restructure,
     which is why it is a deliberate, separate command, never part of
     ``format``/``upgrade``. Files are passed by path so imported macros resolve.
+
+    ``--adopt-suffix`` is the **identity-changing** sibling: for a tool whose *bare*
+    version equals a package requirement, it adds ``+galaxy0`` (so ``1.20`` becomes
+    ``1.20+galaxy0``) and tokenizes. The published version changes, so it is opt-in and
+    gated only on the controlled-change gate (the expansion changes solely in the
+    version attribute).
     """
+    if adopt_suffix and macros_file is not None:
+        click.echo(
+            "error: --adopt-suffix cannot be combined with --macros-file", err=True
+        )
+        raise SystemExit(1)
+    if adopt_suffix:
+        _run_adopt_suffix(paths, check=check, backup=backup)
+        return
     if macros_file is not None:
         _run_tokenize_shared(paths, macros_file=macros_file, check=check, backup=backup)
         return
@@ -1005,6 +1034,44 @@ def tokenize_version_command(
             click.echo(f"skipped {target}: {result.skip_reason}")
     click.echo(
         f"{tokenized} tokenized, {skipped} skipped"
+        + (f", {errored} error(s)" if errored else "")
+    )
+    if errored:
+        raise SystemExit(1)
+
+
+def _run_adopt_suffix(
+    paths: tuple[Path, ...], *, check: bool, backup: bool
+) -> None:
+    """``tokenize-version --adopt-suffix``: add +galaxy0 to a bare version, tokenize.
+
+    Identity-changing (the published version changes), so each applied tool is
+    reported loudly. Gated per tool by the controlled-change gate.
+    """
+    adopted = skipped = errored = 0
+    for target in iter_targets(paths):
+        try:
+            original = target.read_bytes()
+        except OSError as error:
+            click.echo(f"error: cannot read {target}: {error}", err=True)
+            errored += 1
+            continue
+        if not is_tool_root(original):
+            continue
+        result = facade.adopt_version_suffix(target)
+        if result.tokenized:
+            adopted += 1
+            if not check:
+                if backup:
+                    make_backup(target)
+                target.write_bytes(result.formatted)
+            verb = "would adopt" if check else "adopted"
+            click.echo(f"{verb} +galaxy0 in {target} (published version changed)")
+        else:
+            skipped += 1
+            click.echo(f"skipped {target}: {result.skip_reason}")
+    click.echo(
+        f"{adopted} adopted, {skipped} skipped"
         + (f", {errored} error(s)" if errored else "")
     )
     if errored:

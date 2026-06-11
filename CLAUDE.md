@@ -418,6 +418,11 @@ commands:
   inline block: created when absent, merged into an existing file when proven inert for
   its other importers, or a same-version directory group tokenized together (consensus).
   Shared-macros edits are proof-by-execution gated (cli §D14, registry D20).
+  `--adopt-suffix` is the **identity-changing** opt-in: for a bare version equal to a
+  package requirement, ADD `+galaxy0` and tokenize (`1.20` becomes `1.20+galaxy0`).
+  Not behaviour-preserving (the published version changes), so it is gated on the
+  controlled-change gate (expansion differs solely in the version), inline only, and
+  never in `format`/`upgrade` or MCP (cli §D15).
 
 Selection is shared across `format`/`upgrade`/`check`: `--ruleset NAME`
 (repeatable / comma-separated — the union of the named sets), `--select CODE…`,
