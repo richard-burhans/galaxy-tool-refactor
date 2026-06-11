@@ -8,11 +8,11 @@ from lxml import etree
 from galaxy_tool_xml_check.detect import all_checks, detect_violations
 
 
-def test_registry_has_sixty_six_checks_with_unique_codes() -> None:
+def test_registry_has_seventy_checks_with_unique_codes() -> None:
     checks = all_checks()
-    assert len(checks) == 69
+    assert len(checks) == 70
     codes = [cls.meta.code for cls in checks]
-    assert len(set(codes)) == 69
+    assert len(set(codes)) == 70
     assert all(code.startswith("GTR") for code in codes)
 
 

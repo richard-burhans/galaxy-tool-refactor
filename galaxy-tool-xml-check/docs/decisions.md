@@ -1087,3 +1087,51 @@ construction: backgrounding is valid shell, so a typo cannot be proven — no
 auto-fix. The parity table's `_NO_OP_DETECT` mechanism is retired (every rule
 now detects). Reproduced-by: `uv run --package galaxy-tool-xml-check pytest
 galaxy-tool-xml-check/tests/ -k gtr032 -k iuc012`.
+
+## D35 (2026-06-11) — GTR095: the id/name/version trio, the half tier-1 `validate` can't see
+
+### Decision
+
+Close the last *infra-free* planemo DETECT gap — `ToolIDMissing` /
+`ToolNameMissing` / `ToolVersionMissing` (`galaxy.tool_util.linters.general`) —
+as one rule, **`ToolIdentityPresent` (GTR095)** in `checks/tool.py`. The trio was
+parked as "DETECT — XSD-required, detect TBD", on the assumption that tier-1
+`validate_tool` already covered it. The homework showed that is only *half* true,
+and the residual is worth a check:
+
+- **`id` / `name`** carry XSD `use="required"` in **every** vendored schema
+  (oldest `galaxy-16.10.xsd` through newest `galaxy-26.1.xsd`), so a *missing*
+  one already fails `validate`. But the type is bare `xs:string` (no `pattern` /
+  `minLength`), so `id=""` / `name=""` are **XSD-valid** — `validate` waves them
+  through, planemo flags them. GTR095 adds exactly that empty-string case.
+- **`version`** is **not** XSD-required at all (it carries `default="1.0.0"`, so
+  Galaxy silently supplies a version). `validate` never flags an absent or empty
+  `version`; GTR095 is the *only* guard for it.
+
+So the rule is genuinely additive over tier-1, not a redundant re-report — it is
+the planemo trio's tier-1 *residual*. Faithful to planemo's semantics: the falsy
+test (`if not value`) fires on absent **or** empty; whitespace-only is truthy
+(left to GTR047 for `version`); and the `name` leg mirrors `parse_name()`'s
+`name or id` fallback (`tool_util/parser/xml.py:220-221`), so it fires only when
+neither attribute has a value.
+
+### Soundness on the raw tree (no `has_macros` guard)
+
+Unlike the parity wave's element/text checks, GTR095 needs no macro guard: macro
+expansion inserts *elements* and substitutes `@…@` tokens *inside* attribute
+values, so it can never add a root `<tool>` attribute, and a value carrying a
+token is non-empty (so an unexpanded `version="@TOOL_VERSION@"` is correctly not
+flagged). The raw tree is therefore exact for this check.
+
+Roster 69 → **70**. With this the only remaining planemo DETECT linters need
+external infra: `TestsAssertionValidation` / `TestsCaseValidation` (Galaxy's
+pydantic models) and `ValidDatatypes` / `DatatypesCustomConf` (the datatype
+registry / filesystem). Parity Summary (metadata-derived): HAVE 114 → **117**,
+DETECT 7 → **4**.
+
+### Reproduced by
+
+```sh
+uv run --package galaxy-tool-xml-check pytest galaxy-tool-xml-check/tests/ -k gtr095
+uv run python -m scripts.corpus_check check   # regenerates docs/corpus_check_stats.md
+```

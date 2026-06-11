@@ -1193,3 +1193,36 @@ def test_gtr032_lone_amp_joining_flagged_other_classes_not() -> None:
     )
     assert "GTR032" not in _codes(benign)
     assert "GTR032" not in _codes(_tool())  # default command uses no &
+
+
+def test_gtr095_missing_or_empty_id() -> None:
+    # Absent id (also a tier-1 XSD error: id is use="required") and empty id
+    # (XSD-valid - xs:string accepts "") both fire, matching planemo's falsy check.
+    assert "GTR095" in _codes(_tool().replace(b'id="good_tool" ', b"", 1))
+    assert "GTR095" in _codes(_tool(tool_id=""))
+    assert "GTR095" not in _codes(_tool())
+
+
+def test_gtr095_name_falls_back_to_id() -> None:
+    # planemo's parse_name() returns name or id, so a missing/empty name with a
+    # usable id is NOT a finding; only a tool with neither fires the name leg.
+    no_name = _tool().replace(b'name="Good" ', b"", 1)
+    assert "GTR095" not in _codes(no_name)
+    neither = _tool(tool_id="").replace(b'name="Good" ', b"", 1)
+    findings = [
+        v
+        for v in detect_violations(load_tool(neither))
+        if v.code == "GTR095"
+    ]
+    assert len(findings) == 2  # id + name (version still present)
+
+
+def test_gtr095_missing_or_empty_version() -> None:
+    # version is NOT XSD-required (Galaxy defaults it to 1.0.0), so this check
+    # is the only guard for the absent case - the trio's tier-1 residual.
+    assert "GTR095" in _codes(_tool().replace(b' version="1.0.0"', b"", 1))
+    assert "GTR095" in _codes(_tool(version=""))
+    # Whitespace-only is truthy for planemo (and GTR047's job), not flagged here.
+    assert "GTR095" not in _codes(_tool(version=" "))
+    # A macro token is a non-empty value; it resolves at expansion.
+    assert "GTR095" not in _codes(_tool(version="@TOOL_VERSION@"))

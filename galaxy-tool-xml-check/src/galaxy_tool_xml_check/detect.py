@@ -88,6 +88,7 @@ from galaxy_tool_xml_check.checks.tool import (
     RequirementVersionPinned,
     StdioRegexValid,
     TestsPresent,
+    ToolIdentityPresent,
     ToolVersionWhitespace,
     VersionFormat,
 )
@@ -128,6 +129,7 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         ToolVersionWhitespace,
         ContainerShapeRecognized,
         StdioRegexValid,
+        ToolIdentityPresent,
         # partition .2 advisory residuals
         CommandCdata,
         HelpCdata,
