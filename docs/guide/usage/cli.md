@@ -18,6 +18,7 @@ Install from PyPI:
 pip install galaxy-tool-refactor             # the `galaxy-tool-refactor` CLI
 pip install "galaxy-tool-refactor[mcp]"      # also installs the agent-facing MCP server
 galaxy-tool-refactor --help
+galaxy-tool-refactor --version               # print the installed version
 ```
 
 To work on the toolkit itself, clone the workspace and use `uv` instead:

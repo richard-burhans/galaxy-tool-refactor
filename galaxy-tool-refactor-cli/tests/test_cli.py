@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.metadata
 from pathlib import Path
 
 import pytest
@@ -37,6 +38,14 @@ _PARAM_OUT_OF_ORDER = (
 def _write(path: Path, content: bytes) -> Path:
     path.write_bytes(content)
     return path
+
+
+def test_version_flag_prints_the_installed_version() -> None:
+    """``--version`` exits 0 and prints the installed (lockstep) version."""
+    expected = importlib.metadata.version("galaxy-tool-refactor-cli")
+    result = CliRunner().invoke(main, ["--version"])
+    assert result.exit_code == 0, result.output
+    assert expected in result.output
 
 
 def test_format_reorders_param_attributes(tmp_path: Path) -> None:
