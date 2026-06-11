@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Contributor-visible pre-push gate. Mirrors the Claude Code pre-push hook so a
+# plain `git push` runs the same checks, whether or not you use Claude Code.
+#
+# Enable once per clone:
+#     git config core.hooksPath .githooks
+#
+# Bypass a single push with git's built-in escape hatch: `git push --no-verify`.
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+exec bash "$REPO_ROOT/scripts/qa_gate.sh"

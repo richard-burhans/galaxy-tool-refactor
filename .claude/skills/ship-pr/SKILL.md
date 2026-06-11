@@ -51,6 +51,23 @@ GH_TOKEN=x gh pr view <PR> --json state,mergedAt -q '{state,mergedAt}'
 `delete_branch_on_merge` removes the *remote* branch automatically, server-side —
 nothing is checked out locally, so the corpus is untouched.
 
+**Confirm `state` is `MERGED` before ANY cleanup.** A merge can be refused —
+`gh pr merge` then prints "add the `--admin` flag" and the PR stays open. If you
+delete the local branch on a non-merge you lose your local ref. Gate the cleanup:
+
+```bash
+[ "$(GH_TOKEN=x gh pr view <PR> --json state -q .state)" = "MERGED" ] || {
+  echo "NOT merged — do not clean up"; exit 1; }
+```
+
+A `BLOCKED` merge almost always means branch protection: a required status check
+is missing or the branch is behind `main` (strict mode). **Gotcha:** when a CI job
+is renamed — e.g. adding a Python matrix turns `qa` into `qa (3.10)`… — the
+branch-protection *required check* still names the old `qa` and is never satisfied,
+so every PR is `BLOCKED`. Fix by pointing protection at the stable aggregator:
+`printf '{"strict":true,"contexts":["ci"]}' | GH_TOKEN=x gh api -X PATCH
+repos/<owner>/<repo>/branches/main/protection/required_status_checks --input -`.
+
 ## Post-merge: sync, clean up, verify
 
 ```bash
