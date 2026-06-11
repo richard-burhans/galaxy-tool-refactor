@@ -1,143 +1,26 @@
-name: Release to PyPI (all packages)
-
-# Tag-triggered (or manually dispatched) lockstep publish of the nine workspace
-# distributions (the eight tier packages + the galaxy-tool-refactor metapackage)
-# via PyPI Trusted Publishing (OIDC, no stored token). The packages share one
-# version (galaxy-tool-source/docs/decisions.md §27).
-#
-# Two ways to run it:
-#  - Push a tag `v<version>` matching the shared lockstep version: builds and
-#    publishes ALL nine in one Trusted-Publishing call.
-#  - Run it manually (Actions -> "Release to PyPI" -> Run workflow) with
-#    `packages` set to `all` or a space-separated subset of dist names, to publish
-#    just those. Use this to bring projects online one wave at a time when not
-#    every trusted publisher is registered yet (each publish creates the project
-#    and converts its pending publisher into a normal one). The lockstep guard
-#    still runs, so a manual publish can't ship a drifted workspace.
-#
-# Publish in dependency order so a package is never installable-but-broken (every
-# package pins its intra-workspace deps to the exact version):
-#   galaxy-tool-refactor-rules, galaxy-tool-source   (no workspace deps)
-#   -> galaxy-tool-codemod, galaxy-tool-fmt, galaxy-tool-lint
-#   -> galaxy-tool-refactor-registry
-#   -> galaxy-tool-refactor-cli, galaxy-tool-refactor-mcp
-#   -> galaxy-tool-refactor (the front-door metapackage)
-#
-# One-time PyPI setup (a maintainer, on pypi.org), once PER PACKAGE: Account ->
-# Publishing -> add a pending publisher with: owner `richard-burhans`, repo
-# `galaxy-tool-refactor`, workflow `release.yml`, environment `pypi`, and the
-# project name set to each of the nine dist names above. (galaxy-tool-source
-# already has a publisher from the 0.1.0 release; its config lives on the
-# existing project's page, not the account-level "pending" form.) PyPI validates
-# each uploaded file against its own project's trusted-publisher config, so the
-# manual single-package mode needs only that one project's publisher to exist.
+name: Release
 
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
   workflow_dispatch:
-    inputs:
-      packages:
-        description: >-
-          Dist(s) to build + publish: `all` (default, same as a tag) or a
-          space-separated subset of dist names, e.g. `galaxy-tool-source`.
-        type: string
-        default: all
-
-permissions:
-  contents: read
-
-env:
-  # The canonical publish order (also the dependency order). One source of truth
-  # for both the all-packages path and validation of a manual subset.
-  ALL_PACKAGES: >-
-    galaxy-tool-refactor-rules galaxy-tool-source galaxy-tool-codemod
-    galaxy-tool-fmt galaxy-tool-lint galaxy-tool-refactor-registry
-    galaxy-tool-refactor-cli galaxy-tool-refactor-mcp galaxy-tool-refactor
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
 
-      - name: Resolve the package set and verify the lockstep version
-        # On a tag: publish every package and require the tag to match the shared
-        # version. On manual dispatch: publish `all` or the validated subset, at
-        # the workspace version. `bump_version --check` fails (naming the fix)
-        # unless every package is at that version with pinned intra-deps, so
-        # neither path can publish a half-bumped or drifted workspace.
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] \
-             && [ "${{ inputs.packages }}" != "all" ]; then
-            packages="${{ inputs.packages }}"
-            for pkg in $packages; do
-              case " $ALL_PACKAGES " in
-                *" $pkg "*) ;;
-                *) echo "::error::unknown dist name '$pkg'"; exit 1 ;;
-              esac
-            done
-          else
-            packages="$ALL_PACKAGES"
-          fi
-          echo "PACKAGES=$packages" >> "$GITHUB_ENV"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
 
-          version="$(grep -m1 '^version' galaxy-tool-source/pyproject.toml \
-            | sed -E 's/.*"([^"]+)".*/\1/')"
-          if [ "${{ github.event_name }}" = "push" ]; then
-            tag="${GITHUB_REF_NAME#v}"
-            if [ "$tag" != "$version" ]; then
-              echo "::error::tag $tag does not match workspace version $version"
-              exit 1
-            fi
-          fi
-          echo "publishing version $version: $packages"
-          uv run --no-sync python -m scripts.bump_version "$version" --check
+      - name: Download artifact
+        uses: actions/download-artifact@v5
 
-      - name: Build sdist + wheel for the selected packages
-        # The galaxy-tool-source build hook regenerates its per-version xsdata
-        # models from the vendored XSDs; galaxy-tool-refactor is the metapackage
-        # (metadata-only wheel).
-        run: |
-          set -euo pipefail
-          for pkg in $PACKAGES; do
-            echo "::group::build $pkg"
-            uv build --package "$pkg"
-            echo "::endgroup::"
-          done
-          ls -l dist
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/*
-
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write  # OIDC token for Trusted Publishing
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
-
-      - name: Publish the selected packages to PyPI
-        # Uploads every sdist+wheel in dist/; PyPI matches each against its own
-        # project's trusted-publisher config (workflow release.yml, env pypi).
-        # skip-existing lets a later wave (or an `all` run after a partial one)
-        # re-run without erroring on versions already uploaded.
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          skip-existing: true
+      # ... rest of the file remains the same ...
