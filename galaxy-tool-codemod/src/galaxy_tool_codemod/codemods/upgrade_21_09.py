@@ -1,4 +1,4 @@
-"""Single-step profile upgrade: 21.09 -> 22.01.
+r"""Single-step profile upgrade: 21.09 -> 22.01.
 
 Two independent 22.01 tightenings are repaired here, each behind its own
 runtime proof (see the section docstrings below): the ``collection_type``
