@@ -1,5 +1,148 @@
 # Architectural audit — galaxy-tool-refactor
 
+## Re-audit 2026-06-11 — post version-tokenization arc + publishing + renames (PRs #160-#194), with escalation
+
+**Audited commit:** `2df9e4d`. Delta since `c46d579`: the version-tokenization
+arc lands proper (PR #181 `version_tokens.py` shipped as a tier-1 module with the
+`--macros-file` share/consensus path and `--adopt-suffix` identity-change variant),
+the `galaxy-tool-xml → galaxy-tool-source` rename (#162/#164), the front-door
+`galaxy-tool-refactor` metapackage (a ninth published distribution; #163), GTR095
+(id/name/version missing-or-empty), the publishing/OSS infra wave (all nine dists on
+PyPI 0.2.0), the `galaxy-blog-post` skill, and the doc/skill refresh wave
+(#189/#192/#193/#194).
+
+**Verdict — healthy; zero High, zero boundary violations, every survivor
+doc/test class.** The escalation's priority adversarial lanes — the
+version-tokenization soundness gates (expansion-equality for tokenize, adopt-suffix,
+and shared-merge inertness), the 9-package lockstep + metapackage-extra pinning, and
+the `OPT_IN_COMMAND_BY_CODE` partition — all came back **clean on the load-bearing
+code**: every gate is present and integrated, the lockstep/partition contracts are
+fully tripwire-guarded (`test_workspace_versions.py`, `test_ruleset_membership.py`),
+and the two structural-soundness candidates that survived are **test-coverage gaps,
+not correctness gaps** (the gates run; they just lack an isolating proof-by-execution
+test). The dominant survivor cluster is mundane: a **count/enumeration drift wave**
+from the tokenize-version + GTR090/091/095 + rename arcs that lagged across READMEs,
+CLAUDE.md, ARCHITECTURE.md, and the parity doc. Two finders fed per-finding
+adversarial refuters: **23 raw → 2 refuted → 21 survivors**, deduped to **11 distinct
+NEW findings (10 applied as safe fixes, 1 backlog note) + 4 RE-CONFIRMATIONS of prior
+guards**. Honest read: little is *structurally* new since `c46d579`; the arc was
+absorbed cleanly, and this audit is mostly catching the documentation shadow it cast.
+
+### Applied (safe-fix class, all doc/docstring) — `[fixed]`
+
+1. **The tokenize-version/GTR090-091-095/rename enumeration-drift cluster** (the
+   dominant survivor group — seven near-identical doc miscounts, collapsed):
+   - `ARCHITECTURE.md:349` check count `(68)` → `(70)` (contradicted both
+     `galaxy-tool-lint/tests/test_detect.py:13` `== 70` and its own §6 prose at
+     line 382). Corroborated independently by the parity-doc finding.
+   - `docs/planemo_linter_parity.md:203` `68 rules` → `70 rules` (stale since
+     GTR090/091 + GTR095). Same invariant as the row above (the live `test_detect.py`
+     tripwire) — independent corroboration count 2. **Main-loop follow-through:**
+     the same prose block carried three more GTR095-induced (PR #166) stale counts the
+     synthesis didn't reach — the sibling `check` line `69 → 70` (same `all_checks()`
+     total, verified `len(all_checks()) == 70`), the `~7 → ~4` remaining-DETECT count,
+     and the now-covered `id/name/version (XSD-required)` clause dropped (GTR095 closed
+     that trio; reconciled against the freshness-tested Summary's `DETECT = 4`).
+   - `galaxy-tool-refactor-cli/src/.../__init__.py:8` docstring `seven commands` →
+     `ten`, plus the three missing entries (`rename-param`, `convert-help`,
+     `tokenize-version`).
+   - `galaxy-tool-refactor-cli/CLAUDE.md:25` `nine subcommands` → `ten` + a
+     `tokenize-version` bullet (the count-miss and the missing-bullet were filed
+     as two findings over the same line; merged).
+   - `README.md:17` (root package-table CLI row) + `galaxy-tool-refactor-cli/README.md:18-20`
+     (claims "ten", listed eight): both gained `convert-help` + `tokenize-version`.
+     The CLI-README one *reconfirms* a prior audit's "eight → ten" fix (#157,
+     `docs/architecture_audit.md:37`) that was applied to the count but not the
+     enumeration — partial-fix follow-through.
+   - `README.md:18` + `galaxy-tool-refactor-mcp/README.md:22-28` MCP tool lists:
+     both gained `convert_help_tool` + `tokenize_version_tool` (server.py registers
+     seven; these two opt-in tools were dropped from both surfaces — a systemic
+     GTR092/GTR094-release drift, corroboration count 2).
+2. **The tier-1 `version_tokens.py` documentation gap** (a genuine coherence
+   gap, not a miscount): the module owns the tokenization decision, both soundness
+   gates, the tree mutation, and the offset planner — the exact
+   planner-feeds-two-renderings shape as the documented `cheetah_rename` (§20) — yet
+   was absent from `ARCHITECTURE.md` §3 (tier-1 narrative) and the §11 reference
+   index, though present in the public API and CLAUDE.md. Added a §3 bullet
+   (after `schema_content`) and a §11 reference-index row, cross-referencing the
+   `cheetah_rename` pattern.
+3. **Metapackage documentation completeness** (two findings, one distribution):
+   the ninth published distribution had prose at `ARCHITECTURE.md:45-48` but no
+   §11 reference-index row and no decision citation. Added the row and the
+   `§28` citation. (Note: the refuted recommendation mis-cited `§27` for lockstep;
+   §28 is the correct and sole locus — applied as §28.)
+
+### Recorded, not applied — `[proposal]`
+
+- **Isolating proof-by-execution tests for two version-tokenization gates**
+  (medium, test-coverage class — the gates *run*, they lack a pinning test):
+  - `adopt_suffix_equality_holds` is called-and-asserted-True in
+    `galaxy-tool-source/tests/test_version_tokens.py` but has no end-to-end fixture
+    that expands before/after the `adopt_suffix` tree mutation and asserts the bytes
+    match (the pattern `test_expansion_equality_holds` /
+    `test_tokenize_version_plan_is_equal` establish for the tokenize variant).
+  - `plan_shared_tokenization`'s expansion-equality bail in
+    `galaxy-tool-refactor-registry/src/.../version_token_share.py` is exercised only
+    on happy paths; no test constructs a non-target importer whose expansion *would*
+    change and asserts the planner returns a skip_reason. The inertness guarantee
+    (`test_merge_into_existing_inert`) is proven indirectly via "no bail" rather than
+    a direct re-expansion equality assertion.
+  These are **proposals, not fixes**: drift is structurally impossible without
+  editing the shared tier-1 gate functions both callers reference by name, so the
+  exposure is low — but a dedicated test would convert a silent gate into a guarded
+  one and make the proof-by-execution discipline visible. Filed for the next codemod
+  session (TDD lane). Three near-identical finder reports collapsed here.
+
+### Re-confirmations of prior-audit guards (no action) — `[accepted]`
+
+These survived verification as **already-correct and guarded** — independent
+re-confirmation that the load-bearing contracts hold post-arc:
+
+- **`OPT_IN_COMMAND_BY_CODE` partition** (registry D18/D19): the frozen
+  `{GTR092, GTR094}` map is pinned by both `test_non_selectable_codemods_are_the_known_partition`
+  (set-equality + len tripwire) and `test_opt_in_command_codes_are_not_selectable_anywhere`
+  (each code in `all_handles()`, not in `registry()`, not in any ruleset). Confirms
+  the third audit's named opt-in-command class extended cleanly to GTR094.
+- **9-package lockstep + metapackage-extra pinning** (xml §28): the
+  `test_workspace_versions.py` trio (`test_roster_matches_the_workspace` with
+  `len(_MEMBERS) == 9`, `test_all_packages_share_one_version` == 0.2.0,
+  `test_intra_deps_are_pinned_to_the_shared_version` scanning
+  `[project.optional-dependencies]` for the `[mcp]` extra) fully guards the
+  nine-distribution invariant.
+- **SyntaxWarning guard adequacy** (registry `test_no_syntax_warnings.py`): the
+  exclusion of xsdata-generated `models/v*/` is intentional and *backstopped* — a
+  SyntaxWarning there fails at import time (`test_models.py` imports `AnyTool`,
+  which imports every `v*/` model) before the guard runs; the hand-written
+  `models/__init__.py` + `registry.py` ARE compiled. Partially-confirmed: real gap
+  characterization, adequate protection.
+- **`version-token-sharing` measure slug** (`scripts/measure.py`): registered,
+  implemented, fixture-tested, and `--list`-discoverable; `measure.py` is a living
+  registry, not a hand-enumeration needing a CLAUDE.md row per slug. No drift.
+
+### Rejected candidates (died in adversarial verification)
+
+- **"`test_workspace_versions` comment says 'eight code/tier packages' but
+  includes the metapackage"** (low) — *refuted*: the comment reads "The nine
+  workspace members — the eight code/tier packages plus the … metapackage," which is
+  accurate and clear; the proposed reword is redundant with its own opening clause.
+- **"tier-1 version_tokens has decision + gate shared across codemod/CLI but no
+  single integration test"** (low) — *refuted by design*: both callers invoke the
+  same tier-1 functions by reference, so drift is impossible without editing the
+  shared code; the end-to-end contract is already covered by
+  `test_tokenize_version_applies_and_serialises` (facade),
+  `test_tokenize_version_command` (CLI), and `test_expansion_equality_holds`
+  (codemod). Distinct from the surviving *gate-bail-isolation* proposals above,
+  which target an untested *negative* path.
+- **"architecture-audit / pre-pr-audit SKILL.md hard-code counts that may drift"**
+  (low) — *not a finding*: both skills correctly delegate count-checking to
+  introspection (CLAUDE.md, `measure.py --list`, server.py); the one literal
+  ("nine packages") is an illustrative example paired with a delegation directive,
+  not a requirement, and is currently accurate.
+- **"no `tokenize-version` example page under `docs/examples/`"** (low) — *not a
+  bug*: the feature is correctly Shipped in `capabilities.md` with decision refs +
+  corpus stats; a user-walkthrough page paralleling `rename-param-demo.md` is an
+  optional ergonomics nice-to-have, noted as backlog only.
+
 ## Re-audit 2026-06-10b — the proof-driven widening wave + ledger completion (PRs #157–#159 + the ledger-ranks-4-6 branch), with escalation
 
 **Audited commit:** `c46d579` (the live `feat/ledger-ranks-4-6` branch — findings

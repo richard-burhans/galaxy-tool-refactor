@@ -194,19 +194,19 @@ they're **SKIP**.
 
 By our tier, for the **buildable** rows (HAVE + FIX + DETECT):
 - **codemod** (structural fix): the FIX rows below + GTR013/015/016/**035** — ~15
-- **check** (advisory): the DETECT bulk + the advisory HAVEs — **69 GTR check rules shipped**
+- **check** (advisory): the DETECT bulk + the advisory HAVEs — **70 GTR check rules shipped**
   (GTR021–GTR095, detect-only), 4 planemo advisories still to build
 - **parse/validate**: 1 (XSD)
 
 **Headline:** planemo only *reports*; we *fix* the provably-safe subset (**GTR035/036/037**,
 complete) and **detect the rest** as advisory `check`-tier rules. As of 2026-06-10 the check
-tier has **68 rules** covering the whole `inputs.py` correctness surface, **all
+tier has **70 rules** covering the whole `inputs.py` correctness surface, **all
 mechanically-reimplementable `tests.py` checks**, **help RST validity** (GTR089, via
 `docutils`), and **output reference integrity + data-param format** (GTR090–091), plus
-citations, command, container, general, output, and stdio. Only ~7 planemo advisories
+citations, command, container, general, output, and stdio. Only ~4 planemo advisories
 remain, all needing external infra: the two `tests.py` linters that need Galaxy's
-pydantic models (`TestsAssertionValidation`, `TestsCaseValidation`), general missing
-name/id/version (XSD-required), and datatypes (registry/filesystem).
+pydantic models (`TestsAssertionValidation`, `TestsCaseValidation`), and datatypes
+(registry/filesystem). The id/name/version trio is now covered by GTR095.
 
 ---
 

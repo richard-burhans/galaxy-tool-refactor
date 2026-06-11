@@ -46,6 +46,7 @@ load-bearing rule:
 > front-door **metapackage** — `pip install galaxy-tool-refactor` pulls the CLI, and the
 > `[mcp]` extra adds the MCP server. It carries no code and no abstraction; it's a ninth
 > published distribution for install convenience. All nine share one lockstep version.
+> (*galaxy-tool-source `docs/decisions.md` §28.*)
 
 ### Dependency direction
 
@@ -202,6 +203,15 @@ schema, and expose a typed view — **without ever serialising**.
   schema-derived set of element tags whose content model admits text, unioned
   across all 28 vendored XSDs; the source of truth behind fmt's payload guard
   (GTR001/GTR004 whitespace soundness — fmt §D20, xml §25).
+- **`tokenization_skip_reason` / `expansion_equality_holds` /
+  `adopt_suffix_equality_holds` / `tokenize_tree` / `tokenize_version_plan`** —
+  `version_tokens.py` — the IUC version-tokenization decision, the two
+  proof-by-execution soundness gates (the tokenized/adopted bytes must
+  macro-expand identically to the original), the tree mutation, and the
+  offset-returning planner (`VersionTokenPlan` / `VersionEdit` / `NewMacroFile`).
+  The same planner-feeds-two-renderings pattern as `cheetah_rename` (§20):
+  the GTR094 codemod consumes the tree mutation, the CLI/editor path the offsets.
+  (xml `docs/decisions.md` §29–§30; codemod §43; cli §D13–§D15.)
 
 **Contract:** the lxml tree is the single representation; tier 1 emits no XML.
 *(xml `docs/decisions.md` §3 representation, §9 three-tier vision, §10 corpus
@@ -346,7 +356,7 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   enumerated check set (an explicit list, sorted by code) and the aggregate runner
   (findings sorted by line). Mirrors codemod's `coded_codemods()` and fmt's
   `all_rules()` — the same explicit-list convention across all three rule families;
-  `test_detect.py` pins the count (68) as the acknowledgement gate when the roster
+  `test_detect.py` pins the count (70) as the acknowledgement gate when the roster
   grows.
 - **The checks** — the `checks/` sub-package (split by element/source area:
   `tool.py`, `partition.py`, `outputs.py`, `inputs.py`, `validators.py`,
@@ -698,6 +708,7 @@ Each abstraction → its file → the decision record that justifies it.
 | `rename_param` / `rename_param_plan` / `RenameOutcome` / `RenamePlan` | `galaxy-tool-source/src/.../cheetah_rename.py` | xml `docs/decisions.md` §20 |
 | `ToolBundle` / `load_bundle` / `rename_param_in_bundle` | `galaxy-tool-source/src/.../bundle.py` | xml `docs/decisions.md` §21 |
 | `rst_is_invalid` / `repair_help_rst` (help-RST predicate + repair) | `galaxy-tool-source/src/.../rst.py` | xml `docs/decisions.md` §23 |
+| `tokenization_skip_reason` / `expansion_equality_holds` / `adopt_suffix_equality_holds` / `tokenize_tree` / `tokenize_version_plan` (version-tokenization decision, gates, mutation, planner) | `galaxy-tool-source/src/.../version_tokens.py` | xml `docs/decisions.md` §29–§30 |
 | `CodemodCommand`, `Cursor`, `Change` | `galaxy-tool-codemod/src/.../codemod.py`, `cursor.py`, `change.py` | codemod `docs/decisions.md` §6, §19 |
 | `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` | `galaxy-tool-codemod/src/.../canonical.py` | codemod `docs/decisions.md` §16, §36 |
 | upgrade codemods | `galaxy-tool-codemod/src/.../upgrades.py`, `codemods/upgrade_*.py` | codemod `docs/decisions.md` §11–14 |
@@ -717,6 +728,7 @@ Each abstraction → its file → the decision record that justifies it.
 | imported-macro `format`/`ftype` normalization | `galaxy-tool-refactor-registry/src/.../macro_datatype.py` | registry `docs/decisions.md` D8 |
 | the CLI | `galaxy-tool-refactor-cli/src/.../cli.py` | cli `docs/decisions.md` D1–D6 |
 | the MCP server | `galaxy-tool-refactor-mcp/src/.../server.py` (+ `service.py`) | mcp `docs/decisions.md` D1 |
+| the lockstep metapackage (no code) | `galaxy-tool-refactor-meta/pyproject.toml` | xml `docs/decisions.md` §28 |
 
 ### Rule codes at a glance
 
