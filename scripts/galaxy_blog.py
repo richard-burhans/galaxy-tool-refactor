@@ -2,19 +2,21 @@
 """Scaffold and validate a Galaxy Community Hub news/blog post.
 
 Galaxy news posts are PRs to ``galaxyproject/galaxy-hub``: a post is
-``content/news/<YEAR>/<slug>/index.md`` whose directory name becomes the URL
-(``galaxyproject.org/news/<slug>/``), with images alongside it. This script does
-the deterministic part — scaffold a correctly-named, correctly-front-mattered
-post, and lint it — so the `/galaxy-blog-post` skill (and a non-agent author via
-``make blog-new`` / ``make blog-check``) share one implementation.
+``content/news/<YEAR>/<YYYY-MM-DD>-<slug>/index.md`` whose directory name (a date
+prefix plus the slug, the convention their CI enforces) becomes the URL
+(``galaxyproject.org/news/<YYYY-MM-DD>-<slug>/``), with images alongside it. This
+script does the deterministic part (scaffold a correctly-named, correctly-front-
+mattered post, then lint it), so the `/galaxy-blog-post` skill and a non-agent
+author via ``make blog-new`` / ``make blog-check`` share one implementation.
 
     uv run python -m scripts.galaxy_blog new --title "..." --author nekrut \
         --tags ai,tools --hub-dir .local/galaxy-hub
-    uv run python -m scripts.galaxy_blog check .local/galaxy-hub/content/news/2026/<slug>
+    uv run python -m scripts.galaxy_blog check .local/galaxy-hub/content/news/2026/<dated-slug>
 
-The authoritative frontmatter schema check is galaxy-hub's own
-``scripts/validate_news.py`` (run in their CI); ``check`` runs it too when the
-target is inside a galaxy-hub checkout.
+``check`` validates the folder name, the required frontmatter, and (inside a
+galaxy-hub checkout) the tag/subsite/author registries, then points at
+galaxy-hub's own ``make validate-metadata`` for the authoritative schema check,
+which must run in galaxy-hub's conda env (it needs ``pykwalify``; ours does not).
 """
 
 from __future__ import annotations
@@ -51,6 +53,24 @@ def slug_problem(slug: str, /) -> str | None:
             "(no uppercase, underscores, spaces, or leading/trailing/double hyphens)"
         )
     return None
+
+
+_NEWS_FOLDER_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+def news_folder_problem(name: str, /) -> str | None:
+    """Why a news post folder name is invalid, or ``None``.
+
+    galaxy-hub requires recent posts to be ``YYYY-MM-DD-<slug>`` (a date prefix,
+    then a Hub-valid slug); a bare slug fails their folder-name check. ``new``
+    builds the name this way, and ``check`` enforces it.
+    """
+    if _NEWS_FOLDER_RE.fullmatch(name) is not None:
+        return None
+    return (
+        f"news folder {name!r} must be 'YYYY-MM-DD-<slug>' "
+        "(the date-prefixed convention galaxy-hub enforces for recent posts)"
+    )
 
 
 def render_frontmatter(
@@ -267,7 +287,8 @@ def _cmd_new(args: argparse.Namespace, /) -> int:
         return 1
 
     year = date[:4]
-    post_dir = news_root / year / slug
+    folder = f"{date}-{slug}"
+    post_dir = news_root / year / folder
     index = post_dir / "index.md"
     if index.exists():
         print(f"ABORT: {index} already exists", file=sys.stderr)
@@ -289,7 +310,7 @@ def _cmd_new(args: argparse.Namespace, /) -> int:
         encoding="utf-8",
     )
     print(f"created {index}")
-    print(f"  url:  galaxyproject.org/news/{slug}/")
+    print(f"  url:  galaxyproject.org/news/{folder}/")
     print("  next: write the body, add images beside index.md, then")
     print(f"        uv run python -m scripts.galaxy_blog check {post_dir}")
     return 0
@@ -304,9 +325,9 @@ def _cmd_check(args: argparse.Namespace, /) -> int:
 
     text = index.read_text(encoding="utf-8")
     problems: list[str] = []
-    slug_issue = slug_problem(index.parent.name)
-    if slug_issue is not None:
-        problems.append(slug_issue)
+    folder_issue = news_folder_problem(index.parent.name)
+    if folder_issue is not None:
+        problems.append(folder_issue)
     problems.extend(frontmatter_problems(text))
 
     if problems:

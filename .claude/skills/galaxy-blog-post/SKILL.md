@@ -34,11 +34,13 @@ galaxy-hub's conda env, since it needs `pykwalify` and ours does not.
 
 ## Format (what the script encodes, for reference)
 
-- **Path to URL:** `content/news/<YEAR>/<slug>/index.md` becomes
-  `galaxyproject.org/news/<slug>/`. Images sit beside `index.md`, referenced
-  `![alt](./figure.png)`.
-- **Naming (CI-linted):** lowercase, digits, and hyphens only, with no camelCase
-  or underscores.
+- **Path to URL:** `content/news/<YEAR>/<YYYY-MM-DD>-<slug>/index.md` becomes
+  `galaxyproject.org/news/<YYYY-MM-DD>-<slug>/`. Images sit beside `index.md`,
+  referenced `![alt](./figure.png)`.
+- **Naming (CI-linted):** recent posts must be **date-prefixed**,
+  `YYYY-MM-DD-<slug>` (their CI fails a bare slug). The slug part is lowercase,
+  digits, and hyphens only, with no camelCase or underscores. `new` builds the
+  dated name and `check` enforces it.
 - **Frontmatter:** `title`, `date: 'YYYY-MM-DD'`, `tease` (listing blurb),
   `tags: [...]`, `subsites: [all, global]` (project-wide), and
   `contributions.authorship: [github-handle]`.
