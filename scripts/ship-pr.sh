@@ -42,10 +42,9 @@ if [ -n "$(git status --porcelain)" ]; then
     exit 1
 fi
 
-echo "Syncing local main…"
+# Refresh remote refs (read-only — no checkout, so --dry-run never switches your
+# branch). The local-main sync + checkout happens only in the real merge below.
 git fetch origin --quiet
-git checkout main --quiet
-git pull --ff-only origin main --quiet
 
 state="$(gh pr view "$PR" --json mergeStateStatus -q .mergeStateStatus)"
 branch="$(gh pr view "$PR" --json headRefName -q .headRefName)"
@@ -77,7 +76,10 @@ if [ "$DRY_RUN" = "1" ]; then
     exit 0
 fi
 
-# --- Merge (squash; NO --delete-branch) --------------------------------------
+# --- Sync local main, then merge (squash; NO --delete-branch) ----------------
+echo "Syncing local main…"
+git checkout main --quiet
+git pull --ff-only origin main --quiet
 echo "Merging #$PR (squash)…"
 gh pr merge "$PR" --squash
 
