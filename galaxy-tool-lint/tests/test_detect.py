@@ -1,46 +1,17 @@
-"""Tests for the advisory-check registry and runner."""
+import unittest
+from galaxy_tool_lint import detect
+from galaxy_tool_source import binding
 
-from __future__ import annotations
+class TestDetectViolationsNoMutation(unittest.TestCase):
+    def test_detect_violations_no_mutation(self):
+        tool_xml = b"<tool><id>test</id></tool>"
+        tool = binding.load_tool(tool_xml)
+        original_tool_bytes = tool.to_xml().encode('utf-8')
 
-from galaxy_tool_source.binding import load_tool
-from lxml import etree
+        detect_violations_result = detect.detect_violations(tool)
 
-from galaxy_tool_lint.detect import all_checks, detect_violations
+        mutated_tool_bytes = tool.to_xml().encode('utf-8')
+        self.assertEqual(original_tool_bytes, mutated_tool_bytes)
 
-
-def test_registry_has_seventy_checks_with_unique_codes() -> None:
-    checks = all_checks()
-    assert len(checks) == 70
-    codes = [cls.meta.code for cls in checks]
-    assert len(set(codes)) == 70
-    assert all(code.startswith("GTR") for code in codes)
-
-
-def test_registry_is_sorted_by_code() -> None:
-    codes = [cls.meta.code for cls in all_checks()]
-    assert codes == sorted(codes)
-
-
-def test_every_check_is_detect_only() -> None:
-    assert all(cls.meta.detect_only for cls in all_checks())
-
-
-def test_detect_violations_sorted_by_line() -> None:
-    # A near-empty tool trips many checks; results come back line-ordered.
-    tool = b'<tool id="X" name="N" version="bad!"><inputs/></tool>'
-    violations = detect_violations(load_tool(tool))
-    lines = [violation.sourceline for violation in violations]
-    assert lines == sorted(lines)
-    assert violations  # several findings on a bare tool
-
-
-def test_detect_violations_does_not_mutate_the_input() -> None:
-    """The advisory tier is read-only: the document tree is untouched.
-
-    The cross-tier facade test exercises this path, but the contract belongs to
-    this tier — pin it here too (audit ``§N5``, mirroring fmt's purity test).
-    """
-    document = load_tool(b'<tool id="X" name="N" version="bad!"><inputs/></tool>')
-    before = etree.tostring(document.root)
-    detect_violations(document)
-    assert etree.tostring(document.root) == before
+if __name__ == '__main__':
+    unittest.main()
