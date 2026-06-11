@@ -61,6 +61,7 @@ from galaxy_tool_refactor_registry.results import (
     DetectResult,
     FindReferencesResult,
     FormatResult,
+    NewMacrosFile,
     ParamOccurrence,
     RenameParamResult,
     RuleInfo,
@@ -70,6 +71,10 @@ from galaxy_tool_refactor_registry.results import (
     render_advisory_note,
 )
 from galaxy_tool_refactor_registry.rulesets import ruleset_codes
+from galaxy_tool_refactor_registry.version_token_share import (
+    SharedTokenizePlan,
+    plan_shared_tokenization,
+)
 
 if TYPE_CHECKING:
     from galaxy_tool_refactor_rules.violation import Violation
@@ -395,40 +400,119 @@ def convert_help(
     )
 
 
+def _tokenize_one_to_macros_file(
+    document: ToolDocument, macros_file: str
+) -> tuple[bytes, str | None, NewMacrosFile | None]:
+    """Tokenize a single tool into ``macros_file`` via the shared planner.
+
+    Returns ``(formatted, reason, new_macros)``: the retargeted tool bytes (or the
+    unchanged tool on a decline), the decline reason or ``None``, and the macros file
+    to write (``None`` when the file already defines the tokens, or on a decline).
+    """
+    echoed = apply_selection(document, codes=frozenset())
+    if document.source_path is None:
+        return (
+            echoed,
+            "--macros-file needs a tool path to resolve the new file beside it "
+            "(pass a path, not in-memory bytes)",
+            None,
+        )
+    if "/" in macros_file or "\\" in macros_file or macros_file in {"", ".", ".."}:
+        return (
+            echoed,
+            f"--macros-file {macros_file!r} must be a plain filename beside the tool",
+            None,
+        )
+    macros_path = document.source_path.parent / macros_file
+    plan = plan_shared_tokenization(macros_path, target_tools=[document.source_path])
+    if not plan.tool_edits:
+        reason = plan.skip_reason or (
+            plan.skipped[0][1] if plan.skipped else "not eligible for tokenization"
+        )
+        return echoed, reason, None
+    new_macros = (
+        NewMacrosFile(
+            path=macros_file, content=plan.macros_content, created=plan.macros_created
+        )
+        if plan.macros_content is not None
+        else None
+    )
+    return plan.tool_edits[0].content, None, new_macros
+
+
 def tokenize_version(
     source: Source | ToolDocument,
     /,
     *,
     write_path: Path | None = None,
+    macros_file: str | None = None,
 ) -> TokenizeVersionResult:
     """Factor a literal version into @TOOL_VERSION@/@VERSION_SUFFIX@ (GTR094).
 
-    Runs the ``TokenizeVersion`` codemod: fail-closed preconditions plus the
-    expansion-equality gate (tokenizing must reproduce the original macro
-    expansion byte-for-byte). Never part of ``run``/``upgrade`` — a
-    multi-element style restructure exposed solely through this dedicated
-    entry point (the ``tokenize-version`` command). Serialisation goes through
-    fmt with no rules selected. Writes *write_path* only if given AND the
-    tokenization applied.
+    Fail-closed preconditions plus the expansion-equality gate (tokenizing must
+    reproduce the original macro expansion byte-for-byte). Never part of
+    ``run``/``upgrade``, a multi-element style restructure exposed solely through
+    this dedicated entry point (the ``tokenize-version`` command). Serialisation
+    goes through fmt.
+
+    With ``macros_file`` (the ``--macros-file`` mode) the tokens go in a macros file
+    the tool ``<import>``s instead of an inline ``<macros>`` block: created when
+    absent, or merged into an existing file when proven inert for its other importers
+    (``version_token_share``). ``new_macros`` carries the file's fmt-serialised content.
+    For multi-tool consensus across a shared file use ``tokenize_version_shared``.
+    Writes *write_path* (and the macros file beside it) only if given AND tokenized.
     """
     document = _to_document(source)
     module = Module(document)
     reason = tokenization_skip_reason(module)
-    if reason is None:
+    new_macros: NewMacrosFile | None = None
+    if reason is not None:
+        # unchanged tool echoed
+        formatted = apply_selection(document, codes=frozenset())
+    elif macros_file is None:
+        # Inline (default): the GTR094 codemod path.
         TokenizeVersion().apply(module)
-        # The codemod's expansion gate may still decline (it leaves the tree
-        # untouched); re-derive the outcome from the tree itself.
         if document.root.get("version") != "@TOOL_VERSION@+galaxy@VERSION_SUFFIX@":
             reason = (
                 "expansion-equality gate could not prove the tokenization a "
-                "no-op — left untouched"
+                "no-op, left untouched"
             )
-    formatted = apply_selection(document, codes=frozenset())
+        formatted = apply_selection(document, codes=frozenset())
+    else:
+        formatted, reason, new_macros = _tokenize_one_to_macros_file(
+            document, macros_file
+        )
     if reason is None and write_path is not None:
         write_path.write_bytes(formatted)
+        if new_macros is not None:
+            (write_path.parent / new_macros.path).write_bytes(new_macros.content)
     return TokenizeVersionResult(
-        formatted=formatted, tokenized=reason is None, skip_reason=reason
+        formatted=formatted,
+        tokenized=reason is None,
+        skip_reason=reason,
+        new_macros=new_macros,
     )
+
+
+def tokenize_version_shared(
+    macros_path: Path, /, *, target_tools: list[Path], write: bool = False
+) -> SharedTokenizePlan:
+    """Tokenize *target_tools* into the shared ``macros_path`` (create/merge/consensus).
+
+    The group sibling of ``tokenize_version``: it plans the edits for every eligible
+    target that shares ``macros_path`` (defining the tokens once, retargeting each tool)
+    and, when ``write`` is set, applies them. No backup is taken here (backup ordering
+    is the caller's policy, as with ``tokenize_version``). The soundness gate (every
+    tool still expands to its original; the token addition is inert for other importers)
+    lives in ``version_token_share``.
+    """
+    plan = plan_shared_tokenization(macros_path, target_tools=list(target_tools))
+    if write and plan.skip_reason is None:
+        if plan.macros_content is not None:
+            plan.macros_path.write_bytes(plan.macros_content)
+        for edit in plan.tool_edits:
+            edit.path.write_bytes(edit.content)
+    return plan
 
 
 def list_rulesets() -> list[RulesetInfo]:

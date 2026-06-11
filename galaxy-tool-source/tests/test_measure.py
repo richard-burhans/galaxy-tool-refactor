@@ -894,6 +894,50 @@ def test_measure_cheetah_cdm_bails_collects_only_bail_bodies(tmp_path: Path) -> 
     assert cases[0].source.endswith("bail.xml")
 
 
+def _sharing_tool(tool_id: str, version: str, req: str, macros: str) -> str:
+    return (
+        f'<tool id="{tool_id}" name="{tool_id}" version="{version}" profile="24.0">'
+        f"<macros><import>{macros}</import></macros>"
+        "<command><![CDATA[echo x]]></command>"
+        f'<requirements><requirement type="package" version="{req}">pkg'
+        "</requirement></requirements>"
+        "<inputs/><outputs><data name=\"o\"/></outputs></tool>"
+    )
+
+
+def test_measure_version_token_sharing_consensus_and_divergence(tmp_path: Path) -> None:
+    from scripts.measure import _measure_version_token_sharing
+
+    # Consensus directory: two tools at the same version share one macros file.
+    con = tmp_path / "owner" / "consensus"
+    con.mkdir(parents=True)
+    (con / "macros.xml").write_text(
+        '<macros><token name="@CITE@">r</token></macros>', encoding="utf-8"
+    )
+    (con / "a.xml").write_text(
+        _sharing_tool("a", "1.20+galaxy0", "1.20", "macros.xml"), encoding="utf-8"
+    )
+    (con / "b.xml").write_text(
+        _sharing_tool("b", "1.20+galaxy0", "1.20", "macros.xml"), encoding="utf-8"
+    )
+    # Divergent directory: two tokenizable tools disagree on the version.
+    div = tmp_path / "owner" / "divergent"
+    div.mkdir(parents=True)
+    (div / "macros.xml").write_text("<macros/>", encoding="utf-8")
+    (div / "c.xml").write_text(
+        _sharing_tool("c", "1.20+galaxy0", "1.20", "macros.xml"), encoding="utf-8"
+    )
+    (div / "d.xml").write_text(
+        _sharing_tool("d", "2.0+galaxy0", "2.0", "macros.xml"), encoding="utf-8"
+    )
+
+    result = _measure_version_token_sharing(corpus_root=tmp_path)
+    assert result.tokenizable == 4
+    assert result.full_consensus == 1 and result.consensus_tools == 2
+    assert result.divergent == 1
+    assert result.errors == []  # the planner ran clean on the synthetic corpus
+
+
 # --- rename-coverage ------------------------------------------------------------
 
 

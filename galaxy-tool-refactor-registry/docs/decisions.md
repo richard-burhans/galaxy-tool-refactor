@@ -710,3 +710,42 @@ reported skip reason can never disagree with what happened. Serialisation goes
 through `apply_selection(codes=frozenset())` — fmt stays the only output
 serializer. `OPT_IN_COMMAND_BY_CODE` gains the second entry; the partition
 tripwire and `list_rules(include_upgrade=True)` cover it as before.
+
+## D20 (2026-06-11): `tokenize-version --macros-file` shared-macros tokenization
+
+`version_token_share.plan_shared_tokenization` plans the `--macros-file` mode of
+`tokenize-version` (cli §D13): putting the IUC version tokens in a macros file the
+tool `<import>`s instead of an inline `<macros>` block. One module unifies three
+shapes:
+
+- **create**: the named file does not exist: create it with the two `<token>`s and
+  add the `<import>` to the tool.
+- **merge**: the file exists and the tool imports it: add the tokens to it, retarget
+  the tool (no second import).
+- **consensus**: several target tools in one directory share the file at the *same*
+  `version="<base>+galaxy<suffix>"`: tokenize all of them and define the shared tokens
+  once. A divergent version among the eligible targets, or a conflicting existing
+  token value, is declined with a reason.
+
+**Soundness is proof by execution**, the project-wide discipline. Each retargeted
+tool is gated by the tier-1 inline `expansion_equality_holds` (importing a file that
+defines the tokens is equivalent to inline by Galaxy macro semantics, so the inline
+proof covers the separate-file rendering). A **merge into an existing file is also
+proven *inert*** for every *other* importer in the directory: the module copies the
+directory into a temp dir, overrides the macros file with the merged version, and
+requires each other importer's macro expansion to be byte-identical before and after.
+An importer whose expansion would change (it references the token names, or a
+duplicate definition would shadow) declines the merge. So a shared file is edited only
+when provably harmless to its other tools, so no coarse sole-owned gate is needed
+(the `rename-param` D12 approach): the behaviour is checked directly.
+
+**Built for the construction, not the corpus.** A novel tool suite sharing one
+`macros.xml` at a common version is the target; the corpus payoff today is tiny (1
+shared file / 2 tools, per `scripts.measure version-token-sharing`), but the
+construction-soundness-over-corpus principle governs: soundness holds by
+construction, so the feature ships regardless of frequency. The facade
+(`tokenize_version` for one tool, `tokenize_version_shared` for a group) and the CLI
+(grouping targets by directory) sit on top; fmt stays the only serializer (the
+module's `etree.tostring` / temp-dir `write_bytes` are the throwaway gate, allowlisted).
+Reproduced by `uv run python -m scripts.measure version-token-sharing` (which also
+retains any planner crash as a regression corpus, the standing retain-failures order).

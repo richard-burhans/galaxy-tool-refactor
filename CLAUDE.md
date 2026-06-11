@@ -179,6 +179,14 @@ uv run python -m scripts.measure macro-fmt-idempotence
 # version), split by whether a <macros> block exists or would need creating:
 uv run python -m scripts.measure version-tokenization
 
+# Shared-macros tokenization sizing (tokenize-version --macros-file, registry D20):
+# for every macros file imported by >=2 tools, do the importers agree on one
+# tokenizable version (the consensus case) or diverge. Tiny payoff today (built for
+# the construction, not the corpus). ALSO exercises plan_shared_tokenization on every
+# tokenizable corpus tool and retains any crash as a regression corpus
+# (docs/corpus_data/version_token_sharing_errors.json). Needs the corpus, not in CI:
+uv run python -m scripts.measure version-token-sharing
+
 # Per-Galaxy-upgrade-code blast radius: how many tools `upgrade`-to-latest would
 # cross each profile-behaviour code (backs codemod decisions §23 + the §22
 # soundness boundary; data = the vendored PROFILE_UPGRADE_CODES):
@@ -406,6 +414,10 @@ commands:
   shared with the matching package requirement, kept only when the expansion-equality
   gate proves the macro expansion byte-identical. A multi-element style restructure,
   so never part of `format`/`upgrade` (cli §D13, codemod §43, registry D19).
+  `--macros-file NAME` puts the tokens in a macros file the tool imports instead of an
+  inline block: created when absent, merged into an existing file when proven inert for
+  its other importers, or a same-version directory group tokenized together (consensus).
+  Shared-macros edits are proof-by-execution gated (cli §D14, registry D20).
 
 Selection is shared across `format`/`upgrade`/`check`: `--ruleset NAME`
 (repeatable / comma-separated — the union of the named sets), `--select CODE…`,
