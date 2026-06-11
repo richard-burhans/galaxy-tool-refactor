@@ -21,6 +21,12 @@ git config core.hooksPath .githooks      # enable the pre-push gate (one-time)
 `uv sync` needs [uv](https://docs.astral.sh/uv/). The `core.hooksPath` step makes
 `git push` run the same quality gate CI runs, so you catch failures locally.
 
+Run **`make help`** to see the common workflows (gate, merge, release, corpus) as
+runnable targets — no agent needed. [`docs/workflows.md`](docs/workflows.md) maps
+each workflow to its human path (a `make` target / script) and, for Claude Code
+users, its agent path (a skill under `.claude/skills/`). The logic lives once in
+`scripts/`; everything else calls it, so the two paths never drift.
+
 ## The quality gate
 
 One script is the source of truth — ruff, strict mypy per package, and pytest
