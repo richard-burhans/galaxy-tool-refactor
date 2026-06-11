@@ -49,6 +49,10 @@ its imported macro files. `bundle.py` builds a `ToolBundle` (a tool + its
 transitively-imported macro documents) via `load_bundle` and renames a parameter
 across the whole bundle (`rename_param_in_bundle`) — the cross-file extension of
 `cheetah_rename` (decisions §21).
+`version_tokens.py` owns the IUC version tokenization (GTR094): the decision, the
+expansion-equality gate, the tree mutation (`tokenize_tree`, reused by the tier-2
+codemod), and the offset planner `tokenize_version_plan` for editor/LSP and CLI use,
+the version-tokenization counterpart of `rename_param_plan` (decisions §29).
 `corrections.py` suggests near-miss typo fixes. `schema_content.py` derives
 the text-bearing element-tag set from the vendored XSDs (the fmt tier's
 payload-guard source of truth). `rst.py` / `rst_markdown.py` own
