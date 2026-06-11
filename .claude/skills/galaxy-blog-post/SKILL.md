@@ -41,6 +41,29 @@ conda env — it needs `pykwalify`; ours can't), which `check` points you at.
   `tags: [...]` · `subsites: [all, global]` (project-wide) ·
   `contributions.authorship: [github-handle]`.
 - **Body:** GitHub-Flavored Markdown (prefer MD over raw HTML).
+- **Diagrams:** the Hub does **not** render Mermaid. Use **SVG** (text-based, crisp,
+  reviewable in the PR diff) or PNG, placed beside `index.md` and referenced
+  relatively (`![alt](./figure.svg)`). Give each an `aria-label`/`alt`.
+
+## Code of Conduct (check every post)
+
+A post on the Hub is **community communication**, so the
+[Galaxy Code of Conduct](https://galaxyproject.org/community/coc/) applies (it
+covers "all public Galaxy spaces, including … GitHub … and the Galaxy mailing
+lists"). Before submitting, read the post against the CoC's principles and revise
+if needed:
+
+- **Be welcoming and inclusive** — write for a world-wide community of all
+  backgrounds; don't assume one audience.
+- **Be considerate** — plain, accessible language; not everyone reads English as a
+  first language; explain jargon.
+- **Be respectful, and careful with words** — never disparage, mock, or single out
+  another person, project, or community; critique ideas, not people.
+- **Give credit** — name contributors/sources fairly (`contributions.authorship`,
+  inline links). Get consent before naming or picturing identifiable people.
+
+A technical/positive post clears this bar easily; the check is to make sure a
+comparison, a critique, or an image never crosses into putting someone down.
 
 ## Writing (the judgment a script can't do)
 
