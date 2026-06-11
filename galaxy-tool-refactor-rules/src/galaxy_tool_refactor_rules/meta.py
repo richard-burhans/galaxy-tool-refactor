@@ -1,7 +1,7 @@
 """The ``RuleMeta`` descriptor shared across the refactor tiers.
 
-Both a tier-3 formatter rule (``galaxy_tool_xml_fmt.rules.Rule``) and a tier-2
-codemod (``galaxy_tool_xml_codemod.codemod.CodemodCommand``) carry a
+Both a tier-3 formatter rule (``galaxy_tool_fmt.rules.Rule``) and a tier-2
+codemod (``galaxy_tool_codemod.codemod.CodemodCommand``) carry a
 ``meta: ClassVar[RuleMeta]`` so the two tiers expose one uniform vocabulary for
 the GTR rule registry. The descriptor is pure data — it deliberately knows
 nothing about lxml, edits, or the cursor walk, which keeps this package
@@ -35,7 +35,7 @@ class RuleMeta:
             upgrade-only or report-only rule leaves it at the default.
         detect_only: Whether the rule only *reports* (a lint with no automatic
             fix), as opposed to the fixable fmt rules and codemods. The advisory
-            check tier (``galaxy-tool-xml-check``) sets this ``True``; a
+            check tier (``galaxy-tool-lint``) sets this ``True``; a
             report-only consumer like the ``check`` CLI uses it to treat such
             findings as informational rather than as a failing gate.
         applies_to: The document kinds the rule operates on — a subset of

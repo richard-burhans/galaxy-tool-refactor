@@ -35,9 +35,9 @@ load-bearing rule:
 |---|---|---|---|
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | `RuleMeta` descriptor, `Violation` diagnostic, the `Ruleset` catalog, `render_rule_reference_table`. Dependency-free; shared by every higher tier. |
 | 1 | **parsing & validation** | `galaxy-tool-source` | `ToolDocument` / `MacroDocument` (mutable lxml tree = source of truth), `load_tool` / `parse_tool` / `validate_tool`, `newest_valid_profile`, profile resolution, typed xsdata views. **No serializer.** |
-| 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework, `Cursor` mutation primitives, `Change` + `apply_changes`, the bundled codemods, `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` contracts. |
-| 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic `Rule`s (indent / blank line / shorthand), the `Edit` union + `apply_edits`, `format_tool_document` + the net-diff `detect_tool_document`, the shared `cli_support` engine, the serializer. **The only tier that serialises canonical output XML.** |
-| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice + planemo-parity checks (70; `CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
+| 2 | **structure** | `galaxy-tool-codemod` | `CodemodCommand` visitor framework, `Cursor` mutation primitives, `Change` + `apply_changes`, the bundled codemods, `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` contracts. |
+| 3 | **formatting** | `galaxy-tool-fmt` | Cosmetic `Rule`s (indent / blank line / shorthand), the `Edit` union + `apply_edits`, `format_tool_document` + the net-diff `detect_tool_document`, the shared `cli_support` engine, the serializer. **The only tier that serialises canonical output XML.** |
+| 3.5 | **advisory checks** | `galaxy-tool-lint` | Detect-only IUC best-practice + planemo-parity checks (70; `CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | `RuleHandle` (uniform adapter over all three families), the unified registry, declarative rule-sets, ruff-style selection, and the **library-first** `run` / `upgrade` / `detect` facade. Composes 0.5/1/2/3/3.5. |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` / `convert-help` / `tokenize-version`. CLI plumbing only. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`convert_help_tool`/`tokenize_version_tool`/`list_rulesets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
@@ -204,7 +204,7 @@ measurements.)*
 
 ---
 
-## 4. Tier 2 — `galaxy-tool-xml-codemod` (structure)
+## 4. Tier 2 — `galaxy-tool-codemod` (structure)
 
 Structural mutations: attribute order, element order, typo repair, profile
 upgrades. A **detect-primitive** framework — each codemod reports exactly what it
@@ -280,7 +280,7 @@ and codemod `docs/decisions.md` §22.)*
 
 ---
 
-## 5. Tier 3 — `galaxy-tool-xml-fmt` (formatting)
+## 5. Tier 3 — `galaxy-tool-fmt` (formatting)
 
 Opinionated cosmetic formatting like `black`: one canonical style, no knobs. The
 opinion lives here so lower tiers can ignore trivia. **This is the only tier that
@@ -329,7 +329,7 @@ serializer. *(fmt `docs/decisions.md` §D10 independence, §D12 cosmetic-only CL
 
 ---
 
-## 6. Tier 3.5 — `galaxy-tool-xml-check` (advisory checks)
+## 6. Tier 3.5 — `galaxy-tool-lint` (advisory checks)
 
 Read-only IUC best-practice checks that **report but never mutate**. Depends only
 on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
@@ -645,7 +645,7 @@ natural places to look when reasoning about consistency.
   `format="@FORMAT@"`, an arbitrary expanded node) still has no mechanism. That general
   provenance layer (Phase 2b) is the load-bearing limitation behind full
   "consistent expand-and-modify", deferred until a consumer needs it
-  (`galaxy-tool-xml-codemod/docs/macro-aware-normalization.md`,
+  (`galaxy-tool-codemod/docs/macro-aware-normalization.md`,
   `docs/macro_handling_architecture.md` §4.2/§6; the literal-value payoff was 15 tools).
 
 ---
@@ -693,16 +693,16 @@ Each abstraction → its file → the decision record that justifies it.
 | `rename_param` / `rename_param_plan` / `RenameOutcome` / `RenamePlan` | `galaxy-tool-source/src/.../cheetah_rename.py` | xml `docs/decisions.md` §20 |
 | `ToolBundle` / `load_bundle` / `rename_param_in_bundle` | `galaxy-tool-source/src/.../bundle.py` | xml `docs/decisions.md` §21 |
 | `rst_is_invalid` / `repair_help_rst` (help-RST predicate + repair) | `galaxy-tool-source/src/.../rst.py` | xml `docs/decisions.md` §23 |
-| `CodemodCommand`, `Cursor`, `Change` | `galaxy-tool-xml-codemod/src/.../codemod.py`, `cursor.py`, `change.py` | codemod `docs/decisions.md` §6, §19 |
-| `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` | `galaxy-tool-xml-codemod/src/.../canonical.py` | codemod `docs/decisions.md` §16, §36 |
-| upgrade codemods | `galaxy-tool-xml-codemod/src/.../upgrades.py`, `codemods/upgrade_*.py` | codemod `docs/decisions.md` §11–14 |
-| `PROFILE_UPGRADE_CODES` / `upgrade_codes_crossed` / `upgrade_codes_applicable` | `galaxy-tool-xml-codemod/src/.../profile_semantics.py` | codemod `docs/decisions.md` §22–23, §25 |
-| `RuntimeGatedFix` / `runtime_fixes_for` | `galaxy-tool-xml-codemod/src/.../codemods/_runtime_gated.py`, `runtime_fixes.py` | codemod `docs/decisions.md` §24 |
-| `normalize_datatype_attributes` (shared `format`/`ftype` helper, tier-2; reused by registry `macro_datatype`) | `galaxy-tool-xml-codemod/src/.../datatype_format.py` | codemod `docs/decisions.md` §14; registry D8 |
-| `Rule`, `Edit`, serializer | `galaxy-tool-xml-fmt/src/.../rules.py`, `edits.py`, `serializer.py` | fmt `docs/decisions.md` §D3, §D11 |
-| `format_*` / `detect_*` | `galaxy-tool-xml-fmt/src/.../format.py`, `detect.py` | fmt `docs/decisions.md` §D15 |
-| `cli_support` engine | `galaxy-tool-xml-fmt/src/.../cli_support.py` | fmt `docs/decisions.md` §D12 |
-| `CheckRule`, `detect_violations` | `galaxy-tool-xml-check/src/.../rules.py`, `detect.py` | check `docs/decisions.md` §D1; `docs/iuc_best_practices.md` |
+| `CodemodCommand`, `Cursor`, `Change` | `galaxy-tool-codemod/src/.../codemod.py`, `cursor.py`, `change.py` | codemod `docs/decisions.md` §6, §19 |
+| `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` | `galaxy-tool-codemod/src/.../canonical.py` | codemod `docs/decisions.md` §16, §36 |
+| upgrade codemods | `galaxy-tool-codemod/src/.../upgrades.py`, `codemods/upgrade_*.py` | codemod `docs/decisions.md` §11–14 |
+| `PROFILE_UPGRADE_CODES` / `upgrade_codes_crossed` / `upgrade_codes_applicable` | `galaxy-tool-codemod/src/.../profile_semantics.py` | codemod `docs/decisions.md` §22–23, §25 |
+| `RuntimeGatedFix` / `runtime_fixes_for` | `galaxy-tool-codemod/src/.../codemods/_runtime_gated.py`, `runtime_fixes.py` | codemod `docs/decisions.md` §24 |
+| `normalize_datatype_attributes` (shared `format`/`ftype` helper, tier-2; reused by registry `macro_datatype`) | `galaxy-tool-codemod/src/.../datatype_format.py` | codemod `docs/decisions.md` §14; registry D8 |
+| `Rule`, `Edit`, serializer | `galaxy-tool-fmt/src/.../rules.py`, `edits.py`, `serializer.py` | fmt `docs/decisions.md` §D3, §D11 |
+| `format_*` / `detect_*` | `galaxy-tool-fmt/src/.../format.py`, `detect.py` | fmt `docs/decisions.md` §D15 |
+| `cli_support` engine | `galaxy-tool-fmt/src/.../cli_support.py` | fmt `docs/decisions.md` §D12 |
+| `CheckRule`, `detect_violations` | `galaxy-tool-lint/src/.../rules.py`, `detect.py` | check `docs/decisions.md` §D1; `docs/iuc_best_practices.md` |
 | `RuleHandle`, registry | `galaxy-tool-refactor-registry/src/.../handle.py`, `registry.py` | registry `docs/decisions.md` D1–D2 |
 | `Ruleset` catalog (names + descriptions) | `galaxy-tool-refactor-rules/src/.../rulesets.py` | rules `docs/decisions.md` §D4 |
 | rulesets, `resolve_codes`, `apply_selection` | `galaxy-tool-refactor-registry/src/.../rulesets.py`, `resolve.py`, `apply.py` | registry `docs/decisions.md` D3–D4, D15 |
@@ -717,30 +717,30 @@ Each abstraction → its file → the decision record that justifies it.
 
 | Code | Class | File | Family |
 |---|---|---|---|
-| GTR001 | `CanonicalIndent` | `galaxy-tool-xml-fmt/.../rule_indent.py` | fmt (cosmetic) |
-| GTR002 | `ReorderParamAttributes` | `galaxy-tool-xml-codemod/.../reorder_param_attributes.py` | codemod (canonical) |
-| GTR003 | `BlankLineBetweenSections` | `galaxy-tool-xml-fmt/.../rule_blank_line.py` | fmt (cosmetic, tool-only) |
-| GTR004 | `EmptyElementShorthand` | `galaxy-tool-xml-fmt/.../rule_empty_element.py` | fmt (cosmetic) |
-| GTR005 | `ReorderToolAttributes` | `galaxy-tool-xml-codemod/.../reorder_tool_attributes.py` | codemod (canonical) |
-| GTR006 | `FixTypos` | `galaxy-tool-xml-codemod/.../fix_typos.py` | codemod (canonical, validation-driven) |
-| GTR007 | `UpdateProfile` | `galaxy-tool-xml-codemod/.../update_profile.py` | codemod (upgrade-only) |
-| GTR008–011, GTR093 | `Upgrade19_01` … `Upgrade25_1`, `Upgrade21_09` | `galaxy-tool-xml-codemod/.../upgrade_*.py` | codemod (upgrade-only) |
-| GTR012 | `UpgradeToLatest` | `galaxy-tool-xml-codemod/.../upgrades.py` | codemod (upgrade-only orchestrator) |
-| GTR013 | `ReorderToolChildren` | `galaxy-tool-xml-codemod/.../reorder_tool_children.py` | codemod (canonical) |
-| GTR014 | `FixFromWorkDirWhitespace` | `galaxy-tool-xml-codemod/.../fix_from_work_dir_whitespace.py` | codemod (upgrade-only, runtime-gated) |
-| GTR015 | `FixOutputFormatInput` | `galaxy-tool-xml-codemod/.../fix_output_format_input.py` | codemod (upgrade-only, runtime-gated) |
-| GTR016 | `FixInterpreter` | `galaxy-tool-xml-codemod/.../fix_interpreter.py` | codemod (upgrade-only, runtime-gated) |
-| GTR017 | `NormalizeBooleanValues` | `galaxy-tool-xml-codemod/.../normalize_boolean_values.py` | codemod (canonical, validation-driven) |
+| GTR001 | `CanonicalIndent` | `galaxy-tool-fmt/.../rule_indent.py` | fmt (cosmetic) |
+| GTR002 | `ReorderParamAttributes` | `galaxy-tool-codemod/.../reorder_param_attributes.py` | codemod (canonical) |
+| GTR003 | `BlankLineBetweenSections` | `galaxy-tool-fmt/.../rule_blank_line.py` | fmt (cosmetic, tool-only) |
+| GTR004 | `EmptyElementShorthand` | `galaxy-tool-fmt/.../rule_empty_element.py` | fmt (cosmetic) |
+| GTR005 | `ReorderToolAttributes` | `galaxy-tool-codemod/.../reorder_tool_attributes.py` | codemod (canonical) |
+| GTR006 | `FixTypos` | `galaxy-tool-codemod/.../fix_typos.py` | codemod (canonical, validation-driven) |
+| GTR007 | `UpdateProfile` | `galaxy-tool-codemod/.../update_profile.py` | codemod (upgrade-only) |
+| GTR008–011, GTR093 | `Upgrade19_01` … `Upgrade25_1`, `Upgrade21_09` | `galaxy-tool-codemod/.../upgrade_*.py` | codemod (upgrade-only) |
+| GTR012 | `UpgradeToLatest` | `galaxy-tool-codemod/.../upgrades.py` | codemod (upgrade-only orchestrator) |
+| GTR013 | `ReorderToolChildren` | `galaxy-tool-codemod/.../reorder_tool_children.py` | codemod (canonical) |
+| GTR014 | `FixFromWorkDirWhitespace` | `galaxy-tool-codemod/.../fix_from_work_dir_whitespace.py` | codemod (upgrade-only, runtime-gated) |
+| GTR015 | `FixOutputFormatInput` | `galaxy-tool-codemod/.../fix_output_format_input.py` | codemod (upgrade-only, runtime-gated) |
+| GTR016 | `FixInterpreter` | `galaxy-tool-codemod/.../fix_interpreter.py` | codemod (upgrade-only, runtime-gated) |
+| GTR017 | `NormalizeBooleanValues` | `galaxy-tool-codemod/.../normalize_boolean_values.py` | codemod (canonical, validation-driven) |
 | GTR018.1 / .2 | `WrapCommandCdata` (fix) + command-CDATA residual (advisory) | codemod + check | **partition** GTR018 (§29, registry D10) |
 | GTR019.1 / .2 | `WrapHelpCdata` (fix) + help-CDATA residual (advisory) | codemod + check | **partition** GTR019 (§29) |
 | GTR020.1 / .2 | `SingleQuoteCommandVars` (fix) + single-quote residual (advisory) | codemod + check | **partition** GTR020 (§30, check D9) |
 | GTR035.1 / .2 | `TrimAttributeWhitespace` (fix, requirement version) + `NameWhitespace` (advisory) | codemod + check | **partition** GTR035 (codemod §33 addendum, check D33) |
 | GTR089.1 / .2 | `RepairHelpRst` (fix) + `HelpRstResidual` (advisory) | codemod + check | **partition** GTR089 (xml §23, codemod §37, check D31) |
-| GTR021, GTR023–029 | `TestsPresent` … (presence/shape) | `galaxy-tool-xml-check/.../checks/tool.py` | check (flat advisory) |
-| GTR032 | `CommandAndJoining` | `galaxy-tool-xml-check/.../checks/tool.py` (+ `lone_amp.py`) | check (advisory — D3 deferral ended by D34) |
-| GTR033 | `RequirementVersionPinned` | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory — D7) |
-| GTR034 | `UnusedParam` | `galaxy-tool-xml-check/.../checks/inputs.py` | check (advisory — reference-usage) |
-| GTR038–GTR091 | planemo-parity wave (`NoTodoText`, `CommandPresent`, `InputsPresent`, … 54 input/output/test/validator/help checks; GTR089 is the partition row above) | `galaxy-tool-xml-check/.../checks/` (`tool`/`outputs`/`inputs`/`validators`/`tests`/`help`) | check (advisory — planemo parity, D12–D32) |
-| GTR092 | `ConvertHelpToMarkdown` | `galaxy-tool-xml-codemod/.../convert_help_markdown.py` | codemod (opt-in `convert-help` command only — §38, registry D18) |
-| GTR095 | `ToolIdentityPresent` (id/name/version missing-or-empty) | `galaxy-tool-xml-check/.../checks/tool.py` | check (advisory — the tier-1-residual half of the planemo trio, D35) |
-| GTR094 | `TokenizeVersion` | `galaxy-tool-xml-codemod/.../tokenize_version.py` | codemod (opt-in `tokenize-version` command only — §43, registry D19) |
+| GTR021, GTR023–029 | `TestsPresent` … (presence/shape) | `galaxy-tool-lint/.../checks/tool.py` | check (flat advisory) |
+| GTR032 | `CommandAndJoining` | `galaxy-tool-lint/.../checks/tool.py` (+ `lone_amp.py`) | check (advisory — D3 deferral ended by D34) |
+| GTR033 | `RequirementVersionPinned` | `galaxy-tool-lint/.../checks/tool.py` | check (advisory — D7) |
+| GTR034 | `UnusedParam` | `galaxy-tool-lint/.../checks/inputs.py` | check (advisory — reference-usage) |
+| GTR038–GTR091 | planemo-parity wave (`NoTodoText`, `CommandPresent`, `InputsPresent`, … 54 input/output/test/validator/help checks; GTR089 is the partition row above) | `galaxy-tool-lint/.../checks/` (`tool`/`outputs`/`inputs`/`validators`/`tests`/`help`) | check (advisory — planemo parity, D12–D32) |
+| GTR092 | `ConvertHelpToMarkdown` | `galaxy-tool-codemod/.../convert_help_markdown.py` | codemod (opt-in `convert-help` command only — §38, registry D18) |
+| GTR095 | `ToolIdentityPresent` (id/name/version missing-or-empty) | `galaxy-tool-lint/.../checks/tool.py` | check (advisory — the tier-1-residual half of the planemo trio, D35) |
+| GTR094 | `TokenizeVersion` | `galaxy-tool-codemod/.../tokenize_version.py` | codemod (opt-in `tokenize-version` command only — §43, registry D19) |

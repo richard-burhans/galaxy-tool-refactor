@@ -5,7 +5,7 @@ Sizes the auto-fixable population for a `16_04_fix_interpreter` codemod
 deprecated `<command interpreter=…>` are split by whether the codemod can
 mechanically rewrite them to `interpreter '$__tool_directory__/script'`.
 Buckets are computed by the codemod's own eligibility predicate
-(`galaxy_tool_xml_codemod.codemods._interpreter`), so the A + A-missing
+(`galaxy_tool_codemod.codemods._interpreter`), so the A + A-missing
 total is exactly what the codemod rewrites.
 
 Regenerate with (needs the corpus, so not run in CI):

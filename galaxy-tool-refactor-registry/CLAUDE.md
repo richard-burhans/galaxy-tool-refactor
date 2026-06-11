@@ -13,9 +13,9 @@ every baked-in rule, named rulesets, per-rule enable/disable, and a library-firs
 |---|---|---|
 | 0.5 | rule metadata | `galaxy-tool-refactor-rules` |
 | 1 | parsing & validation | `galaxy-tool-source` |
-| 2 | structure | `galaxy-tool-xml-codemod` |
-| 3 | formatting | `galaxy-tool-xml-fmt` |
-| 3.5 | advisory checks | `galaxy-tool-xml-check` |
+| 2 | structure | `galaxy-tool-codemod` |
+| 3 | formatting | `galaxy-tool-fmt` |
+| 3.5 | advisory checks | `galaxy-tool-lint` |
 | 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` *(this repo)* |
 | 4 | app / CLI | `galaxy-tool-refactor-cli` |
 | 4 | MCP server | `galaxy-tool-refactor-mcp` |
@@ -99,4 +99,4 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
   consumes this facade.
 - `galaxy-tool-refactor-mcp/src/.../service.py` — the facade->JSON adapter the MCP
   server wraps (mcp `docs/decisions.md` D1); `docs/vision.md` — the agent-rules future.
-- `galaxy-tool-xml-fmt/docs/decisions.md` §D15 — the per-rule subset seams.
+- `galaxy-tool-fmt/docs/decisions.md` §D15 — the per-rule subset seams.

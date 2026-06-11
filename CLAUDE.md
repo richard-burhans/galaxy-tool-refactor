@@ -9,9 +9,9 @@
 galaxy-tool-refactor/
 ├── galaxy-tool-refactor-rules/ Tier 0.5 (shared RuleMeta + glossary renderer)
 ├── galaxy-tool-source/          Tier 1 (parsing & validation)
-├── galaxy-tool-xml-codemod/  Tier 2 (structure)
-├── galaxy-tool-xml-fmt/      Tier 3 (formatting)
-├── galaxy-tool-xml-check/    Tier 3.5 (advisory detect-only checks)
+├── galaxy-tool-codemod/  Tier 2 (structure)
+├── galaxy-tool-fmt/      Tier 3 (formatting)
+├── galaxy-tool-lint/    Tier 3.5 (advisory detect-only checks)
 ├── galaxy-tool-refactor-registry/ Tier 3.6 (unified rule registry + rulesets; library-first facade)
 ├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + find-references + rename-param + rulesets/rules + normalize-macros + convert-help + tokenize-version)
 ├── galaxy-tool-refactor-mcp/ Tier 4 (MCP server over the registry facade; thin FastMCP adapter)
@@ -41,9 +41,9 @@ uv sync          # installs all eight packages + dev deps into .venv
 ```bash
 uv run --package galaxy-tool-refactor-rules pytest galaxy-tool-refactor-rules/tests/
 uv run --package galaxy-tool-source            pytest galaxy-tool-source/tests/
-uv run --package galaxy-tool-xml-codemod    pytest galaxy-tool-xml-codemod/tests/
-uv run --package galaxy-tool-xml-fmt        pytest galaxy-tool-xml-fmt/tests/
-uv run --package galaxy-tool-xml-check      pytest galaxy-tool-xml-check/tests/
+uv run --package galaxy-tool-codemod    pytest galaxy-tool-codemod/tests/
+uv run --package galaxy-tool-fmt        pytest galaxy-tool-fmt/tests/
+uv run --package galaxy-tool-lint      pytest galaxy-tool-lint/tests/
 uv run --package galaxy-tool-refactor-registry pytest galaxy-tool-refactor-registry/tests/
 uv run --package galaxy-tool-refactor-cli   pytest galaxy-tool-refactor-cli/tests/
 uv run --package galaxy-tool-refactor-mcp   pytest galaxy-tool-refactor-mcp/tests/
@@ -52,12 +52,12 @@ uv run --package galaxy-tool-refactor-mcp   pytest galaxy-tool-refactor-mcp/test
 ## Lint / type-check
 
 ```bash
-uv run ruff check galaxy-tool-refactor-rules/src galaxy-tool-source/src galaxy-tool-xml-codemod/src galaxy-tool-xml-fmt/src galaxy-tool-xml-check/src galaxy-tool-refactor-registry/src galaxy-tool-refactor-cli/src galaxy-tool-refactor-mcp/src
+uv run ruff check galaxy-tool-refactor-rules/src galaxy-tool-source/src galaxy-tool-codemod/src galaxy-tool-fmt/src galaxy-tool-lint/src galaxy-tool-refactor-registry/src galaxy-tool-refactor-cli/src galaxy-tool-refactor-mcp/src
 uv run mypy --config-file galaxy-tool-refactor-rules/pyproject.toml galaxy-tool-refactor-rules/src
 uv run mypy --config-file galaxy-tool-source/pyproject.toml         galaxy-tool-source/src
-uv run mypy --config-file galaxy-tool-xml-codemod/pyproject.toml galaxy-tool-xml-codemod/src
-uv run mypy --config-file galaxy-tool-xml-fmt/pyproject.toml     galaxy-tool-xml-fmt/src
-uv run mypy --config-file galaxy-tool-xml-check/pyproject.toml   galaxy-tool-xml-check/src
+uv run mypy --config-file galaxy-tool-codemod/pyproject.toml galaxy-tool-codemod/src
+uv run mypy --config-file galaxy-tool-fmt/pyproject.toml     galaxy-tool-fmt/src
+uv run mypy --config-file galaxy-tool-lint/pyproject.toml   galaxy-tool-lint/src
 uv run mypy --config-file galaxy-tool-refactor-registry/pyproject.toml galaxy-tool-refactor-registry/src
 uv run mypy --config-file galaxy-tool-refactor-cli/pyproject.toml galaxy-tool-refactor-cli/src
 uv run mypy --config-file galaxy-tool-refactor-mcp/pyproject.toml galaxy-tool-refactor-mcp/src
@@ -288,7 +288,7 @@ uv run python -m scripts.measure interpreter-bucket-split
 # that reach a newer profile once the literal format/ftype in their imported macro
 # files are lowercased (the value Upgrade24_1 can't reach) — sound (temp-copy +
 # re-validate, strict increase), split shared vs sole-owned defining file. Backs
-# galaxy-tool-xml-codemod/docs/macro-aware-normalization.md. Writes
+# galaxy-tool-codemod/docs/macro-aware-normalization.md. Writes
 # docs/macro_format_residual_stats.md (needs the corpus, so not run in CI):
 uv run python -m scripts.measure macro-format-residual
 
@@ -327,9 +327,9 @@ Tiers, each independently installable:
 |---|---|---|---|
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | `RuleMeta` descriptor + `render_rule_reference_table`. Dependency-free; shared by tiers 2 & 3 so the GTR registry spans both. |
 | 1 | **parsing & validation** | `galaxy-tool-source` | `load_tool` / `parse_tool` / `validate_tool`, typed xsdata views. **No serializer.** |
-| 2 | **structure** | `galaxy-tool-xml-codemod` | `CodemodCommand` visitor framework + bundled structural codemods (each carries a `RuleMeta` GTR code; see `catalog.coded_codemods()`) + `canonical_codemods()` contract. |
-| 3 | **formatting** | `galaxy-tool-xml-fmt` | Cosmetic rules (indent / blank line / empty-element shorthand) + the shared `cli_support` CLI engine. The only tier that serialises canonical output XML. |
-| 3.5 | **advisory checks** | `galaxy-tool-xml-check` | Detect-only IUC best-practice checks (`GTR` codes, `RuleMeta.detect_only`); read-only LBYL queries over tier 1 yielding `Violation`. Depends only on tiers 1 + 0.5. |
+| 2 | **structure** | `galaxy-tool-codemod` | `CodemodCommand` visitor framework + bundled structural codemods (each carries a `RuleMeta` GTR code; see `catalog.coded_codemods()`) + `canonical_codemods()` contract. |
+| 3 | **formatting** | `galaxy-tool-fmt` | Cosmetic rules (indent / blank line / empty-element shorthand) + the shared `cli_support` CLI engine. The only tier that serialises canonical output XML. |
+| 3.5 | **advisory checks** | `galaxy-tool-lint` | Detect-only IUC best-practice checks (`GTR` codes, `RuleMeta.detect_only`); read-only LBYL queries over tier 1 yielding `Violation`. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | Unified, code-addressable `RuleHandle` over all three families + named rulesets (`cosmetic`/`default`/`iuc`/`strict`) + `run`/`upgrade`/`detect`. **Library-first** (no click/exit; structured I/O; introspectable). Depends on 0.5/1/2/3/3.5; lower tiers don't depend on it. |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`, `convert-help`, `tokenize-version`. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the registry facade (a sibling of the CLI). A thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`convert_help_tool`/`tokenize_version_tool`/`list_rulesets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) remain future. |
@@ -390,14 +390,14 @@ Selection is shared across `format`/`upgrade`/`check`: `--ruleset NAME`
 ▸ `--ruleset`; `--select` replaces the ruleset's set). Rules and rulesets are
 developer-defined — no user-defined rules.
 
-`galaxy-tool-xml-fmt`'s own CLI is **cosmetic-only** and has no codemod
+`galaxy-tool-fmt`'s own CLI is **cosmetic-only** and has no codemod
 dependency (the former `[canonical]` extra is gone). The library
 (`format_tool_document`) is likewise cosmetic-only.
 
 See `galaxy-tool-source/docs/decisions.md` §9 for the three-tier
 rationale; `galaxy-tool-refactor-cli/docs/decisions.md` §D1,
-`galaxy-tool-xml-fmt/docs/decisions.md` §D12, and
-`galaxy-tool-xml-codemod/docs/decisions.md` §16 for the app tier, the
+`galaxy-tool-fmt/docs/decisions.md` §D12, and
+`galaxy-tool-codemod/docs/decisions.md` §16 for the app tier, the
 fmt-CLI-cosmetic-only reversal, and the `canonical_codemods()` /
 `AUTO_UPGRADE_CODEMODS` split; and
 `galaxy-tool-refactor-rules/docs/decisions.md` §D1 (+ codemod §15,

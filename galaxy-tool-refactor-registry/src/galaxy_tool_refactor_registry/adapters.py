@@ -15,22 +15,22 @@ from __future__ import annotations
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
-from galaxy_tool_xml_check.detect import all_checks
-from galaxy_tool_xml_codemod.catalog import coded_codemods
-from galaxy_tool_xml_codemod.module import Module
-from galaxy_tool_xml_fmt.detect import detect_tool_document_subset
-from galaxy_tool_xml_fmt.format import all_rules, format_tool_document_subset
+from galaxy_tool_codemod.catalog import coded_codemods
+from galaxy_tool_codemod.module import Module
+from galaxy_tool_fmt.detect import detect_tool_document_subset
+from galaxy_tool_fmt.format import all_rules, format_tool_document_subset
+from galaxy_tool_lint.detect import all_checks
 
 from galaxy_tool_refactor_registry.handle import RuleHandle
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from galaxy_tool_codemod.codemod import CodemodCommand
+    from galaxy_tool_fmt.rules import Rule
+    from galaxy_tool_lint.rules import CheckRule
     from galaxy_tool_refactor_rules.violation import Violation
     from galaxy_tool_source.document import ToolDocument
-    from galaxy_tool_xml_check.rules import CheckRule
-    from galaxy_tool_xml_codemod.codemod import CodemodCommand
-    from galaxy_tool_xml_fmt.rules import Rule
 
 # The opt-in-command-only codemods: no ruleset (never selectable) and not part of
 # the upgrade pipeline either — each is applied solely by its own dedicated

@@ -33,10 +33,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from galaxy_tool_xml_check.detect import all_checks
-from galaxy_tool_xml_codemod.canonical import canonical_codemods
-from galaxy_tool_xml_codemod.catalog import coded_codemods
-from galaxy_tool_xml_fmt.format import all_rules
+from galaxy_tool_codemod.canonical import canonical_codemods
+from galaxy_tool_codemod.catalog import coded_codemods
+from galaxy_tool_fmt.format import all_rules
+from galaxy_tool_lint.detect import all_checks
 
 # The workspace root is two levels up from this test file
 # (<root>/galaxy-tool-refactor-registry/tests/<this file>).

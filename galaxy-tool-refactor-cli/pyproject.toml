@@ -11,7 +11,7 @@ authors = [{ name = "Richard Burhans" }]
 # longer depends on the codemod / check tiers directly — the facade wraps them.
 dependencies = [
     "galaxy-tool-source",
-    "galaxy-tool-xml-fmt",
+    "galaxy-tool-fmt",
     "galaxy-tool-refactor-registry",
     "click>=8",
 ]
@@ -46,5 +46,5 @@ testpaths = ["tests"]
 
 [tool.uv.sources]
 galaxy-tool-source = { workspace = true }
-galaxy-tool-xml-fmt = { workspace = true }
+galaxy-tool-fmt = { workspace = true }
 galaxy-tool-refactor-registry = { workspace = true }

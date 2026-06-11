@@ -30,11 +30,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from galaxy_tool_fmt.cli_support import make_backup
+from galaxy_tool_fmt.format import format_macro_document
 from galaxy_tool_source.binding import load_macros, newest_valid_profile
 from galaxy_tool_source.macros import token_definitions
 from galaxy_tool_source.profiles import is_newer_profile
-from galaxy_tool_xml_fmt.cli_support import make_backup
-from galaxy_tool_xml_fmt.format import format_macro_document
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from galaxy_tool_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_refactor_rules.rulesets import DEFAULT_RULESET
-from galaxy_tool_xml_codemod.codemods.fix_typos import FixTypos
 
 from galaxy_tool_refactor_registry.adapters import OPT_IN_COMMAND_BY_CODE, fmt_rules
 from galaxy_tool_refactor_registry.errors import UnknownRuleCode, UnknownRuleset

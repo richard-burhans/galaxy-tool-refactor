@@ -39,7 +39,7 @@ _WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 _SKIP_PARTS = {".local", ".venv", ".git", ".sbx", "corpus_data", "node_modules"}
 
 # A decisions.md path token: optional repo-relative prefix, e.g.
-# `galaxy-tool-xml-fmt/docs/decisions.md`, `docs/decisions.md`, `decisions.md`.
+# `galaxy-tool-fmt/docs/decisions.md`, `docs/decisions.md`, `decisions.md`.
 _PATH = re.compile(r"[\w./-]*decisions\.md")
 
 # One cited section token: `§9`, `§D12`, `D34`, `§20.1`. A bare number without
@@ -70,9 +70,9 @@ _TABLE_ROW = re.compile(r"^\|\s*(?P<code>D?\d+(?:\.\d+)?)\s*\|", re.MULTILINE)
 # path names the real target — "codemod `docs/decisions.md` §30" cites the
 # codemod tier's decisions from another package's docs.
 _PACKAGE_BY_QUALIFIER = {
-    "codemod": "galaxy-tool-xml-codemod",
-    "fmt": "galaxy-tool-xml-fmt",
-    "check": "galaxy-tool-xml-check",
+    "codemod": "galaxy-tool-codemod",
+    "fmt": "galaxy-tool-fmt",
+    "check": "galaxy-tool-lint",
     "registry": "galaxy-tool-refactor-registry",
     "cli": "galaxy-tool-refactor-cli",
     "mcp": "galaxy-tool-refactor-mcp",

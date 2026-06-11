@@ -7,19 +7,19 @@ rationale. Mirrors the conventions of the sibling packages' `docs/decisions.md`.
 
 ### Decision
 
-The `RuleMeta` descriptor (previously private to `galaxy-tool-xml-fmt`) and a
+The `RuleMeta` descriptor (previously private to `galaxy-tool-fmt`) and a
 pure markdown rule-glossary renderer now live in a new, dependency-free package
-`galaxy-tool-refactor-rules`. Both tier 3 (`galaxy-tool-xml-fmt`) and tier 2
-(`galaxy-tool-xml-codemod`) depend on it; neither depends on the other.
+`galaxy-tool-refactor-rules`. Both tier 3 (`galaxy-tool-fmt`) and tier 2
+(`galaxy-tool-codemod`) depend on it; neither depends on the other.
 
 Only the *metadata* moved. The behavioral bases stayed in their tiers:
-`galaxy_tool_xml_fmt.rules.Rule` (yields lxml `Edit`s) and
-`galaxy_tool_xml_codemod.codemod.CodemodCommand` (cursor-walk visitor) have
+`galaxy_tool_fmt.rules.Rule` (yields lxml `Edit`s) and
+`galaxy_tool_codemod.codemod.CodemodCommand` (cursor-walk visitor) have
 different execution contracts and are not unified.
 
 ### Rationale
 
-- **A documented trigger, now met.** `galaxy-tool-xml-fmt/docs/decisions.md` §D1
+- **A documented trigger, now met.** `galaxy-tool-fmt/docs/decisions.md` §D1
   §Layout said a shared rule package would be extracted "only when a second
   consumer materialises." Giving the codemod tier the same metadata vocabulary
   (so the GTR rule registry spans both tiers) is that second consumer.
@@ -38,8 +38,8 @@ different execution contracts and are not unified.
 `summary`, `since`, `until`, `cite`, `order`); `detect_only` was added later in
 §D2. The cross-tier GTR registry at the time spanned GTR001–GTR012 (3 fmt rules,
 9 codemods); it later grew GTR013 (codemod §17) and the advisory codes
-(tier 3.5, `galaxy-tool-xml-check`). Codes are globally unique across the tiers
-(asserted by a test in `galaxy-tool-xml-fmt`'s corpus-check suite, which can
+(tier 3.5, `galaxy-tool-lint`). Codes are globally unique across the tiers
+(asserted by a test in `galaxy-tool-fmt`'s corpus-check suite, which can
 import both tiers).
 
 ## D2 (2026-05-30) — Add the shared `Violation` diagnostic type
@@ -53,7 +53,7 @@ the element has no source position), `xpath` (`str`), and `message`. It is the
 read-only counterpart to the mutating tier-2 `Change` and tier-3 `Edit`.
 
 This lands as part of the detect/fix rule-split effort (see
-`galaxy-tool-xml-codemod/docs/decisions.md` §19; the effort, PR1–5, merged in
+`galaxy-tool-codemod/docs/decisions.md` §19; the effort, PR1–5, merged in
 #15). Tier-2 `Change` projects onto a `Violation` via `Change.to_violation()`.
 
 ### Rationale
@@ -65,7 +65,7 @@ This lands as part of the detect/fix rule-split effort (see
   `RuleMeta` plays for the rule registry.
 - **Dependency-free is preserved.** The location is a plain `int` line plus a
   `str` xpath, never an lxml handle, so this package stays free of lxml / tier
-  1/2/3 imports (the invariant from D1 and `galaxy-tool-xml-fmt` §D10). Putting
+  1/2/3 imports (the invariant from D1 and `galaxy-tool-fmt` §D10). Putting
   `Violation` in tier 2 instead would have forced fmt to import codemod once fmt
   surfaces its edits as violations — exactly the re-coupling the tier split
   exists to prevent.
@@ -102,7 +102,7 @@ and later the registry/codemod tiers).
   only when it opts in.
 - **A set, not a single `scope` enum.** "Applies to any XML" is just "both
   kinds", so a `frozenset` avoids a special `"any"` value and extends cleanly if
-  another document kind ever appears. See `galaxy-tool-xml-fmt/docs/decisions.md`
+  another document kind ever appears. See `galaxy-tool-fmt/docs/decisions.md`
   §D16 for the fmt-side consumption (`format_macro_document` / `rules_for_kind`).
 
 

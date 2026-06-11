@@ -15,9 +15,9 @@ members = [
     "galaxy-tool-refactor-registry",
     "galaxy-tool-refactor-rules",
     "galaxy-tool-source",
-    "galaxy-tool-xml-check",
-    "galaxy-tool-xml-codemod",
-    "galaxy-tool-xml-fmt",
+    "galaxy-tool-lint",
+    "galaxy-tool-codemod",
+    "galaxy-tool-fmt",
 ]
 
 [[package]]
@@ -486,7 +486,7 @@ dependencies = [
     { name = "click" },
     { name = "galaxy-tool-refactor-registry" },
     { name = "galaxy-tool-source" },
-    { name = "galaxy-tool-xml-fmt" },
+    { name = "galaxy-tool-fmt" },
 ]
 
 [package.dev-dependencies]
@@ -501,7 +501,7 @@ requires-dist = [
     { name = "click", specifier = ">=8" },
     { name = "galaxy-tool-refactor-registry", editable = "galaxy-tool-refactor-registry" },
     { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
-    { name = "galaxy-tool-xml-fmt", editable = "galaxy-tool-xml-fmt" },
+    { name = "galaxy-tool-fmt", editable = "galaxy-tool-fmt" },
 ]
 
 [package.metadata.requires-dev]
@@ -551,9 +551,9 @@ source = { editable = "galaxy-tool-refactor-registry" }
 dependencies = [
     { name = "galaxy-tool-refactor-rules" },
     { name = "galaxy-tool-source" },
-    { name = "galaxy-tool-xml-check" },
-    { name = "galaxy-tool-xml-codemod" },
-    { name = "galaxy-tool-xml-fmt" },
+    { name = "galaxy-tool-lint" },
+    { name = "galaxy-tool-codemod" },
+    { name = "galaxy-tool-fmt" },
 ]
 
 [package.dev-dependencies]
@@ -567,9 +567,9 @@ dev = [
 requires-dist = [
     { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
     { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
-    { name = "galaxy-tool-xml-check", editable = "galaxy-tool-xml-check" },
-    { name = "galaxy-tool-xml-codemod", editable = "galaxy-tool-xml-codemod" },
-    { name = "galaxy-tool-xml-fmt", editable = "galaxy-tool-xml-fmt" },
+    { name = "galaxy-tool-lint", editable = "galaxy-tool-lint" },
+    { name = "galaxy-tool-codemod", editable = "galaxy-tool-codemod" },
+    { name = "galaxy-tool-fmt", editable = "galaxy-tool-fmt" },
 ]
 
 [package.metadata.requires-dev]
@@ -657,9 +657,9 @@ dev = [
 ]
 
 [[package]]
-name = "galaxy-tool-xml-check"
+name = "galaxy-tool-lint"
 version = "0.0.1"
-source = { editable = "galaxy-tool-xml-check" }
+source = { editable = "galaxy-tool-lint" }
 dependencies = [
     { name = "galaxy-tool-refactor-rules" },
     { name = "galaxy-tool-source" },
@@ -692,9 +692,9 @@ dev = [
 ]
 
 [[package]]
-name = "galaxy-tool-xml-codemod"
+name = "galaxy-tool-codemod"
 version = "0.0.1"
-source = { editable = "galaxy-tool-xml-codemod" }
+source = { editable = "galaxy-tool-codemod" }
 dependencies = [
     { name = "galaxy-tool-refactor-rules" },
     { name = "galaxy-tool-source" },
@@ -727,9 +727,9 @@ dev = [
 ]
 
 [[package]]
-name = "galaxy-tool-xml-fmt"
+name = "galaxy-tool-fmt"
 version = "0.0.1"
-source = { editable = "galaxy-tool-xml-fmt" }
+source = { editable = "galaxy-tool-fmt" }
 dependencies = [
     { name = "click" },
     { name = "galaxy-tool-refactor-rules" },

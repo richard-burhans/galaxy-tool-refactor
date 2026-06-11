@@ -9,7 +9,7 @@ safe, mechanical, behaviour-preserving transform, and which need human judgement
 > analysed; the Corpus column is refreshed from the discovery sweep.
 
 Related: the soundness boundary this ledger rests on is recorded in
-[`galaxy-tool-xml-codemod/docs/decisions.md` §22](../galaxy-tool-xml-codemod/docs/decisions.md);
+[`galaxy-tool-codemod/docs/decisions.md` §22](../galaxy-tool-codemod/docs/decisions.md);
 the upgrade machinery itself is §13 (`UpdateProfile`) and §14 (`UpgradeToLatest`).
 
 ---
@@ -94,7 +94,7 @@ not what *happens*. The corpus sweep is the empirical arbiter.
 
 ```bash
 uv run python -m scripts.corpus_check codemod \
-    galaxy_tool_xml_codemod.upgrades:UpgradeToLatest --source combined
+    galaxy_tool_codemod.upgrades:UpgradeToLatest --source combined
 ```
 
 This runs the full upgrade pipeline over **both** corpora — GitHub
@@ -169,7 +169,7 @@ the XSD diff; Corpus from the combined discovery sweep. Automatable:
 
 The **Semantic delta** column is keyed to Galaxy's own catalogue: each cell names
 the `upgrade_codes.json` code(s) (mirrored as `PROFILE_UPGRADE_CODES` in
-`galaxy-tool-xml-codemod/.../profile_semantics.py`) whose profile == the *To*
+`galaxy-tool-codemod/.../profile_semantics.py`) whose profile == the *To*
 version, with their `level` (`must_fix` / `consider`). "none documented" = no
 upgrade code at that step. The behaviour takes effect for a tool **declaring** the
 *To* profile (bumping `profile=` into that row opts in). `galaxy-tool-refactor
@@ -182,7 +182,7 @@ lets the tool move past the boundary behaviour-safely (codemod §23). The per-co
 corpus blast radius is `scripts/measure.py
 semantic-upgrade-boundaries`, and crossed-vs-applicable is `scripts/measure.py
 upgrade-codes-applicability`; pinnability is in
-`galaxy-tool-xml-codemod/docs/behavior-preserving-upgrade.md`.
+`galaxy-tool-codemod/docs/behavior-preserving-upgrade.md`.
 
 > **Two scopes the catalogue doesn't cover, flagged inline:** (1) **16.04**'s four
 > codes (interpreter/output-format/exit-code/extra-file) predate the oldest vendored
@@ -272,7 +272,7 @@ datatype extensions are lowercase; whitespace was never significant); a value th
 normalises to empty is dropped (empty restriction = no restriction). **`needs-thought`
 residual (~39):** ~18 with a coercible value living in an **imported macro file**
 the per-tool codemod can't reach (cross-file normalisation — see
-`galaxy-tool-xml-codemod/docs/macro-aware-normalization.md`); ~11 non-datatype junk
+`galaxy-tool-codemod/docs/macro-aware-normalization.md`); ~11 non-datatype junk
 (`?`, `plain text`, `$var`); ~9 single-token-context comma-lists with no basis to
 pick one datatype. These are reported, not guessed.
 

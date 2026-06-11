@@ -38,6 +38,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from galaxy_tool_fmt.cli_support import is_tool_root, make_backup
+from galaxy_tool_fmt.format import (
+    format_macro_document,
+    format_tool_document_subset,
+)
 from galaxy_tool_source.binding import ToolXmlSyntaxError
 from galaxy_tool_source.bundle import (
     BundleRenameOutcome,
@@ -48,11 +53,6 @@ from galaxy_tool_source.bundle import (
 from galaxy_tool_source.cheetah_refs import tool_cheetah_references
 from galaxy_tool_source.cheetah_rename import is_identifier
 from galaxy_tool_source.macros import imported_macro_paths
-from galaxy_tool_xml_fmt.cli_support import is_tool_root, make_backup
-from galaxy_tool_xml_fmt.format import (
-    format_macro_document,
-    format_tool_document_subset,
-)
 from lxml import etree
 
 if TYPE_CHECKING:

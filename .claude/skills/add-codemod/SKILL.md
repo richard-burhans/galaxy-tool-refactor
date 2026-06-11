@@ -1,7 +1,7 @@
 ---
 name: add-codemod
 description: >
-  The TDD workflow for adding a structural codemod to galaxy-tool-xml-codemod (tier 2):
+  The TDD workflow for adding a structural codemod to galaxy-tool-codemod (tier 2):
   failing test first, verb-noun naming, the CodemodCommand detect-primitive pattern,
   GTR-code assignment, catalog/canonical/registry wiring, and the corpus sweep that
   retains real-world failures as regression fixtures. Use when implementing a new
@@ -12,13 +12,13 @@ description: >
 
 # Add a codemod
 
-How to add a structural codemod to `galaxy-tool-xml-codemod`. Tier 2 is **TDD-first**
+How to add a structural codemod to `galaxy-tool-codemod`. Tier 2 is **TDD-first**
 and **detect-primitive**: each codemod reports exactly what it will change.
 
 ## Conventions (non-negotiable)
 
 - **TDD** — failing test first, then the minimum code to pass. One test module per
-  source module under `galaxy-tool-xml-codemod/tests/`.
+  source module under `galaxy-tool-codemod/tests/`.
 - **Verb-noun names** describing the mutation, LibCST-style: `ReorderParamAttributes`
   (class) / `reorder_param_attributes.py` (module) — *not* `ParamAttributeOrder`. The
   name is the corpus-sweep invocation and shows up in changelogs/docs.
@@ -32,7 +32,7 @@ and **detect-primitive**: each codemod reports exactly what it will change.
    `list[Change]`, non-mutating) and `Codemod().apply(module)` (mutates in place).
    Assert on the `Change` diagnostics and on the mutated tree bytes.
 
-2. **Create the codemod** — `src/galaxy_tool_xml_codemod/codemods/<verb_noun>.py`:
+2. **Create the codemod** — `src/galaxy_tool_codemod/codemods/<verb_noun>.py`:
    - Subclass `CodemodCommand`; set `meta: ClassVar[RuleMeta]` with the **next free GTR
      code** (013 is the current max → use `GTR014`), a `summary`, `since`, and
      `applies_to` (default `{"tool"}` — only opt into `"macro"` for a generic rule).
@@ -59,7 +59,7 @@ and **detect-primitive**: each codemod reports exactly what it will change.
 4. **Corpus sweep + retain regressions** (QA investment is worth it — never trim this):
    ```bash
    uv run python -m scripts.corpus_check codemod \
-     galaxy_tool_xml_codemod.codemods.<verb_noun>:<ClassName>
+     galaxy_tool_codemod.codemods.<verb_noun>:<ClassName>
    ```
    It checks idempotence (`apply` once == twice) + post-codemod validity across the
    corpus and **copies any failing tool into `tests/data/regressions/<id>/tool.xml`**
@@ -81,7 +81,7 @@ different population than "validates somewhere" (FixTypos targets validates-nowh
 Profile upgrades are grown **empirically from the corpus**, not designed up front:
 
 1. Run the discovery sweep on the orchestrator:
-   `uv run python -m scripts.corpus_check codemod galaxy_tool_xml_codemod.upgrades:UpgradeToLatest`
+   `uv run python -m scripts.corpus_check codemod galaxy_tool_codemod.upgrades:UpgradeToLatest`
    (defaults to `--source combined`). Read the post-apply profile distribution and the
    **sticking-point** versions — the from-profiles where many tools stall because no
    `upgrade_vN` exists yet.
@@ -93,5 +93,5 @@ Profile upgrades are grown **empirically from the corpus**, not designed up fron
    not user-selectable; they surface only via `list_rules(include_upgrade=True)`.
 3. Re-run the sweep; confirm reach-to-latest climbed and the version is no longer
    sticky. Repeat until the residual is just genuine tool bugs. Record the numbers in
-   `galaxy-tool-xml-codemod/docs/decisions.md` (§11–14 are the precedent) with a
+   `galaxy-tool-codemod/docs/decisions.md` (§11–14 are the precedent) with a
    `Reproduced by` line — see the `/corpus-measurement` skill.

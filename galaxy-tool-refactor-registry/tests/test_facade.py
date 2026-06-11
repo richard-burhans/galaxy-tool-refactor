@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from galaxy_tool_codemod.canonical import canonical_codemods
+from galaxy_tool_codemod.module import Module
+from galaxy_tool_fmt.format import format_tool_document
+from galaxy_tool_fmt.serializer import to_bytes
 from galaxy_tool_source.binding import load_tool
-from galaxy_tool_xml_codemod.canonical import canonical_codemods
-from galaxy_tool_xml_codemod.module import Module
-from galaxy_tool_xml_fmt.format import format_tool_document
-from galaxy_tool_xml_fmt.serializer import to_bytes
 
 from galaxy_tool_refactor_registry import facade
 from galaxy_tool_refactor_registry.registry import advisory_codes

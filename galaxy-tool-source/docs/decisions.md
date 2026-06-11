@@ -1281,3 +1281,36 @@ current-state docs were rewritten. Execution record:
 `~/.claude/plans/rename-galaxy-tool-source-plan.md`; two sed traps found and
 guarded — the sibling *dist* names need `[^-]`, and the sibling *import*
 names (`galaxy_tool_xml_codemod` et al.) equally need `[^_]`.
+
+## 27. Renamed the three `-xml-` sibling dists (drop "xml"); §26's "keep their names" reversed (2026-06-11)
+
+§26 renamed tier 1 to `galaxy-tool-source` but argued the three sibling dists
+should **keep** their `galaxy-tool-xml-*` names ("xml describes their domain").
+That call is reversed here, driven by the decision to publish the whole tooling
+to PyPI: publishing the front-door `-cli`/`-mcp` forces publishing their entire
+dependency tree (all eight packages), so every package gets a public name — and
+relative to the already-published `galaxy-tool-source`, the `-xml-` packages were
+the inconsistent ones. Settled **before** their first publish (post-publish
+renames mean a tombstone + deprecation shim).
+
+| Tier | Old dist / import | New dist / import |
+|---|---|---|
+| 2 | `galaxy-tool-xml-codemod` / `galaxy_tool_xml_codemod` | `galaxy-tool-codemod` / `galaxy_tool_codemod` |
+| 3 | `galaxy-tool-xml-fmt` / `galaxy_tool_xml_fmt` | `galaxy-tool-fmt` / `galaxy_tool_fmt` |
+| 3.5 | `galaxy-tool-xml-check` / `galaxy_tool_xml_check` | `galaxy-tool-lint` / `galaxy_tool_lint` |
+
+Tier 3.5 also dropped "check" → **`lint`**: on PyPI "check" reads as planemo's
+"run the tool to check it"; `lint` unambiguously names the planemo-parity linter
+tier (the CLI verb stays `check`). Tier 1 (`galaxy-tool-source`, published),
+the product family (`galaxy-tool-refactor-{rules,registry,cli,mcp}`), and the
+`check` CLI subcommand are unchanged. The result is two deliberate families:
+`galaxy-tool-*` reusable libraries (`source`/`codemod`/`fmt`/`lint`) and
+`galaxy-tool-refactor-*` the product built on them. A `galaxy-tool-refactor`
+front-door metapackage is deferred to a follow-up.
+
+**Historical entries keep the old names verbatim** (as §26 established — this
+file's §9/§26 still show `galaxy-tool-xml-*`); only current-state docs and all
+code/config were rewritten, via a full-token sed (`galaxy-tool-xml-{codemod,fmt,check}`
+and the `_`-form) that never touches the bare `galaxy-tool-xml` tier-1 historical
+name. Rationale + the building-block-vs-product analysis:
+`../docs/package_naming_plan.md`.

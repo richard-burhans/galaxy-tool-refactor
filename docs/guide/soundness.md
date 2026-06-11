@@ -102,7 +102,7 @@ safe case and escalate the rest, rather than trusting the bump blindly.
 
 - `docs/profile_upgrades.md` — the per-profile upgrade map and the validity-as-oracle
   boundary.
-- `galaxy-tool-xml-codemod/docs/decisions.md` — the `canonical_codemods()` /
+- `galaxy-tool-codemod/docs/decisions.md` — the `canonical_codemods()` /
   `AUTO_UPGRADE_CODEMODS` split, per-tool warning detection, and the soundness limits
   of raw-tree vs macro-expanded detection.
 - `docs/macro_handling_architecture.md` — why macro write-back is locate-in-source

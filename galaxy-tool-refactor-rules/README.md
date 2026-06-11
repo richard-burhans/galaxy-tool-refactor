@@ -7,9 +7,9 @@ a small, dependency-free "tier 0.5" package consumed by both higher tiers:
 |---|---|---|
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` *(this package)* |
 | 1 | parsing & validation | `galaxy-tool-source` |
-| 2 | structure | `galaxy-tool-xml-codemod` |
-| 3 | formatting | `galaxy-tool-xml-fmt` |
-| 3.5 | advisory checks | `galaxy-tool-xml-check` |
+| 2 | structure | `galaxy-tool-codemod` |
+| 3 | formatting | `galaxy-tool-fmt` |
+| 3.5 | advisory checks | `galaxy-tool-lint` |
 | 3.6 | rule registry / rulesets | `galaxy-tool-refactor-registry` |
 | 4 | app / CLI | `galaxy-tool-refactor-cli` |
 
@@ -34,7 +34,7 @@ The descriptor is the only thing the two tiers genuinely share — their
 those stay in their own packages. Keeping `RuleMeta` here, with **zero runtime
 dependencies**, lets both fmt and codemod depend on it without depending on each
 other — preserving the tier independence documented in
-`galaxy-tool-xml-fmt/docs/decisions.md` §D10. The extraction was anticipated in
+`galaxy-tool-fmt/docs/decisions.md` §D10. The extraction was anticipated in
 that package's §D1 ("a shared rule-engine package will be extracted only when a
 second consumer materialises"); the codemod tier is that consumer.
 

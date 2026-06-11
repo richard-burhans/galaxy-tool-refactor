@@ -49,7 +49,7 @@ def _index_of(*handles: RuleHandle) -> dict[str, tuple[RuleHandle, bool]]:
 
 def test_known_codes_are_the_selectable_set() -> None:
     """Selectable = canonical codemods + cosmetic fmt + advisory checks (derived)."""
-    from galaxy_tool_xml_codemod.canonical import canonical_codemods
+    from galaxy_tool_codemod.canonical import canonical_codemods
 
     codes = known_codes()
     # canonical codemods are selectable (derived from ruleset membership)...
@@ -67,8 +67,8 @@ def test_upgrade_only_set_matches_the_codemod_catalog() -> None:
     codemod wrongly tagged with a ruleset (and thus selectable) or one omitted
     from the catalog would be caught — incl. the runtime-gated GTR014/015.
     """
-    from galaxy_tool_xml_codemod.canonical import canonical_codemods
-    from galaxy_tool_xml_codemod.catalog import coded_codemods
+    from galaxy_tool_codemod.canonical import canonical_codemods
+    from galaxy_tool_codemod.catalog import coded_codemods
 
     catalog_upgrade_only = {cls.meta.code for cls in coded_codemods()} - {
         cls.meta.code for cls in canonical_codemods()

@@ -30,18 +30,18 @@ _SERIALISE_MARKERS = ("etree.tostring(", ".write_bytes(")
 # marker is legitimate only if its file is here AND the marker is in that file's
 # allowed set. Keep this in sync with ``docs/architecture_audit.md`` §4.1.
 _ALLOWLIST: dict[str, tuple[frozenset[str], str]] = {
-    "galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/codemods"
+    "galaxy-tool-codemod/src/galaxy_tool_codemod/codemods"
     "/tokenize_version.py": (
         frozenset({"etree.tostring("}),
         "GTR094's expansion-equality gate compares two throwaway expansions "
         "byte-wise (proof by execution) — never output; output still flows "
         "through fmt via the facade",
     ),
-    "galaxy-tool-xml-fmt/src/galaxy_tool_xml_fmt/serializer.py": (
+    "galaxy-tool-fmt/src/galaxy_tool_fmt/serializer.py": (
         frozenset({"etree.tostring("}),
         "the sanctioned canonical serialiser (fmt's to_bytes)",
     ),
-    "galaxy-tool-xml-fmt/src/galaxy_tool_xml_fmt/cli_support.py": (
+    "galaxy-tool-fmt/src/galaxy_tool_fmt/cli_support.py": (
         frozenset({".write_bytes("}),
         "writes fmt-produced canonical bytes to disk",
     ),
@@ -77,7 +77,7 @@ _ALLOWLIST: dict[str, tuple[frozenset[str], str]] = {
         "cross-file rename writes fmt-produced tool + macro bytes "
         "(format_tool_document_subset / format_macro_document)",
     ),
-    "galaxy-tool-xml-codemod/src/galaxy_tool_xml_codemod/codemods/_coarse_detect.py": (
+    "galaxy-tool-codemod/src/galaxy_tool_codemod/codemods/_coarse_detect.py": (
         frozenset({"etree.tostring("}),
         "internal before/after compare to detect change (not output)",
     ),
