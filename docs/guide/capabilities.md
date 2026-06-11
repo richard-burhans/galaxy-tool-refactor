@@ -114,8 +114,8 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Capability | Status | Source |
 |---|---|---|
 | Code-addressable rule registry + rulesets (`cosmetic`/`default`/`iuc`/`strict`) + `--select`/`--ignore` | ✅ Shipped | `galaxy-tool-refactor-registry` |
-| CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` | ✅ Shipped | `galaxy-tool-refactor` |
-| MCP server for agents: `format_tool` / `upgrade_tool` / `check_tool` / `list_rulesets` / `list_rules` | ✅ Shipped | `galaxy-tool-refactor-mcp` (vision Goal 1) |
+| CLI (ten commands): `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` / `convert-help` / `tokenize-version` | ✅ Shipped | `galaxy-tool-refactor` |
+| MCP server for agents (seven tools): `format_tool` / `upgrade_tool` / `check_tool` / `convert_help_tool` / `tokenize_version_tool` / `list_rulesets` / `list_rules` | ✅ Shipped | `galaxy-tool-refactor-mcp` (vision Goal 1) |
 | Corpus evidence base: 9,374 unique tools, standing measurements | ✅ Shipped | `docs/*_stats.md`, `scripts/measure.py` |
 | Behaviour-preservation proof ledger — every fixable rule adversarially audited; genuine breaks fixed (regression-pinned), over-claims documented | ✅ Shipped | `docs/behavior_preservation.md` (see `soundness.md`) |
 
@@ -129,7 +129,8 @@ that XML** through one rule set, reachable three ways — as a Python **library*
   foundational Tier-B offset API (`rename_param_plan`) shipped and `galaxy-tool-source`
   is [on PyPI](https://pypi.org/project/galaxy-tool-source/); the galaxyls binding is an
   **open PR** (galaxyproject/galaxy-language-server#331, CI-green against the PyPI
-  release; cross-file across imported macros), awaiting maintainer review.
+  release; cross-file across imported macros) — initial maintainer review addressed,
+  awaiting follow-up.
 - **General macro-expansion provenance** — a side-table mapping each expanded node to its
   source file, to edit *arbitrary* macro-supplied content. The literal-`format`/`ftype`
   slice (Phase 2a) shipped via locate-in-source (`normalize-macros`); the general layer is
