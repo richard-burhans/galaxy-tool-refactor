@@ -13,6 +13,10 @@
       (date + a `Reproduced by` command if it cites a measurement), if applicable.
 - [ ] New rules/behaviour are test-first, and behaviour-preserving fixes hold
       **by construction** (see `docs/behavior_preservation.md`).
+- [ ] I have read, understood, and tested every line of this change. If an AI
+      tool or automated agent helped write it, I've said so above, and it changes
+      only what the issue calls for (see CONTRIBUTING.md → AI-assisted and
+      automated contributions).
 
 <!-- Maintainers: before merging, run the /pre-pr-audit skill for the full
      code + documentation audit. `main` requires the `ci` check to pass. -->
