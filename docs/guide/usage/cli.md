@@ -12,17 +12,20 @@
 
 ## Install & run
 
-From a clone of the workspace (the current method while the packages are
-pre-release):
+Install from PyPI:
+
+```sh
+pip install galaxy-tool-refactor             # the `galaxy-tool-refactor` CLI
+pip install "galaxy-tool-refactor[mcp]"      # also installs the agent-facing MCP server
+galaxy-tool-refactor --help
+```
+
+To work on the toolkit itself, clone the workspace and use `uv` instead:
 
 ```sh
 uv sync
 uv run galaxy-tool-refactor --help
 ```
-
-Once the workspace is published to PyPI, the one-line install will be
-`pip install galaxy-tool-refactor` (the front-door metapackage, which pulls the
-CLI; add `pip install "galaxy-tool-refactor[mcp]"` for the agent-facing MCP server).
 
 The ten commands:
 
