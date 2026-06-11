@@ -9,7 +9,7 @@ definition XML.
 | Package | PyPI status | Role |
 |---|---|---|
 | [`galaxy-tool-refactor-rules`](galaxy-tool-refactor-rules/README.md) | pre-alpha | Shared `RuleMeta` descriptor + `Violation` diagnostic + glossary renderer. Dependency-free; underpins the GTR rule registry across the tiers. |
-| [`galaxy-tool-source`](galaxy-tool-source/README.md) | pre-release | Parse, validate, and inspect Galaxy tool XML. Foundation for the other tiers. |
+| [`galaxy-tool-source`](galaxy-tool-source/README.md) | [published](https://pypi.org/project/galaxy-tool-source/) — `pip install galaxy-tool-source` | Parse, validate, and inspect Galaxy tool XML. Foundation for the other tiers. |
 | [`galaxy-tool-xml-codemod`](galaxy-tool-xml-codemod/README.md) | pre-alpha | Detect-primitive `CodemodCommand` framework + bundled structural codemods (`canonical_codemods()`, `AUTO_UPGRADE_CODEMODS`); each rule has a detect (lint) and a fix phase. |
 | [`galaxy-tool-xml-fmt`](galaxy-tool-xml-fmt/README.md) | pre-release | Opinionated `black`-like cosmetic formatter (with a non-mutating `detect`). The only tier that serialises canonical output XML. |
 | [`galaxy-tool-xml-check`](galaxy-tool-xml-check/README.md) | pre-alpha | Advisory, detect-only IUC best-practice checks (`GTR` codes); read-only, reports but never mutates. Depends only on tiers 1 + 0.5. |

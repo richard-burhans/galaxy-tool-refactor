@@ -158,8 +158,9 @@ not a re-think.
    exotic anchoring). The load-bearing piece, with the engine.
 2. **galaxyls PR** — ✅ **shipped (open, CI green).** Deps, `prepareRename` + `rename` +
    `references` features, offset→`Range` conversion, bail→diagnostic
-   (galaxyproject/galaxy-language-server#331; gated only on publishing `galaxy-tool-xml`
-   to PyPI to flip the dev pin to a version spec).
+   (galaxyproject/galaxy-language-server#331). `galaxy-tool-source` is now
+   [on PyPI](https://pypi.org/project/galaxy-tool-source/) and the dev pin is a version
+   spec (`galaxy-tool-source==0.1.0`); the PR awaits galaxyproject maintainer review.
 3. **(Optional) Tier A** as an interim if an editor demo is wanted — not needed; Tier B
    shipped.
 4. **cross-file** rename via the macro import graph — ✅ **shipped** (the binding resolves
