@@ -43,7 +43,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Replace a deprecated `<output type="data">` with `<data>` | GTR036 | ✅ Shipped | `default` ruleset; planemo-parity *fix* |
 | Drop a `<param>` `name` that its `argument` already implies | GTR037 | ✅ Shipped | `default` ruleset; planemo-parity *fix* |
 | Convert an RST `<help>` to Markdown when provably render-equivalent (profile ≥ 24.2; repair-then-convert; opt-in `convert-help`, never `format`/`upgrade`) | GTR092 | ✅ Shipped | `convert-help` command; tier-1 `rst_markdown` gate; 73.4% of corpus RST helps convertible (`docs/upgrade_research/restructuredtext_codemods.md`) |
-| Factor a literal `version="<base>+galaxy<suffix>"` into `@TOOL_VERSION@`/`@VERSION_SUFFIX@` tokens (opt-in `tokenize-version`, expansion-equality gated, never `format`/`upgrade`) | GTR094 | ✅ Shipped | `tokenize-version` command; codemod §43; ~75 corpus candidates (`scripts.measure version-tokenization`) |
+| Factor a literal `version="<base>+galaxy<suffix>"` into `@TOOL_VERSION@`/`@VERSION_SUFFIX@` tokens (opt-in `tokenize-version`; inline, or in a created / merged / directory-shared `--macros-file` (expansion-equality gated), or the identity-changing `--adopt-suffix` (controlled-change gated); never `format`/`upgrade`) | GTR094 | ✅ Shipped | `tokenize-version` command; codemod §43, cli §D13–D15, registry D20; 76 inline + 284 `--adopt-suffix` candidates (`scripts.measure version-tokenization`) |
 
 ### Upgrade (profile bump + repair, opt-in & semantic)
 
@@ -109,6 +109,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Gate a cross-file rename that touches a macro **shared** by other tools (edit only when sole-owned within `--repo-root`, else skip + report) | ✅ Shipped | `rename-param --repo-root` (`galaxy_tool_refactor_registry.bundle_rename`) |
 | Rename a parameter across **every importer** of a shared macro in lockstep (consensus — only when they all agree) | ✅ Shipped | `rename-param --across-importers` (`rename_param_consensus`) |
 | Minimal-diff offset rename for editors (LSP `WorkspaceEdit`) | 🟡 Partial | `rename_param_plan` (Tier-B API) shipped — 96.8% parity, 0 mismatches; editor binding is an open PR (see Roadmap) |
+| Version-tokenization Code Actions for editors (LSP `WorkspaceEdit` + `CreateFile`) | 🟡 Partial | `tokenize_version_plan` (Tier-B API) shipped; a galaxyls Code Action (define tokens inline, or extract to a new `macros.xml`) is built and validated against the published `galaxy-tool-source` 0.2.0, awaiting its upstream PR |
 
 ### Surfaces & orchestration
 
@@ -133,6 +134,10 @@ that XML** through one rule set, reachable three ways — as a Python **library*
   **open PR** (galaxyproject/galaxy-language-server#331, CI-green against the PyPI
   release; cross-file across imported macros) — initial maintainer review addressed,
   awaiting follow-up.
+- **Editor version-tokenization Code Actions via `galaxy-language-server`** over the
+  `tokenize_version_plan` Tier-B API: "Define version tokens" (inline) and "Extract to
+  `macros.xml`" (a `WorkspaceEdit` with a `CreateFile`). Built and validated against the
+  published `galaxy-tool-source` 0.2.0; its upstream PR is the next step after #331.
 - **General macro-expansion provenance** — a side-table mapping each expanded node to its
   source file, to edit *arbitrary* macro-supplied content. The literal-`format`/`ftype`
   slice (Phase 2a) shipped via locate-in-source (`normalize-macros`); the general layer is

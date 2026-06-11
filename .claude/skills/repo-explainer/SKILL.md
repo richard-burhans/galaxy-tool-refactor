@@ -64,11 +64,18 @@ registry rule code, a CLI/MCP command, or a committed number in `docs/*_stats.md
 
 ### Step 1 — Introspect the truth sources (ground every claim)
 
-- `uv run galaxy-tool-refactor presets` and `… rules` — the live rule/preset set.
+- `uv run galaxy-tool-refactor rulesets` and `… rules` — the live rule/ruleset set.
 - `uv run galaxy-tool-refactor --help` and per-command `--help` — the CLI surface.
-- MCP tools: `galaxy-tool-refactor-mcp/src/.../server.py` (`format`/`upgrade`/`check`/
-  `list_presets`/`list_rules`; `list_rules(include_upgrade=True)` surfaces the
-  upgrade-only codemods GTR007/014–016).
+- MCP tools: enumerate the `@mcp.tool` functions in
+  `galaxy-tool-refactor-mcp/src/.../server.py` (the authoritative set; do not hard-code
+  a count). `list_rules(include_upgrade=True)` surfaces the upgrade-only codemods
+  GTR007/014–016.
+- **Editor / LSP bindings** (a recurring drift point that `leverage.md` and
+  `capabilities.md` cite): check `.local/galaxy-language-server` for the built bindings
+  (`rename_param_plan` for Rename Symbol / Find References; `tokenize_version_plan` for
+  the version-tokenization Code Actions) and their upstream PR status
+  (galaxyproject/galaxy-language-server#331 and any sibling). These are built locally or
+  open PRs, not merged upstream: tag them Partial/Roadmap, never Shipped.
 - Committed corpus numbers: `docs/*_stats.md` (never hand-type a corpus number —
   cite the artifact).
 - Tiers/packages: `ARCHITECTURE.md`. Roadmap: each package's `docs/vision.md` +
