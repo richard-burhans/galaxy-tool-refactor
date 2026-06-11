@@ -2,9 +2,9 @@ name: CI
 
 # Runs the workspace QA gate (scripts/qa_gate.sh — the single source for the
 # package roster: ruff + per-package strict mypy + the eight test suites) on
-# every PR and on pushes to main. No corpus is needed — the unit/regression
-# tests use synthetic data and committed fixtures; the slow xsdata-codegen
-# sweep stays behind the `slow` marker and is not run here.
+# every PR and on pushes to main, across the supported Python range. No corpus
+# is needed — the unit/regression tests use synthetic data and committed
+# fixtures; the slow xsdata-codegen sweep stays behind the `slow` marker.
 
 on:
   push:
@@ -18,6 +18,14 @@ concurrency:
 jobs:
   qa:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The full requires-python range (>=3.10). dignified-python branches on
+        # the interpreter version, so each is exercised end to end.
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -26,16 +34,28 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Sync workspace
-        # Installs all eight packages + dev deps; the galaxy-tool-source build hook
-        # regenerates the per-version xsdata models from the vendored XSDs.
+      - name: Sync workspace (Python ${{ matrix.python-version }})
+        # UV_PYTHON pins the interpreter; uv downloads it if missing. Installs all
+        # eight packages + dev deps; the galaxy-tool-source build hook regenerates
+        # the per-version xsdata models from the vendored XSDs.
         run: uv sync
 
       - name: QA gate (ruff + mypy strict + pytest, all packages)
-        # Single source of truth for the package roster: scripts/qa_gate.sh —
-        # the same script the pre-push hook runs. CI used to inline the same
-        # three command blocks and the rosters drifted (the check tier was once
-        # silently dropped here). On failure the gate names the failing step
-        # ("QA gate FAILED at: mypy (<package>)"). FORCE bypasses the gate's
+        # Single source of truth for the package roster: scripts/qa_gate.sh — the
+        # same script the pre-push hook runs. On failure the gate names the failing
+        # step ("QA gate FAILED at: mypy (<package>)"). FORCE bypasses the gate's
         # green-tree cache — meaningless on a fresh checkout, explicit anyway.
         run: QA_GATE_FORCE=1 bash scripts/qa_gate.sh
+
+  ci:
+    # One stable check for branch protection: green only if every matrix job
+    # passed, so the required-check name never changes when the matrix does.
+    needs: qa
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify the qa matrix all passed
+        run: |
+          result="${{ needs.qa.result }}"
+          echo "qa matrix result: $result"
+          test "$result" = "success" || { echo "::error::qa matrix failed"; exit 1; }

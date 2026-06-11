@@ -1,0 +1,76 @@
+name: Corpus stats refresh (scheduled)
+
+# Regenerates the corpus-derived stat pages from a fresh fetch and opens a PR
+# with the diff — so refreshing stats is decoupled from the per-PR loop (a
+# rule-add PR only has to satisfy the coverage guard, not run a multi-minute
+# local sweep). Number drift is expected as the Toolshed evolves; a human
+# reviews and merges the PR.
+#
+# Why a scheduled job and not an actions/cache of the corpus: the deduplicated
+# Toolshed corpus is ~17 GB, over the 10 GB per-cache limit, so we re-fetch each
+# run (fetch_toolshed is additive and tolerates the occasional 404). The disk
+# free-up step makes room for it on a standard runner.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"   # Mondays 06:00 UTC
+  workflow_dispatch:        # manual "refresh now"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: corpus-stats
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free up runner disk for the corpus (~17 GB)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync workspace
+        # Installs the mercurial dev dep, so `hg` is on PATH for fetch_toolshed.
+        run: uv sync
+
+      - name: Fetch the Toolshed corpus
+        # The GitHub half of the corpus auto-clones on demand during the sweep;
+        # only the Toolshed half needs an explicit fetch. Writes manifest.json on
+        # completion — the corpus-completeness guard then lets the sweeps regen.
+        run: uv run python -m scripts.fetch_toolshed
+
+      - name: Regenerate the corpus stat pages
+        # The freshness-guarded trio (check / rules / fmt) plus the combined
+        # validate headline. Each reuses the one fetched corpus.
+        run: |
+          uv run python -m scripts.corpus_check check
+          uv run python -m scripts.corpus_check rules
+          uv run python -m scripts.corpus_check fmt
+          uv run python -m scripts.corpus_check validate --source combined
+
+      - name: Open a PR if the stats changed
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: corpus/stats-refresh
+          title: "corpus: scheduled stats refresh"
+          commit-message: "corpus: scheduled stats refresh"
+          body: |
+            Automated regeneration of the corpus stat pages from a fresh fetch
+            (`.github/workflows/corpus-stats.yml`). Number drift is expected as the
+            Toolshed evolves — review the diff and merge if it looks reasonable.
+          add-paths: |
+            docs/*_stats.md
+            docs/corpus_data/**

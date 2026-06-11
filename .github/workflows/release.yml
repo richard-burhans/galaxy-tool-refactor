@@ -1,14 +1,21 @@
-name: Release galaxy-tool-source to PyPI
+name: Release to PyPI (all packages)
 
-# Tag-triggered publish of the tier-1 package via PyPI Trusted Publishing
-# (OIDC — no stored token). Tag a release as `v<version>` matching
-# galaxy-tool-source/pyproject.toml's `version`, push the tag, and this builds
-# the sdist+wheel (the hatch build hook regenerates the per-version xsdata
-# models) and uploads them under the `pypi` environment.
+# Tag-triggered, lockstep publish of all eight workspace packages via PyPI
+# Trusted Publishing (OIDC — no stored token). The packages share one version
+# (galaxy-tool-source/docs/decisions.md §27); tag a release as `v<version>`
+# matching that shared version, push the tag, and this builds every package's
+# sdist+wheel and uploads them in one Trusted-Publishing call.
 #
-# One-time PyPI setup (a maintainer, on pypi.org): Account → Publishing → add a
-# pending publisher — project `galaxy-tool-source`, owner `richard-burhans`,
-# repo `galaxy-tool-refactor`, workflow `release.yml`, environment `pypi`.
+# One-time PyPI setup (a maintainer, on pypi.org), once PER PACKAGE — Account →
+# Publishing → add a pending publisher with: owner `richard-burhans`, repo
+# `galaxy-tool-refactor`, workflow `release.yml`, environment `pypi`, and the
+# project name set to each of the eight dist names:
+#   galaxy-tool-refactor-rules, galaxy-tool-source, galaxy-tool-codemod,
+#   galaxy-tool-fmt, galaxy-tool-lint, galaxy-tool-refactor-registry,
+#   galaxy-tool-refactor-cli, galaxy-tool-refactor-mcp
+# (galaxy-tool-source already has one from the 0.1.0 release.) A single publish
+# step uploads the whole dist/; PyPI validates each file against its own
+# project's trusted-publisher config.
 
 on:
   push:
@@ -29,16 +36,33 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Verify the tag matches the package version
-        # Fail loudly if someone tags v0.2.0 but pyproject still says 0.1.0.
+      - name: Verify the tag matches the lockstep version of all packages
+        # bump_version --check fails (naming the fix) unless every package is at
+        # this exact version with pinned intra-deps — so a tag can't publish a
+        # half-bumped or drifted workspace.
         run: |
           tag="${GITHUB_REF_NAME#v}"
-          pkg=$(uv run --no-sync python -c "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('galaxy-tool-source/pyproject.toml').read_text())['project']['version'])")
-          echo "tag=$tag  pyproject=$pkg"
-          test "$tag" = "$pkg" || { echo "::error::tag v$tag != pyproject version $pkg"; exit 1; }
+          echo "tag version: $tag"
+          uv run --no-sync python -m scripts.bump_version "$tag" --check
 
-      - name: Build sdist + wheel
-        run: uv build --package galaxy-tool-source
+      - name: Build sdist + wheel for every package
+        # All eight into one dist/. The galaxy-tool-source build hook regenerates
+        # its per-version xsdata models from the vendored XSDs.
+        run: |
+          for pkg in \
+            galaxy-tool-refactor-rules \
+            galaxy-tool-source \
+            galaxy-tool-codemod \
+            galaxy-tool-fmt \
+            galaxy-tool-lint \
+            galaxy-tool-refactor-registry \
+            galaxy-tool-refactor-cli \
+            galaxy-tool-refactor-mcp; do
+            echo "::group::build $pkg"
+            uv build --package "$pkg"
+            echo "::endgroup::"
+          done
+          ls -l dist
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -59,5 +83,7 @@ jobs:
           name: dist
           path: dist
 
-      - name: Publish to PyPI
+      - name: Publish all packages to PyPI
+        # Uploads every sdist+wheel in dist/; PyPI matches each against its own
+        # project's trusted-publisher config (workflow release.yml, env pypi).
         uses: pypa/gh-action-pypi-publish@release/v1

@@ -10,14 +10,14 @@ resolution-markers = [
 
 [manifest]
 members = [
+    "galaxy-tool-codemod",
+    "galaxy-tool-fmt",
+    "galaxy-tool-lint",
     "galaxy-tool-refactor-cli",
     "galaxy-tool-refactor-mcp",
     "galaxy-tool-refactor-registry",
     "galaxy-tool-refactor-rules",
     "galaxy-tool-source",
-    "galaxy-tool-lint",
-    "galaxy-tool-codemod",
-    "galaxy-tool-fmt",
 ]
 
 [[package]]
@@ -479,14 +479,49 @@ wheels = [
 ]
 
 [[package]]
-name = "galaxy-tool-refactor-cli"
-version = "0.1.0"
-source = { editable = "galaxy-tool-refactor-cli" }
+name = "galaxy-tool-codemod"
+version = "0.2.0"
+source = { editable = "galaxy-tool-codemod" }
+dependencies = [
+    { name = "galaxy-tool-refactor-rules" },
+    { name = "galaxy-tool-source" },
+    { name = "lxml" },
+    { name = "packaging" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "bashlex" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
+    { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
+    { name = "lxml", specifier = ">=5" },
+    { name = "packaging", specifier = ">=23" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "bashlex", specifier = ">=0.18" },
+    { name = "mypy", specifier = ">=1.10" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "ruff", specifier = ">=0.5" },
+]
+
+[[package]]
+name = "galaxy-tool-fmt"
+version = "0.2.0"
+source = { editable = "galaxy-tool-fmt" }
 dependencies = [
     { name = "click" },
-    { name = "galaxy-tool-refactor-registry" },
+    { name = "galaxy-tool-refactor-rules" },
     { name = "galaxy-tool-source" },
-    { name = "galaxy-tool-fmt" },
+    { name = "lxml" },
 ]
 
 [package.dev-dependencies]
@@ -499,9 +534,77 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8" },
+    { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
+    { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
+    { name = "lxml", specifier = ">=5" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=1.10" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "ruff", specifier = ">=0.5" },
+]
+
+[[package]]
+name = "galaxy-tool-lint"
+version = "0.2.0"
+source = { editable = "galaxy-tool-lint" }
+dependencies = [
+    { name = "galaxy-tool-refactor-rules" },
+    { name = "galaxy-tool-source" },
+    { name = "lxml" },
+    { name = "packaging" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "bashlex" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
+    { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
+    { name = "lxml", specifier = ">=5" },
+    { name = "packaging", specifier = ">=23" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "bashlex", specifier = ">=0.18" },
+    { name = "mypy", specifier = ">=1.10" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "ruff", specifier = ">=0.5" },
+]
+
+[[package]]
+name = "galaxy-tool-refactor-cli"
+version = "0.2.0"
+source = { editable = "galaxy-tool-refactor-cli" }
+dependencies = [
+    { name = "click" },
+    { name = "galaxy-tool-fmt" },
+    { name = "galaxy-tool-refactor-registry" },
+    { name = "galaxy-tool-source" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = ">=8" },
+    { name = "galaxy-tool-fmt", editable = "galaxy-tool-fmt" },
     { name = "galaxy-tool-refactor-registry", editable = "galaxy-tool-refactor-registry" },
     { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
-    { name = "galaxy-tool-fmt", editable = "galaxy-tool-fmt" },
 ]
 
 [package.metadata.requires-dev]
@@ -513,7 +616,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-refactor-mcp"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "galaxy-tool-refactor-mcp" }
 dependencies = [
     { name = "galaxy-tool-refactor-registry" },
@@ -546,14 +649,14 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-refactor-registry"
-version = "0.0.1"
+version = "0.2.0"
 source = { editable = "galaxy-tool-refactor-registry" }
 dependencies = [
-    { name = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-source" },
-    { name = "galaxy-tool-lint" },
     { name = "galaxy-tool-codemod" },
     { name = "galaxy-tool-fmt" },
+    { name = "galaxy-tool-lint" },
+    { name = "galaxy-tool-refactor-rules" },
+    { name = "galaxy-tool-source" },
 ]
 
 [package.dev-dependencies]
@@ -565,11 +668,11 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
-    { name = "galaxy-tool-lint", editable = "galaxy-tool-lint" },
     { name = "galaxy-tool-codemod", editable = "galaxy-tool-codemod" },
     { name = "galaxy-tool-fmt", editable = "galaxy-tool-fmt" },
+    { name = "galaxy-tool-lint", editable = "galaxy-tool-lint" },
+    { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
+    { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
 ]
 
 [package.metadata.requires-dev]
@@ -581,7 +684,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-refactor-rules"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "galaxy-tool-refactor-rules" }
 
 [package.dev-dependencies]
@@ -602,7 +705,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-source"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "galaxy-tool-source" }
 dependencies = [
     { name = "click" },
@@ -654,109 +757,6 @@ dev = [
     { name = "pytest", specifier = ">=8" },
     { name = "ruff" },
     { name = "xsdata", extras = ["cli"], specifier = ">=26.2" },
-]
-
-[[package]]
-name = "galaxy-tool-lint"
-version = "0.0.1"
-source = { editable = "galaxy-tool-lint" }
-dependencies = [
-    { name = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-source" },
-    { name = "lxml" },
-    { name = "packaging" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "bashlex" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
-    { name = "lxml", specifier = ">=5" },
-    { name = "packaging", specifier = ">=23" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "bashlex", specifier = ">=0.18" },
-    { name = "mypy", specifier = ">=1.10" },
-    { name = "pytest", specifier = ">=8" },
-    { name = "ruff", specifier = ">=0.5" },
-]
-
-[[package]]
-name = "galaxy-tool-codemod"
-version = "0.0.1"
-source = { editable = "galaxy-tool-codemod" }
-dependencies = [
-    { name = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-source" },
-    { name = "lxml" },
-    { name = "packaging" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "bashlex" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
-    { name = "lxml", specifier = ">=5" },
-    { name = "packaging", specifier = ">=23" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "bashlex", specifier = ">=0.18" },
-    { name = "mypy", specifier = ">=1.10" },
-    { name = "pytest", specifier = ">=8" },
-    { name = "ruff", specifier = ">=0.5" },
-]
-
-[[package]]
-name = "galaxy-tool-fmt"
-version = "0.0.1"
-source = { editable = "galaxy-tool-fmt" }
-dependencies = [
-    { name = "click" },
-    { name = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-source" },
-    { name = "lxml" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "click", specifier = ">=8" },
-    { name = "galaxy-tool-refactor-rules", editable = "galaxy-tool-refactor-rules" },
-    { name = "galaxy-tool-source", editable = "galaxy-tool-source" },
-    { name = "lxml", specifier = ">=5" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "mypy", specifier = ">=1.10" },
-    { name = "pytest", specifier = ">=8" },
-    { name = "ruff", specifier = ">=0.5" },
 ]
 
 [[package]]
