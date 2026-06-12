@@ -77,6 +77,12 @@ galaxy-tool-source = "galaxy_tool_source.cli:main"
 # MarkdownIt({html:false}) Galaxy renders markdown <help> with); dev so the
 # measure's synthetic-fixture test runs in CI. NOT a library dependency — the
 # converter itself is research-only (no shipped RST->MD codemod).
+# galaxy-tool-util: Galaxy's REAL strict test-case validator
+# (galaxy.tool_util.parameters.validate_test_cases_for_tool_source, the exact
+# call ProfileMigration24_2.advise makes) for `scripts.measure
+# test-case-validation-truth`; dev so the measure's synthetic-fixture test runs
+# in CI. NOT a library dependency; shipping it in a tier is the separate
+# [galaxy]-extra decision (PR 3 of the behavior-gate arc).
 dev = [
     "xsdata[cli]>=26.2",
     "pytest>=8",
@@ -85,6 +91,7 @@ dev = [
     "mercurial>=6",
     "bashlex>=0.18",
     "markdown-it-py>=4",
+    "galaxy-tool-util>=25.1",
 ]
 
 [build-system]

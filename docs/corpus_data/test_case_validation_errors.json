@@ -1,0 +1,797 @@
+[
+  {
+    "path": "tools-galaxyp/tools/proteomiqon_mzmltomzlite/proteomiqon_mzmltomzlite.xml",
+    "exception": "ValueError",
+    "message": "could not convert string to float: ''"
+  },
+  {
+    "path": "tools-galaxyp/tools/translate_bed_sequences/translate_bed_sequences.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (trimseqs)"
+  },
+  {
+    "path": "tools-galaxyp/tools/proteomiqon_psmbasedquantification/proteomiqon_psmbasedquantification.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (SecondDerivate) for parameter (ProcessingType)"
+  },
+  {
+    "path": "tools-galaxyp/tools/proteomiqon_labeledproteinquantification/proteomiqon_labeledproteinquantification.xml",
+    "exception": "ValueError",
+    "message": "could not convert string to float: ''"
+  },
+  {
+    "path": "tools-galaxyp/tools/proteomiqon_labelfreeproteinquantification/labelfreeproteinquantification.xml",
+    "exception": "ValueError",
+    "message": "could not convert string to float: ''"
+  },
+  {
+    "path": "tools-iuc/tools/bcftools/bcftools_norm.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (-snps) for parameter (mode)"
+  },
+  {
+    "path": "tools-iuc/tools/gwastools/manhattan_plot.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (yes) for parameter (thinning)"
+  },
+  {
+    "path": "tools-iuc/tools/table_compute/table_compute.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (All) for parameter (element_op)"
+  },
+  {
+    "path": "tools-iuc/tools/vsearch/dereplication.xml",
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: ''"
+  },
+  {
+    "path": "tools-iuc/tools/macs2/macs2_predictd.xml",
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: ''"
+  },
+  {
+    "path": "tools-iuc/tools/virheat/virheat.xml",
+    "exception": "TypeError",
+    "message": "argument of type 'NoneType' is not iterable"
+  },
+  {
+    "path": "tools-iuc/tools/ucsc_blat/blat.xml",
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: ''"
+  },
+  {
+    "path": "tools-iuc/tools/stacks/stacks_populations.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (false) for parameter (genomic)"
+  },
+  {
+    "path": "tools-iuc/tools/quast/quast.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (--gene_finding) for parameter (tool)"
+  },
+  {
+    "path": "tools-iuc/tools/vegan/vegan_rarefaction.xml",
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: ''"
+  },
+  {
+    "path": "AAFC-BICoE-Galaxy/wrappers/create_otu_table/createBiomOrTaxaMap.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (filterflag)"
+  },
+  {
+    "path": "AAFC-BICoE-Galaxy/wrappers/find_lca/findLCA.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (extra)"
+  },
+  {
+    "path": "AAFC-BICoE-Galaxy/wrappers/pull_sequences_by_sample/pullSeqsbySample.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (sample_source)"
+  },
+  {
+    "path": "fls-galaxy-tools/tools/macs21/macs21_wrapper.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (broad_regions)"
+  },
+  {
+    "path": "fls-galaxy-tools/tools/rnachipintegrator/rnachipintegrator_wrapper.xml",
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: ''"
+  },
+  {
+    "path": "galaxy-toolshed/fabio/iwtomics/plotwithscale.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (groupby)"
+  },
+  {
+    "path": "galaxy-toolshed/fabio/iwtomics/testandplot.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (statistics)"
+  },
+  {
+    "path": "galaxy-toolshed/davidecangelosi/pipe_t/pipe-t.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (normMethod)"
+  },
+  {
+    "path": "galaxy-toolshed/md-anderson-bioinformatics/heat_map_creation_advanced/mda_advanced_heatmap_gen.xml",
+    "exception": "Exception",
+    "message": "Cannot generate tool parameter model for supplied tool source - unknown input_type sanitizer"
+  },
+  {
+    "path": "galaxy-toolshed/md-anderson-bioinformatics/heat_map_creation/mda_heatmap_gen.xml",
+    "exception": "Exception",
+    "message": "Cannot generate tool parameter model for supplied tool source - unknown input_type sanitizer"
+  },
+  {
+    "path": "galaxy-toolshed/bebatut/convert_extract_sequence_file/convert_extract_sequence_file.xml",
+    "exception": "Exception",
+    "message": "Cannot generate tool parameter model for supplied tool source - unknown input_type validator"
+  },
+  {
+    "path": "galaxy-toolshed/bebatut/export2graphlan/export2graphlan.xml",
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: ''"
+  },
+  {
+    "path": "galaxy-toolshed/cpt/cpt_progressivemauve/progressivemauve.xml",
+    "exception": "AssertionError",
+    "message": "No macro named citation/progressive_mauve found, known macros are requirements, citation/gepard, xmfa_input, xmfa_fa_input, genome_selector, gff3_input, input/gff3+fasta, citation/mijalisrasche, citat"
+  },
+  {
+    "path": "galaxy-toolshed/cpt/cpt_fasta_remove_id/fasta_remove_id.xml",
+    "exception": "AssertionError",
+    "message": "No macro named input/fasta found, known macros are requirements, citation/gepard, xmfa_input, xmfa_fa_input, genome_selector, gff3_input, input/gff3+fasta, citation/mijalisrasche, citations, citations"
+  },
+  {
+    "path": "galaxy-toolshed/cpt/cpt_search_file/searchFile.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (term_selector)"
+  },
+  {
+    "path": "galaxy-toolshed/cpt/cpt_fasta_charges/fasta_charges.xml",
+    "exception": "AssertionError",
+    "message": "No macro named input/fasta/protein found, known macros are requirements, citation/gepard, xmfa_input, xmfa_fa_input, genome_selector, gff3_input, input/gff3+fasta, citation/mijalisrasche, citations, c"
+  },
+  {
+    "path": "galaxy-toolshed/cpt/cpt_blasttab_dice_filter/blasttab_dice_filter.xml",
+    "exception": "AssertionError",
+    "message": "No macro named blast_tsv found, known macros are requirements, citation/gepard, xmfa_input, xmfa_fa_input, genome_selector, gff3_input, input/gff3+fasta, citation/mijalisrasche, citations, citations-c"
+  },
+  {
+    "path": "galaxy-toolshed/cpt/cpt_blast_to_xmfa/blast2pxmfa.xml",
+    "exception": "AssertionError",
+    "message": "No macro named blast_tsv found, known macros are requirements, citation/gepard, xmfa_input, xmfa_fa_input, genome_selector, gff3_input, input/gff3+fasta, citation/mijalisrasche, citations, citations-c"
+  },
+  {
+    "path": "galaxy-toolshed/cpt/cpt_fasta_translate/fasta_translate.xml",
+    "exception": "AssertionError",
+    "message": "No macro named input/fasta found, known macros are requirements, citation/gepard, xmfa_input, xmfa_fa_input, genome_selector, gff3_input, input/gff3+fasta, citation/mijalisrasche, citations, citations"
+  },
+  {
+    "path": "galaxy-toolshed/geoffrey.dintilhac/bam_to_bed_test/bamtobed.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (score_calcul_BED)"
+  },
+  {
+    "path": "galaxy-toolshed/geoffrey.dintilhac/bam_to_bed/bamtobed.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (score_calcul_BED)"
+  },
+  {
+    "path": "galaxy-toolshed/padge/trimal/trimal.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (mode_selector)"
+  },
+  {
+    "path": "galaxy-toolshed/thondeboer/neat_genreads/genSeqErrorModel.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (process)"
+  },
+  {
+    "path": "galaxy-toolshed/thondeboer/neat_genreads/neat_genreads.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (single) for parameter (lib_type)"
+  },
+  {
+    "path": "galaxy-toolshed/cafletezbrant/kmersvm/kmersvm/nullseq.xml",
+    "exception": "Exception",
+    "message": "Cannot generate tool parameter model for supplied tool source - unknown input_type validator"
+  },
+  {
+    "path": "galaxy-toolshed/cafletezbrant/kmersvm/kmersvm/train.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (weight_type_select)"
+  },
+  {
+    "path": "galaxy-toolshed/ecology/gdal_ogrinfo/ogrinfo.xml",
+    "exception": "PatternError",
+    "message": "global flags not at the start of the expression at position 1"
+  },
+  {
+    "path": "galaxy-toolshed/jjohnson/translate_bed_sequences/translate_bed_sequences.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (trimseqs)"
+  },
+  {
+    "path": "galaxy-toolshed/jjohnson/gffread/gffread.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (gff_fmt)"
+  },
+  {
+    "path": "galaxy-toolshed/gkumar09/trinityctatfusion/trinityctatfusion/fusion_inspector_new.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (trinity)"
+  },
+  {
+    "path": "galaxy-toolshed/saskia-hiltemann/cgatools_v17/tools/cgatools17/calldiff_v17.xml",
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: ''"
+  },
+  {
+    "path": "galaxy-toolshed/jose_duarte/phagedpo/PhageDPO.xml",
+    "exception": "XMLSyntaxError",
+    "message": "Premature end of data in tag tool line 1, line 31, column 1 (PhageDPO.xml, line 31)"
+  },
+  {
+    "path": "galaxy-toolshed/mnhn65mo/regionalgam/autocorr-res_acf_en.xml",
+    "exception": "TypeError",
+    "message": "Argument must be bytes or unicode, got 'NoneType'"
+  },
+  {
+    "path": "galaxy-toolshed/blankenberg/naive_variant_caller/naive_variant_caller.xml",
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: ''"
+  },
+  {
+    "path": "galaxy-toolshed/bornea/network_attributes/NetworkAttributes.xml",
+    "exception": "Exception",
+    "message": "Cannot generate tool parameter model for supplied tool source - unknown input_type option"
+  },
+  {
+    "path": "galaxy-toolshed/bornea/plot_force/PlotForce.xml",
+    "exception": "XMLSyntaxError",
+    "message": "AttValue: \" or ' expected, line 9, column 43 (PlotForce.xml, line 9)"
+  },
+  {
+    "path": "galaxy-toolshed/bornea/plot_edge_bundling/PlotEdgeBundling.xml",
+    "exception": "XMLSyntaxError",
+    "message": "AttValue: \" or ' expected, line 9, column 43 (PlotEdgeBundling.xml, line 9)"
+  },
+  {
+    "path": "galaxy-toolshed/bornea/plot_force_ev/PlotForce_EV.xml",
+    "exception": "XMLSyntaxError",
+    "message": "AttValue: \" or ' expected, line 9, column 43 (PlotForce_EV.xml, line 9)"
+  },
+  {
+    "path": "galaxy-toolshed/bornea/plot_adjacency/PlotAdjacencyMatrix.xml",
+    "exception": "XMLSyntaxError",
+    "message": "AttValue: \" or ' expected, line 9, column 43 (PlotAdjacencyMatrix.xml, line 9)"
+  },
+  {
+    "path": "galaxy-toolshed/vmarcon/plot_pca/plot_pca.xml",
+    "exception": "ValueError",
+    "message": "String is not true/false: ''"
+  },
+  {
+    "path": "galaxy-toolshed/gga/tripal_db_index/db_index.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (all) for parameter (mode)"
+  },
+  {
+    "path": "galaxy-toolshed/geco-team/gmql_upload/gmql_rest_datasets_upload.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (bed) for parameter (schema_type)"
+  },
+  {
+    "path": "galaxy-toolshed/geco-team/gmql_queries_editor/gmql_rest_queries_editor.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (compile) for parameter (exec_mode)"
+  },
+  {
+    "path": "galaxy-toolshed/geco-team/gmql_auth/gmql_rest_auth.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (log_type)"
+  },
+  {
+    "path": "galaxy-toolshed/metaboflow_cam/ionflow/ionflow/ionflow.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (stand_method)"
+  },
+  {
+    "path": "galaxy-toolshed/bgruening/deeptools_plot_heatmap/plotHeatmap.xml",
+    "exception": "Exception",
+    "message": "Cannot generate tool parameter model for supplied tool source - unknown input_type sanitizer"
+  },
+  {
+    "path": "galaxy-toolshed/bgruening/semibin_generate_cannot_links/generate_cannot_links.xml",
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: ''"
+  },
+  {
+    "path": "galaxy-toolshed/bgruening/tgsgapcloser/tgsgapcloser.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (pacbio) for parameter (tgstype)"
+  },
+  {
+    "path": "galaxy-toolshed/fubar/bigwig_outlier_bed/bigwig_outlier_bed.xml",
+    "exception": "ValueError",
+    "message": "could not convert string to float: ''"
+  },
+  {
+    "path": "galaxy-toolshed/trinity_ctat/ctat_fusion_inspector/ctat_fusion_inspector.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (trinity)"
+  },
+  {
+    "path": "galaxy-toolshed/nick/dunovo/dunovo.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (type)"
+  },
+  {
+    "path": "galaxy-toolshed/ebi-gxa/anndata_ops/anndata_operations.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (default)"
+  },
+  {
+    "path": "galaxy-toolshed/ebi-gxa/droplet_barcode_plot/dropletBarcodePlot.xml",
+    "exception": "ValueError",
+    "message": "String is not true/false: 'barcode_freqs'"
+  },
+  {
+    "path": "galaxy-toolshed/ebi-gxa/dropletutils_read_10x/dropletutils-read-10x.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (add_metadata_file)"
+  },
+  {
+    "path": "galaxy-toolshed/immport-devteam/run_flock/runFlockMFI.xml",
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: ''"
+  },
+  {
+    "path": "galaxy-toolshed/immport-devteam/fcs_gate_trans/FCSGateTrans.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (trans_method)"
+  },
+  {
+    "path": "galaxy-toolshed/immport-devteam/rearrange_columns/editColumnHeadings.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (nn)"
+  },
+  {
+    "path": "galaxy-toolshed/immport-devteam/flow_overview/genFlowOverview.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (runcl)"
+  },
+  {
+    "path": "galaxy-toolshed/saket-choudhary/inchlib_clust/inchlib_clust/inchlib_clust.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (data_header_present)"
+  },
+  {
+    "path": "galaxy-toolshed/saket-choudhary/mutationassessor_web/mutationassesor_web/mutation_assesor.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (protein)"
+  },
+  {
+    "path": "galaxy-toolshed/ambarishk/mytoolshed/tool1/tool1.xml",
+    "exception": "XMLSyntaxError",
+    "message": "attributes construct error, line 37, column 36 (tool1.xml, line 37)"
+  },
+  {
+    "path": "galaxy-toolshed/bioinformatics_lab_ufsc/epibuilder/epibuilder-1.1.xml",
+    "exception": "ValueError",
+    "message": "String is not true/false: 'eminiyes'"
+  },
+  {
+    "path": "galaxy-toolshed/goeckslab/bagging_tool/mil_bag.xml",
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: ''"
+  },
+  {
+    "path": "galaxy-toolshed/brinkmanlab/mash/mash.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (True) for parameter (individual_seq)"
+  },
+  {
+    "path": "galaxy-toolshed/brinkmanlab/parsnp/ParSNP.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (anchor_default)"
+  },
+  {
+    "path": "galaxy-toolshed/nml/neptune/neptune.xml",
+    "exception": "Exception",
+    "message": "Test output defines nothing to check (e.g. must have a 'file' check against, assertions to check, metadata or checksum tests, etc...)"
+  },
+  {
+    "path": "galaxy-toolshed/nml/hivtrace/hivtrace.xml",
+    "exception": "Exception",
+    "message": "Test output does not have a 'name'"
+  },
+  {
+    "path": "galaxy-toolshed/nml/spolpred/spolpred.xml",
+    "exception": "Exception",
+    "message": "Test output does not have a 'name'"
+  },
+  {
+    "path": "galaxy-toolshed/nml/plasmid_profiler/plasmid_profiler.xml",
+    "exception": "Exception",
+    "message": "Test output does not have a 'name'"
+  },
+  {
+    "path": "galaxy-toolshed/thanhlv/qc3c/qc3c_bam.xml",
+    "exception": "AssertionError",
+    "message": "No macro named citations found, known macros are requirements, version_command."
+  },
+  {
+    "path": "galaxy-toolshed/greg/quast/quast.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (--gene_finding) for parameter (tool)"
+  },
+  {
+    "path": "galaxy-toolshed/galaxyp/msconvert_win/msconvert_win.xml",
+    "exception": "ValidationError",
+    "message": "1 validation error for LabelValue\nvalue\n  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.13/v/"
+  },
+  {
+    "path": "galaxy-toolshed/arkarachai-fungtammasan/str_fm/microsatellite.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (inputFileType)"
+  },
+  {
+    "path": "galaxy-toolshed/arkarachai-fungtammasan/fakename/microsatellite.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (inputFileType)"
+  },
+  {
+    "path": "galaxy-toolshed/devteam/annotation_profiler/annotation_profiler.xml",
+    "exception": "AssertionError",
+    "message": "This tool cannot be parsed outside of a Galaxy context"
+  },
+  {
+    "path": "galaxy-toolshed/computationaltranscriptomics/glassgo/glassgo_wrapper.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (param_setup)"
+  },
+  {
+    "path": "galaxy-toolshed/mvdbeek/damidseq_consecutive_peaks/consecutive_peaks.xml",
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: 'c8'"
+  },
+  {
+    "path": "galaxy-toolshed/dereeper/snmf/snmf.xml",
+    "exception": "XMLSyntaxError",
+    "message": "attributes construct error, line 22, column 26 (snmf.xml, line 22)"
+  },
+  {
+    "path": "galaxy-toolshed/recetox/matchms/matchms_similarity.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (is_true)"
+  },
+  {
+    "path": "galaxy-toolshed/recetox/spec2vec_training/spec2vec_training.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (max_vocab_size_bool)"
+  },
+  {
+    "path": "galaxy-toolshed/qfab/collector_curve/collectorcurve/collectorcurve.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advanced)"
+  },
+  {
+    "path": "galaxy-toolshed/tiagoantao/clone_filter/STACKS_clone_filter.xml",
+    "exception": "Exception",
+    "message": "Test output defines nothing to check (e.g. must have a 'file' check against, assertions to check, metadata or checksum tests, etc...)"
+  },
+  {
+    "path": "galaxy-toolshed/tiagoantao/raxml/raxml.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (extraOptions)"
+  },
+  {
+    "path": "galaxy-toolshed/dazeone/kleborate/kleborate.xml",
+    "exception": "XMLSyntaxError",
+    "message": "Double hyphen within comment: <!--   <command detect_errors=\"aggressive\"><![CDATA[\n , line 26, column 55 (kleborate.xml, line 26)"
+  },
+  {
+    "path": "galaxy-toolshed/bonsai/sortmerna/sortmerna_wrapper.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (read_family_selector)"
+  },
+  {
+    "path": "galaxy-toolshed/lnguyen/topgo/topGO.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (TRUE) for parameter (textoutput)"
+  },
+  {
+    "path": "galaxy-toolshed/lnguyen/venn_diagram_plotter/venn_diagram.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (mq_file) for parameter (input)"
+  },
+  {
+    "path": "galaxy-toolshed/daumsoft/star_icgc_alignment11/ICGC_STAR_ALIGNMENT_PIPELINE/icgc_star2_wrapper.xml",
+    "exception": "Exception",
+    "message": "Test output defines nothing to check (e.g. must have a 'file' check against, assertions to check, metadata or checksum tests, etc...)"
+  },
+  {
+    "path": "galaxy-toolshed/daumsoft/htseq_count_normalized2/expression_calculator/htseq_count_normalized_wrapper.xml",
+    "exception": "Exception",
+    "message": "Test output defines nothing to check (e.g. must have a 'file' check against, assertions to check, metadata or checksum tests, etc...)"
+  },
+  {
+    "path": "galaxy-toolshed/daumsoft/tar/tar_align/tar_gz.xml",
+    "exception": "Exception",
+    "message": "Test output defines nothing to check (e.g. must have a 'file' check against, assertions to check, metadata or checksum tests, etc...)"
+  },
+  {
+    "path": "galaxy-toolshed/iuc/icqsol_scale_shape/icqsol_scale_shape.xml",
+    "exception": "Exception",
+    "message": "Cannot generate tool parameter model for supplied tool source - unknown input_type validator"
+  },
+  {
+    "path": "galaxy-toolshed/iuc/vsearch/dereplication.xml",
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: ''"
+  },
+  {
+    "path": "galaxy-toolshed/iuc/barcode_splitter/barcode_splitter.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (forward) for parameter (readtype)"
+  },
+  {
+    "path": "galaxy-toolshed/iuc/gwastools_manhattan_plot/manhattan_plot.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (yes) for parameter (thinning)"
+  },
+  {
+    "path": "galaxy-toolshed/iuc/moabs/moabs.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (bsmap_mismatch_selector)"
+  },
+  {
+    "path": "galaxy-toolshed/malex/bayesase/combine_cnt_tables.xml",
+    "exception": "TypeError",
+    "message": "argument of type 'NoneType' is not iterable"
+  },
+  {
+    "path": "galaxy-toolshed/malex/bayesase/gen_headers_after_merge_priors_one_comparate.xml",
+    "exception": "TypeError",
+    "message": "argument of type 'NoneType' is not iterable"
+  },
+  {
+    "path": "galaxy-toolshed/malex/bayesase/check_comparate_design_file.xml",
+    "exception": "Exception",
+    "message": "Test output defines nothing to check (e.g. must have a 'file' check against, assertions to check, metadata or checksum tests, etc...)"
+  },
+  {
+    "path": "galaxy-toolshed/malex/bayesase/merge_comparates_and_gen_headers_for_bayesian.xml",
+    "exception": "TypeError",
+    "message": "argument of type 'NoneType' is not iterable"
+  },
+  {
+    "path": "galaxy-toolshed/malex/bayesase/summarize_sam_compare_cnts_table_1cond.xml",
+    "exception": "TypeError",
+    "message": "argument of type 'NoneType' is not iterable"
+  },
+  {
+    "path": "galaxy-toolshed/malex/bayesase/merge_priors_to_comparate.xml",
+    "exception": "TypeError",
+    "message": "argument of type 'NoneType' is not iterable"
+  },
+  {
+    "path": "galaxy-toolshed/grau/dimont_motif_discovery/DimontWeb.xml",
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: 'Infinity'"
+  },
+  {
+    "path": "galaxy-toolshed/davidvanzessen/shm_csr/shm_csr.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (class_filter)"
+  },
+  {
+    "path": "galaxy-toolshed/azomics/meta_autocluster/metacyto_autocluster.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (more_def)"
+  },
+  {
+    "path": "galaxy-toolshed/azomics/flowsom_tree/FlowSOMGenerateTree.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (table)"
+  },
+  {
+    "path": "galaxy-toolshed/azomics/ggcyto_1d_density_plots/FCS1Dplotggcyto.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (trans_method)"
+  },
+  {
+    "path": "galaxy-toolshed/urgi-team/mdust/mdust.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (masking_letter_selector)"
+  },
+  {
+    "path": "galaxy-toolshed/diodupima/data_manager_coast_taxonomic_filters/txids_dm.xml",
+    "exception": "Exception",
+    "message": "Test output defines nothing to check (e.g. must have a 'file' check against, assertions to check, metadata or checksum tests, etc...)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/viennarna_rnaalifold/rnaalifold.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (mea)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnapaln.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advancedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnapdist.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advancedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnalalifold.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advancedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnaaliduplex.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advancedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnafold.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advancedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnasnoop.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advancedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnainverse.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advancedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnaup.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advancedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rna2dfold.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (pf)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnaplex.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (meltingSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnaeval.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advancedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnapkplex.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advancedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnaheat.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advancedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnalfold.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advancedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnaalifold.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (mea)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnaduplex.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advancedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnasubopt.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advancedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnacofold.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advancedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/vienna_rna/rnaplfold.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (unpairedSelector)"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/graphclust_align_cluster/align_cluster.xml",
+    "exception": "UnknownParameterTypeError",
+    "message": "Unknown Galaxy parameter type txt"
+  },
+  {
+    "path": "galaxy-toolshed/rnateam/piranha/piranha.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (merge)"
+  },
+  {
+    "path": "galaxy-toolshed/galaxy-australia/kmc/kmc_tools_transform.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (transform_operation)"
+  },
+  {
+    "path": "galaxy-toolshed/gtrichard/deepstats_dscomparecurves/dsCompareCurves.xml",
+    "exception": "UnknownParameterTypeError",
+    "message": "Unknown Galaxy parameter type file"
+  },
+  {
+    "path": "modENCODE-Galaxy/toolshed/tools/macs2/macs2_callpeak.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (effective_genome_size_options_selector)"
+  },
+  {
+    "path": "modENCODE-Galaxy/toolshed/tools/macs2/macs2_filterdup.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (effective_genome_size_options_selector)"
+  },
+  {
+    "path": "modENCODE-Galaxy/toolshed/tools/macs2/macs2_predictd.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (effective_genome_size_options_selector)"
+  },
+  {
+    "path": "phac-nml-galaxy_tools/tools/spolpred/spolpred.xml",
+    "exception": "Exception",
+    "message": "Test output does not have a 'name'"
+  },
+  {
+    "path": "phac-nml-galaxy_tools/tools/plasmid_profiler/plasmid_profiler.xml",
+    "exception": "Exception",
+    "message": "Test output does not have a 'name'"
+  },
+  {
+    "path": "phac-nml-galaxy_tools/tools/hivtrace/hivtrace.xml",
+    "exception": "Exception",
+    "message": "Test output does not have a 'name'"
+  },
+  {
+    "path": "bgruening-galaxytools/tools/samblaster/samblaster.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (advanced_options_select)"
+  },
+  {
+    "path": "bgruening-galaxytools/tools/piranha/piranha.xml",
+    "exception": "Exception",
+    "message": "Invalid conditional test value (None) for parameter (merge)"
+  },
+  {
+    "path": "bgruening-galaxytools/tools/hclust2/hclust2.xml",
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: ''"
+  },
+  {
+    "path": "bgruening-galaxytools/tools/GraphClust/AlignCluster/align_cluster.xml",
+    "exception": "UnknownParameterTypeError",
+    "message": "Unknown Galaxy parameter type txt"
+  },
+  {
+    "path": "bgruening-galaxytools/tools/GraphClust/Structure_GSPAN/structure_to_gspan.xml",
+    "exception": "UnknownParameterTypeError",
+    "message": "Unknown Galaxy parameter type txt"
+  },
+  {
+    "path": "bgruening-galaxytools/tools/GraphClust/GSPAN/fasta2shrep_gspan.xml",
+    "exception": "UnknownParameterTypeError",
+    "message": "Unknown Galaxy parameter type txt"
+  }
+]

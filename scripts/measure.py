@@ -4324,6 +4324,170 @@ def _run_upgrade_behavior_blocks(args: argparse.Namespace) -> None:
         print(f"\nwrote {_display_path(out_path)}")
 
 
+# --- measurement: test-case-validation-truth --------------------------------------
+#
+# Right-size the 24_2_fix_test_case_validation blocker (the behavior gate's
+# dominant stop; codemod decisions §45). The shipped detector is a
+# ships-a-<test> NECESSARY condition, because the toolchain does not vendor
+# Galaxy's pydantic parameter models, so docs/upgrade_behavior_block_stats.md
+# counts every test-shipping tool as a blocker. This measure runs Galaxy's REAL
+# strict validator, the exact call ProfileMigration24_2.advise makes
+# (validate_test_cases_for_tool_source with use_latest_profile=True), over
+# every test-shipping corpus tool and reports the true split: clean (would NOT
+# block at 24.2) / invalid (true blockers, with a per-case error-kind
+# histogram sizing PR 3's detector tightening and PR 4's mechanical-fix
+# subset) / validator-error (Galaxy's own test parser or model rejects the
+# tool; every example retained). Needs the galaxy-tool-util dev dependency +
+# the corpus; print-only (the numbers fold into
+# docs/upgrade_research/24_2_fix_test_case_validation.md) plus the retained
+# error list (docs/corpus_data/test_case_validation_errors.json).
+
+
+@dataclass
+class _TestCaseTruthResult:
+    """The true 24.2 test-case-validation split across the corpus."""
+
+    n_with_tests: int  # unique tools shipping >=1 <test> (the detector's bound)
+    n_clean: int  # every case validates: would NOT block at 24.2
+    n_invalid: int  # >=1 case fails strict validation: a true blocker
+    n_validator_error: int  # the validator call itself raised (retained)
+    n_clean_with_warnings: int  # clean, but >=1 legacy-coercion warning
+    error_kinds: Counter[str]  # normalized per-CASE validation-error kinds
+    validator_error_kinds: Counter[str]  # exception type of each raised call
+    retained: list[dict[str, str]]  # validator-error examples (path + signature)
+
+
+# Normalisation table for per-case validation-error messages: first match wins,
+# anything else falls into "other". Buckets chosen to map onto remediation
+# options: unknown-parameter is the name-qualification / typo class (the PR 4
+# candidate), value/type classes are the strict-coercion rules of PR #18679.
+_VALIDATION_ERROR_KINDS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("unknown-parameter", re.compile(r"Invalid parameter name found")),
+    ("extra-input-forbidden", re.compile(r"[Ee]xtra inputs are not permitted")),
+    ("invalid-conditional-test-value", re.compile(r"Invalid conditional test value")),
+    ("type-or-value-mismatch", re.compile(r"validation error", re.IGNORECASE)),
+)
+
+
+def _normalize_validation_error(message: str, /) -> str:
+    """Bucket one per-case validation-error message for the histogram."""
+    for kind, pattern in _VALIDATION_ERROR_KINDS:
+        if pattern.search(message):
+            return kind
+    return "other"
+
+
+def _measure_test_case_validation_truth(*, corpus_root: Path) -> _TestCaseTruthResult:
+    """Run Galaxy's strict test-case validator over every test-shipping tool."""
+    from galaxy.tool_util.parameters.case import validate_test_cases_for_tool_source
+    from galaxy.tool_util.parser.factory import get_tool_source
+
+    result = _TestCaseTruthResult(
+        n_with_tests=0,
+        n_clean=0,
+        n_invalid=0,
+        n_validator_error=0,
+        n_clean_with_warnings=0,
+        error_kinds=Counter(),
+        validator_error_kinds=Counter(),
+        retained=[],
+    )
+    seen_sha: set[str] = set()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        sha = _sha256_of(path)
+        if sha in seen_sha:
+            continue
+        seen_sha.add(sha)
+        if root.find("tests/test") is None:
+            continue  # the detector would not fire; out of population
+        result.n_with_tests += 1
+        try:
+            source = get_tool_source(str(path))
+            case_results = validate_test_cases_for_tool_source(
+                source, use_latest_profile=True
+            )
+        except Exception as exc:  # noqa: BLE001 — diagnostic sweep: every raise is a finding
+            result.n_validator_error += 1
+            kind = type(exc).__name__
+            result.validator_error_kinds[kind] += 1
+            result.retained.append(
+                {
+                    "path": str(path.relative_to(corpus_root)),
+                    "exception": kind,
+                    "message": str(exc)[:200],
+                }
+            )
+            continue
+        case_errors = [
+            str(case.validation_error)
+            for case in case_results
+            if case.validation_error is not None
+        ]
+        if case_errors:
+            result.n_invalid += 1
+            for message in case_errors:
+                result.error_kinds[_normalize_validation_error(message)] += 1
+        else:
+            result.n_clean += 1
+            if any(case.warnings for case in case_results):
+                result.n_clean_with_warnings += 1
+    return result
+
+
+def _report_test_case_validation_truth(result: _TestCaseTruthResult) -> None:
+    print("\n=== test-case-validation-truth ===")
+    total = result.n_with_tests
+
+    def pct(n: int) -> str:
+        return f"{100 * n / total:.1f}%" if total else "0.0%"
+
+    print(
+        f"Tools shipping >=1 <test> (sha-deduped; the detector's upper bound): "
+        f"{total}"
+    )
+    print(
+        f"  validate cleanly at 24.2 (would NOT block): {result.n_clean} "
+        f"({pct(result.n_clean)}); of those, {result.n_clean_with_warnings} "
+        f"carry legacy-coercion warnings"
+    )
+    print(
+        f"  >=1 invalid test case (TRUE 24.2 blockers): {result.n_invalid} "
+        f"({pct(result.n_invalid)})"
+    )
+    print(
+        f"  validator errored (Galaxy's own parser/model rejects the tool; "
+        f"retained): {result.n_validator_error} ({pct(result.n_validator_error)})"
+    )
+    if result.error_kinds:
+        print("  per-case validation-error kinds:")
+        for kind, count in result.error_kinds.most_common():
+            print(f"    {count:6d}  {kind}")
+    if result.validator_error_kinds:
+        print("  validator-error exception types:")
+        for kind, count in result.validator_error_kinds.most_common():
+            print(f"    {count:6d}  {kind}")
+
+
+def _run_test_case_validation_truth(args: argparse.Namespace) -> None:
+    # Galaxy's parser logs per-tool noise (deprecation, missing-file warnings);
+    # the histogram below is the signal.
+    logging.getLogger("galaxy").setLevel(logging.ERROR)
+    result = _measure_test_case_validation_truth(corpus_root=args.corpus_root)
+    _report_test_case_validation_truth(result)
+    if not args.all:
+        out_path = (
+            _repo_root() / "docs" / "corpus_data" / "test_case_validation_errors.json"
+        )
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(
+            json.dumps(result.retained, indent=2) + "\n", encoding="utf-8"
+        )
+        print(f"\nwrote {_display_path(out_path)} ({len(result.retained)} retained)")
+
+
 # --- measurement: element-cardinality -------------------------------------------
 #
 # How many <test>/<requirement>/<conditional>/<collection>/<output_collection>
@@ -6780,6 +6944,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "macro-expansion-detection-gap": _run_macro_expansion_detection_gap,
     "upgrade-profile-shift": _run_upgrade_profile_shift,
     "upgrade-behavior-blocks": _run_upgrade_behavior_blocks,
+    "test-case-validation-truth": _run_test_case_validation_truth,
     "element-cardinality": _run_element_cardinality,
     "command-language": _run_command_language,
     "cheetah-command-complexity": _run_cheetah_command_complexity,

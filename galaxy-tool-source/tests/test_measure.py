@@ -50,10 +50,12 @@ from scripts.measure import (
     _measure_select_quoting_safety,
     _measure_semantic_upgrade_boundaries,
     _measure_shell_oracle_quoting,
+    _measure_test_case_validation_truth,
     _measure_upgrade_behavior_blocks,
     _measure_upgrade_headroom,
     _measure_version_tokenization,
     _measure_xsd_tightenings,
+    _normalize_validation_error,
     _ParamTypesResult,
     _render_behavior_block_page,
     _render_macro_stats_page,
@@ -755,6 +757,84 @@ def test_measure_behavior_blocks_applies_autofix_and_stop(
     assert both.reached_latest == 1
     assert both.per_code["16_04_fix_interpreter"] == 1
     assert both.per_code["16_04_consider_implicit_extra_file_collection"] == 2
+
+
+# --- test-case-validation-truth ---------------------------------------------------
+
+
+def test_normalize_validation_error_buckets() -> None:
+    assert (
+        _normalize_validation_error("Invalid parameter name found nosuch")
+        == "unknown-parameter"
+    )
+    assert (
+        _normalize_validation_error("Invalid conditional test value (x) for ...")
+        == "invalid-conditional-test-value"
+    )
+    assert (
+        _normalize_validation_error("1 validation error for PydanticModelFor[t]")
+        == "type-or-value-mismatch"
+    )
+    assert _normalize_validation_error("something novel") == "other"
+
+
+_CHECKED_OUTPUT = (
+    '<output name="o"><assert_contents><has_text text="x"/></assert_contents>'
+    "</output>"
+)
+
+
+@pytest.fixture()
+def truth_corpus(tmp_path: Path) -> Path:
+    """Synthetic corpus exercising every test-case-validation-truth bucket."""
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # A valid test case: counts clean (would NOT block at 24.2).
+    (repo / "clean.xml").write_text(
+        '<tool id="clean" name="C" version="1.0"><command>echo</command>'
+        '<inputs><param name="i" type="integer" value="1"/></inputs>'
+        '<outputs><data name="o" format="txt"/></outputs>'
+        f'<tests><test><param name="i" value="2"/>{_CHECKED_OUTPUT}</test></tests>'
+        "</tool>",
+        encoding="utf-8",
+    )
+    # An unknown test parameter: strict validation fails (a TRUE blocker).
+    (repo / "invalid.xml").write_text(
+        '<tool id="invalid" name="I" version="1.0"><command>echo</command>'
+        '<inputs><param name="i" type="integer" value="1"/></inputs>'
+        '<outputs><data name="o" format="txt"/></outputs>'
+        '<tests><test><param name="nosuch" value="2"/>'
+        f"{_CHECKED_OUTPUT}</test></tests></tool>",
+        encoding="utf-8",
+    )
+    # Galaxy's own test parser rejects an output with nothing to check: the
+    # validator call raises, so the tool lands in the retained error bucket.
+    (repo / "raises.xml").write_text(
+        '<tool id="raises" name="R" version="1.0"><command>echo</command>'
+        '<inputs><param name="i" type="integer" value="1"/></inputs>'
+        '<outputs><data name="o" format="txt"/></outputs>'
+        '<tests><test><param name="i" value="2"/><output name="o"/></test></tests>'
+        "</tool>",
+        encoding="utf-8",
+    )
+    # No <test>: outside the detector's population entirely.
+    (repo / "no_tests.xml").write_text(
+        '<tool id="n" name="N" version="1.0"><command>echo</command>'
+        '<inputs/><outputs><data name="o" format="txt"/></outputs></tool>',
+        encoding="utf-8",
+    )
+    return tmp_path
+
+
+def test_measure_test_case_validation_truth_buckets(truth_corpus: Path) -> None:
+    result = _measure_test_case_validation_truth(corpus_root=truth_corpus)
+    assert result.n_with_tests == 3  # clean, invalid, raises; no_tests excluded
+    assert result.n_clean == 1
+    assert result.n_invalid == 1
+    assert result.error_kinds == {"unknown-parameter": 1}
+    assert result.n_validator_error == 1
+    assert len(result.retained) == 1
+    assert result.retained[0]["path"].endswith("raises.xml")
 
 
 # --- cheetah-command-complexity -------------------------------------------------
