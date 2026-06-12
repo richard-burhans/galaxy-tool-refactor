@@ -34,14 +34,19 @@ from galaxy_tool_codemod.codemods.fix_interpreter import FixInterpreter
 from galaxy_tool_codemod.codemods.fix_output_format_input import (
     FixOutputFormatInput,
 )
+from galaxy_tool_codemod.codemods.fix_test_param_qualification import (
+    FixTestParamQualification,
+)
 
 # Every runtime-gated fix, ordered by ``introduced_profile`` ascending (16.04
-# before 21.09). Order is cosmetic — the fixes touch disjoint constructs and the
-# facade applies all whose introduction profile the tool reached (see §24).
+# before 21.09 before 24.2). Order is cosmetic: the fixes touch disjoint
+# constructs and the facade applies all whose introduction profile the tool
+# reached (see §24).
 RUNTIME_GATED_FIXES: tuple[type[RuntimeGatedFix], ...] = (
     FixInterpreter,
     FixOutputFormatInput,
     FixFromWorkDirWhitespace,
+    FixTestParamQualification,
 )
 
 

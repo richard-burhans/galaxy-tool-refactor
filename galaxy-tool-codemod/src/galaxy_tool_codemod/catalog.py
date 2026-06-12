@@ -24,6 +24,9 @@ from galaxy_tool_codemod.codemods.fix_interpreter import FixInterpreter
 from galaxy_tool_codemod.codemods.fix_output_format_input import (
     FixOutputFormatInput,
 )
+from galaxy_tool_codemod.codemods.fix_test_param_qualification import (
+    FixTestParamQualification,
+)
 from galaxy_tool_codemod.codemods.fix_typos import FixTypos
 from galaxy_tool_codemod.codemods.normalize_boolean_values import (
     NormalizeBooleanValues,
@@ -76,6 +79,7 @@ def coded_codemods() -> tuple[type[CodemodCommand], ...]:
         FixFromWorkDirWhitespace,
         FixOutputFormatInput,
         FixInterpreter,
+        FixTestParamQualification,
         NormalizeBooleanValues,
         RepairHelpRst,
         WrapCommandCdata,

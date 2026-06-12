@@ -4321,6 +4321,119 @@ def _report_upgrade_behavior_blocks(result: _BehaviorBlockResult) -> None:
     )
 
 
+# --- measurement: test-param-qualification ----------------------------------------
+#
+# Size AND prove sound the GTR096 fix (FixTestParamQualification): for tools the
+# 24.2 checker blocks, apply the unique-leaf qualification and report how many
+# become provably clean, then VALIDATE each qualified tree with Galaxy's REAL
+# validator (the same oracle as test-case-validation-truth). The contract:
+# every tool the fix unblocks (our checker clean after qualifying) must also be
+# clean under Galaxy's validator on the qualified tree (n_unsound_fix == 0): the
+# fix's corpus soundness proof. Needs galaxy-tool-util + the corpus; print-only
+# (numbers fold into codemod decisions §48). Backs docs/proofs/GTR096.md.
+
+
+@dataclass
+class _QualificationResult:
+    """How far the unique-leaf test-param qualification (GTR096) gets."""
+
+    n_blocked: int  # tools the 24.2 checker blocks (not provably clean)
+    n_unblocked: int  # ...that become provably clean after qualification
+    n_partial: int  # ...qualified but still blocked (other issues remain)
+    # The hard contract: we unblock AND Galaxy returns an invalid VERDICT on the
+    # qualified tree. MUST be zero. A validator *raise* is not a verdict (its
+    # advisor cannot decide either; here it is usually the test-data file the
+    # tool references not existing on disk), so it goes to n_fix_galaxy_raised.
+    n_unsound_fix: int = 0
+    n_fix_galaxy_raised: int = 0
+    unsound_examples: list[dict[str, str]] = field(default_factory=list)
+    raised_examples: list[dict[str, str]] = field(default_factory=list)
+
+
+def _measure_test_param_qualification(*, corpus_root: Path) -> _QualificationResult:
+    """Size the GTR096 fix and prove every unblock validates under Galaxy."""
+    import tempfile
+
+    from galaxy.tool_util.parameters.case import validate_test_cases_for_tool_source
+    from galaxy.tool_util.parser.factory import get_tool_source
+    from galaxy_tool_codemod.test_case_check import all_test_cases_provably_clean
+    from galaxy_tool_codemod.test_param_qualify import qualify_test_params
+
+    result = _QualificationResult(n_blocked=0, n_unblocked=0, n_partial=0)
+    seen_sha: set[str] = set()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        root = _parse_tool_root(path)
+        if root is None or root.find("tests/test") is None:
+            continue
+        sha = _sha256_of(path)
+        if sha in seen_sha:
+            continue
+        seen_sha.add(sha)
+        if all_test_cases_provably_clean(root):
+            continue  # not blocked by the 24.2 checker
+        result.n_blocked += 1
+        fixed = copy.deepcopy(root)
+        if qualify_test_params(fixed) == 0:
+            continue  # qualification does not apply here
+        if not all_test_cases_provably_clean(fixed):
+            result.n_partial += 1
+            continue
+        result.n_unblocked += 1
+        # Prove it: Galaxy's real validator must accept the qualified tree. The
+        # temp file is written in the original tool's directory so the tool's
+        # macro <import>s and test-data paths resolve exactly as they do for the
+        # original (validating in /tmp would break every relative path).
+        rel = str(path.relative_to(corpus_root))
+        with tempfile.NamedTemporaryFile(
+            suffix=".xml", dir=path.parent, delete=True
+        ) as handle:
+            handle.write(etree.tostring(fixed))
+            handle.flush()
+            try:
+                cases = validate_test_cases_for_tool_source(
+                    get_tool_source(handle.name), use_latest_profile=True
+                )
+                errors = [c for c in cases if c.validation_error is not None]
+                if errors:
+                    result.n_unsound_fix += 1
+                    result.unsound_examples.append(
+                        {"path": rel, "galaxy": str(errors[0].validation_error)[:160]}
+                    )
+            except Exception as exc:  # noqa: BLE001 — a raise is not a verdict
+                result.n_fix_galaxy_raised += 1
+                result.raised_examples.append(
+                    {"path": rel, "galaxy": f"validator raised {type(exc).__name__}"}
+                )
+    return result
+
+
+def _report_test_param_qualification(result: _QualificationResult) -> None:
+    print("\n=== test-param-qualification ===")
+    print(f"Tools the 24.2 checker blocks: {result.n_blocked}")
+    print(
+        f"  unblocked by unique-leaf qualification (GTR096): {result.n_unblocked}"
+    )
+    print(f"  qualified but still blocked (other issues): {result.n_partial}")
+    print(
+        f"  UNSOUND fixes (we unblock, Galaxy returns an invalid verdict on the "
+        f"qualified tree) [MUST BE 0]: {result.n_unsound_fix}"
+    )
+    print(
+        f"  fix applied, Galaxy validator raised (no verdict; usually a missing "
+        f"test-data file): {result.n_fix_galaxy_raised}"
+    )
+    for example in result.unsound_examples[:20]:
+        print(f"      UNSOUND {example['path']}: {example['galaxy']}")
+    for example in result.raised_examples[:10]:
+        print(f"      RAISED  {example['path']}: {example['galaxy']}")
+
+
+def _run_test_param_qualification(args: argparse.Namespace) -> None:
+    logging.getLogger("galaxy").setLevel(logging.ERROR)
+    result = _measure_test_param_qualification(corpus_root=args.corpus_root)
+    _report_test_param_qualification(result)
+
+
 def _run_upgrade_behavior_blocks(args: argparse.Namespace) -> None:
     result = _measure_upgrade_behavior_blocks(corpus_root=args.corpus_root)
     _report_upgrade_behavior_blocks(result)
@@ -7018,6 +7131,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "upgrade-profile-shift": _run_upgrade_profile_shift,
     "upgrade-behavior-blocks": _run_upgrade_behavior_blocks,
     "test-case-validation-truth": _run_test_case_validation_truth,
+    "test-param-qualification": _run_test_param_qualification,
     "element-cardinality": _run_element_cardinality,
     "command-language": _run_command_language,
     "cheetah-command-complexity": _run_cheetah_command_complexity,

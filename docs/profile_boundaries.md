@@ -308,7 +308,7 @@ The default `upgrade` stops below this profile when one of its `must_fix` change
 
 Severity: `must_fix` (the tool's behaviour or output changes).
 
-**What the toolchain does:** the default `upgrade` stops below 24.2 when this applies to your tool (there is no automatic fix yet). Update the tool following Galaxy's description below, then rerun `upgrade`; or rerun with `--allow-behavior-change` to upgrade anyway and review the change yourself.
+**What the toolchain does:** `upgrade` fixes this automatically when the fix is provable for your tool (GTR096: Fully-qualify a flat `<test>` parameter name to its unique nested parent|...|child input path (required at profile >= 24.2).). When it cannot prove the construct gone (the fix is verified by re-detection), the default walk stops below 24.2; update the tool by hand and rerun, or rerun with `--allow-behavior-change` to upgrade anyway.
 
 **Galaxy's description:**
 

@@ -94,6 +94,13 @@ re-implementation below carries a parity oracle.
   stopped by the ships-a-`<test>` approximation; 1,972 (29.7%) are true
   blockers; 159 crash Galaxy's own parser (no verdict). The checker recovers
   the provably-clean subset with zero unsound suppressions.
+- **It also enables a fix.** The same input-tree resolution drives
+  `FixTestParamQualification` (GTR096, codemod decisions §48), which qualifies a
+  flat `<test>` parameter name to its unique nested `parent|...|child` path,
+  the migration Galaxy prescribes. It is the first auto-fix for the 24.2 code,
+  parity-proven by `scripts.measure test-param-qualification` (every tool it
+  unblocks must validate clean under Galaxy's real validator on the *qualified*
+  tree, zero unsound verdicts).
 
 ## Adding to this document
 

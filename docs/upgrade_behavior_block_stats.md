@@ -48,17 +48,17 @@ Unique `<tool>` files (sha256-deduped) with a placeable baseline: **9,371**. Exc
 
 ## Blocking on `must_fix` only (the shipped default)
 
-Reaches latest behavior-preservingly: **5,371**; stuck: **4,000**.
+Reaches latest behavior-preservingly: **5,553**; stuck: **3,818**.
 
 | Profile | Level | Behavior code (first blocker) | Tools stuck |
 |---|---|---|--:|
 | 16.04 | must_fix | `16_04_fix_interpreter` | 302 |
 | 16.04 | must_fix | `16_04_fix_output_format` | 33 |
-| 24.2 | must_fix | `24_2_fix_test_case_validation` | 3,665 |
+| 24.2 | must_fix | `24_2_fix_test_case_validation` | 3,483 |
 
 ## Blocking on `must_fix` + `consider`
 
-Reaches latest behavior-preservingly: **1,311**; stuck: **8,060**.
+Reaches latest behavior-preservingly: **1,345**; stuck: **8,026**.
 
 | Profile | Level | Behavior code (first blocker) | Tools stuck |
 |---|---|---|--:|
@@ -71,4 +71,4 @@ Reaches latest behavior-preservingly: **1,311**; stuck: **8,060**.
 | 20.09 | consider | `20_09_consider_set_e` | 596 |
 | 21.09 | consider | `21_09_consider_python_environment` | 4 |
 | 23.0 | consider | `23_0_consider_optional_text` | 489 |
-| 24.2 | must_fix | `24_2_fix_test_case_validation` | 872 |
+| 24.2 | must_fix | `24_2_fix_test_case_validation` | 838 |
