@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from galaxy_tool_refactor_registry.deployment import DEPLOYMENT_CEILING
 from galaxy_tool_refactor_registry.errors import UnknownRuleCode, UnknownRuleset
 from galaxy_tool_source.binding import ToolXmlSyntaxError
 from galaxy_tool_source.profiles import latest_profile
@@ -70,7 +71,8 @@ def test_upgrade_tool_modernize_bumps_profile() -> None:
     result = service.upgrade_tool(_UPGRADABLE, modernize=True)
     formatted = result["formatted"]
     assert isinstance(formatted, str)
-    assert f'profile="{latest_profile()}"' in formatted
+    # The walk lands on the deployment ceiling, not the (pre-release) latest.
+    assert f'profile="{DEPLOYMENT_CEILING}"' in formatted
     assert "24.1" in result["steps_applied"]  # type: ignore[operator]
     assert result["missing_upgrade"] is None
     assert result["behavior_preserving"] in (True, False, None)
@@ -112,15 +114,27 @@ def test_upgrade_tool_modernize_stops_at_a_behavior_boundary() -> None:
     assert result["auto_fixed_codes"] == []
 
 
-def test_upgrade_tool_allow_behavior_change_reaches_latest() -> None:
+def test_upgrade_tool_allow_behavior_change_walks_past_the_gate() -> None:
+    """The flag lifts the behaviour gate; the deployment ceiling still caps."""
     result = service.upgrade_tool(
         _WITH_TESTS, modernize=True, allow_behavior_change=True
     )
     formatted = result["formatted"]
     assert isinstance(formatted, str)
-    assert f'profile="{latest_profile()}"' in formatted
-    assert result["stopped_at"] is None
+    assert f'profile="{DEPLOYMENT_CEILING}"' in formatted
+    assert result["stopped_at"] == DEPLOYMENT_CEILING
     assert result["behavior_preserving"] is False
+
+
+def test_upgrade_tool_target_profile_may_exceed_the_deployment_ceiling() -> None:
+    """An explicit target expresses intent: it wins over the deployment cap."""
+    result = service.upgrade_tool(_UPGRADABLE, target_profile=latest_profile())
+    formatted = result["formatted"]
+    assert isinstance(formatted, str)
+    assert f'profile="{latest_profile()}"' in formatted
+    notes = result["notes"]
+    assert isinstance(notes, list)
+    assert any("deployment ceiling" in note for note in notes)
 
 
 def test_upgrade_tool_target_profile_caps_the_walk() -> None:
