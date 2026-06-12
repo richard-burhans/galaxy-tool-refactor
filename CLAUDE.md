@@ -25,6 +25,7 @@ galaxy-tool-refactor/
 │   ├── gen_planemo_parity.py   regenerate the GTR coverage table (docs/planemo_linter_parity.md)
 │   ├── gen_profile_boundaries.py regenerate the per-boundary upgrade reference (docs/profile_boundaries.md)
 │   ├── bump_version.py         set the lockstep version across all 9 packages
+│   ├── poll_galaxy_servers.py  poll major Galaxy servers' /api/version -> deployment floor + profile ceiling (docs/galaxy_server_versions.json)
 │   └── galaxy_blog.py          scaffold/lint a Galaxy Hub news/blog post
 ├── docs/
 │   └── corpus_data/            per-tool JSON/TSV from corpus sweeps
@@ -131,6 +132,13 @@ uv run python -m scripts.corpus_check upgrade [--source github|toolshed|combined
 
 uv run python -m scripts.fetch_schemas         # download release XSDs
 uv run python -m scripts.fetch_toolshed        # clone Toolshed repos
+# Poll a curated list of major public Galaxy servers (usegalaxy.org/.eu/.org.au/.fr/.ca)
+# for the Galaxy release each runs, and report the DEPLOYMENT FLOOR (lowest release across
+# the set) + the newest vendored profile at or below it (the candidate deployment ceiling).
+# A tool whose profile exceeds the floor cannot install on the lagging servers. Writes a
+# dated snapshot to docs/galaxy_server_versions.json. Foundation for a future upgrade
+# deployment-ceiling (see the deployment-profile-ceiling plan). Needs network, not in CI:
+uv run python -m scripts.poll_galaxy_servers   # --no-write to report only
 uv run python -m scripts.regenerate            # regenerate per-version models
 uv run python -m scripts.gen_planemo_parity    # regenerate the GTR coverage table in docs/planemo_linter_parity.md (from rule metadata; freshness-tested)
 uv run python -m scripts.gen_profile_boundaries # regenerate the per-boundary upgrade reference docs/profile_boundaries.md (from PROFILE_UPGRADE_CODES + the auto-fix registry; freshness-tested)
