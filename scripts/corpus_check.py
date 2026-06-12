@@ -3737,7 +3737,7 @@ def _upgrade_main(argv: list[str]) -> int:
 
 
 def main(argv: list[str]) -> int:
-    """Dispatch to the ``validate``, ``fmt``, ``codemod``, or ``rules`` subcommand."""
+    """Dispatch to one of the sweep subcommands (see the choices below)."""
     parser = argparse.ArgumentParser(
         prog="python -m scripts.corpus_check",
         description="Sweep Galaxy tool repositories through the galaxy-tool-source ecosystem.",

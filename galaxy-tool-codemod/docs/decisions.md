@@ -1936,7 +1936,10 @@ computed with the shipped gate functions) and
   applicable set minus the credited fixes, so a tool whose only applicable
   must_fix crossing was provably fixed is reported behavior-preserving (and
   gets a "fixed automatically" note naming the GTR code) instead of a
-  misleading must-fix warning.
+  misleading must-fix warning. The un-credited §23 primitive
+  `upgrade_is_behavior_preserving` had no remaining production consumer and
+  was removed; `crossed_and_applicable_codes` stays the single source the
+  facade derives both the warning and the verdict from.
 - **Escape hatches, both explicit.** `allow_behavior_change` restores the
   historical walk-to-latest (blockers still reported as the user's review
   list); `target_profile` caps the walk at an explicit vendored profile

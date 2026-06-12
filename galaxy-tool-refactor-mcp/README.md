@@ -14,7 +14,8 @@ disk writes unless asked, introspectable), so the server is a *thin adapter*:
   (plus `rulesets` / `select` / `ignore`) and return JSON-able `dict`s by calling the
   facade. No `mcp` import; fully unit-tested.
 - **`server.py`** — the FastMCP binding. A small handler per tool delegates to
-  `service`, and is the error boundary (facade `UnknownRuleset` / `UnknownRuleCode`
+  `service`, and is the error boundary (facade `UnknownRuleset` / `UnknownRuleCode` /
+  `UnknownProfile`
   and tier-1 `ToolXmlSyntaxError` → a clean MCP tool error).
 
 ## Tools

@@ -579,27 +579,6 @@ def crossed_and_applicable_codes(
     return crossed, applicable
 
 
-def upgrade_is_behavior_preserving(
-    *, baseline: str | None, target: str | None, tripped: frozenset[str]
-) -> bool | None:
-    """Whether a ``baseline``→``target`` bump crosses no code that *applies*.
-
-    ``True`` when no crossed code's per-tool detector fired (so the bump changes
-    no runtime behaviour the tool actually exercises); ``False`` when at least one
-    applies; ``None`` when undetermined (a profile is unparseable — see
-    ``crossed_and_applicable_codes``). Capture *tripped* on the **pre-upgrade**
-    tree, as the ``upgrade`` path does. This is the positive complement of the
-    §23 warning: same applicable set, surfaced as a clean-pass signal.
-    """
-    pair = crossed_and_applicable_codes(
-        baseline=baseline, target=target, tripped=tripped
-    )
-    if pair is None:
-        return None
-    _crossed, applicable = pair
-    return not applicable
-
-
 def upgrade_codes_applicable(
     *, document: ToolDocument, from_profile: str, to_profile: str
 ) -> list[ProfileUpgradeCode]:
