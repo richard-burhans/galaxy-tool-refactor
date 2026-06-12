@@ -3610,11 +3610,14 @@ def _upgrade_minimal_exercise(path: Path) -> _UpgradeGateOutcome:
 def _upgrade_walk_exercise(path: Path) -> _UpgradeGateOutcome:
     """Run the gated walk (``modernize=True``) on *path*; assert its contract.
 
-    Status is ``"ok"`` (walked, no cap below latest), ``"stopped"`` (the gate
-    capped the walk, a successful, expected outcome), one of the ineligible
-    statuses, or one of ``_UPGRADE_WALK_FAIL_STATUSES``. The must-fix-crossed
-    check recomputes the applicable set from the pre-upgrade tree
-    independently, so a crediting bug in the facade cannot hide itself.
+    Status is ``"ok"`` (walked, no cap below latest — rare while the latest
+    vendored profile sits above the deployment ceiling),
+    ``"stopped-deployment"`` / ``"stopped-gate"`` (the deployment ceiling or
+    the behaviour gate capped the walk, both successful, expected outcomes),
+    one of the ineligible statuses, or one of
+    ``_UPGRADE_WALK_FAIL_STATUSES``. The must-fix-crossed check recomputes
+    the applicable set from the pre-upgrade tree independently, so a
+    crediting bug in the facade cannot hide itself.
     """
     try:
         parsed = parse_tool(path)
@@ -3708,9 +3711,14 @@ def _upgrade_walk_exercise(path: Path) -> _UpgradeGateOutcome:
                 _fmt_byte_diff_excerpt(result.formatted, second.formatted),
             )
         stopped = result.stopped_at is not None
+        deployment_capped = any("deployment ceiling" in note for note in result.notes)
     except Exception as exc:  # noqa: BLE001 — diagnostic sweep: every crash is a finding
         return _UpgradeGateOutcome("crash", _signature(exc), traceback.format_exc())
-    return _UpgradeGateOutcome("stopped" if stopped else "ok")
+    if not stopped:
+        return _UpgradeGateOutcome("ok")
+    return _UpgradeGateOutcome(
+        "stopped-deployment" if deployment_capped else "stopped-gate"
+    )
 
 
 def _upgrade_process_path(
