@@ -752,6 +752,11 @@ retains any planner crash as a regression corpus, the standing retain-failures o
 
 ## D21 (2026-06-12): `upgrade` is behavior-preserving by default (the gate)
 
+> **Superseded as the default (2026-06-12, D22):** the minimal-bump policy is
+> now the `upgrade` default, and the gated walk described here is the opt-in
+> `modernize=True` mode. The gate's mechanics below are current; read
+> "default" as "the modernize walk".
+
 Reproduced-by: `uv run --package galaxy-tool-refactor-registry pytest
 galaxy-tool-refactor-registry/tests/test_facade.py` (the gate tests) and
 `galaxy-tool-refactor-registry/tests/test_macro_profile.py` (the gated
@@ -787,3 +792,47 @@ shared-token targets).
   shared-macro path can never disagree on how far a tool may move. A
   blocked-at-baseline importer contributes its current value (a no-op bump);
   disagreement still skips the file (D5's consensus rule).
+
+## D22 (2026-06-12): minimal bump is the `upgrade` default; `modernize` opts into the walk
+
+Reproduced-by: `uv run --package galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_facade.py` (the three-mode tests) and
+`galaxy-tool-refactor-registry/tests/test_macro_profile.py` (the minimal
+shared-token targets). Policy rationale: codemod decisions §50 (IUC
+maintainer feedback on featurecounts PR #8090, mvdbeek and bgruening).
+
+- **Three explicit modes.** `facade.upgrade` defaults to the minimal bump:
+  repair, then keep `profile=` when the repaired tool validates at its
+  resolved baseline (the kept-test is `validate_tool(document,
+  profile=baseline).valid` after `FixTypos`, matching the
+  `upgrade-minimal-need` measure; `resolve_profile`'s nearest-match handles
+  non-vendored baselines such as 16.01), else `UpgradeToValid(floor=baseline)`
+  (GTR097) declares the minimum valid profile at or above the baseline.
+  `modernize=True` runs the D21 gated walk unchanged; `target_profile`
+  implies the walk mode and caps it. An undeclared tool short-circuits
+  before the orchestrator and stays undeclared (declaring a profile is best
+  practice, not strictly needed; `--modernize` is the opt-in that declares).
+- **No silent imply.** `allow_behavior_change` without a walk mode raises the
+  typed `UpgradeFlagError` (`errors.py`), surfaced verbatim at the CLI and
+  MCP boundaries: the flag's only meaning is lifting the walk's gate, so
+  accepting it in default mode would either do nothing or silently change
+  modes, and both are worse than an error naming the fix.
+- **Additive result fields.** `UpgradeResult` gains `baseline_profile` (the
+  resolved pre-upgrade baseline) and `reached_profile` (the post-apply
+  resolved declaration); `stopped_at` is now walk-mode-only (`None` in
+  default mode, where there is no walk to stop). `blocking_codes` is still
+  computed in default mode as the modernize preview (codemod §50). The
+  outcome note (`_minimal_outcome_note`) names which of
+  kept/undeclared/bump/unreachable happened; the unreachable note suggests
+  `--modernize --allow-behavior-change` as the explicit escalation path.
+- **The shared `@PROFILE@` path follows the mode.** `profile_token_site`
+  gained `modernize`; the default target per importer is `_minimal_target`
+  (keep the token's value when that importer validates at it, else its
+  `oldest_valid_profile`), so the whole-run macro phase and the per-tool
+  transform can never disagree about whether a bump was needed. Walk modes
+  are unchanged (D21's `_gated_target`).
+- **Fail-closed branches carry over.** An unplaceable baseline (an
+  unresolvable `@PROFILE@` token) and a tool that validates nowhere at or
+  above its baseline both leave the declaration untouched with a loud note;
+  `UpgradeToValid` never lowers a profile (codemod §49). The per-tool
+  contract is swept by `corpus_check upgrade --mode minimal` (codemod §50).

@@ -35,7 +35,7 @@ and `mcp` (FastMCP). The lower tiers do **not** depend on it.
   back; `write_path` is never passed. The XML `str` is encoded to `bytes` before
   the facade sees it, so it is parsed as content, never mistaken for a path.
 - **`server.py` is the error boundary.** Its handlers translate the facade's typed
-  `UnknownRuleset` / `UnknownRuleCode` / `UnknownProfile` and tier-1's `ToolXmlSyntaxError` into a
+  `UnknownRuleset` / `UnknownRuleCode` / `UnknownProfile` / `UpgradeFlagError` and tier-1's `ToolXmlSyntaxError` into a
   plain `ValueError` whose message FastMCP returns as a tool error (the MCP
   analogue of the CLI's `click` boundary). `service.py` lets them propagate.
 - **FastMCP introspects handler signatures at runtime** (`eval_str=True`), so a
@@ -70,6 +70,7 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
   `list_rulesets` / `list_rules` entry points `service.py` wraps; `results.py` for the structured result shapes serialised.
 - `galaxy-tool-refactor-cli/src/galaxy_tool_refactor_cli/cli.py` — the sibling
   front-end over the same facade.
-- `docs/decisions.md` D1–D3 — the design + the `convert_help_tool` /
-  `tokenize_version_tool` additions; `docs/vision.md` — the agent-authored-rules
-  future (Goal 2).
+- `docs/decisions.md` D1–D5 — the design, the `convert_help_tool` /
+  `tokenize_version_tool` additions, and `upgrade_tool`'s minimal-bump default
+  (`modernize` opts into the gated walk, D4/D5); `docs/vision.md` — the
+  agent-authored-rules future (Goal 2).

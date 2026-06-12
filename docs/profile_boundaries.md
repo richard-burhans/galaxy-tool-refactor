@@ -1,31 +1,34 @@
 # Profile boundary reference: what changes at each upgrade point, and what to do
 
 This is the reference `galaxy-tool-refactor upgrade` points you at when it
-stops. The default upgrade is **behavior-preserving**: it walks your tool's
-`profile=` toward the latest Galaxy profile, but stops at the newest profile it
-can reach without crossing a Galaxy behaviour change that (a) applies to your
-tool and (b) it cannot fix automatically with a fix proven on your tool. A stop
-is not a defect in your tool; it means the tool is not yet provably safe to
-upgrade further, and this page tells you exactly why and what to do next.
+stops. The default upgrade is **minimal-bump**: it moves `profile=` only when
+strictly needed for validity, so most tools never meet these boundaries.
+`upgrade --modernize` opts into the **behavior-preserving walk**: it walks
+your tool's `profile=` toward the latest Galaxy profile, but stops at the
+newest profile it can reach without crossing a Galaxy behaviour change that
+(a) applies to your tool and (b) it cannot fix automatically with a fix
+proven on your tool. A stop is not a defect in your tool; it means the tool
+is not yet provably safe to upgrade further, and this page tells you exactly
+why and what to do next.
 
 How to read it:
 
 - Sections are profile boundaries, in release order. Your stop note names the
   blocking code(s); find the matching section below.
-- `must_fix` changes stop the default walk when they apply (unless an
+- `must_fix` changes stop the modernize walk when they apply (unless an
   automatic fix clears them). `consider` changes are warned about and never
   stop the walk.
 - Every entry carries Galaxy's own description of the change (often including
   a recipe to restore the legacy behaviour) and the Galaxy release link.
-- After updating your tool, rerun `galaxy-tool-refactor upgrade`. To upgrade
-  past a boundary without changing the tool, rerun with
-  `--allow-behavior-change` and review the warnings it prints.
+- After updating your tool, rerun `galaxy-tool-refactor upgrade --modernize`.
+  To upgrade past a boundary without changing the tool, rerun with
+  `--modernize --allow-behavior-change` and review the warnings it prints.
 
 Related documents: [`profile_upgrades.md`](profile_upgrades.md) is the
 maintainer-facing ledger of the *structural* (XSD) requirements of each bump
 and the validity-as-oracle soundness boundary;
 [`upgrade_behavior_block_stats.md`](upgrade_behavior_block_stats.md) reports
-where the default walk stops across the public tool corpus.
+where the modernize walk stops across the public tool corpus.
 
 Everything between the markers below is generated from the vendored Galaxy
 behaviour-code catalogue and the auto-fix registry; regenerate with
@@ -35,13 +38,13 @@ it).
 <!-- BEGIN GENERATED: profile boundary reference (scripts/gen_profile_boundaries.py) -->
 ## Profile 16.04
 
-The default `upgrade` stops below this profile when one of its `must_fix` changes applies to your tool and cannot be fixed automatically.
+`upgrade --modernize` stops below this profile when one of its `must_fix` changes applies to your tool and cannot be fixed automatically.
 
 ### `16_04_fix_interpreter`
 
 Severity: `must_fix` (the tool's behaviour or output changes).
 
-**What the toolchain does:** `upgrade` fixes this automatically when the fix is provable for your tool (GTR016: Inline a deprecated `<command interpreter=I>`script ...`</command>` as `<command>`I '$__tool_directory__/script' ...`</command>` (any non-empty interpreter, literal-script first token).). When it cannot prove the construct gone (the fix is verified by re-detection), the default walk stops below 16.04; update the tool by hand and rerun, or rerun with `--allow-behavior-change` to upgrade anyway.
+**What the toolchain does:** `upgrade` fixes this automatically when the fix is provable for your tool (GTR016: Inline a deprecated `<command interpreter=I>`script ...`</command>` as `<command>`I '$__tool_directory__/script' ...`</command>` (any non-empty interpreter, literal-script first token).). When it cannot prove the construct gone (the fix is verified by re-detection), the `--modernize` walk stops below 16.04; update the tool by hand and rerun, or rerun with `--modernize --allow-behavior-change` to upgrade anyway.
 
 **Galaxy's description:**
 
@@ -55,7 +58,7 @@ Introduced by [https://github.com/galaxyproject/galaxy/pull/1688](https://github
 
 Severity: `consider` (a runtime default changes; worth reviewing).
 
-**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the default walk. Review Galaxy's description below at your leisure.
+**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the `--modernize` walk. Review Galaxy's description below at your leisure.
 
 **Galaxy's description:**
 
@@ -69,7 +72,7 @@ Introduced by [https://github.com/galaxyproject/galaxy/pull/1688](https://github
 
 Severity: `must_fix` (the tool's behaviour or output changes).
 
-**What the toolchain does:** `upgrade` fixes this automatically when the fix is provable for your tool (GTR015: Replace output `<data format="input">` with format_source for a tool with a sole data input (qualified name when nested).). When it cannot prove the construct gone (the fix is verified by re-detection), the default walk stops below 16.04; update the tool by hand and rerun, or rerun with `--allow-behavior-change` to upgrade anyway.
+**What the toolchain does:** `upgrade` fixes this automatically when the fix is provable for your tool (GTR015: Replace output `<data format="input">` with format_source for a tool with a sole data input (qualified name when nested).). When it cannot prove the construct gone (the fix is verified by re-detection), the `--modernize` walk stops below 16.04; update the tool by hand and rerun, or rerun with `--modernize --allow-behavior-change` to upgrade anyway.
 
 **Galaxy's description:**
 
@@ -83,7 +86,7 @@ Introduced by [https://github.com/galaxyproject/galaxy/pull/1688](https://github
 
 Severity: `consider` (a runtime default changes; worth reviewing).
 
-**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the default walk. Review Galaxy's description below at your leisure.
+**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the `--modernize` walk. Review Galaxy's description below at your leisure.
 
 **Galaxy's description:**
 
@@ -96,13 +99,13 @@ Introduced by [https://github.com/galaxyproject/galaxy/pull/1688](https://github
 
 ## Profile 17.09
 
-No `must_fix` change lands here; the default `upgrade` crosses this boundary freely (with warnings where a `consider` change applies).
+No `must_fix` change lands here; the `--modernize` walk crosses this boundary freely (with warnings where a `consider` change applies).
 
 ### `17_09_consider_provided_metadata_style`
 
 Severity: `consider` (a runtime default changes; worth reviewing).
 
-**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the default walk. Review Galaxy's description below at your leisure.
+**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the `--modernize` walk. Review Galaxy's description below at your leisure.
 
 **Galaxy's description:**
 
@@ -115,13 +118,13 @@ Introduced by [https://github.com/galaxyproject/galaxy/pull/4437](https://github
 
 ## Profile 18.01
 
-No `must_fix` change lands here; the default `upgrade` crosses this boundary freely (with warnings where a `consider` change applies).
+No `must_fix` change lands here; the `--modernize` walk crosses this boundary freely (with warnings where a `consider` change applies).
 
 ### `18_01_consider_structured_like`
 
 Severity: `consider` (a runtime default changes; worth reviewing).
 
-**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the default walk. Review Galaxy's description below at your leisure.
+**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the `--modernize` walk. Review Galaxy's description below at your leisure.
 
 **Galaxy's description:**
 
@@ -135,7 +138,7 @@ Introduced by [https://github.com/galaxyproject/galaxy/pull/6162](https://github
 
 Severity: `consider` (a runtime default changes; worth reviewing).
 
-**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the default walk. Review Galaxy's description below at your leisure.
+**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the `--modernize` walk. Review Galaxy's description below at your leisure.
 
 **Galaxy's description:**
 
@@ -148,13 +151,13 @@ Introduced by [https://github.com/galaxyproject/galaxy/pull/5193](https://github
 
 ## Profile 18.09
 
-No `must_fix` change lands here; the default `upgrade` crosses this boundary freely (with warnings where a `consider` change applies).
+No `must_fix` change lands here; the `--modernize` walk crosses this boundary freely (with warnings where a `consider` change applies).
 
 ### `18_09_consider_python_environment`
 
 Severity: `consider` (a runtime default changes; worth reviewing).
 
-**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the default walk. Review Galaxy's description below at your leisure.
+**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the `--modernize` walk. Review Galaxy's description below at your leisure.
 
 **Galaxy's description:**
 
@@ -167,13 +170,13 @@ Introduced by [https://github.com/galaxyproject/galaxy/pull/6466](https://github
 
 ## Profile 20.05
 
-No `must_fix` change lands here; the default `upgrade` crosses this boundary freely (with warnings where a `consider` change applies).
+No `must_fix` change lands here; the `--modernize` walk crosses this boundary freely (with warnings where a `consider` change applies).
 
 ### `20_05_consider_inputs_as_json_changes`
 
 Severity: `consider` (a runtime default changes; worth reviewing).
 
-**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the default walk. Review Galaxy's description below at your leisure.
+**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the `--modernize` walk. Review Galaxy's description below at your leisure.
 
 **Galaxy's description:**
 
@@ -186,13 +189,13 @@ Introduced by [https://github.com/galaxyproject/galaxy/pull/9776/files](https://
 
 ## Profile 20.09
 
-No `must_fix` change lands here; the default `upgrade` crosses this boundary freely (with warnings where a `consider` change applies).
+No `must_fix` change lands here; the `--modernize` walk crosses this boundary freely (with warnings where a `consider` change applies).
 
 ### `20_09_consider_output_collection_order`
 
 Severity: `consider` (a runtime default changes; worth reviewing).
 
-**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the default walk. Review Galaxy's description below at your leisure.
+**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the `--modernize` walk. Review Galaxy's description below at your leisure.
 
 **Galaxy's description:**
 
@@ -206,7 +209,7 @@ Introduced by [https://github.com/galaxyproject/galaxy/pull/10434](https://githu
 
 Severity: `consider` (a runtime default changes; worth reviewing).
 
-**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the default walk. Review Galaxy's description below at your leisure.
+**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the `--modernize` walk. Review Galaxy's description below at your leisure.
 
 **Galaxy's description:**
 
@@ -219,13 +222,13 @@ Introduced by [https://github.com/galaxyproject/galaxy/pull/9962](https://github
 
 ## Profile 21.09
 
-The default `upgrade` stops below this profile when one of its `must_fix` changes applies to your tool and cannot be fixed automatically.
+`upgrade --modernize` stops below this profile when one of its `must_fix` changes applies to your tool and cannot be fixed automatically.
 
 ### `21_09_fix_from_work_dir_whitespace`
 
 Severity: `must_fix` (the tool's behaviour or output changes).
 
-**What the toolchain does:** `upgrade` fixes this automatically when the fix is provable for your tool (GTR014: Strip surrounding whitespace from `<data from_work_dir>` (literal at profile >= 21.09).). When it cannot prove the construct gone (the fix is verified by re-detection), the default walk stops below 21.09; update the tool by hand and rerun, or rerun with `--allow-behavior-change` to upgrade anyway.
+**What the toolchain does:** `upgrade` fixes this automatically when the fix is provable for your tool (GTR014: Strip surrounding whitespace from `<data from_work_dir>` (literal at profile >= 21.09).). When it cannot prove the construct gone (the fix is verified by re-detection), the `--modernize` walk stops below 21.09; update the tool by hand and rerun, or rerun with `--modernize --allow-behavior-change` to upgrade anyway.
 
 **Galaxy's description:**
 
@@ -239,7 +242,7 @@ Introduced by [https://github.com/galaxyproject/galaxy/pull/12536](https://githu
 
 Severity: `consider` (a runtime default changes; worth reviewing).
 
-**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the default walk. Review Galaxy's description below at your leisure.
+**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the `--modernize` walk. Review Galaxy's description below at your leisure.
 
 **Galaxy's description:**
 
@@ -252,13 +255,13 @@ Introduced by [https://github.com/galaxyproject/galaxy/pull/12515](https://githu
 
 ## Profile 23.0
 
-No `must_fix` change lands here; the default `upgrade` crosses this boundary freely (with warnings where a `consider` change applies).
+No `must_fix` change lands here; the `--modernize` walk crosses this boundary freely (with warnings where a `consider` change applies).
 
 ### `23_0_consider_optional_text`
 
 Severity: `consider` (a runtime default changes; worth reviewing).
 
-**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the default walk. Review Galaxy's description below at your leisure.
+**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the `--modernize` walk. Review Galaxy's description below at your leisure.
 
 **Galaxy's description:**
 
@@ -271,13 +274,13 @@ Introduced by [https://github.com/galaxyproject/galaxy/pull/15491/files](https:/
 
 ## Profile 24.0
 
-No `must_fix` change lands here; the default `upgrade` crosses this boundary freely (with warnings where a `consider` change applies).
+No `must_fix` change lands here; the `--modernize` walk crosses this boundary freely (with warnings where a `consider` change applies).
 
 ### `24_0_consider_python_environment`
 
 Severity: `consider` (a runtime default changes; worth reviewing).
 
-**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the default walk. Review Galaxy's description below at your leisure.
+**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the `--modernize` walk. Review Galaxy's description below at your leisure.
 
 **Galaxy's description:**
 
@@ -291,7 +294,7 @@ Introduced by [https://github.com/galaxyproject/galaxy/pull/17422](https://githu
 
 Severity: `consider` (a runtime default changes; worth reviewing).
 
-**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the default walk. Review Galaxy's description below at your leisure.
+**What the toolchain does:** warns when this applies to your tool; the change is advisory (`consider`), so it does not stop the `--modernize` walk. Review Galaxy's description below at your leisure.
 
 **Galaxy's description:**
 
@@ -302,13 +305,13 @@ Starting with 24.0 data source tools, Galaxy requires explicit `request_param_tr
 
 ## Profile 24.2
 
-The default `upgrade` stops below this profile when one of its `must_fix` changes applies to your tool and cannot be fixed automatically.
+`upgrade --modernize` stops below this profile when one of its `must_fix` changes applies to your tool and cannot be fixed automatically.
 
 ### `24_2_fix_test_case_validation`
 
 Severity: `must_fix` (the tool's behaviour or output changes).
 
-**What the toolchain does:** `upgrade` fixes this automatically when the fix is provable for your tool (GTR096: Fully-qualify a flat `<test>` parameter name to its unique nested parent|...|child input path (required at profile >= 24.2).). When it cannot prove the construct gone (the fix is verified by re-detection), the default walk stops below 24.2; update the tool by hand and rerun, or rerun with `--allow-behavior-change` to upgrade anyway.
+**What the toolchain does:** `upgrade` fixes this automatically when the fix is provable for your tool (GTR096: Fully-qualify a flat `<test>` parameter name to its unique nested parent|...|child input path (required at profile >= 24.2).). When it cannot prove the construct gone (the fix is verified by re-detection), the `--modernize` walk stops below 24.2; update the tool by hand and rerun, or rerun with `--modernize --allow-behavior-change` to upgrade anyway.
 
 **Galaxy's description:**
 

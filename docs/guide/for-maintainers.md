@@ -29,20 +29,26 @@ $ galaxy-tool-refactor format --diff tools/coverm/macros.xml
 Indentation, attribute/element order, empty-element shorthand, CDATA wrapping —
 idempotent and behaviour-preserving. `format --check` is a clean CI gate.
 
-### 2. `upgrade` — bump the profile, safely
+### 2. `upgrade` — repair, and bump the profile only when needed
 
 ```diff
-$ galaxy-tool-refactor upgrade --diff tools/bandage/bandage_info.xml
+$ galaxy-tool-refactor upgrade --modernize --diff tools/bandage/bandage_info.xml
 -<tool id="bandage_info" … profile="18.01">
 +<tool id="bandage_info" … profile="26.1">
 ```
 
-It advances the profile **only as far as behaviour provably stays the same**: the
-walk stops below the first Galaxy `must_fix` change that applies to your tool and
-that it cannot fix with a repair proven safe on that tool. A stop is a normal,
-successful outcome: the report names the blocking code and links to the
-[per-boundary reference](../profile_boundaries.md), which tells you what changed and
-what to do; `--allow-behavior-change` takes the bump anyway. Read
+By default it moves `profile=` **only when strictly needed for validity**: a
+tool that validates at its declared profile keeps it byte-untouched, an
+undeclared tool stays undeclared, and an invalid tool moves to the minimum
+valid profile at or above its baseline (no bump "for no reason", and never to
+a pre-release a public server cannot run). `--modernize` opts into the walk
+shown above, which advances the profile **only as far as behaviour provably
+stays the same**: it stops below the first Galaxy `must_fix` change that
+applies to your tool and that it cannot fix with a repair proven safe on that
+tool. A stop is a normal, successful outcome: the report names the blocking
+code and links to the [per-boundary reference](../profile_boundaries.md),
+which tells you what changed and what to do;
+`--modernize --allow-behavior-change` takes the bump anyway. Read
 [soundness](soundness.md); that boundary is what makes it trustworthy for review.
 
 ### 3. `check` — a best-practice report

@@ -39,7 +39,7 @@ def test_no_orphan_proof_documents() -> None:
 def test_behavior_gate_proof_covers_every_auto_fix_and_upgrade_step() -> None:
     """The gate's soundness document must name every fix it credits, and the
     GTR012 composition every walk step it sequences: a new RuntimeGatedFix or
-    upgrade_vN cannot join the gated default without extending the argument."""
+    upgrade_vN cannot join the gated walk without extending the argument."""
     from galaxy_tool_codemod.runtime_fixes import RUNTIME_GATED_FIXES
     from galaxy_tool_codemod.upgrades import UPGRADE_CODEMODS
 

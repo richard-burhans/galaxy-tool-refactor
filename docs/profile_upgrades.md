@@ -188,7 +188,7 @@ note says so; proving the governed construct is absent (or fixed) lets the
 tool move past the boundary behaviour-safely (codemod §23 + §45). The per-code
 corpus blast radius is `scripts/measure.py
 semantic-upgrade-boundaries`, crossed-vs-applicable is `scripts/measure.py
-upgrade-codes-applicability`, and where the gated default stops is
+upgrade-codes-applicability`, and where the gated `--modernize` walk stops is
 `docs/upgrade_behavior_block_stats.md` (`scripts/measure.py
 upgrade-behavior-blocks`, computed with the shipped gate functions);
 pinnability is in `galaxy-tool-codemod/docs/behavior-preserving-upgrade.md`.

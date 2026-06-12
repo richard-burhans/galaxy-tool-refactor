@@ -12,8 +12,20 @@ is the breaking-change channel.
 ## [Unreleased]
 
 ### Changed
-- **`upgrade` is behavior-preserving by default** (the behavior gate; codemod
-  decisions §45, registry D21, cli D16, mcp D4). The walk stops at the
+- **`upgrade` is minimal-bump by default** (codemod decisions §50, registry
+  D22, cli D17, mcp D5; from IUC maintainer feedback on featurecounts PR
+  #8090). `profile=` moves only when strictly needed for validity: a tool
+  that validates at its declared profile after repair keeps it byte-untouched,
+  an undeclared tool stays undeclared, and an invalid tool moves to the
+  minimum valid profile at or above its baseline (`UpgradeToValid`, GTR097).
+  The behavior-gated walk below becomes the opt-in `--modernize` /
+  `modernize=True`; `--allow-behavior-change` without a walk mode is a typed
+  `UpgradeFlagError`. `UpgradeResult` gains additive
+  `baseline_profile`/`reached_profile`; `stopped_at` is walk-mode-only.
+  `corpus_check upgrade` gains `--mode minimal|modernize|both` and sweeps
+  both contracts (0 violations over 9,331 corpus tools).
+- **The behavior-gated walk** (now the opt-in `--modernize`; the behavior
+  gate, codemod decisions §45, registry D21, cli D16, mcp D4). The walk stops at the
   behaviour ceiling: the newest vendored profile reachable without crossing a
   Galaxy `must_fix` behaviour change that applies to the tool and that no
   runtime-gated fix provably clears on that tool (auto-fixability is proven by
@@ -41,10 +53,14 @@ is the breaking-change channel.
   `scripts/gen_profile_boundaries.py`; freshness-tested.
 - **`docs/proofs/behavior-gate.md`**: the gate's construction-grade soundness
   argument, pinned to the live registries by the proof coverage guard.
-- **`corpus_check upgrade`**: the gated-upgrade contract sweep: runs the
-  default `upgrade` over every corpus tool, asserts fail-closed / gate-cap /
-  no un-fixed `must_fix` crossing / validity / idempotence, and retains every
-  violation (first full sweep: 9,331 tools, **0 violations**).
+- **`corpus_check upgrade`**: the upgrade contract sweep: runs the shipped
+  `upgrade` over every corpus tool in one or both modes (`--mode
+  minimal|modernize|both`), asserts each mode's contract (minimal:
+  fail-closed / undeclared stays undeclared / kept-when-valid /
+  minimum-when-bumped / validity / idempotence; modernize: fail-closed /
+  gate-cap / no un-fixed `must_fix` crossing / validity / idempotence), and
+  retains every violation (first full dual-mode sweep: 9,331 tools, **0
+  violations** in both modes).
 - The `upgrade-behavior-blocks` measure now consumes the shipped gate
   functions (one implementation for the live default and the published
   statistics).

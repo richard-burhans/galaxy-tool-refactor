@@ -32,15 +32,20 @@ longer imports the codemod / check tiers directly. It exposes the
   Advisory rules in a selection are reported as notes, never applied. Also
   cosmetically formats macro-library files (`<macros>` root) — kind-applicable
   rules only (no codemods); selection governs tools (cli §D5).
-- `upgrade` — repair, then iterative profile upgrade, then cosmetic formatting.
+- `upgrade` — repair, then profile placement, then cosmetic formatting.
   Opt-in and semantic. No `--ruleset`; `--select`/`--ignore` adjust its rule set.
-  **Behavior-preserving by default** (registry D21, cli D16): the walk stops at
-  the behaviour ceiling and the stop report names the blocking code(s) and links
-  to `docs/profile_boundaries.md`; `--allow-behavior-change` lifts the gate and
-  `--target-profile PROFILE` caps the walk (validated up front).
+  **Minimal-bump by default** (registry D22, cli D17): `profile=` moves only
+  when strictly needed for validity — kept when the repaired tool validates at
+  its baseline, undeclared stays undeclared, else the minimum valid profile at
+  or above the baseline (`UpgradeToValid`, GTR097). `--modernize` opts into
+  the behavior-gated walk to the behaviour ceiling (registry D21, cli D16):
+  the stop report names the blocking code(s) and links to
+  `docs/profile_boundaries.md`; `--allow-behavior-change` lifts the walk's
+  gate (an error without a walk mode) and `--target-profile PROFILE` caps the
+  walk (validated up front, implies the walk).
   Also bumps an imported `@PROFILE@` token in place when every profile-using
   importer in the run agrees on the target, else reports+skips (cli §D6); each
-  importer's target honors the same gate and flags; the
+  importer's target honors the same mode and flags; the
   inline-token case is GTR007's job.
 - `check` — report-only linter (mutates nothing) over the selected rules' detect
   phases: `file:line  CODE  message` per finding. The default ruleset reports only

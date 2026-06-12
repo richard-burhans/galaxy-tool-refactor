@@ -23,18 +23,23 @@ take the tool XML as a string and return JSON. Nothing is written to disk. See
 [usage/mcp](usage/mcp.md). The key signal for autonomy:
 
 ```text
-// upgrade_tool(xml=...) ->
+// upgrade_tool(xml=..., modernize=true) ->
 { "formatted": "<tool … profile=\"24.1\">…", "behavior_preserving": true,
+  "baseline_profile": "18.01", "reached_profile": "24.1",
   "stopped_at": "24.1", "blocking_codes": ["24_2_fix_test_case_validation"],
   "auto_fixed_codes": [], "steps_applied": [...] }
 ```
 
-The default is behavior-preserving: the walk stops at the behaviour ceiling, and
+The default is minimal-bump: `profile=` moves only when strictly needed for
+validity, and a tool that validates where it sits comes back byte-identical
+(`baseline_profile == reached_profile`). `modernize=true` opts into the
+behavior-preserving walk, which stops at the behaviour ceiling;
 `stopped_at`/`blocking_codes` say where and why (each code maps to a section of
 [`docs/profile_boundaries.md`](../profile_boundaries.md)). Crossing the boundary
-requires passing `allow_behavior_change=true` explicitly. `behavior_preserving`
-(`true`/`false`/`null`) lets an agent decide what to accept unattended versus
-surface to a human; the honest contract is in [soundness](soundness.md).
+additionally requires `allow_behavior_change=true` explicitly.
+`behavior_preserving` (`true`/`false`/`null`) lets an agent decide what to
+accept unattended versus surface to a human; the honest contract is in
+[soundness](soundness.md).
 
 ### Library (embed it)
 
@@ -51,10 +56,11 @@ Full surface and the path-vs-bytes gotcha: [usage/library](usage/library.md).
 
 1. `check` the draft → structured findings (fixable vs advisory).
 2. `format` → canonical XML (behaviour-preserving; accept freely).
-3. `upgrade` → the behaviour ceiling by default; **gate on `behavior_preserving`**:
-   auto-accept `true`, escalate `false`/`null` and any non-empty `blocking_codes`
-   (fix the tool per the boundary reference, or ask a human before passing
-   `allow_behavior_change`).
+3. `upgrade` → the minimal bump by default (accept freely: validity repairs
+   plus a needed profile move only); with `modernize=true`, **gate on
+   `behavior_preserving`**: auto-accept `true`, escalate `false`/`null` and
+   any non-empty `blocking_codes` (fix the tool per the boundary reference,
+   or ask a human before passing `allow_behavior_change`).
 4. Re-`check` to confirm.
 
 The engine is deterministic and report-first, so an agent can stay conservative: prefer
@@ -66,10 +72,11 @@ the proven-safe action, surface the rest.
 - **Agents authoring their own rules** (new codemods/checks the framework discovers and
   runs alongside the baked-in set): vision **Goal 2 — open design, not built**
   (`galaxy-tool-refactor-mcp/docs/vision.md`).
-- `upgrade`'s default stops rather than cross a breaking behaviour change it cannot
-  prove fixed; with `allow_behavior_change` it is sound for *structural* validity
-  only; never treat that bump as behaviour-neutral without checking
-  `behavior_preserving` ([soundness](soundness.md)).
+- `upgrade`'s default bumps only when validity strictly requires it; the
+  `modernize` walk stops rather than cross a breaking behaviour change it
+  cannot prove fixed; with `allow_behavior_change` it is sound for
+  *structural* validity only; never treat that bump as behaviour-neutral
+  without checking `behavior_preserving` ([soundness](soundness.md)).
 
 ## Go deeper
 

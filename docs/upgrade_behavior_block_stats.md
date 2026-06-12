@@ -1,6 +1,8 @@
 # Upgrade behavior-block statistics
 
-Where the **shipped default** `galaxy-tool-refactor upgrade` stops: the walk
+Where `galaxy-tool-refactor upgrade --modernize` (the opt-in gated walk;
+the bare default bumps minimally, codemod `docs/decisions.md` §50)
+stops: the walk
 caps at the behaviour ceiling: the newest vendored profile reachable from
 the tool's baseline (no-profile defaults to Galaxy's `16.01`; a `@PROFILE@`
 token is resolved through its definitions) without crossing a Galaxy
@@ -18,7 +20,7 @@ interpreter inlining for a literal-script command). The structural
 `upgrade_vN` codemods fix *validity*, not behaviour, so they never clear a
 blocker here.
 
-Two policies are reported: blocking on `must_fix` codes only, **the shipped
+Two policies are reported: blocking on `must_fix` codes only, **the walk's
 default** (applicable `consider` codes are warned about, never blocking),
 and the counterfactual `must_fix` + `consider` (every behaviour change).
 The latter is dominated by `16_04_consider_implicit_extra_file_collection`,
@@ -46,7 +48,7 @@ uv run python -m scripts.measure upgrade-behavior-blocks
 
 Unique `<tool>` files (sha256-deduped) with a placeable baseline: **9,371**. Excluded (unresolvable macro-token / unparseable `profile=`; the live gate fails closed on these): **2**. Latest vendored profile: `26.1`. `Reaches latest` includes tools already at/above every applicable code.
 
-## Blocking on `must_fix` only (the shipped default)
+## Blocking on `must_fix` only (the walk's default)
 
 Reaches latest behavior-preservingly: **5,553**; stuck: **3,818**.
 

@@ -22,13 +22,15 @@ det = facade.detect(tool, codes=resolve.resolve_codes(rulesets=["strict"]))
 for v in det.violations:                    # v.code, v.line, v.message
     print(v.code, det.is_advisory(v))
 
-# upgrade: profile bump + the repairs proven safe, then format.
-# Behavior-preserving by default: stops at the behaviour ceiling;
+# upgrade: repair, then bump profile= only when strictly needed for validity
+# (minimal-bump default; a valid tool keeps its declaration). modernize=True
+# opts into the behavior-preserving walk to the behaviour ceiling;
 # allow_behavior_change=True restores the walk-to-latest, target_profile caps it.
 up = facade.upgrade(tool, codes=resolve.resolve_upgrade_codes())
 upgraded_xml: bytes = up.formatted
+print(up.baseline_profile, up.reached_profile)  # where it started and landed
 print(up.behavior_preserving)               # True / False / None — see soundness
-print(up.stopped_at, up.blocking_codes)     # where and why the gate stopped
+print(up.blocking_codes)                    # what a modernize walk would face
 ```
 
 > **Gotcha (honest).** Pass a **`Path`** (or a `ToolDocument` loaded from a path), not

@@ -86,13 +86,19 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
 - `facade.py` — `run` / `upgrade` / `detect` / `find_references` / `rename_param`
   (the mutating sibling of `find_references`; deep-copies + serialises on success, see
   `docs/decisions.md` D11) / `convert_help` / `tokenize_version` / `list_rulesets` / `list_rules`.
-  `upgrade` is **behavior-preserving by default** (D21): the tier-2 behavior gate
-  caps the walk at the behaviour ceiling; `allow_behavior_change` lifts it and
-  `target_profile` caps it explicitly (typed `UnknownProfile` on a bad value);
-  `UpgradeResult` carries `stopped_at` / `blocking_codes` / `auto_fixed_codes`.
+  `upgrade` is **minimal-bump by default** (D22): keep `profile=` when the
+  repaired tool validates at its resolved baseline (an undeclared tool stays
+  undeclared), else declare the minimum valid profile at or above it via
+  `UpgradeToValid` (GTR097). `modernize=True` runs the behavior-gated walk to
+  the behaviour ceiling (D21); `target_profile` implies the walk and caps it
+  (typed `UnknownProfile` on a bad value); `allow_behavior_change` lifts the
+  walk's gate and without a walk mode raises `UpgradeFlagError`.
+  `UpgradeResult` carries `baseline_profile` / `reached_profile` /
+  `stopped_at` (walk-only) / `blocking_codes` / `auto_fixed_codes`.
 - `macro_profile.py` — Phase-3b imported-`@PROFILE@` upgrade: `profile_token_site`
-  (one tool → defining file + target, computed through the same behavior gate and
-  flags as the per-tool path, D21), the pure `plan_from_sites` (per-file
+  (one tool → defining file + target, computed through the same mode and flags
+  as the per-tool path: minimal target by default, the behavior-gated walk
+  target under `modernize`, D21/D22), the pure `plan_from_sites` (per-file
   importer agreement), and `apply_profile_token_plans` (bump the agreed files'
   tokens via `format_macro_document`, skip the rest). See `docs/decisions.md` D5.
 - `version_token_share.py`: shared-macros version tokenization (`tokenize-version
@@ -102,7 +108,8 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
   tool) and `tokenize_version_shared` (a directory group) sit on top. See
   `docs/decisions.md` D20.
 - `results.py` — the structured result + introspection dataclasses.
-- `errors.py` — `UnknownRuleCode` / `UnknownRuleset`.
+- `errors.py` — `UnknownRuleCode` / `UnknownRuleset` / `UnknownProfile` /
+  `UpgradeFlagError`.
 
 ## Useful references
 

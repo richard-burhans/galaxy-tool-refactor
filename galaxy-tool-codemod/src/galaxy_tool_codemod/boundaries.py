@@ -52,23 +52,25 @@ def _what_we_do(change: ProfileUpgradeCode, /) -> str:
             f" when the fix is provable for your tool ({fix.meta.code}:"
             f" {_quote_tags(fix.meta.summary)}). When it cannot prove the"
             f" construct gone"
-            f" (the fix is verified by re-detection), the default walk stops"
-            f" below {change.profile}; update the tool by hand and rerun, or"
-            f" rerun with `--allow-behavior-change` to upgrade anyway."
+            f" (the fix is verified by re-detection), the `--modernize` walk"
+            f" stops below {change.profile}; update the tool by hand and"
+            f" rerun, or rerun with `--modernize --allow-behavior-change` to"
+            f" upgrade anyway."
         )
     if change.level == "must_fix":
         return (
-            f"**What the toolchain does:** the default `upgrade` stops below"
+            f"**What the toolchain does:** `upgrade --modernize` stops below"
             f" {change.profile} when this applies to your tool (there is no"
             f" automatic fix yet). Update the tool following Galaxy's"
-            f" description below, then rerun `upgrade`; or rerun with"
-            f" `--allow-behavior-change` to upgrade anyway and review the"
-            f" change yourself."
+            f" description below, then rerun; or rerun with"
+            f" `--modernize --allow-behavior-change` to upgrade anyway and"
+            f" review the change yourself."
         )
     return (
         "**What the toolchain does:** warns when this applies to your tool;"
         " the change is advisory (`consider`), so it does not stop the"
-        " default walk. Review Galaxy's description below at your leisure."
+        " `--modernize` walk. Review Galaxy's description below at your"
+        " leisure."
     )
 
 
@@ -112,11 +114,11 @@ def render_boundary_reference() -> str:
                 if entry.profile == change.profile and entry.level == "must_fix"
             )
             stop_note = (
-                "The default `upgrade` stops below this profile when one of its"
+                "`upgrade --modernize` stops below this profile when one of its"
                 " `must_fix` changes applies to your tool and cannot be fixed"
                 " automatically."
                 if must_fix
-                else "No `must_fix` change lands here; the default `upgrade`"
+                else "No `must_fix` change lands here; the `--modernize` walk"
                 " crosses this boundary freely (with warnings where a"
                 " `consider` change applies)."
             )

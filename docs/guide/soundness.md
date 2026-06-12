@@ -1,10 +1,13 @@
 # Soundness — what "safe" guarantees (and what it doesn't)
 
-> **TL;DR.** `format` never changes behaviour. `upgrade` is **behavior-preserving by
-> default**: it advances the profile only as far as it can prove no applicable
-> breaking (`must_fix`) Galaxy behaviour change is crossed un-fixed, stops there with
-> an actionable report, and the result is **structurally valid** at the profile it
-> declares. Going further is an explicit choice (`--allow-behavior-change`).
+> **TL;DR.** `format` never changes behaviour. `upgrade` is **minimal-bump by
+> default**: `profile=` moves only when strictly needed for validity, and a tool
+> that validates where it sits is kept byte-untouched. `upgrade --modernize` is
+> the **behavior-preserving walk**: it advances the profile only as far as it
+> can prove no applicable breaking (`must_fix`) Galaxy behaviour change is
+> crossed un-fixed, stops there with an actionable report, and the result is
+> **structurally valid** at the profile it declares. Going further is an
+> explicit choice (`--modernize --allow-behavior-change`).
 > Behaviour-affecting edits are applied **only where the tool can prove them safe**;
 > everything else is reported, not changed. That conservatism is the point: it's what
 > makes the automation trustworthy.
@@ -64,15 +67,19 @@ approximation tuned to the current corpus.
 
 ## How the boundary is enforced
 
-- The profile is advanced only to the **newest profile the tool structurally
-  reaches**, capped by the **behaviour ceiling** (the newest vendored profile below
-  the first applicable, un-fixed `must_fix` change). An unresolvable `@PROFILE@`
-  baseline fails closed (no advance), and the gate never lowers a declared profile.
+- By default the profile moves only to the **minimum valid profile at or above
+  the tool's baseline**, and only when the tool does not validate where it
+  sits; a valid tool is byte-untouched and an undeclared tool stays
+  undeclared. An unresolvable `@PROFILE@` baseline fails closed (no advance),
+  and the profile is never lowered.
+- Under `--modernize` the profile is advanced only to the **newest profile the
+  tool structurally reaches**, capped by the **behaviour ceiling** (the newest
+  vendored profile below the first applicable, un-fixed `must_fix` change).
 - For profile bumps that carry **behaviour-affecting** Galaxy changes, the engine runs
   **per-tool detection** and only applies an automated repair where it can prove the
   change is safe for *that* tool. Where it can't, it **stops and reports** (for
   `must_fix` changes) or warns (for `consider` changes) instead of silently changing
-  behaviour; `--allow-behavior-change` is the explicit opt-out.
+  behaviour; `--modernize --allow-behavior-change` is the explicit opt-out.
 - The runtime-gated repairs are exactly as wide as their proofs (widened
   2026-06-10 when source archaeology extended the proofs):
   - **GTR016 (`interpreter=`)** rewrites any non-empty interpreter value — Galaxy
@@ -101,11 +108,11 @@ approximation tuned to the current corpus.
 - `true`: it crossed no behaviour-affecting platform change that *applies to this
   tool*, or every applicable breaking change was provably fixed (each credited fix
   is named in a "fixed automatically" note);
-- `false`: at least one applies un-fixed (under the default gate this can only be
-  an advisory `consider` change; breaking changes stop the walk instead); look
-  before accepting;
+- `false`: at least one applies un-fixed (under the modernize walk's gate this
+  can only be an advisory `consider` change; breaking changes stop the walk
+  instead); look before accepting;
 - `null`: undetermined (the profile is a macro token that resolves to no version;
-  the default walk then changes nothing).
+  the upgrade then changes nothing).
 
 Alongside it: `stopped_at` (where the gate capped the walk), `blocking_codes` (the
 full review list), and `auto_fixed_codes`. The CLI, library, and MCP server all
