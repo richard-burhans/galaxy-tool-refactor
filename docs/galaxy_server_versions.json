@@ -1,0 +1,42 @@
+{
+  "polled_on": "2026-06-12",
+  "servers": [
+    {
+      "name": "usegalaxy.org",
+      "version_major": "26.1",
+      "version_minor": "rc1",
+      "reachable": true,
+      "prerelease": true
+    },
+    {
+      "name": "usegalaxy.eu",
+      "version_major": "26.0",
+      "version_minor": "1.dev1",
+      "reachable": true,
+      "prerelease": true
+    },
+    {
+      "name": "usegalaxy.org.au",
+      "version_major": "26.0",
+      "version_minor": "1.dev1",
+      "reachable": true,
+      "prerelease": true
+    },
+    {
+      "name": "usegalaxy.fr",
+      "version_major": "25.1",
+      "version_minor": "3.dev0",
+      "reachable": true,
+      "prerelease": true
+    },
+    {
+      "name": "usegalaxy.ca",
+      "version_major": "25.1",
+      "version_minor": "3.dev0",
+      "reachable": true,
+      "prerelease": true
+    }
+  ],
+  "deployment_floor": "25.1",
+  "profile_ceiling": "25.1"
+}
