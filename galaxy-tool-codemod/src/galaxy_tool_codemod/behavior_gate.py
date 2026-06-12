@@ -147,6 +147,16 @@ def behavior_ceiling(blockers: tuple[ProfileUpgradeCode, ...], /) -> str | None:
     return max(below, key=Version)
 
 
+def placeable_baseline(baseline: str | None, /) -> bool:
+    """Whether *baseline* is a version the gate can place boundaries against.
+
+    ``False`` for ``None`` and for unparseable values (e.g. an unresolved
+    ``@PROFILE@`` macro token). The facade fails closed on an unplaceable
+    baseline: crossing boundaries it cannot place would void the guarantee.
+    """
+    return baseline is not None and version_or_none(baseline) is not None
+
+
 def blocked_below_baseline(*, ceiling: str | None, baseline: str) -> bool:
     """Whether *ceiling* would take the tool *backwards* from *baseline*.
 

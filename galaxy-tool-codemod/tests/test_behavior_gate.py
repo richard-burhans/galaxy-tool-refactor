@@ -18,6 +18,7 @@ from galaxy_tool_codemod.behavior_gate import (
     blocked_below_baseline,
     blocking_codes,
     code_cleared_by_autofix,
+    placeable_baseline,
 )
 from galaxy_tool_codemod.codemods.fix_interpreter import FixInterpreter
 from galaxy_tool_codemod.parse import parse_module
@@ -174,6 +175,13 @@ def test_no_vendored_profile_below_the_blocker_means_none() -> None:
     # baseline leaves no safe profile to declare at all.
     assert min(available_profiles(), key=Version) == "16.10"
     assert behavior_ceiling((_blocker("16.04"),)) is None
+
+
+def test_placeable_baseline_rejects_tokens_and_none() -> None:
+    assert placeable_baseline("16.01")
+    assert placeable_baseline("24.2")
+    assert not placeable_baseline(None)
+    assert not placeable_baseline("@PROFILE@")
 
 
 def test_gate_never_lowers_a_declared_profile() -> None:

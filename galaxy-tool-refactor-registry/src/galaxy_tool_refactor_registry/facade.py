@@ -23,6 +23,7 @@ import copy
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from galaxy_tool_codemod import behavior_gate
 from galaxy_tool_codemod.codemods.convert_help_markdown import (
     ConvertHelpToMarkdown,
     conversion_skip_reason,
@@ -34,9 +35,9 @@ from galaxy_tool_codemod.codemods.tokenize_version import (
 )
 from galaxy_tool_codemod.module import Module
 from galaxy_tool_codemod.profile_semantics import (
+    ProfileUpgradeCode,
     crossed_and_applicable_codes,
     tripped_upgrade_codes,
-    upgrade_is_behavior_preserving,
 )
 from galaxy_tool_codemod.runtime_fixes import runtime_fixes_for
 from galaxy_tool_codemod.upgrades import UpgradeToLatest
@@ -53,9 +54,13 @@ from galaxy_tool_source.binding import Source, load_tool, newest_valid_profile
 from galaxy_tool_source.cheetah_refs import tool_cheetah_references
 from galaxy_tool_source.cheetah_rename import rename_param as _rename_in_tree
 from galaxy_tool_source.document import ToolDocument
+from galaxy_tool_source.macros import token_definitions
+from galaxy_tool_source.profiles import available_profiles, latest_profile
+from packaging.version import Version
 
 from galaxy_tool_refactor_registry.adapters import fmt_rule_by_code
 from galaxy_tool_refactor_registry.apply import apply_selection
+from galaxy_tool_refactor_registry.errors import UnknownProfile
 from galaxy_tool_refactor_registry.registry import all_handles, registry
 from galaxy_tool_refactor_registry.results import (
     ConvertHelpResult,
@@ -223,46 +228,50 @@ def _upgrade_summary(steps: tuple[str, ...], missing: str | None) -> str | None:
     return "  " + "; ".join(parts)
 
 
-def _semantic_baseline(declared_profile: str | None) -> str | None:
+def _resolved_baseline(document: ToolDocument) -> str | None:
     """The runtime-behaviour baseline a profile bump is measured against.
 
     A missing ``profile=`` runs under Galaxy's ``16.01`` default, so that is the
-    baseline. A declared literal version is itself. A macro-token (or otherwise
-    unparseable) profile can't be placed cheaply, so return ``None`` — the upgrade
-    proceeds, but we raise no semantic warning rather than a misleading one.
+    baseline. A declared literal version is itself. A ``@TOKEN@`` declaration is
+    resolved through the tool's token definitions (inline, then imported macro
+    files); ``None`` when no definition resolves it, in which case the gate
+    fails closed (crossing boundaries it cannot place would void the guarantee).
     """
-    if declared_profile is None:
+    declared = document.profile
+    if declared is None:
         return "16.01"
-    return declared_profile
+    if "@" not in declared:
+        return declared
+    for definition in token_definitions(document):
+        if definition.name == declared:
+            return definition.value
+    return None
 
 
 def _semantic_warning(
-    baseline: str | None, target: str | None, tripped: frozenset[str]
+    baseline: str | None,
+    target: str | None,
+    *,
+    crossed: list[ProfileUpgradeCode],
+    residual: list[ProfileUpgradeCode],
 ) -> str | None:
     """Warn when the bump crosses runtime-behaviour the XSD can't verify.
 
     Profile upgrade is structurally sound but not behaviour-preserving (codemod
-    ``docs/decisions.md`` §22): some bumps change runtime defaults. We can't
-    auto-preserve them, so we surface the crossed boundaries for the user to
-    review. Of the codes the bump *crosses*, only those whose per-tool detector
-    fired (*tripped*, captured on the pre-upgrade tool) actually *apply* — Galaxy's
-    advisor detects per-tool, so we do too. ``None`` (no warning) when either
-    profile is unknown/unparseable, nothing is crossed, or nothing applies.
+    ``docs/decisions.md`` §22): some bumps change runtime defaults. We surface
+    the crossed boundaries for the user to review. *residual* is the applicable
+    set minus the codes an auto-fix already cleared (a cleared code needs no
+    review; it gets its own fixed-automatically note). ``None`` (no warning)
+    when nothing applies after crediting the fixes.
     """
-    pair = crossed_and_applicable_codes(
-        baseline=baseline, target=target, tripped=tripped
-    )
-    if pair is None:
-        return None
-    crossed, applicable = pair
-    if not applicable:
+    if not residual:
         return None
     # The catalogue is profile-ascending, so first-seen dedup keeps release order.
-    releases = ", ".join(dict.fromkeys(change.profile for change in applicable))
-    must_fix = sum(1 for change in applicable if change.level == "must_fix")
+    releases = ", ".join(dict.fromkeys(change.profile for change in residual))
+    must_fix = sum(1 for change in residual if change.level == "must_fix")
     must_fix_note = f", {must_fix} must-fix" if must_fix else ""
     return (
-        f"  profile {baseline}→{target}: {len(applicable)} of {len(crossed)}"
+        f"  profile {baseline}→{target}: {len(residual)} of {len(crossed)}"
         f" crossed Galaxy profile-behaviour change(s) apply to this tool"
         f"{must_fix_note} (releases {releases}); review against"
         " docs/profile_upgrades.md before relying on this upgrade."
@@ -270,21 +279,86 @@ def _semantic_warning(
 
 
 def _behavior_preserving_note(
-    baseline: str | None, target: str | None, *, preserving: bool | None, advanced: bool
+    baseline: str | None,
+    target: str | None,
+    *,
+    preserving: bool | None,
+    crossed_any: bool,
 ) -> str | None:
     """The positive clean-pass note, or ``None`` when there is no story to tell.
 
-    Emitted only when the bump actually *advanced* the profile (*advanced*) and is
-    behaviour-preserving — the affirmative complement of ``_semantic_warning``. A
-    no-op upgrade (already latest) is vacuously preserving but says nothing, and a
-    bump that crosses an applicable code is reported by the warning instead.
+    Emitted only when the bump actually crossed at least one catalogue boundary
+    (*crossed_any*) and is behaviour-preserving — the affirmative complement of
+    ``_semantic_warning``. A no-op upgrade (already at its target) is vacuously
+    preserving but says nothing, and a bump that crosses an applicable,
+    uncleared code is reported by the warning instead.
     """
-    if not (advanced and preserving):
+    if not (crossed_any and preserving):
         return None
     return (
         f"  profile {baseline}→{target}: upgrade crosses no behaviour change that"
         " applies to this tool — behavior-preserving."
     )
+
+
+def _behavior_stop_note(
+    blockers: tuple[ProfileUpgradeCode, ...],
+    *,
+    stopped_at: str | None,
+    walked: bool,
+    target_profile: str | None,
+) -> str | None:
+    """The loud, actionable stop report for a gated walk, or ``None``.
+
+    Covers the two gate outcomes: the walk capped at a profile below the
+    latest (*walked*), and the declaration left in place entirely because no
+    vendored profile predates the first blocker. Always names the blocking
+    code, where to read about it, and the opt-out. Phrased per the Galaxy
+    Community Code of Conduct: the tool is not "broken", it is not yet provably
+    safe to upgrade further.
+    """
+    if not blockers:
+        return None
+    latest = latest_profile()
+    if walked and (stopped_at is None or stopped_at == latest):
+        return None
+    codes = ", ".join(
+        f"{change.code} ({change.level} at {change.profile})" for change in blockers
+    )
+    next_steps = (
+        "see docs/profile_upgrades.md for what changes there and how to update"
+        " the tool, or rerun with --allow-behavior-change to upgrade anyway"
+    )
+    if not walked:
+        return (
+            f"  profile upgrade left profile= unchanged: {codes} appl"
+            f"{'y' if len(blockers) > 1 else 'ies'} to this tool and no vendored"
+            f" profile predates the first change; {next_steps}."
+        )
+    requested = (
+        f" The requested target {target_profile} lies past this boundary and"
+        " also needs --allow-behavior-change."
+        if target_profile is not None
+        and Version(target_profile) > Version(str(stopped_at))
+        else ""
+    )
+    return (
+        f"  profile upgrade stopped at {stopped_at} (latest is {latest}):"
+        f" {codes} appl{'y' if len(blockers) > 1 else 'ies'} to this tool and"
+        f" cannot be fixed automatically yet; {next_steps}.{requested}"
+    )
+
+
+def _validated_target_profile(target_profile: str | None) -> str | None:
+    """Pass through a vendored *target_profile*, or raise ``UnknownProfile``."""
+    if target_profile is None:
+        return None
+    profiles = available_profiles()
+    if target_profile not in profiles:
+        raise UnknownProfile(
+            target_profile, oldest=profiles[0], latest=latest_profile()
+        )
+    return target_profile
 
 
 def upgrade(
@@ -293,68 +367,163 @@ def upgrade(
     *,
     codes: frozenset[str],
     write_path: Path | None = None,
+    allow_behavior_change: bool = False,
+    target_profile: str | None = None,
 ) -> UpgradeResult:
     """Profile-upgrade *source*, plus the fixable rules in *codes*, then format.
 
-    ``UpgradeToLatest`` always runs (it is the command's purpose); ``FixTypos``
-    runs first when its code is in *codes* (the repair precondition). Runtime-gated
-    fixes for the reached profile then apply (e.g. the 21.09 ``from_work_dir``
-    strip — a correctness fix the XSD can't enforce). Any other selected codemods
-    run after (canonical order), then the selected cosmetic fmt rules. Advisory
-    rules in *codes* are reported as notes.
+    **Behavior-preserving by default**: the walk stops at the behaviour
+    ceiling — the newest vendored profile reachable without crossing a Galaxy
+    ``must_fix`` behaviour change that applies to this tool and that no
+    runtime-gated fix provably clears (``behavior_gate``). Applicable
+    consider-level changes are warned about but do not stop the walk.
+    *allow_behavior_change* lifts the gate (the historical walk-to-latest);
+    *target_profile* caps the walk at an explicit vendored profile (raising
+    ``UnknownProfile`` otherwise) and composes with the gate (the lower wins).
+
+    ``FixTypos`` runs first when its code is in *codes* (the repair
+    precondition). Runtime-gated fixes for the reached profile then apply
+    (e.g. the 21.09 ``from_work_dir`` strip), and codes they provably clear
+    (re-detected after the fix) are credited to the behaviour verdict. Any
+    other selected codemods run after (canonical order), then the selected
+    cosmetic fmt rules. Advisory rules in *codes* are reported as notes.
     """
+    target = _validated_target_profile(target_profile)
     document = _to_document(source)
     # Capture the runtime baseline AND which upgrade codes the tool trips BEFORE
     # any codemod rewrites ``profile=`` or mutates the features detectors inspect
     # (GTR014/GTR015 fix the very things some detectors look for).
-    baseline = _semantic_baseline(document.profile)
+    baseline = _resolved_baseline(document)
+    placeable = behavior_gate.placeable_baseline(baseline)
     tripped = tripped_upgrade_codes(document)
     advisory = _detect_advisory(document, codes)
+
+    # The gate: blockers are computed whenever the baseline is placeable (under
+    # the opt-out they are reporting-only, the user's review list); the ceiling
+    # caps the walk only under the default.
+    blockers: tuple[ProfileUpgradeCode, ...] = ()
+    walk = True
+    ceiling = target
+    if placeable and baseline is not None:
+        blockers = behavior_gate.blocking_codes(document, baseline=baseline)
+        if not allow_behavior_change:
+            gate_ceiling = behavior_gate.behavior_ceiling(blockers)
+            if behavior_gate.blocked_below_baseline(
+                ceiling=gate_ceiling, baseline=baseline
+            ):
+                walk = False
+            elif ceiling is None or (
+                gate_ceiling is not None and Version(gate_ceiling) < Version(ceiling)
+            ):
+                ceiling = gate_ceiling
+    elif not allow_behavior_change:
+        # An unplaceable baseline (an unresolved @PROFILE@ token): crossing
+        # boundaries we cannot place would void the guarantee, so fail closed.
+        walk = False
+
     module = Module(document)
     if FixTypos.meta.code in codes:
         FixTypos().apply(module)
-    upgrader = UpgradeToLatest()
-    upgrader.apply(module)
+    steps: tuple[str, ...] = ()
+    missing: str | None = None
+    if walk:
+        upgrader = UpgradeToLatest(ceiling=ceiling)
+        upgrader.apply(module)
+        steps = tuple(upgrader.upgrade_steps_applied())
+        missing = upgrader.missing_upgrade()
+
+    # The profile actually reached (a literal version, even when ``profile=`` is
+    # a macro token), measured under the same ceiling as the walk; the runtime
+    # baseline when the walk did not run.
+    reached_profile = (
+        newest_valid_profile(document, ceiling=ceiling) if walk else baseline
+    )
 
     # Runtime-gated fixes correct profile behaviours the XSD does not enforce, so
     # they ride neither the validity loop nor the selection. Apply each fix the tool
     # actually CROSSES (`baseline < introduced_profile <= reached`): a tool that
     # stalled below it is left alone (Galaxy ran it under the old behaviour), and one
     # that already declared a profile at/above it is left alone too (Galaxy already
-    # applied the new behaviour — rewriting would change, not preserve, behaviour).
-    # `baseline` is the pre-upgrade runtime baseline captured above. Upgrade-only —
-    # never in `format`/canonical.
-    reached = newest_valid_profile(document)
-    if reached is not None:
-        for fix in runtime_fixes_for(reached, baseline_profile=baseline):
-            fix().apply(module)
+    # applied the new behaviour; rewriting would change, not preserve, behaviour).
+    # Upgrade-only: never in `format`/canonical.
+    applied_fixes = (
+        runtime_fixes_for(reached_profile, baseline_profile=baseline)
+        if walk and reached_profile is not None
+        else ()
+    )
+    for fix in applied_fixes:
+        fix().apply(module)
+    # Credit only the codes the executed fixes provably cleared: tripped before,
+    # quiet after (proof by execution, the same standard as the gate's probe).
+    auto_fixed: tuple[str, ...] = ()
+    if applied_fixes:
+        still_tripped = tripped_upgrade_codes(document)
+        auto_fixed = tuple(
+            fix.upgrade_code
+            for fix in applied_fixes
+            if fix.upgrade_code in tripped and fix.upgrade_code not in still_tripped
+        )
 
     # The remaining fixable rules (any selected reorderers + cosmetic fmt) run
     # through the shared apply pipeline; FixTypos already ran as the repair
     # precondition, so it is excluded to avoid a redundant second pass.
     formatted = apply_selection(document, codes=codes - {FixTypos.meta.code})
 
-    steps = tuple(upgrader.upgrade_steps_applied())
-    missing = upgrader.missing_upgrade()
     summary = _upgrade_summary(steps, missing)
-    # The profile actually reached (a literal version, even when ``profile=`` is a
-    # macro token), so the warning and verdict are measured against where the tool
-    # landed. The verdict is the positive complement of the warning over the same
-    # applicable set (``crossed_and_applicable_codes``), so they can't disagree.
-    reached_profile = newest_valid_profile(document)
-    semantic = _semantic_warning(baseline, reached_profile, tripped)
-    preserving = upgrade_is_behavior_preserving(
+    # Warning and verdict derive from one applicable set (minus the credited
+    # auto-fixes), so they can never disagree.
+    pair = crossed_and_applicable_codes(
         baseline=baseline, target=reached_profile, tripped=tripped
     )
-    pass_note = _behavior_preserving_note(
-        baseline, reached_profile, preserving=preserving, advanced=bool(steps)
+    crossed: list[ProfileUpgradeCode] = []
+    residual: list[ProfileUpgradeCode] = []
+    preserving: bool | None = None
+    if pair is not None:
+        crossed, applicable = pair
+        residual = [change for change in applicable if change.code not in auto_fixed]
+        preserving = not residual
+    semantic = _semantic_warning(
+        baseline, reached_profile, crossed=crossed, residual=residual
     )
+    pass_note = _behavior_preserving_note(
+        baseline, reached_profile, preserving=preserving, crossed_any=bool(crossed)
+    )
+    if not walk:
+        stopped_at = baseline if placeable else None
+    elif ceiling is not None and ceiling != latest_profile():
+        stopped_at = ceiling
+    else:
+        stopped_at = None
+    stop_note = (
+        _behavior_stop_note(
+            blockers, stopped_at=stopped_at, walked=walk, target_profile=target
+        )
+        if not allow_behavior_change
+        else None
+    )
+    unplaceable_note = (
+        "  profile= is a macro token that does not resolve to a version, so"
+        " behaviour boundaries cannot be placed; profile= was left unchanged."
+        " Rerun with --allow-behavior-change to upgrade without the behavior"
+        " gate."
+        if not placeable and not allow_behavior_change
+        else None
+    )
+    fixed_notes = [
+        f"  crossed {fix.introduced_profile} {fix.upgrade_code}: fixed"
+        f" automatically ({fix.meta.code})."
+        for fix in applied_fixes
+        if fix.upgrade_code in auto_fixed
+    ]
     notes = tuple(
         note
         for note in (
             summary,
+            stop_note,
+            unplaceable_note,
             semantic,
             pass_note,
+            *fixed_notes,
             *(render_advisory_note(violation) for violation in advisory),
         )
         if note is not None
@@ -366,6 +535,9 @@ def upgrade(
         steps_applied=steps,
         missing_upgrade=missing,
         behavior_preserving=preserving,
+        stopped_at=stopped_at,
+        blocking_codes=tuple(change.code for change in blockers),
+        auto_fixed_codes=auto_fixed,
         advisory=advisory,
         notes=notes,
     )

@@ -32,3 +32,18 @@ class UnknownRuleset(ValueError):
     def __init__(self, name: str, /) -> None:
         self.name = name
         super().__init__(f"unknown ruleset: {name!r}")
+
+
+class UnknownProfile(ValueError):
+    """A profile passed to ``--target-profile`` is not a vendored Galaxy profile.
+
+    *oldest* and *latest* bound the vendored range, so the message shows what
+    is available instead of only rejecting the value.
+    """
+
+    def __init__(self, profile: str, /, *, oldest: str, latest: str) -> None:
+        self.profile = profile
+        super().__init__(
+            f"unknown profile: {profile!r}; vendored Galaxy profiles run from"
+            f" {oldest} to {latest}"
+        )
