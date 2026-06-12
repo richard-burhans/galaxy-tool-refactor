@@ -45,22 +45,24 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Convert an RST `<help>` to Markdown when provably render-equivalent (profile ≥ 24.2; repair-then-convert; opt-in `convert-help`, never `format`/`upgrade`) | GTR092 | ✅ Shipped | `convert-help` command; tier-1 `rst_markdown` gate; 73.4% of corpus RST helps convertible (`docs/upgrade_research/restructuredtext_codemods.md`) |
 | Factor a literal `version="<base>+galaxy<suffix>"` into `@TOOL_VERSION@`/`@VERSION_SUFFIX@` tokens (opt-in `tokenize-version`; inline, or in a created / merged / directory-shared `--macros-file` (expansion-equality gated), or the identity-changing `--adopt-suffix` (controlled-change gated); never `format`/`upgrade`) | GTR094 | ✅ Shipped | `tokenize-version` command; codemod §43, cli §D13–D15, registry D20; 76 inline + 284 `--adopt-suffix` candidates (`scripts.measure version-tokenization`) |
 
-### Upgrade (profile bump + repair, opt-in & semantic)
+### Upgrade (repair + profile placement, opt-in & semantic)
 
 | Capability | Code | Status | Source |
 |---|---|---|---|
-| Upgrade a tool as far as behaviour provably stays the same (the behavior-gate default; `--allow-behavior-change` walks to the newest structurally-reachable profile) | — | ✅ Shipped | `upgrade` command; gate proof `docs/proofs/behavior-gate.md`; corpus contract sweep `corpus_check upgrade` (0 violations) |
+| Repair, then bump `profile=` only when strictly needed for validity (the minimal-bump default: a valid tool keeps its declaration, undeclared stays undeclared, else the minimum valid profile) | GTR097 | ✅ Shipped | `upgrade` command; proof `docs/proofs/GTR097.md`; corpus contract sweep `corpus_check upgrade` (0 violations, both modes) |
+| Upgrade a tool as far as behaviour provably stays the same (the opt-in `--modernize` walk; `--allow-behavior-change` walks to the newest structurally-reachable profile) | — | ✅ Shipped | `upgrade --modernize`; gate proof `docs/proofs/behavior-gate.md`; corpus contract sweep `corpus_check upgrade` (0 violations) |
 | Bump an inline `@PROFILE@` macro token | GTR007 | ✅ Shipped | upgrade rule set |
 | Bump an *imported* `@PROFILE@` token (only on importer consensus) | — | 🟡 Partial | `macro_profile` (registry) |
 | Runtime-gated repairs (`format_source` guard, `format="input"`, `interpreter=`) | GTR014, GTR015, GTR016 | 🟡 Partial | upgrade rule set |
 | Normalize literal `format`/`ftype` in *imported* macro files (opt-in `normalize-macros`) | — | ✅ Shipped | `macro_datatype` (registry); 15 tools unstuck (`docs/macro_format_residual_stats.md`) |
 
-> 🟡 **The soundness boundary (read `soundness.md`).** The default `upgrade` stops at
+> 🟡 **The soundness boundary (read `soundness.md`).** The default `upgrade` bumps
+> only when validity strictly requires it; the `--modernize` walk stops at
 > the **behaviour ceiling**: it never crosses a Galaxy `must_fix` change that applies
 > to the tool unless a bundled fix provably clears it on that tool (verified by
 > re-detection); the stop report links to `docs/profile_boundaries.md`. The result is
 > **structurally valid** at the profile it declares. Crossing further is the explicit
-> `--allow-behavior-change`. Behaviour-affecting changes are only applied where
+> `--modernize --allow-behavior-change`. Behaviour-affecting changes are only applied where
 > per-tool detection proves them safe; otherwise they are reported, not made
 > (`upgrade` surfaces `behavior_preserving`, `true`/`false`/`null`, plus
 > `stopped_at`/`blocking_codes`/`auto_fixed_codes` so callers can gate on them). GTR016 (interpreter)

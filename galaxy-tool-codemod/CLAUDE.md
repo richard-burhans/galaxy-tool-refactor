@@ -63,8 +63,10 @@ contracts in ``canonical.py``:
 of the upgrade story: the applicable, non-auto-fixed ``must_fix`` blockers over
 a baseline (``blocking_codes``, with the proof-by-execution auto-fix probe
 ``code_cleared_by_autofix``) and the **ceiling** (``behavior_ceiling``) the
-facade's default ``upgrade`` passes into ``UpgradeToLatest(ceiling=…)``. The
-mechanism lives here; the default-flip policy lives in the tier-3.6 facade.
+facade's opt-in ``modernize`` walk passes into ``UpgradeToLatest(ceiling=…)``
+(the facade's *default* is the minimal bump, §50; ``blocking_codes`` is still
+computed there as the modernize preview). The mechanism lives here; the
+mode policy lives in the tier-3.6 facade.
 ``boundaries.py`` renders the user-facing per-boundary reference
 (``docs/profile_boundaries.md``) from ``PROFILE_UPGRADE_CODES`` + the auto-fix
 registry; the soundness argument is ``docs/proofs/behavior-gate.md``.
@@ -83,8 +85,8 @@ gate, applied solely by ``tokenize-version``.
 codemods from ``upgrades.py``) are validation-driven and override ``apply``. Its
 minimal-bump sibling ``UpgradeToValid(floor=…)`` (GTR097, ``docs/decisions.md``
 §49) declares the *oldest* profile at or above the tool's baseline it validates
-at — the mechanism behind the planned don't-bump-unless-needed ``upgrade``
-default — reusing the same ``UPGRADE_CODEMODS`` steps plus the tier-1
+at — the engine of the facade's don't-bump-unless-needed ``upgrade``
+default (§50) — reusing the same ``UPGRADE_CODEMODS`` steps plus the tier-1
 ``oldest_valid_profile`` probe; it never lowers a profile. The upgrade registry
 is grown empirically from ``corpus_check codemod`` discovery sweeps; see
 ``docs/decisions.md`` §11–14, §16 for the canonical/upgrade split, §17–18 for the

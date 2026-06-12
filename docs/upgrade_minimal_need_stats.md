@@ -1,16 +1,17 @@
 # Upgrade minimal-need statistics
 
-How the planned **minimal-bump** `galaxy-tool-refactor upgrade` default would
-treat the corpus: keep a tool's `profile=` when it validates there (after a
+How the **shipped minimal-bump** `galaxy-tool-refactor upgrade` default
+treats the corpus: keep a tool's `profile=` when it validates there (after a
 `FixTypos` repair), and otherwise bump only to the **minimum** vendored profile
-at or above its baseline that validates. This inverts the shipped behavior-gate
-walk (codemod `docs/decisions.md` §45): modernizing to the ceiling becomes an
-opt-in, and this page sizes how often the new default changes nothing at all.
+at or above its baseline that validates. This inverts the behavior-gate
+walk (codemod `docs/decisions.md` §45, now the opt-in `--modernize`; the
+default is §50), and this page sizes how often the default changes nothing at
+all.
 
 A tool's baseline is its declared `profile=`, or Galaxy's `16.01` default when
 undeclared (`behavior_gate.resolved_baseline`). No-profile tools are reported
-as a separate cohort because whether to leave them undeclared or declare their
-oldest valid profile is an open policy question.
+as a separate cohort; the settled policy leaves them undeclared (declaring a
+profile is `--modernize`'s job), sized by the kept-undeclared count below.
 
 Regenerate with (needs the corpus, so not run in CI):
 
@@ -22,7 +23,7 @@ Unique `<tool>` files (sha256-deduped): **9,373**. Latest vendored
 profile: `26.1`. Deployment ceiling (the newest profile across the
 major public Galaxy servers): `25.1`.
 
-## What the default would do
+## What the default does
 
 **Kept untouched: 7,195 (76.8%)**. Bumped to a minimum valid profile: 1,482 (15.8%).
 

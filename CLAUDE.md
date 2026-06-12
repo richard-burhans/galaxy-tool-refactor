@@ -125,10 +125,13 @@ uv run python -m scripts.corpus_check rules [--source github|toolshed|combined] 
 # IUC): per-rule tools-flagged + total findings, write docs/corpus_check_stats.md.
 uv run python -m scripts.corpus_check check [--source github|toolshed|combined] [--repo NAME] [--limit N]
 
-# Gated-upgrade contract sweep: run the DEFAULT (behavior-preserving) `upgrade` over
-# every tool, assert fail-closed / gate-cap / no un-fixed must_fix crossing / validity /
-# idempotence, retain violations as fixtures + docs/corpus_data/upgrade_gate_errors.json.
-uv run python -m scripts.corpus_check upgrade [--source github|toolshed|combined] [--repo NAME] [--limit N]
+# Upgrade-contract sweep: run the shipped `upgrade` over every tool in one or both
+# modes and assert each mode's contract — minimal (the DEFAULT: fail-closed,
+# undeclared stays undeclared, kept when valid at the baseline, minimum profile when
+# bumped, validity, idempotence) and modernize (the opt-in gated walk: fail-closed /
+# gate-cap / no un-fixed must_fix crossing / validity / idempotence) — retaining
+# violations as fixtures + docs/corpus_data/upgrade_gate_errors.json.
+uv run python -m scripts.corpus_check upgrade [--mode minimal|modernize|both] [--source github|toolshed|combined] [--repo NAME] [--limit N]
 
 uv run python -m scripts.fetch_schemas         # download release XSDs
 uv run python -m scripts.fetch_toolshed        # clone Toolshed repos
@@ -257,8 +260,8 @@ uv run python -m scripts.measure upgrade-profile-shift
 # not run in CI):
 uv run python -m scripts.measure upgrade-behavior-blocks
 
-# Sizes the planned minimal-bump `upgrade` default (don't bump profile= unless
-# strictly needed for validity; the inversion of the shipped behavior-gate walk):
+# Sizes the SHIPPED minimal-bump `upgrade` default (don't bump profile= unless
+# strictly needed for validity; the behavior-gate walk is the opt-in --modernize):
 # classify every tool as kept (validates at its baseline after repair) / bump-direct
 # / bump-step-assisted / unreachable / unplaceable, split by the declared vs
 # no-profile cohort, plus where the minimal bumps land vs the deployment ceiling.
@@ -421,19 +424,24 @@ commands:
   output: GTR020.1 — `SingleQuoteCommandVars` — now also single-quotes the
   *provably*-single-valued Cheetah vars in `<command>`, a behaviour-preserving fix;
   codemod `docs/decisions.md` §30.)
-- `galaxy-tool-refactor upgrade` — repair, then iterative profile upgrade, then
-  format. Opt-in, semantic. **Behavior-preserving by default**: the walk stops at
-  the behaviour ceiling (the newest vendored profile reachable without crossing a
-  Galaxy `must_fix` change that applies to the tool and that no runtime-gated fix
-  provably clears; the auto-fix probe is proof-by-execution per tool). Stop
-  reports name the blocking code(s) and link to `docs/profile_boundaries.md`;
+- `galaxy-tool-refactor upgrade` — repair, then profile placement, then
+  format. Opt-in, semantic. **Minimal-bump by default**: `profile=` moves only
+  when strictly needed for validity — kept when the repaired tool validates at
+  its baseline, undeclared stays undeclared, else the minimum valid profile at
+  or above the baseline (`UpgradeToValid`, GTR097). `--modernize` opts into
+  the **behavior-preserving walk**: it stops at the behaviour ceiling (the
+  newest vendored profile reachable without crossing a Galaxy `must_fix`
+  change that applies to the tool and that no runtime-gated fix provably
+  clears; the auto-fix probe is proof-by-execution per tool). Stop reports
+  name the blocking code(s) and link to `docs/profile_boundaries.md`;
   applicable `consider` changes warn but never stop.
-  `--allow-behavior-change` lifts the gate (the historical walk-to-latest);
-  `--target-profile` caps at an explicit vendored profile. The shared
-  imported-`@PROFILE@` bump honors the same gate per importer. No `--ruleset`
+  `--allow-behavior-change` lifts the walk's gate (the historical
+  walk-to-latest; an error without a walk mode); `--target-profile` caps at
+  an explicit vendored profile and implies the walk. The shared
+  imported-`@PROFILE@` bump honors the same mode per importer. No `--ruleset`
   (rulesets are a format/check concept); `--select`/`--ignore` adjust its
-  fixable rule set. (Codemod `docs/decisions.md` §45, registry D21, cli D16;
-  proof: `docs/proofs/behavior-gate.md`.)
+  fixable rule set. (Codemod `docs/decisions.md` §45/§50, registry D21/D22,
+  cli D16/D17; proof: `docs/proofs/behavior-gate.md`.)
 - `galaxy-tool-refactor check` — report-only over the selected rules' detect
   phases. Fixable findings exit non-zero; advisory findings appear only
   under `--ruleset strict` and are informational unless `--strict`.

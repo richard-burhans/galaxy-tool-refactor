@@ -2,10 +2,12 @@
 
 > **Superseded (2026-06-12).** The direction this investigated is now SHIPPED in
 > a different shape: rather than pinning legacy behaviour across a full bump
-> (the all-or-nothing finding below still holds), the default `upgrade` now
+> (the all-or-nothing finding below still holds), the `--modernize` walk
 > **stops at the behaviour ceiling**: the newest profile reachable without
 > crossing an applicable, un-auto-fixed `must_fix` change, with
-> `--allow-behavior-change` as the opt-out. See `docs/decisions.md` §45, the
+> `--allow-behavior-change` as the opt-out. (The bare `upgrade` default goes
+> further still: it bumps `profile=` only when strictly needed for validity,
+> `docs/decisions.md` §50.) See `docs/decisions.md` §45, the
 > gate proof (`docs/proofs/behavior-gate.md`), and the user-facing reference
 > (`docs/profile_boundaries.md`). This document remains the pinnability
 > inventory (which codes have a legacy-restore attribute) and the record of

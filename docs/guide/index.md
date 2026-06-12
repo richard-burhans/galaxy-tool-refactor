@@ -20,7 +20,7 @@ flowchart LR
     XML --> ENGINE
 
     ENGINE -->|format| FMT["canonical XML<br/>indent · order · CDATA"]
-    ENGINE -->|upgrade| UPG["upgraded XML<br/>behaviour-safe profile ceiling<br/>+ proven-safe repairs"]
+    ENGINE -->|upgrade| UPG["upgraded XML<br/>profile bumped only when needed<br/>+ proven-safe repairs"]
     ENGINE -->|check| CHK["best-practice report<br/>report-only"]
 
     classDef engine fill:#e8f0ff,stroke:#3b5b9a,stroke-width:2px;
@@ -85,9 +85,11 @@ This guide holds itself to two rules:
 <details>
 <summary>The one caveat worth knowing up front</summary>
 
-The default `upgrade` stops rather than cross a breaking Galaxy behaviour change it
-cannot prove fixed for your tool (the stop report tells you what to do next), and the
-result is **structurally valid** at the profile it declares. Going past that boundary
+The default `upgrade` moves `profile=` only when strictly needed for validity;
+modernizing further is the explicit `--modernize` walk, which stops rather than
+cross a breaking Galaxy behaviour change it cannot prove fixed for your tool
+(the stop report tells you what to do next), and the result is **structurally
+valid** at the profile it declares. Going past that boundary
 is an explicit flag, and behaviour-affecting edits are made only where the tool can
 *prove* them safe; otherwise they're reported, not applied. The full boundary is in
 **[soundness](soundness.md)**.

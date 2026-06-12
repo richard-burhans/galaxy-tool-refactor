@@ -413,6 +413,7 @@ from galaxy_tool_source.binding import (  # noqa: E402
     ToolXmlSyntaxError,
     load_tool,
     newest_valid_profile,
+    oldest_valid_profile,
     parse_tool,
     validate_tool,
 )
@@ -3406,19 +3407,29 @@ def _check_main(argv: list[str]) -> int:
 
 
 # =============================================================================
-# `upgrade` subcommand: gated-upgrade invariants sweep with failure retention
+# `upgrade` subcommand: upgrade-contract invariants sweep with failure retention
 # =============================================================================
 #
-# Runs the SHIPPED default `upgrade` (the behavior-preserving gate, via the
-# registry facade) over every corpus tool and asserts the gate's contract per
-# tool: no crash, validity preserved, a second run is a byte no-op, an
-# unplaceable baseline fails closed, the declaration never crosses the first
-# blocker, and no applicable must_fix code is crossed un-fixed (recomputed
-# independently of the facade's own verdict). Every violation is retained as a
-# regression fixture (standing rule: keep every real-world failure) and listed
-# in docs/corpus_data/upgrade_gate_errors.json on a full sweep.
+# Runs the SHIPPED `upgrade` (via the registry facade) over every corpus tool
+# in one or both of its modes and asserts each mode's contract per tool:
+#
+# - minimal (the DEFAULT): no crash, an unplaceable baseline fails closed, an
+#   undeclared tool stays undeclared, a tool that validates at its baseline
+#   after repair keeps its declaration (recomputed independently), a moved
+#   declaration lands on exactly the MINIMUM valid profile >= the baseline
+#   (recomputed on the output) and is never lowered, validity is preserved,
+#   and a second run is a byte no-op.
+# - modernize (the opt-in gated walk): the historical contract — fail-closed,
+#   the declaration never crosses the first blocker, no applicable must_fix
+#   code is crossed un-fixed (recomputed independently of the facade's own
+#   verdict), validity, idempotence.
+#
+# Every violation is retained as a regression fixture (standing rule: keep
+# every real-world failure) and listed in
+# docs/corpus_data/upgrade_gate_errors.json on a full sweep.
 
 from galaxy_tool_codemod import behavior_gate  # noqa: E402
+from galaxy_tool_codemod.codemods.fix_typos import FixTypos  # noqa: E402
 from galaxy_tool_codemod.profile_semantics import (  # noqa: E402
     upgrade_codes_applicable,
 )
@@ -3442,13 +3453,13 @@ class _UpgradeGateOutcome:
 
 @dataclass
 class _UpgradeSweepState:
-    """Mutable bookkeeping for one ``_upgrade_main`` invocation."""
+    """Mutable bookkeeping for one mode of an ``_upgrade_main`` invocation."""
 
+    mode: str = "minimal"
     eligible: int = 0
     ineligible_unparseable: int = 0
     ineligible_non_tool: int = 0
-    reached_free: int = 0  # walked with no gate cap below latest
-    stopped: int = 0  # capped below latest by the gate
+    succeeded: Counter[str] = field(default_factory=Counter)
     failed: Counter[str] = field(default_factory=Counter)
     signatures: Counter[str] = field(default_factory=Counter)
     known_fixture_paths: set[tuple[str, str]] = field(default_factory=set)
@@ -3456,7 +3467,7 @@ class _UpgradeSweepState:
     failures_json: list[dict[str, str]] = field(default_factory=list)
 
 
-_UPGRADE_FAIL_STATUSES = (
+_UPGRADE_WALK_FAIL_STATUSES = (
     "crash",
     "fail-closed-violated",
     "gate-cap-violated",
@@ -3465,15 +3476,145 @@ _UPGRADE_FAIL_STATUSES = (
     "non-idempotent",
 )
 
+_UPGRADE_MINIMAL_FAIL_STATUSES = (
+    "crash",
+    "fail-closed-violated",
+    "undeclared-declared",
+    "gratuitous-bump",
+    "not-minimum",
+    "profile-lowered",
+    "post-invalid",
+    "non-idempotent",
+)
 
-def _upgrade_gate_exercise(path: Path) -> _UpgradeGateOutcome:
-    """Run the default (gated) ``facade.upgrade`` on *path*; assert the contract.
+_UPGRADE_FAIL_STATUSES = tuple(
+    dict.fromkeys(_UPGRADE_WALK_FAIL_STATUSES + _UPGRADE_MINIMAL_FAIL_STATUSES)
+)
+
+_UPGRADE_FAIL_STATUSES_BY_MODE = {
+    "minimal": _UPGRADE_MINIMAL_FAIL_STATUSES,
+    "modernize": _UPGRADE_WALK_FAIL_STATUSES,
+}
+
+
+def _upgrade_minimal_exercise(path: Path) -> _UpgradeGateOutcome:
+    """Run the default (minimal-bump) ``facade.upgrade``; assert its contract.
+
+    Success statuses: ``"kept"`` (validates at its baseline, declaration
+    untouched), ``"undeclared"`` (no ``profile=``, stays undeclared),
+    ``"bumped"`` (moved to the minimum valid profile at or above the
+    baseline), ``"unchanged"`` (validates nowhere at or above the baseline,
+    left alone). Each contract clause is recomputed here independently of the
+    facade's own bookkeeping, so a facade bug cannot hide itself: the
+    kept-test repairs a fresh copy with ``FixTypos`` and validates at the
+    baseline, and a moved declaration is checked against
+    ``oldest_valid_profile`` on the output.
+    """
+    try:
+        parsed = parse_tool(path)
+        if parsed.document is None or not parsed.well_formed:
+            return _UpgradeGateOutcome("ineligible-unparseable")
+        if parsed.document.root.tag != "tool":
+            return _UpgradeGateOutcome("ineligible-non-tool")
+        original = load_tool(path)
+        baseline = behavior_gate.resolved_baseline(original)
+        placeable = behavior_gate.placeable_baseline(baseline)
+        declared_before = original.root.get("profile")
+        had_valid_profile = newest_valid_profile(original) is not None
+        keepable = False
+        if placeable and baseline is not None and declared_before is not None:
+            probe = load_tool(path)
+            FixTypos().apply(Module(probe))
+            keepable = validate_tool(probe, profile=baseline).valid
+        result = facade.upgrade(load_tool(path), codes=resolve_upgrade_codes())
+        out_parsed = parse_tool(result.formatted).document
+        if out_parsed is None:
+            return _UpgradeGateOutcome(
+                "crash",
+                "output-unparseable",
+                result.formatted[:200].decode("utf-8", "replace"),
+            )
+        out_document = ToolDocument(out_parsed.tree, source_path=path)
+        declared_after = out_document.root.get("profile")
+        if not placeable and (
+            result.steps_applied or declared_after != declared_before
+        ):
+            return _UpgradeGateOutcome(
+                "fail-closed-violated",
+                "fail-closed-violated",
+                f"unplaceable baseline yet profile moved "
+                f"{declared_before!r} -> {declared_after!r}",
+            )
+        if declared_before is None and declared_after is not None:
+            return _UpgradeGateOutcome(
+                "undeclared-declared",
+                "undeclared-declared",
+                f"undeclared tool gained profile={declared_after!r}",
+            )
+        effective_after = behavior_gate.resolved_baseline(out_document)
+        moved = (
+            placeable
+            and baseline is not None
+            and effective_after is not None
+            and effective_after != baseline
+        )
+        if moved and keepable:
+            return _UpgradeGateOutcome(
+                "gratuitous-bump",
+                "gratuitous-bump",
+                f"validates at its baseline {baseline} yet was bumped to "
+                f"{effective_after}",
+            )
+        if moved and Version(str(effective_after)) < Version(str(baseline)):
+            return _UpgradeGateOutcome(
+                "profile-lowered",
+                "profile-lowered",
+                f"baseline {baseline} lowered to {effective_after}",
+            )
+        if moved:
+            minimum = oldest_valid_profile(out_document, floor=str(baseline))
+            if minimum != effective_after:
+                return _UpgradeGateOutcome(
+                    "not-minimum",
+                    "not-minimum",
+                    f"declared {effective_after} but the minimum valid profile "
+                    f"at or above {baseline} is {minimum}",
+                )
+        if had_valid_profile and newest_valid_profile(out_document) is None:
+            return _UpgradeGateOutcome(
+                "post-invalid", "post-invalid", "no valid profile after upgrade"
+            )
+        # The idempotence probe re-runs on bytes (no source path), so a macro
+        # tool logs an expected expansion-failed warning per call; silence the
+        # probe's noise, the comparison below is the signal.
+        logging.disable(logging.WARNING)
+        try:
+            second = facade.upgrade(result.formatted, codes=resolve_upgrade_codes())
+        finally:
+            logging.disable(logging.NOTSET)
+        if second.formatted != result.formatted:
+            return _UpgradeGateOutcome(
+                "non-idempotent",
+                "non-idempotent:upgrade-minimal",
+                _fmt_byte_diff_excerpt(result.formatted, second.formatted),
+            )
+    except Exception as exc:  # noqa: BLE001 — diagnostic sweep: every crash is a finding
+        return _UpgradeGateOutcome("crash", _signature(exc), traceback.format_exc())
+    if declared_before is None:
+        return _UpgradeGateOutcome("undeclared")
+    if moved:
+        return _UpgradeGateOutcome("bumped")
+    return _UpgradeGateOutcome("kept" if keepable else "unchanged")
+
+
+def _upgrade_walk_exercise(path: Path) -> _UpgradeGateOutcome:
+    """Run the gated walk (``modernize=True``) on *path*; assert its contract.
 
     Status is ``"ok"`` (walked, no cap below latest), ``"stopped"`` (the gate
     capped the walk, a successful, expected outcome), one of the ineligible
-    statuses, or one of ``_UPGRADE_FAIL_STATUSES``. The must-fix-crossed check
-    recomputes the applicable set from the pre-upgrade tree independently, so
-    a crediting bug in the facade cannot hide itself.
+    statuses, or one of ``_UPGRADE_WALK_FAIL_STATUSES``. The must-fix-crossed
+    check recomputes the applicable set from the pre-upgrade tree
+    independently, so a crediting bug in the facade cannot hide itself.
     """
     try:
         parsed = parse_tool(path)
@@ -3491,7 +3632,9 @@ def _upgrade_gate_exercise(path: Path) -> _UpgradeGateOutcome:
         )
         declared_before = original.root.get("profile")
         had_valid_profile = newest_valid_profile(original) is not None
-        result = facade.upgrade(load_tool(path), codes=resolve_upgrade_codes())
+        result = facade.upgrade(
+            load_tool(path), codes=resolve_upgrade_codes(), modernize=True
+        )
         out_parsed = parse_tool(result.formatted).document
         if out_parsed is None:
             return _UpgradeGateOutcome(
@@ -3553,7 +3696,9 @@ def _upgrade_gate_exercise(path: Path) -> _UpgradeGateOutcome:
         # probe's noise, the comparison below is the signal.
         logging.disable(logging.WARNING)
         try:
-            second = facade.upgrade(result.formatted, codes=resolve_upgrade_codes())
+            second = facade.upgrade(
+                result.formatted, codes=resolve_upgrade_codes(), modernize=True
+            )
         finally:
             logging.disable(logging.NOTSET)
         if second.formatted != result.formatted:
@@ -3576,10 +3721,15 @@ def _upgrade_process_path(
     version: str,
     state: _UpgradeSweepState,
 ) -> bool:
-    """Sweep one XML file through the gate; return ``True`` if it counted."""
+    """Sweep one XML file through one upgrade mode; return ``True`` if counted."""
     if not path.is_file():
         return False
-    outcome = _upgrade_gate_exercise(path)
+    exercise = (
+        _upgrade_minimal_exercise
+        if state.mode == "minimal"
+        else _upgrade_walk_exercise
+    )
+    outcome = exercise(path)
     status = outcome.status
     if status == "ineligible-unparseable":
         state.ineligible_unparseable += 1
@@ -3588,16 +3738,14 @@ def _upgrade_process_path(
         state.ineligible_non_tool += 1
         return False
     state.eligible += 1
-    if status == "ok":
-        state.reached_free += 1
-        return True
-    if status == "stopped":
-        state.stopped += 1
+    if status not in _UPGRADE_FAIL_STATUSES:
+        state.succeeded[status] += 1
         return True
     state.failed[status] += 1
     relative = path.relative_to(repo_dir)
     state.failures_json.append(
         {
+            "mode": state.mode,
             "status": status,
             "signature": outcome.signature,
             "repo": display_name,
@@ -3618,8 +3766,9 @@ def _upgrade_process_path(
         (dest.name, display_name, relative, version, outcome.signature)
     )
     logger.warning(
-        "%s [%s] %s\n  %s\n  retained -> %s\n  %s",
+        "%s [%s/%s] %s\n  %s\n  retained -> %s\n  %s",
         status.upper(),
+        state.mode,
         display_name,
         outcome.signature,
         relative,
@@ -3630,15 +3779,29 @@ def _upgrade_process_path(
 
 
 def _upgrade_main(argv: list[str]) -> int:
-    """Sweep the gated default upgrade across the corpus; retain violations."""
+    """Sweep the upgrade contract across the corpus; retain violations."""
     parser = argparse.ArgumentParser(
         prog="python -m scripts.corpus_check upgrade",
         description=(
-            "Run the shipped behavior-preserving `upgrade` default over every "
-            "corpus tool and assert its contract (fail-closed, gate cap, no "
-            "un-fixed must_fix crossing, validity, idempotence). Violations "
-            "are retained as regression fixtures and listed in "
+            "Run the shipped `upgrade` over every corpus tool in one or both "
+            "of its modes and assert each mode's contract. minimal (the "
+            "default): fail-closed, undeclared stays undeclared, kept when "
+            "valid at the baseline, minimum profile when bumped, validity, "
+            "idempotence. modernize (the opt-in gated walk): fail-closed, "
+            "gate cap, no un-fixed must_fix crossing, validity, idempotence. "
+            "Violations are retained as regression fixtures and listed in "
             "docs/corpus_data/upgrade_gate_errors.json."
+        ),
+    )
+    parser.add_argument(
+        "--mode",
+        choices=("minimal", "modernize", "both"),
+        default="both",
+        help=(
+            "which upgrade mode(s) to sweep: 'minimal' (the shipped "
+            "default), 'modernize' (the opt-in gated walk), or 'both'. "
+            "docs/corpus_data/upgrade_gate_errors.json is regenerated only "
+            "by a full 'both' sweep. Default: both."
         ),
     )
     parser.add_argument(
@@ -3687,18 +3850,24 @@ def _upgrade_main(argv: list[str]) -> int:
 
     _CORPUS_ROOT.mkdir(parents=True, exist_ok=True)
     _UPGRADE_REGRESSIONS.mkdir(parents=True, exist_ok=True)
-    state = _UpgradeSweepState(
-        known_fixture_paths=_fmt_known_fixture_paths(
-            regressions_dir=_UPGRADE_REGRESSIONS
-        )
+    modes = ("minimal", "modernize") if args.mode == "both" else (args.mode,)
+    # One shared dedup set: a tool that violates both modes' contracts is the
+    # same regression input, so it is retained exactly once.
+    known_fixture_paths = _fmt_known_fixture_paths(
+        regressions_dir=_UPGRADE_REGRESSIONS
     )
+    states = tuple(
+        _UpgradeSweepState(mode=mode, known_fixture_paths=known_fixture_paths)
+        for mode in modes
+    )
+    lead = states[0]
     seen_sha: set[str] = set()
     last_progress_log = 0
     for _source_label, display_name, repo_dir, version in _iter_sources(
         sources, repo_filter=args.repo
     ):
         for path in sorted(_iter_tool_xmls(repo_dir)):
-            if args.limit and state.eligible >= args.limit:
+            if args.limit and lead.eligible >= args.limit:
                 break
             if not path.is_file():
                 continue
@@ -3706,50 +3875,57 @@ def _upgrade_main(argv: list[str]) -> int:
             if sha in seen_sha:
                 continue
             seen_sha.add(sha)
-            _upgrade_process_path(
-                path,
-                display_name=display_name,
-                repo_dir=repo_dir,
-                version=version,
-                state=state,
-            )
-            if (
-                state.eligible
-                and state.eligible // 500 != last_progress_log // 500
-            ):
-                logger.info("... %d eligible tools", state.eligible)
-                last_progress_log = state.eligible
-        if args.limit and state.eligible >= args.limit:
+            for state in states:
+                _upgrade_process_path(
+                    path,
+                    display_name=display_name,
+                    repo_dir=repo_dir,
+                    version=version,
+                    state=state,
+                )
+            if lead.eligible and lead.eligible // 500 != last_progress_log // 500:
+                logger.info("... %d eligible tools", lead.eligible)
+                last_progress_log = lead.eligible
+        if args.limit and lead.eligible >= args.limit:
             break
 
-    logger.info(
-        "upgrade gate: %d eligible (skipped %d non-tool, %d unparseable); "
-        "%d reach their free target, %d stopped by the gate, %d FAILED",
-        state.eligible,
-        state.ineligible_non_tool,
-        state.ineligible_unparseable,
-        state.reached_free,
-        state.stopped,
-        sum(state.failed.values()),
-    )
-    for status in _UPGRADE_FAIL_STATUSES:
-        if state.failed[status]:
-            logger.info("  %6d  %s", state.failed[status], status)
-    for sig, count in state.signatures.most_common():
-        logger.info("  %6d  %s", count, sig)
-    if state.retained:
-        _append_provenance(state.retained, regressions_dir=_UPGRADE_REGRESSIONS)
-    if full_sweep:
+    retained: list[tuple[str, str, Path, str, str]] = []
+    failures_json: list[dict[str, str]] = []
+    failed_total = 0
+    for state in states:
+        logger.info(
+            "upgrade %s: %d eligible (skipped %d non-tool, %d unparseable); "
+            "%d succeeded, %d FAILED",
+            state.mode,
+            state.eligible,
+            state.ineligible_non_tool,
+            state.ineligible_unparseable,
+            sum(state.succeeded.values()),
+            sum(state.failed.values()),
+        )
+        for status, count in state.succeeded.most_common():
+            logger.info("  %6d  %s", count, status)
+        for status in _UPGRADE_FAIL_STATUSES_BY_MODE[state.mode]:
+            if state.failed[status]:
+                logger.info("  %6d  %s  [FAIL]", state.failed[status], status)
+        for sig, count in state.signatures.most_common():
+            logger.info("  %6d  %s", count, sig)
+        retained.extend(state.retained)
+        failures_json.extend(state.failures_json)
+        failed_total += sum(state.failed.values())
+    if retained:
+        _append_provenance(retained, regressions_dir=_UPGRADE_REGRESSIONS)
+    if full_sweep and len(modes) == 2:
         _UPGRADE_ERRORS_FILE.parent.mkdir(parents=True, exist_ok=True)
         _UPGRADE_ERRORS_FILE.write_text(
-            json.dumps(state.failures_json, indent=2) + "\n", encoding="utf-8"
+            json.dumps(failures_json, indent=2) + "\n", encoding="utf-8"
         )
         logger.info(
             "wrote %s (%d failure(s))",
             _UPGRADE_ERRORS_FILE.relative_to(_REPO_ROOT),
-            len(state.failures_json),
+            len(failures_json),
         )
-    return 1 if state.failed else 0
+    return 1 if failed_total else 0
 
 
 def main(argv: list[str]) -> int:
@@ -3767,7 +3943,8 @@ def main(argv: list[str]) -> int:
             "sweep; codemod: one structural-codemod idempotence + validity "
             "sweep; rules: per-rule isolation QA sweep (every rule alone); "
             "check: unified-detect violation counts (incl. detect-only IUC); "
-            "upgrade: gated-upgrade invariants sweep (failure retention)"
+            "upgrade: upgrade-contract invariants sweep, minimal and/or "
+            "modernize mode (failure retention)"
         ),
     )
     # Parse only the subcommand, pass the rest to the subcommand's own parser.

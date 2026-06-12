@@ -75,7 +75,11 @@ def _write_tool(directory: Path, name: str, body: str) -> Path:
     return path
 
 
-def test_profile_token_site_for_imported_token(tmp_path: Path) -> None:
+def test_profile_token_site_default_keeps_a_valid_token_value(
+    tmp_path: Path,
+) -> None:
+    """The minimal default: an importer valid at the token's value targets that
+    value (the bump-up-only apply then makes the plan a no-op)."""
     (tmp_path / "macros.xml").write_text(
         '<macros><token name="@PROFILE@">19.01</token></macros>', encoding="utf-8"
     )
@@ -92,12 +96,52 @@ def test_profile_token_site_for_imported_token(tmp_path: Path) -> None:
     assert site.tool == tool
     assert site.macro_file == (tmp_path / "macros.xml")
     assert site.token_name == "@PROFILE@"
-    assert site.target == latest_profile()  # validates at latest despite 19.01 token
+    assert site.target == "19.01"  # kept: the importer validates at the baseline
 
 
-def test_profile_token_site_is_gated_by_default(tmp_path: Path) -> None:
+def test_profile_token_site_default_minimal_bump_when_invalid_at_value(
+    tmp_path: Path,
+) -> None:
+    """Invalid at the token's value: the default targets the MINIMUM valid
+    profile at or above it, mirroring the per-tool minimal default."""
+    (tmp_path / "macros.xml").write_text(
+        '<macros><token name="@PROFILE@">20.09</token></macros>', encoding="utf-8"
+    )
+    tool = _write_tool(
+        tmp_path,
+        "tool.xml",
+        '<tool id="r" name="R" version="1.0.0" profile="@PROFILE@">'
+        "<macros><import>macros.xml</import></macros>"
+        # <required_files> entered the schema at 21.09: invalid at 20.09.
+        '<required_files><include path="x.py"/></required_files>'
+        "<command><![CDATA[echo x]]></command>"
+        "<inputs/><outputs/></tool>",
+    )
+    site = profile_token_site(load_tool(tool))
+    assert site is not None
+    assert site.target == "21.09"
+
+
+def test_profile_token_site_modernize_walks_to_latest(tmp_path: Path) -> None:
+    (tmp_path / "macros.xml").write_text(
+        '<macros><token name="@PROFILE@">19.01</token></macros>', encoding="utf-8"
+    )
+    tool = _write_tool(
+        tmp_path,
+        "tool.xml",
+        '<tool id="m" name="M" version="1.0.0" profile="@PROFILE@">'
+        "<macros><import>macros.xml</import></macros>"
+        "<command><![CDATA[echo x]]></command>"
+        '<inputs/><outputs><data name="o"/></outputs></tool>',
+    )
+    site = profile_token_site(load_tool(tool), modernize=True)
+    assert site is not None
+    assert site.target == latest_profile()  # validates at latest despite 19.01
+
+
+def test_profile_token_site_modernize_is_gated(tmp_path: Path) -> None:
     """An importer that ships tests targets the behaviour ceiling (24.1), not
-    latest: the shared-token bump honors the same default gate as `upgrade`."""
+    latest: the shared-token bump honors the same gate as the per-tool walk."""
     (tmp_path / "macros.xml").write_text(
         '<macros><token name="@PROFILE@">19.01</token></macros>', encoding="utf-8"
     )
@@ -110,7 +154,7 @@ def test_profile_token_site_is_gated_by_default(tmp_path: Path) -> None:
         '<inputs/><outputs><data name="o"/></outputs>'
         '<tests><test><param name="nosuch" value="1"/></test></tests></tool>',
     )
-    site = profile_token_site(load_tool(tool))
+    site = profile_token_site(load_tool(tool), modernize=True)
     assert site is not None
     assert site.target == "24.1"
 
@@ -130,7 +174,9 @@ def test_profile_token_site_ungated_with_allow_behavior_change(
         '<inputs/><outputs><data name="o"/></outputs>'
         '<tests><test><param name="nosuch" value="1"/></test></tests></tool>',
     )
-    site = profile_token_site(load_tool(tool), allow_behavior_change=True)
+    site = profile_token_site(
+        load_tool(tool), modernize=True, allow_behavior_change=True
+    )
     assert site is not None
     assert site.target == latest_profile()
 

@@ -34,6 +34,25 @@ class UnknownRuleset(ValueError):
         super().__init__(f"unknown ruleset: {name!r}")
 
 
+class UpgradeFlagError(ValueError):
+    """``allow_behavior_change`` was requested without a walk mode to apply it to.
+
+    The default ``upgrade`` is the minimal bump: ``profile=`` moves only as far
+    as validity strictly requires, so there is no gated walk whose gate the flag
+    could lift. Lifting the gate is meaningful only for the opt-in modernize
+    walk (``modernize``) or an explicit ``target_profile``; requiring one of
+    them keeps the flag from silently implying a walk the user did not ask for.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "allow_behavior_change lifts the behaviour gate on a modernize"
+            " walk, but no walk was requested; combine it with modernize or a"
+            " target_profile. The default upgrade is the minimal bump, which"
+            " the gate does not apply to."
+        )
+
+
 class UnknownProfile(ValueError):
     """A profile passed to ``--target-profile`` is not a vendored Galaxy profile.
 

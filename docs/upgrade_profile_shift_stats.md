@@ -9,10 +9,11 @@ pre-upgrade validity ceiling): here the structural upgrade codemods
 (GTR007-012) actually run, so a tool stuck below its ceiling by a
 restrict-transition climbs. `UpgradeToLatest`-only (no `FixTypos`); the
 runtime-gated fixes (GTR014/015) don't change `profile=`. NOTE: this is
-the **ungated structural walk**: since the behavior gate became the
-default (codemod `docs/decisions.md` §45) this distribution describes
-`upgrade --allow-behavior-change`; where the gated default stops is
-`upgrade_behavior_block_stats.md`. See
+the **ungated structural walk**: the minimal bump is the `upgrade`
+default (codemod `docs/decisions.md` §50) and the behavior-gated walk is
+the opt-in `--modernize` (§45), so this distribution describes
+`upgrade --modernize --allow-behavior-change`; where the gated walk
+stops is `upgrade_behavior_block_stats.md`. See
 `profile_upgrades.md` and codemod `docs/decisions.md` §11-14.
 
 Regenerate with (needs the corpus, so not run in CI):

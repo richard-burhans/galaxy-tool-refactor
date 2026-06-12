@@ -124,25 +124,27 @@ _UPGRADABLE = (
 )
 
 
-def test_upgrade_bumps_profile_and_runs_migration() -> None:
+def test_upgrade_modernize_bumps_profile_and_runs_migration() -> None:
     from galaxy_tool_source.profiles import latest_profile
 
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
-    result = facade.upgrade(_UPGRADABLE, codes=resolve_upgrade_codes())
+    result = facade.upgrade(
+        _UPGRADABLE, codes=resolve_upgrade_codes(), modernize=True
+    )
     assert f'profile="{latest_profile()}"'.encode() in result.formatted
     assert b'format="bam"' in result.formatted  # the 24.1 -> 24.2 migration ran
     assert "24.1" in result.steps_applied
     assert any("upgraded past 24.1" in note for note in result.notes)
 
 
-def test_upgrade_ignore_fixtypos_still_upgrades() -> None:
+def test_upgrade_modernize_ignore_fixtypos_still_upgrades() -> None:
     from galaxy_tool_source.profiles import latest_profile
 
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
     codes = resolve_upgrade_codes(ignore=["GTR006"])
-    result = facade.upgrade(_UPGRADABLE, codes=codes)
+    result = facade.upgrade(_UPGRADABLE, codes=codes, modernize=True)
     # The profile upgrade is intrinsic; dropping FixTypos does not disable it.
     assert f'profile="{latest_profile()}"'.encode() in result.formatted
 
@@ -164,7 +166,10 @@ def test_upgrade_warns_on_semantic_boundaries() -> None:
         b"</tests></tool>"
     )
     result = facade.upgrade(
-        with_tests, codes=resolve_upgrade_codes(), allow_behavior_change=True
+        with_tests,
+        codes=resolve_upgrade_codes(),
+        modernize=True,
+        allow_behavior_change=True,
     )
     semantic = [n for n in result.notes if "profile-behaviour" in n]
     assert len(semantic) == 1
@@ -176,15 +181,17 @@ def test_upgrade_warns_on_semantic_boundaries() -> None:
     assert "docs/profile_boundaries.md" in note
 
 
-def test_upgrade_silent_when_no_crossed_code_applies() -> None:
+def test_upgrade_modernize_silent_when_no_crossed_code_applies() -> None:
     """_UPGRADABLE crosses 24.2 but ships no <test>, so 24_2 does not apply."""
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
-    result = facade.upgrade(_UPGRADABLE, codes=resolve_upgrade_codes())
+    result = facade.upgrade(
+        _UPGRADABLE, codes=resolve_upgrade_codes(), modernize=True
+    )
     assert not [n for n in result.notes if "profile-behaviour" in n]
 
 
-def test_upgrade_no_profile_warns_from_1601_baseline() -> None:
+def test_upgrade_modernize_no_profile_warns_from_1601_baseline() -> None:
     """A tool with no profile= runs as 16.01, so the bump to latest crosses many."""
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
@@ -195,7 +202,7 @@ def test_upgrade_no_profile_warns_from_1601_baseline() -> None:
         b"<command><![CDATA[echo a && echo b]]></command><inputs/>"
         b'<outputs><data name="o"/></outputs></tool>'
     )
-    result = facade.upgrade(no_profile, codes=resolve_upgrade_codes())
+    result = facade.upgrade(no_profile, codes=resolve_upgrade_codes(), modernize=True)
     semantic = [n for n in result.notes if "profile-behaviour" in n]
     assert len(semantic) == 1
     # baseline is Galaxy's 16.01 default; crossed releases span 16.04..24.2.
@@ -203,19 +210,39 @@ def test_upgrade_no_profile_warns_from_1601_baseline() -> None:
     assert "16.04" in semantic[0] and "20.09" in semantic[0]
 
 
-def test_upgrade_applies_runtime_gated_from_work_dir_fix() -> None:
+def test_upgrade_modernize_applies_runtime_gated_from_work_dir_fix() -> None:
     """Crossing UP through 21.09 strips a whitespace from_work_dir (runtime-gated)."""
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
-    # Declares 20.09 (< 21.09), so the bump to latest CROSSES the 21.09 boundary.
+    # Declares 20.09 (< 21.09), so the modernize walk to latest CROSSES 21.09.
+    tool = (
+        b'<tool id="m" name="M" version="1.0.0" profile="20.09">'
+        b"<command><![CDATA[echo x]]></command><inputs/>"
+        b'<outputs><data name="o" from_work_dir=" out.txt "/></outputs></tool>'
+    )
+    result = facade.upgrade(tool, codes=resolve_upgrade_codes(), modernize=True)
+    assert b'from_work_dir="out.txt"' in result.formatted
+    assert b'from_work_dir=" out.txt "' not in result.formatted
+
+
+def test_upgrade_default_kept_tool_gets_no_runtime_gated_fix() -> None:
+    """A tool kept at its declared profile crosses nothing, so no gated fix runs.
+
+    The same 20.09 tool validates where it sits, so the minimal default keeps
+    it there; the 21.09 from_work_dir strip must NOT apply (Galaxy still runs
+    the tool under the old quoting behaviour at 20.09).
+    """
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
     tool = (
         b'<tool id="m" name="M" version="1.0.0" profile="20.09">'
         b"<command><![CDATA[echo x]]></command><inputs/>"
         b'<outputs><data name="o" from_work_dir=" out.txt "/></outputs></tool>'
     )
     result = facade.upgrade(tool, codes=resolve_upgrade_codes())
-    assert b'from_work_dir="out.txt"' in result.formatted
-    assert b'from_work_dir=" out.txt "' not in result.formatted
+    assert b'profile="20.09"' in result.formatted
+    assert b'from_work_dir=" out.txt "' in result.formatted
+    assert result.auto_fixed_codes == ()
 
 
 def test_crossing_gate_leaves_already_past_tool_untouched() -> None:
@@ -254,12 +281,14 @@ def _pass_notes(result: object) -> list[str]:
     return [n for n in result.notes if "behavior-preserving" in n]  # type: ignore[attr-defined]
 
 
-def test_upgrade_behavior_preserving_verdict_true_with_clean_pass_note() -> None:
+def test_upgrade_modernize_behavior_preserving_true_with_clean_pass_note() -> None:
     """_UPGRADABLE bumps 24.1->latest crossing 24.2, but ships no <test>, so no
     crossed code applies: the upgrade is behavior-preserving and says so."""
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
-    result = facade.upgrade(_UPGRADABLE, codes=resolve_upgrade_codes())
+    result = facade.upgrade(
+        _UPGRADABLE, codes=resolve_upgrade_codes(), modernize=True
+    )
     assert result.behavior_preserving is True
     pass_notes = _pass_notes(result)
     assert len(pass_notes) == 1
@@ -281,7 +310,10 @@ def test_upgrade_behavior_preserving_false_when_a_crossed_code_applies() -> None
         b"</tests></tool>"
     )
     result = facade.upgrade(
-        with_tests, codes=resolve_upgrade_codes(), allow_behavior_change=True
+        with_tests,
+        codes=resolve_upgrade_codes(),
+        modernize=True,
+        allow_behavior_change=True,
     )
     assert result.behavior_preserving is False
     assert _pass_notes(result) == []
@@ -317,7 +349,7 @@ def test_upgrade_already_latest_is_preserving_but_emits_no_pass_note() -> None:
     assert _pass_notes(result) == []  # nothing advanced -> no story to tell
 
 
-# --- the behavior-preserving default (the gate) -----------------------------------
+# --- the minimal-bump default ------------------------------------------------------
 
 _WITH_TESTS = (
     b'<tool id="m" name="M" version="1.0.0" profile="24.1">'
@@ -328,13 +360,147 @@ _WITH_TESTS = (
     b"</tests></tool>"
 )
 
+# Invalid at its declared 20.09 (<required_files> entered the schema at 21.09),
+# valid as-is at 21.09+: the bump-direct minimal case.
+_NEEDS_BUMP = (
+    b'<tool id="r" name="R" version="1.0.0" profile="20.09">'
+    b'<required_files><include path="x.py"/></required_files>'
+    b"<command><![CDATA[echo x]]></command>"
+    b"<inputs/><outputs/></tool>"
+)
 
-def test_upgrade_default_stops_before_an_unfixable_must_fix_boundary() -> None:
-    """A 24.1 tool that ships tests stays at 24.1: 24.2's test-case validation
-    applies and has no auto-fix, so the default walk does not cross it."""
+
+def test_upgrade_default_keeps_a_valid_declared_profile() -> None:
+    """The minimal default: a tool that validates at its declared profile is
+    left there, even when newer profiles would be reachable."""
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
     result = facade.upgrade(_WITH_TESTS, codes=resolve_upgrade_codes())
+    assert b'profile="24.1"' in result.formatted
+    assert result.baseline_profile == "24.1"
+    assert result.reached_profile == "24.1"
+    assert result.stopped_at is None  # a walk-mode concept; no walk ran
+    assert result.steps_applied == ()
+    # The modernize review list is still reported for introspection.
+    assert result.blocking_codes == ("24_2_fix_test_case_validation",)
+    assert result.behavior_preserving is True  # nothing crossed
+    kept_notes = [n for n in result.notes if "kept" in n]
+    assert len(kept_notes) == 1
+    assert "24.1" in kept_notes[0]
+    assert "--modernize" in kept_notes[0]
+
+
+def test_upgrade_default_leaves_an_undeclared_tool_undeclared() -> None:
+    """A no-profile tool valid under Galaxy's 16.01 legacy default stays
+    undeclared: declaring a profile is best practice, not strictly needed."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    no_profile = (
+        b'<tool id="m" name="M" version="1.0.0">'
+        b"<command><![CDATA[echo x]]></command><inputs/>"
+        b'<outputs><data name="o"/></outputs></tool>'
+    )
+    result = facade.upgrade(no_profile, codes=resolve_upgrade_codes())
+    assert b"profile=" not in result.formatted
+    assert result.baseline_profile == "16.01"
+    assert result.reached_profile == "16.01"
+    assert result.stopped_at is None
+    undeclared_notes = [n for n in result.notes if "undeclared" in n]
+    assert len(undeclared_notes) == 1
+    assert "--modernize" in undeclared_notes[0]
+
+
+def test_upgrade_default_bumps_to_the_minimum_valid_profile() -> None:
+    """Invalid at the declared profile: bump to the MINIMUM valid one, no further."""
+    from galaxy_tool_source.profiles import latest_profile
+
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    result = facade.upgrade(_NEEDS_BUMP, codes=resolve_upgrade_codes())
+    assert b'profile="21.09"' in result.formatted
+    assert f'profile="{latest_profile()}"'.encode() not in result.formatted
+    assert result.baseline_profile == "20.09"
+    assert result.reached_profile == "21.09"
+    bump_notes = [n for n in result.notes if "minimum" in n]
+    assert len(bump_notes) == 1
+    assert "20.09" in bump_notes[0] and "21.09" in bump_notes[0]
+
+
+def test_upgrade_default_minimal_bump_applies_crossed_runtime_fixes() -> None:
+    """A needed bump crosses 21.09, so the from_work_dir gated fix applies."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    tool = (
+        b'<tool id="r" name="R" version="1.0.0" profile="20.09">'
+        b'<required_files><include path="x.py"/></required_files>'
+        b"<command><![CDATA[echo x]]></command><inputs/>"
+        b'<outputs><data name="o" from_work_dir=" out.txt "/></outputs></tool>'
+    )
+    result = facade.upgrade(tool, codes=resolve_upgrade_codes())
+    assert b'profile="21.09"' in result.formatted
+    assert b'from_work_dir="out.txt"' in result.formatted
+    assert result.auto_fixed_codes == ("21_09_fix_from_work_dir_whitespace",)
+
+
+def test_upgrade_default_unreachable_leaves_profile_unchanged() -> None:
+    """Nothing at or above the baseline validates: profile= must not move."""
+    from galaxy_tool_source.profiles import latest_profile
+
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    latest = latest_profile()
+    # A comma-list data format validates at no profile at or above the latest.
+    stuck = (
+        f'<tool id="m" name="M" version="1.0.0" profile="{latest}">'
+        "<command><![CDATA[echo x]]></command><inputs/>"
+        '<outputs><data name="o" format="fasta,fastq"/></outputs></tool>'
+    ).encode()
+    result = facade.upgrade(stuck, codes=resolve_upgrade_codes())
+    assert f'profile="{latest}"'.encode() in result.formatted
+    assert result.baseline_profile == latest
+    assert result.reached_profile == latest
+    assert result.steps_applied == ()
+    unreachable_notes = [n for n in result.notes if "left unchanged" in n]
+    assert len(unreachable_notes) == 1
+    assert latest in unreachable_notes[0]
+
+
+def test_upgrade_allow_behavior_change_alone_is_a_typed_error() -> None:
+    """allow_behavior_change has no gate to lift outside a walk mode: typed error,
+    never a silent imply."""
+    import pytest
+
+    from galaxy_tool_refactor_registry.errors import UpgradeFlagError
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    with pytest.raises(UpgradeFlagError):
+        facade.upgrade(
+            _UPGRADABLE, codes=resolve_upgrade_codes(), allow_behavior_change=True
+        )
+
+
+def test_upgrade_target_profile_composes_with_allow_behavior_change() -> None:
+    """target_profile alone counts as a walk mode, so the flag pair is valid."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    result = facade.upgrade(
+        _WITH_TESTS,
+        codes=resolve_upgrade_codes(),
+        allow_behavior_change=True,
+        target_profile="24.2",
+    )
+    assert b'profile="24.2"' in result.formatted
+
+
+# --- the modernize walk (the behavior gate) ----------------------------------------
+
+
+def test_upgrade_modernize_stops_before_an_unfixable_must_fix_boundary() -> None:
+    """A 24.1 tool that ships tests stays at 24.1: 24.2's test-case validation
+    applies and has no auto-fix, so the gated modernize walk does not cross it."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    result = facade.upgrade(_WITH_TESTS, codes=resolve_upgrade_codes(), modernize=True)
     assert b'profile="24.1"' in result.formatted
     assert result.stopped_at == "24.1"
     assert result.blocking_codes == ("24_2_fix_test_case_validation",)
@@ -346,7 +512,7 @@ def test_upgrade_default_stops_before_an_unfixable_must_fix_boundary() -> None:
     assert not [n for n in result.notes if "profile-behaviour" in n]
 
 
-def test_upgrade_default_walks_up_to_the_boundary_from_below() -> None:
+def test_upgrade_modernize_walks_up_to_the_boundary_from_below() -> None:
     """A no-profile tool with tests advances to 24.1 (not latest): everything
     below the 24.2 blocker is still taken."""
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
@@ -357,13 +523,15 @@ def test_upgrade_default_walks_up_to_the_boundary_from_below() -> None:
         b'<outputs><data name="o"/></outputs>'
         b'<tests><test><param name="nosuch" value="1"/></test></tests></tool>'
     )
-    result = facade.upgrade(no_profile_with_tests, codes=resolve_upgrade_codes())
+    result = facade.upgrade(
+        no_profile_with_tests, codes=resolve_upgrade_codes(), modernize=True
+    )
     assert b'profile="24.1"' in result.formatted
     assert result.stopped_at == "24.1"
     assert result.blocking_codes == ("24_2_fix_test_case_validation",)
     # The bump 16.01 -> 24.1 still crosses applicable consider-level codes; they
     # are warned about (and the verdict stays honest), but they do not stop the
-    # walk under the default policy.
+    # walk under the gate's default policy.
     assert [n for n in result.notes if "profile-behaviour" in n]
     assert result.behavior_preserving is False
 
@@ -374,7 +542,10 @@ def test_upgrade_allow_behavior_change_restores_the_walk_to_latest() -> None:
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
     result = facade.upgrade(
-        _WITH_TESTS, codes=resolve_upgrade_codes(), allow_behavior_change=True
+        _WITH_TESTS,
+        codes=resolve_upgrade_codes(),
+        modernize=True,
+        allow_behavior_change=True,
     )
     assert f'profile="{latest_profile()}"'.encode() in result.formatted
     assert result.stopped_at is None
@@ -385,6 +556,7 @@ def test_upgrade_allow_behavior_change_restores_the_walk_to_latest() -> None:
 
 
 def test_upgrade_target_profile_caps_the_walk() -> None:
+    """target_profile alone implies the walk mode and caps it."""
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
     clean = (
@@ -412,7 +584,7 @@ def test_upgrade_unknown_target_profile_raises() -> None:
         )
 
 
-def test_upgrade_credits_an_auto_fixed_must_fix_code() -> None:
+def test_upgrade_modernize_credits_an_auto_fixed_must_fix_code() -> None:
     """Crossing 21.09 with a fixable from_work_dir is auto-fixed AND credited:
     the verdict is behavior-preserving and no crossed-boundary warning remains."""
     from galaxy_tool_source.profiles import latest_profile
@@ -424,7 +596,7 @@ def test_upgrade_credits_an_auto_fixed_must_fix_code() -> None:
         b"<command><![CDATA[echo x]]></command><inputs/>"
         b'<outputs><data name="o" from_work_dir=" out.txt "/></outputs></tool>'
     )
-    result = facade.upgrade(tool, codes=resolve_upgrade_codes())
+    result = facade.upgrade(tool, codes=resolve_upgrade_codes(), modernize=True)
     assert f'profile="{latest_profile()}"'.encode() in result.formatted
     assert result.auto_fixed_codes == ("21_09_fix_from_work_dir_whitespace",)
     assert result.blocking_codes == ()
@@ -433,7 +605,7 @@ def test_upgrade_credits_an_auto_fixed_must_fix_code() -> None:
     assert [n for n in result.notes if "fixed automatically" in n]
 
 
-def test_upgrade_unfixable_16_04_blocker_leaves_profile_unchanged() -> None:
+def test_upgrade_modernize_unfixable_16_04_blocker_keeps_profile_unmoved() -> None:
     """A bucket-B interpreter (leading Cheetah) cannot be auto-fixed and 16.04
     has no vendored predecessor, so the declaration must not move at all."""
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
@@ -443,7 +615,7 @@ def test_upgrade_unfixable_16_04_blocker_leaves_profile_unchanged() -> None:
         b'<command interpreter="python"><![CDATA[$script $input]]></command>'
         b'<inputs/><outputs><data name="o"/></outputs></tool>'
     )
-    result = facade.upgrade(bucket_b, codes=resolve_upgrade_codes())
+    result = facade.upgrade(bucket_b, codes=resolve_upgrade_codes(), modernize=True)
     assert b"profile=" not in result.formatted
     assert result.stopped_at == "16.01"
     assert "16_04_fix_interpreter" in result.blocking_codes
@@ -451,7 +623,8 @@ def test_upgrade_unfixable_16_04_blocker_leaves_profile_unchanged() -> None:
 
 
 def test_upgrade_macro_token_profile_fails_closed() -> None:
-    """An unresolvable @PROFILE@ baseline cannot place boundaries: no advance."""
+    """An unresolvable @PROFILE@ baseline cannot place boundaries: no advance,
+    in the default and the modernize walk alike."""
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
     macro_profile = (
@@ -459,14 +632,17 @@ def test_upgrade_macro_token_profile_fails_closed() -> None:
         b"<command><![CDATA[echo x]]></command><inputs/>"
         b'<outputs><data name="o"/></outputs></tool>'
     )
-    result = facade.upgrade(macro_profile, codes=resolve_upgrade_codes())
-    assert b'profile="@PROFILE@"' in result.formatted
-    assert result.behavior_preserving is None
-    assert result.steps_applied == ()
-    assert [n for n in result.notes if "macro token" in n]
+    for modernize in (False, True):
+        result = facade.upgrade(
+            macro_profile, codes=resolve_upgrade_codes(), modernize=modernize
+        )
+        assert b'profile="@PROFILE@"' in result.formatted
+        assert result.behavior_preserving is None
+        assert result.steps_applied == ()
+        assert [n for n in result.notes if "macro token" in n]
 
 
-def test_upgrade_resolvable_inline_token_baseline_gates_normally() -> None:
+def test_upgrade_modernize_resolvable_inline_token_gates_normally() -> None:
     """A @PROFILE@ whose inline token resolves to 24.1 is placeable: the gate
     runs against the resolved baseline instead of failing closed."""
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
@@ -478,10 +654,27 @@ def test_upgrade_resolvable_inline_token_baseline_gates_normally() -> None:
         b'<outputs><data name="o"/></outputs>'
         b'<tests><test><param name="nosuch" value="1"/></test></tests></tool>'
     )
-    result = facade.upgrade(tokenised, codes=resolve_upgrade_codes())
+    result = facade.upgrade(tokenised, codes=resolve_upgrade_codes(), modernize=True)
     assert result.stopped_at == "24.1"
     assert result.blocking_codes == ("24_2_fix_test_case_validation",)
     assert b'profile="@PROFILE@"' in result.formatted  # the reference survives
+
+
+def test_upgrade_default_keeps_a_valid_inline_token_value() -> None:
+    """The minimal default keeps a resolvable inline token's value untouched
+    when the tool validates at it."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    tokenised = (
+        b'<tool id="m" name="M" version="1.0.0" profile="@PROFILE@">'
+        b'<macros><token name="@PROFILE@">24.1</token></macros>'
+        b"<command><![CDATA[echo x]]></command><inputs/>"
+        b'<outputs><data name="o"/></outputs></tool>'
+    )
+    result = facade.upgrade(tokenised, codes=resolve_upgrade_codes())
+    assert b">24.1</token>" in result.formatted
+    assert result.baseline_profile == "24.1"
+    assert result.reached_profile == "24.1"
 
 
 def test_introspection_lists_rulesets_and_rules() -> None:

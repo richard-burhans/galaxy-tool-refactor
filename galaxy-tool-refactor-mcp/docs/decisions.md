@@ -81,6 +81,10 @@ No ruleset/select parameters: GTR094, like GTR092, is not selectable anywhere.
 
 ## D4 (2026-06-12): `upgrade_tool` exposes the behavior gate
 
+> **Superseded as the default (2026-06-12, D5):** the gated walk is now the
+> opt-in `modernize=True` mode; the default bumps minimally. The gate's
+> mechanics below are current.
+
 Reproduced-by: `uv run --package galaxy-tool-refactor-mcp pytest
 galaxy-tool-refactor-mcp/tests/test_service.py -k "behavior or target"`.
 
@@ -93,3 +97,19 @@ past the boundary. `UnknownProfile` joins the `_guarded` error boundary in
 errors). The default stays gated for agents too: an agent must pass
 `allow_behavior_change=True` explicitly, mirroring the human flag, because an
 unattended behaviour change is worse, not better.
+
+## D5 (2026-06-12): `upgrade_tool` follows the minimal-bump default
+
+Reproduced-by: `uv run --package galaxy-tool-refactor-mcp pytest
+galaxy-tool-refactor-mcp/tests/test_service.py -k "modernize or minimal or
+flag"`. Policy: registry D22, codemod decisions §50.
+
+`upgrade_tool` gains `modernize` (the opt-in behavior-gated walk, the same
+semantics as the CLI's `--modernize`; cli D17) and its result dict gains the
+additive `baseline_profile` and `reached_profile` fields, so an agent can see
+exactly where a tool started and landed without diffing the XML. The default
+stays minimal for agents too: an unattended gratuitous profile bump is worse,
+not better, mirroring D4's reasoning for the gate. `UpgradeFlagError`
+(`allow_behavior_change` without a walk mode) joins the `_guarded` error
+boundary in `server.py`, translated to a clean tool error like the other
+typed facade errors.

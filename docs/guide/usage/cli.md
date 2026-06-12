@@ -1,7 +1,7 @@
 # Using it from the command line
 
 > **TL;DR.** Install, then run one of ten commands on a tool file or a directory:
-> `format` (fix), `upgrade` (bump profile safely), `check` (report), `find-references`
+> `format` (fix), `upgrade` (repair; bump profile only when needed), `check` (report), `find-references`
 > (locate a param's Cheetah `$var` uses across a tool **and its imported macros**),
 > `rename-param` (rename a param everywhere — tool **and its imported macros** —
 > atomically), `rulesets`/`rules` (introspect), `normalize-macros` (opt-in macro-library
@@ -33,10 +33,13 @@ The ten commands:
 ```text
 check            Report where tools deviate from the selection, without changing them.
 format           Apply a ruleset's fixable rules then cosmetic formatting (never profile=).
-upgrade          Repair and upgrade tools as far as behaviour provably stays the same,
-                 then format. Stops at the behaviour ceiling with an actionable report;
-                 --allow-behavior-change walks to the latest profile anyway, and
-                 --target-profile caps the walk at an explicit vendored profile.
+upgrade          Repair tools, bump profile= only when strictly needed for validity
+                 (the minimum valid profile; a valid tool keeps its declaration), then
+                 format. --modernize opts into the behavior-preserving walk: as far as
+                 behaviour provably stays the same, stopping at the behaviour ceiling
+                 with an actionable report; --allow-behavior-change (walk modes only)
+                 walks to the latest profile anyway, and --target-profile caps the
+                 walk at an explicit vendored profile (and implies it).
 find-references  Report every Cheetah $var reference to a parameter across a tool AND its
                  imported macro files (read-only).
 rename-param     Rename a parameter OLD->NEW across every Cheetah section, cross-ref attribute,
@@ -78,10 +81,11 @@ $ galaxy-tool-refactor format --diff tools/coverm/macros.xml
 +        <param argument="--sharded" type="boolean" ... help="..."/>
 ```
 
-**A real `upgrade --diff`** (the profile bump is the semantic part):
+**A real `upgrade --modernize --diff`** (the profile bump is the semantic
+part; the bare `upgrade` keeps a valid tool's `profile=` untouched):
 
 ```diff
-$ galaxy-tool-refactor upgrade --diff tools/bandage/bandage_info.xml
+$ galaxy-tool-refactor upgrade --modernize --diff tools/bandage/bandage_info.xml
 -<tool id="bandage_info" name="Bandage Info" version="@TOOL_VERSION@+galaxy2" profile="18.01">
 +<tool id="bandage_info" name="Bandage Info" version="@TOOL_VERSION@+galaxy2" profile="26.1">
 ```
@@ -90,12 +94,14 @@ See [soundness](../soundness.md) for exactly what `upgrade` guarantees.
 
 ## My upgrade stopped. Now what?
 
-The default `upgrade` is behavior-preserving: when a Galaxy `must_fix` behaviour
-change applies to your tool and has no automatic fix, the walk stops below that
-boundary and tells you why:
+The default `upgrade` bumps minimally, so it rarely meets a behaviour
+boundary; this section is about the opt-in `--modernize` walk. The walk is
+behavior-preserving: when a Galaxy `must_fix` behaviour change applies to
+your tool and has no automatic fix, it stops below that boundary and tells
+you why:
 
 ```text
-$ galaxy-tool-refactor upgrade tools/mytool/mytool.xml
+$ galaxy-tool-refactor upgrade --modernize tools/mytool/mytool.xml
 upgraded tools/mytool/mytool.xml
   profile upgrade stopped at 24.1 (latest is 26.1): 24_2_fix_test_case_validation
   (must_fix at 24.2) applies to this tool and cannot be fixed automatically yet;
@@ -107,9 +113,9 @@ This is a successful partial upgrade, not an error (exit code 0). Your options:
 
 1. Open [`docs/profile_boundaries.md`](../../profile_boundaries.md), find the
    named code's section, and update the tool following Galaxy's description;
-   then rerun `upgrade` to continue past the boundary.
-2. Rerun with `--allow-behavior-change` to take the bump anyway, and review the
-   crossed-boundary warning it prints.
+   then rerun `upgrade --modernize` to continue past the boundary.
+2. Rerun with `--modernize --allow-behavior-change` to take the bump anyway,
+   and review the crossed-boundary warning it prints.
 3. Pin a specific stopping point with `--target-profile PROFILE` (composes with
    the gate; the lower wins).
 

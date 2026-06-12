@@ -1,11 +1,19 @@
-# The behavior gate: the `upgrade` default's soundness argument
+# The behavior gate: the modernize walk's soundness argument
 
-**Contract:** the default `upgrade` crosses no Galaxy `must_fix` behaviour
+> **Scope (2026-06-12):** `upgrade`'s default is now the minimal bump (keep
+> `profile=` when the repaired tool validates at its baseline, else the
+> minimum valid profile; codemod decisions §50, [GTR097](GTR097.md)). The
+> gate proven here bounds the opt-in **`--modernize` walk**; read "the walk"
+> below as that mode. The minimal default crosses a boundary only when
+> validity strictly requires it, and any boundary a needed bump does cross
+> still receives the same runtime-gated fixes and reporting.
+
+**Contract:** the modernize walk crosses no Galaxy `must_fix` behaviour
 boundary whose change applies to the tool, except boundaries whose change it
 provably fixed on that tool. Holds by construction for novel tools; the corpus
 sweep is evidence, never the argument.
 
-Mechanism: `galaxy_tool_codemod/behavior_gate.py`; policy and default flip:
+Mechanism: `galaxy_tool_codemod/behavior_gate.py`; policy and mode selection:
 the registry facade's `upgrade`. Per-step structural soundness is the separate
 [GTR012](GTR012.md) composition (validity-gated sequencing); this document is
 the behavioural half that caps it.
@@ -73,7 +81,7 @@ exceed it. The claim reduces to five sub-claims:
    `test_binding.py` / `test_update_profile.py` / `test_upgrades.py`, and the
    facade gate tests.
 
-## What the default does NOT claim
+## What the walk does NOT claim
 
 Applicable `consider`-level changes do not stop the walk, a deliberate,
 documented policy choice (blocking on them would freeze nearly every tool at
@@ -85,12 +93,13 @@ historical structural walk, with the same reporting.
 
 ## Evidence (not the argument)
 
-`uv run python -m scripts.corpus_check upgrade` runs the gated default over
-every corpus tool and asserts this contract per tool (fail-closed, gate cap,
-no un-fixed `must_fix` crossing recomputed independently, validity
-preservation, byte idempotence), retaining every violation as a regression
-fixture. `scripts.measure upgrade-behavior-blocks` reports where the default
-stops, computed with these same gate functions.
+`uv run python -m scripts.corpus_check upgrade --mode modernize` runs the
+gated walk over every corpus tool and asserts this contract per tool
+(fail-closed, gate cap, no un-fixed `must_fix` crossing recomputed
+independently, validity preservation, byte idempotence), retaining every
+violation as a regression fixture (the default `--mode both` also sweeps the
+minimal default's own contract). `scripts.measure upgrade-behavior-blocks`
+reports where the walk stops, computed with these same gate functions.
 
 ## Coverage guard
 

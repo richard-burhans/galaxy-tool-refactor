@@ -287,14 +287,18 @@ will change.
   not `canonical_codemods()`. Each also declares the Galaxy `upgrade_code` it
   clears, which is how the behavior gate maps blockers to their fixes.
 - **The behavior gate** (`behavior_gate.py`, codemod §45): the behavioural cap on
-  the upgrade walk: `blocking_codes` (applicable, non-auto-fixed `must_fix` codes
-  over `(baseline, latest]`, with auto-fixability proven by executing the mapped
-  `RuntimeGatedFix` on a copy and re-detecting) and `behavior_ceiling` (the newest
-  vendored profile below the first blocker). Pure mechanism; the **default-flip
-  policy lives in the tier-3.6 facade**, which passes the ceiling into
-  `UpgradeToLatest(ceiling=…)`. `boundaries.py` renders the per-boundary user
+  the opt-in `modernize` upgrade walk: `blocking_codes` (applicable, non-auto-fixed
+  `must_fix` codes over `(baseline, latest]`, with auto-fixability proven by
+  executing the mapped `RuntimeGatedFix` on a copy and re-detecting) and
+  `behavior_ceiling` (the newest vendored profile below the first blocker). Pure
+  mechanism; the **mode policy lives in the tier-3.6 facade**: the default is the
+  minimal bump (`UpgradeToValid(floor=…)`, GTR097, codemod §50 — keep `profile=`
+  when the repaired tool validates at its baseline, else the minimum valid
+  profile), and `modernize` passes the ceiling into `UpgradeToLatest(ceiling=…)`.
+  `boundaries.py` renders the per-boundary user
   reference (`docs/profile_boundaries.md`, generated + freshness-tested); the
-  soundness argument is `docs/proofs/behavior-gate.md`.
+  soundness arguments are `docs/proofs/GTR097.md` and
+  `docs/proofs/behavior-gate.md`.
 - **`catalog.coded_codemods()`** — `catalog.py` — *every* GTR-coded codemod
   (including the single-step `Upgrade19_01`…`Upgrade25_1` and `UpdateProfile` that
   `UpgradeToLatest` drives internally, and the runtime-gated GTR014/GTR015/GTR016), for

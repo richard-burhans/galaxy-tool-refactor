@@ -472,6 +472,10 @@ population is sized by `scripts.measure version-tokenization`
 
 ## D16 (2026-06-12): `upgrade` flags for the behavior-preserving default
 
+> **Superseded as the default (2026-06-12, D17):** the gated walk these flags
+> control is now the opt-in `--modernize` mode; the bare `upgrade` bumps
+> minimally. The flags' mechanics below are current.
+
 Reproduced-by: `uv run --package galaxy-tool-refactor-cli pytest
 galaxy-tool-refactor-cli/tests/test_cli.py -k "behavior or target_profile"`.
 
@@ -492,3 +496,30 @@ galaxy-tool-refactor-cli/tests/test_cli.py -k "behavior or target_profile"`.
   the stop report; the historical "structural, not behaviour-preserving"
   paragraph is replaced by the gate description (the structural caveat
   remains true of `--allow-behavior-change`).
+
+## D17 (2026-06-12): `--modernize` opts into the walk; the default bumps minimally
+
+Reproduced-by: `uv run --package galaxy-tool-refactor-cli pytest
+galaxy-tool-refactor-cli/tests/test_cli.py -k "modernize or minimal or
+upgrade"`. Policy: registry D22, codemod decisions §50.
+
+- `upgrade` gains `--modernize`: the facade's previously-default
+  behavior-gated walk to the behaviour ceiling. The bare command now bumps
+  `profile=` only when strictly needed for validity (kept when the repaired
+  tool validates at its baseline, undeclared stays undeclared, minimum valid
+  profile otherwise), per the IUC maintainer feedback cited in codemod §50.
+  `--target-profile` continues to cap an explicit walk and so implies the
+  walk mode without requiring `--modernize`.
+- `--allow-behavior-change` without `--modernize`/`--target-profile` is
+  rejected **up front** as a `click.BadParameter` carrying the typed
+  `UpgradeFlagError` message, before any file or the whole-run macro phase is
+  touched (the D16 up-front-validation pattern). No silent imply: the flag
+  only means lifting the walk's gate.
+- The mode threads into the whole-run imported `@PROFILE@` phase
+  (`_upgrade_macro_profile_tokens` -> `profile_token_site(modernize=...)`),
+  so a shared token whose importers validate at its current value is left
+  alone by default, exactly like an inline declaration (the same
+  no-disagreement argument as D16's gate threading).
+- Help text leads with the minimal-bump contract; the behavior-gate
+  paragraph now describes `--modernize`. Exit codes are unchanged, and
+  `--check`/`--diff` semantics are untouched.

@@ -1885,6 +1885,11 @@ Sizing: `uv run python -m scripts.measure iuc011-fixability`.
 
 ## 45. The behavior gate: `upgrade` stops at the behaviour ceiling by default
 
+> **Superseded as the default (2026-06-12, §50):** the minimal-bump policy is
+> now the `upgrade` default, and the gate described here bounds the opt-in
+> `--modernize` walk. Everything below about the gate's mechanism is current;
+> read "default" as "the modernize walk".
+
 **Date:** 2026-06-12. Reproduced-by: `uv run --package galaxy-tool-codemod pytest
 galaxy-tool-codemod/tests/test_behavior_gate.py` (the gate primitives),
 `galaxy-tool-codemod/tests/test_upgrades.py` (the capped walk), and the facade
@@ -1953,12 +1958,14 @@ computed with the shipped gate functions) and
   (`corpus_check codemod galaxy_tool_codemod.upgrades:UpgradeToLatest`) keeps
   testing §22's contract; the default flip is facade policy. A stall at a
   requested ceiling is deliberate and is not a `missing_upgrade`.
-- **The per-tool contract is swept.** `corpus_check upgrade` runs the gated
-  default over every corpus tool and asserts: fail-closed honoured, the
-  declaration never crosses the first blocker, no applicable `must_fix` code
-  crossed un-fixed (recomputed independently of the facade), validity
-  preserved, and a second run is a byte no-op, retaining every violation as a
-  regression fixture (`docs/corpus_data/upgrade_gate_errors.json`).
+- **The per-tool contract is swept.** `corpus_check upgrade --mode modernize`
+  runs the gated walk over every corpus tool and asserts: fail-closed
+  honoured, the declaration never crosses the first blocker, no applicable
+  `must_fix` code crossed un-fixed (recomputed independently of the facade),
+  validity preserved, and a second run is a byte no-op, retaining every
+  violation as a regression fixture
+  (`docs/corpus_data/upgrade_gate_errors.json`). The default sweep covers
+  both modes (§50).
 
 ## 46. The 24.2 truth measure: the dominant blocker is a 3x over-count
 
@@ -2107,5 +2114,48 @@ policy; the default flip itself lands separately in the registry facade.
   (`corpus_check rules`) cannot exercise it with one stateless instance — the
   floor is per-tool, and a hard-coded floor would lower a high-profile tool — so
   it is skipped there (`_NON_ISOLATABLE_CODEMODS`) and earns only a glossary row;
-  its corpus QA is the gated `upgrade` sweep, which drives it per tool once the
-  facade adopts it.
+  its corpus QA is the `upgrade` sweep's minimal mode, which drives it per
+  tool through the facade default (§50).
+
+## 50. The minimal-bump default: `upgrade` declares no profile newer than needed
+
+**Date:** 2026-06-12. Reproduced-by: `uv run --package
+galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_facade.py` (the mode tests) and
+`uv run python -m scripts.corpus_check upgrade` (the per-tool contract sweep,
+both modes). Corpus sizing: `uv run python -m scripts.measure
+upgrade-minimal-need` (`docs/upgrade_minimal_need_stats.md`).
+
+- **The inversion.** §45 bounded the default walk at the behaviour ceiling;
+  IUC maintainer feedback on featurecounts PR #8090 (mvdbeek: "do not bump
+  for no reason and not to an unreleased pre-release"; bgruening: public
+  servers lag releases, so a bumped tool can become uninstallable) made any
+  gratuitous bump wrong, however safe. The default now bumps `profile=` only
+  when strictly needed for validity: a tool that validates at its resolved
+  baseline after repair keeps its declaration byte-untouched, an undeclared
+  tool stays undeclared, and an invalid tool is moved to the minimum valid
+  profile at or above its baseline by `UpgradeToValid` (GTR097, §49). The
+  gated walk of §45 is unchanged as machinery and becomes the opt-in
+  `--modernize` mode; `stopped_at` and the stop report are walk-mode
+  concepts.
+- **Kept tools cross nothing.** `runtime_fixes_for` is strictly-crossing
+  (`baseline < introduced <= reached`), so a kept tool receives no
+  runtime-gated 21.09/24.2 fixes, consistent with "don't change what you
+  don't bump". A minimal bump that does cross a boundary still gets the
+  crossed boundary's fixes, exactly as the walk would.
+- **The preview stays.** `blocking_codes` is still computed in the default
+  mode: the result reports what a `--modernize` walk would face, so the
+  opt-in is an informed choice rather than a leap.
+- **Corpus shape** (`upgrade-minimal-need`, 9,373 unique tools): 76.8% kept
+  unchanged, 15.8% minimally bumped, 7.4% (almost all undeclared) validate
+  nowhere at or above their baseline (pre-existing breakage a bump cannot
+  fix; fail-closed). Zero minimal bumps land above the 25.1 deployment
+  ceiling, so the pre-release concern is moot on the needed-bump path.
+- **The per-tool contract is swept.** `corpus_check upgrade --mode minimal`
+  asserts per tool, recomputed independently of the facade: fail-closed on
+  an unplaceable baseline, undeclared stays undeclared, kept when a
+  `FixTypos`-repaired copy validates at the baseline, a moved declaration
+  equals `oldest_valid_profile` on the output and is never lower than the
+  baseline, validity preserved, and a second run is a byte no-op. Policy
+  lives in the registry facade (registry D22); the CLI flag surface is cli
+  D17, the MCP surface mcp D5.
