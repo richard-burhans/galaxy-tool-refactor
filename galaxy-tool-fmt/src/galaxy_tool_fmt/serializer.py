@@ -15,8 +15,14 @@ from lxml import etree
 
 
 def to_bytes(tree: etree._ElementTree) -> bytes:
-    """Serialise *tree* to UTF-8 XML bytes with an XML declaration."""
-    result: bytes = etree.tostring(tree, encoding="utf-8", xml_declaration=True)
+    """Serialise *tree* to UTF-8 XML bytes with no XML declaration.
+
+    The canonical output omits ``<?xml ...?>``: it is the IUC convention for
+    tool XML (they remove the declaration even when an author wrote one), and
+    it is optional anyway — XML with no declaration or BOM defaults to UTF-8,
+    which is what Galaxy tool XML is. See ``docs/decisions.md`` §D21.
+    """
+    result: bytes = etree.tostring(tree, encoding="utf-8", xml_declaration=False)
     return result
 
 
