@@ -82,6 +82,7 @@ from galaxy_tool_refactor_registry.errors import (
     UnknownProfile,
     UnknownRuleCode,
     UnknownRuleset,
+    UpgradeFlagError,
 )
 from galaxy_tool_refactor_registry.macro_datatype import normalize_macro_files
 from galaxy_tool_refactor_registry.macro_profile import (
@@ -293,12 +294,22 @@ def format_command(
 @_SELECT_OPTION
 @_IGNORE_OPTION
 @click.option(
+    "--modernize",
+    is_flag=True,
+    help=(
+        "Walk profile= toward the latest profile (capped at the behaviour"
+        " ceiling) instead of the default minimal bump, which moves profile="
+        " only as far as validity strictly requires."
+    ),
+)
+@click.option(
     "--allow-behavior-change",
     is_flag=True,
     help=(
-        "Upgrade past Galaxy behaviour changes that apply to the tool"
-        " (the historical walk-to-latest). By default the walk stops at the"
-        " newest profile that provably preserves runtime behaviour."
+        "Let the --modernize / --target-profile walk cross Galaxy behaviour"
+        " changes that apply to the tool (the historical walk-to-latest)."
+        " Requires one of those flags: the default minimal bump has no gated"
+        " walk to lift."
     ),
 )
 @click.option(
@@ -306,8 +317,9 @@ def format_command(
     default=None,
     metavar="PROFILE",
     help=(
-        "Cap the upgrade at this vendored Galaxy profile (e.g. 23.0). Composes"
-        " with the behaviour gate: the lower of the two wins."
+        "Walk the upgrade up to this vendored Galaxy profile (e.g. 23.0);"
+        " implies the walk mode. Composes with the behaviour gate: the lower"
+        " of the two wins."
     ),
 )
 def upgrade_command(
@@ -319,51 +331,66 @@ def upgrade_command(
     rulesets: tuple[str, ...],
     select: tuple[str, ...],
     ignore: tuple[str, ...],
+    modernize: bool,
     allow_behavior_change: bool,
     target_profile: str | None,
 ) -> None:
-    """Repair and upgrade tools as far as behaviour provably stays the same.
+    """Repair tools, moving ``profile=`` only as far as strictly needed.
 
-    Opt-in and semantic. The profile upgrade always runs; ``--select`` / ``--ignore``
+    Opt-in and semantic. The profile repair always runs; ``--select`` / ``--ignore``
     adjust the *other* fixable rules (by default typo repair + cosmetic
     formatting) — e.g. ``--ignore GTR006`` upgrades without typo repair. Rulesets
     are a ``format``/``check`` concept and are **not** accepted here.
 
-    **Behavior-preserving by default.** The walk stops at the behaviour
-    ceiling: the newest vendored profile reachable without crossing a Galaxy
-    ``must_fix`` behaviour change that applies to this tool and that no
-    bundled fix provably clears (a fix is credited only when re-detection
-    proves the construct gone). A stop is reported with the blocking code(s)
-    and where to read about them (``docs/profile_upgrades.md``). Applicable
-    consider-level changes are warned about but do not stop the walk.
-    ``--allow-behavior-change`` lifts the gate (the historical
-    walk-to-latest); ``--target-profile`` caps the walk at an explicit
-    vendored profile and composes with the gate (the lower wins).
+    **Minimal bump by default.** A tool that validates at its declared
+    ``profile=`` (after repair) keeps it, and an undeclared tool stays
+    undeclared; only a tool that does not validate where it sits has its
+    declaration moved — to the *minimum* vendored profile at or above its
+    baseline that validates, no further. Galaxy servers lag the newest
+    profile, so a gratuitous bump would only narrow where a tool can install.
+
+    **--modernize** opts into the behaviour-gated walk toward the latest
+    profile: it stops at the behaviour ceiling, the newest vendored profile
+    reachable without crossing a Galaxy ``must_fix`` behaviour change that
+    applies to this tool and that no bundled fix provably clears (a fix is
+    credited only when re-detection proves the construct gone). A stop is
+    reported with the blocking code(s) and where to read about them
+    (``docs/profile_boundaries.md``). Applicable consider-level changes are
+    warned about but do not stop the walk. ``--target-profile`` walks up to an
+    explicit vendored profile (implying the walk mode by itself) and composes
+    with the gate (the lower wins); ``--allow-behavior-change`` lifts the gate
+    (the historical walk-to-latest) and requires one of the walk flags.
 
     A ``profile="@PROFILE@"`` whose token lives in an *imported* macro file is
-    upgraded by bumping that token in place — but only when every profile-using
+    handled by editing that token in place — but only when every profile-using
     importer in this run agrees on the target profile; a macro file whose
     importers disagree is reported and left untouched (no over-declaration).
-    Each importer's target honors the same gate and flags. The
-    inline-token case is handled per-file by GTR007. The token value is the *only*
-    semantic edit, but the macro file it lives in **is** reserialised through fmt's
-    ``format_macro_document`` when the token is bumped (so a bumped file is also
-    cosmetically normalised — GTR001/GTR004); ``upgrade`` runs no *separate*
-    cosmetic macro pass over un-bumped macro files the way ``format`` does. PATHS
-    may be files or directories.
+    Each importer's target honors the same mode and flags (under the default,
+    a token its importers validate at is left alone). The inline-token case is
+    handled per-file by GTR007. The token value is the *only* semantic edit,
+    but the macro file it lives in **is** reserialised through fmt's
+    ``format_macro_document`` when the token is bumped (so a bumped file is
+    also cosmetically normalised — GTR001/GTR004); ``upgrade`` runs no
+    *separate* cosmetic macro pass over un-bumped macro files the way
+    ``format`` does. PATHS may be files or directories.
 
     Bumping ``profile=`` opts the tool into newer Galaxy runtime defaults the
-    XSD can't verify; that is exactly what the gate guards. A few of those
-    changes have a safe mechanical fix that is **applied automatically** once
-    the reached profile crosses them (e.g. stripping whitespace from
-    ``from_work_dir`` at 21.09); the rest stop the walk (``must_fix``) or are
-    warn-only (``consider``).
+    XSD can't verify; that is exactly what the gate guards on the walk. A few
+    of those changes have a safe mechanical fix that is **applied
+    automatically** once the reached profile crosses them (e.g. stripping
+    whitespace from ``from_work_dir`` at 21.09); the rest stop the walk
+    (``must_fix``) or are warn-only (``consider``). A tool kept at its
+    baseline crosses nothing, so no such fix applies to it.
     """
     if rulesets:
         raise click.BadParameter(
             "--ruleset is not applicable to 'upgrade'; rulesets govern "
             "'format' / 'check'. Use --select / --ignore to adjust the rule set.",
             param_hint="--ruleset",
+        )
+    if allow_behavior_change and not (modernize or target_profile is not None):
+        raise click.BadParameter(
+            str(UpgradeFlagError()), param_hint="--allow-behavior-change"
         )
     if target_profile is not None and target_profile not in available_profiles():
         profiles = available_profiles()
@@ -387,6 +414,7 @@ def upgrade_command(
         diff=diff,
         quiet=quiet,
         backup=backup,
+        modernize=modernize,
         allow_behavior_change=allow_behavior_change,
         target_profile=target_profile,
     )
@@ -395,6 +423,7 @@ def upgrade_command(
         result = facade.upgrade(
             document,
             codes=codes,
+            modernize=modernize,
             allow_behavior_change=allow_behavior_change,
             target_profile=target_profile,
         )
@@ -418,18 +447,21 @@ def _upgrade_macro_profile_tokens(
     diff: bool,
     quiet: bool,
     backup: bool,
+    modernize: bool = False,
     allow_behavior_change: bool = False,
     target_profile: str | None = None,
 ) -> bool:
     """Upgrade imported ``@PROFILE@`` tokens across the run; return would-edit.
 
     Walks the run's tool files, collects each one's imported-profile-token site
-    (each importer's target honors the behaviour gate and the flags, exactly as
-    the per-tool path does), and for every macro file whose profile-using
-    importers agree on a target bumps the ``<token>`` in place (writing unless
-    ``check``/``diff``). A macro file whose importers disagree is reported and
-    left untouched. Returns whether any macro file was (or, under preview,
-    would be) edited; the caller folds that into the ``--check`` exit code.
+    (each importer's target honors the mode and flags exactly as the per-tool
+    path does: minimal by default, the behaviour-gated walk under
+    ``--modernize`` / ``--target-profile``), and for every macro file whose
+    profile-using importers agree on a target bumps the ``<token>`` in place
+    (writing unless ``check``/``diff``). A macro file whose importers disagree
+    is reported and left untouched. Returns whether any macro file was (or,
+    under preview, would be) edited; the caller folds that into the
+    ``--check`` exit code.
     """
     sites = []
     for path in iter_targets(paths):
@@ -445,6 +477,7 @@ def _upgrade_macro_profile_tokens(
             continue  # malformed tools are surfaced by the per-file run() below
         site = profile_token_site(
             document,
+            modernize=modernize,
             allow_behavior_change=allow_behavior_change,
             target_profile=target_profile,
         )

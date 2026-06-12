@@ -64,9 +64,9 @@ def test_format_does_not_change_profile(tmp_path: Path) -> None:
     assert b'profile="24.1"' in file.read_bytes()
 
 
-def test_upgrade_bumps_profile_and_runs_migration(tmp_path: Path) -> None:
+def test_upgrade_modernize_bumps_profile_and_runs_migration(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _valid_tool(profile="24.1", param_fmt="BAM"))
-    result = CliRunner().invoke(main, ["upgrade", str(file)])
+    result = CliRunner().invoke(main, ["upgrade", "--modernize", str(file)])
     assert result.exit_code == 0, result.output
     output = file.read_bytes()
     assert f'profile="{latest_profile()}"'.encode() in output
@@ -74,10 +74,46 @@ def test_upgrade_bumps_profile_and_runs_migration(tmp_path: Path) -> None:
     assert "upgraded past 24.1" in result.output
 
 
-def test_upgrade_reports_behavior_preserving_pass(tmp_path: Path) -> None:
-    """A tool that crosses no applicable behaviour code gets a clean-pass note."""
+def test_upgrade_default_keeps_a_valid_declared_profile(tmp_path: Path) -> None:
+    """The minimal default: valid at the declared profile means no bump."""
     file = _write(tmp_path / "tool.xml", _valid_tool(profile="24.1", param_fmt="BAM"))
     result = CliRunner().invoke(main, ["upgrade", str(file)])
+    assert result.exit_code == 0, result.output
+    assert b'profile="24.1"' in file.read_bytes()
+    assert "profile 24.1 kept" in result.output
+    assert "--modernize" in result.output
+
+
+def test_upgrade_default_bumps_to_the_minimum_valid_profile(tmp_path: Path) -> None:
+    """Invalid at the declared profile: bump to the minimum valid one only."""
+    tool = (
+        b'<tool id="r" name="R" version="1.0.0" profile="20.09">'
+        b'<required_files><include path="x.py"/></required_files>'
+        b"<command><![CDATA[echo x]]></command>"
+        b"<inputs/><outputs/></tool>"
+    )
+    file = _write(tmp_path / "tool.xml", tool)
+    result = CliRunner().invoke(main, ["upgrade", str(file)])
+    assert result.exit_code == 0, result.output
+    output = file.read_bytes()
+    assert b'profile="21.09"' in output
+    assert f'profile="{latest_profile()}"'.encode() not in output
+    assert "minimum" in result.output
+
+
+def test_upgrade_allow_behavior_change_alone_is_an_error(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _valid_tool(profile="24.1"))
+    result = CliRunner().invoke(
+        main, ["upgrade", "--allow-behavior-change", str(file)]
+    )
+    assert result.exit_code != 0
+    assert "modernize" in result.output
+
+
+def test_upgrade_modernize_reports_behavior_preserving_pass(tmp_path: Path) -> None:
+    """A walk that crosses no applicable behaviour code gets a clean-pass note."""
+    file = _write(tmp_path / "tool.xml", _valid_tool(profile="24.1", param_fmt="BAM"))
+    result = CliRunner().invoke(main, ["upgrade", "--modernize", str(file)])
     assert result.exit_code == 0, result.output
     assert "behavior-preserving" in result.output
 
@@ -133,10 +169,11 @@ def _tool_with_tests(*, profile: str) -> bytes:
     ).encode()
 
 
-def test_upgrade_default_stops_at_a_behavior_boundary(tmp_path: Path) -> None:
-    """A tool with tests stays at 24.1 by default: 24.2 validates test cases."""
+def test_upgrade_modernize_stops_at_a_behavior_boundary(tmp_path: Path) -> None:
+    """A tool with tests stays at 24.1 under --modernize: 24.2 validates test
+    cases, so the gated walk does not cross it."""
     file = _write(tmp_path / "tool.xml", _tool_with_tests(profile="24.1"))
-    result = CliRunner().invoke(main, ["upgrade", str(file)])
+    result = CliRunner().invoke(main, ["upgrade", "--modernize", str(file)])
     assert result.exit_code == 0, result.output
     assert b'profile="24.1"' in file.read_bytes()
     assert "stopped at 24.1" in result.output
@@ -147,7 +184,7 @@ def test_upgrade_default_stops_at_a_behavior_boundary(tmp_path: Path) -> None:
 def test_upgrade_allow_behavior_change_reaches_latest(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _tool_with_tests(profile="24.1"))
     result = CliRunner().invoke(
-        main, ["upgrade", "--allow-behavior-change", str(file)]
+        main, ["upgrade", "--modernize", "--allow-behavior-change", str(file)]
     )
     assert result.exit_code == 0, result.output
     assert f'profile="{latest_profile()}"'.encode() in file.read_bytes()
@@ -172,7 +209,9 @@ def test_upgrade_rejects_an_unknown_target_profile(tmp_path: Path) -> None:
     assert "unknown profile" in result.output
 
 
-def test_upgrade_gates_a_shared_imported_profile_token(tmp_path: Path) -> None:
+def test_upgrade_modernize_gates_a_shared_imported_profile_token(
+    tmp_path: Path,
+) -> None:
     """The whole-run @PROFILE@ bump honors the gate: importers with tests agree
     on the 24.1 ceiling, so the shared token lands there, not at latest."""
     _write(
@@ -191,29 +230,43 @@ def test_upgrade_gates_a_shared_imported_profile_token(tmp_path: Path) -> None:
                 '<tests><test><param name="nosuch" value="1"/></test></tests></tool>'
             ).encode(),
         )
-    result = CliRunner().invoke(main, ["upgrade", str(tmp_path)])
+    result = CliRunner().invoke(main, ["upgrade", "--modernize", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert b">24.1<" in (tmp_path / "macros.xml").read_bytes()
 
 
-def test_upgrade_applies_runtime_gated_fix_at_reached_profile(tmp_path: Path) -> None:
+def test_upgrade_default_keeps_a_valid_imported_profile_token(
+    tmp_path: Path,
+) -> None:
+    """The minimal default leaves a shared token its importers validate at."""
+    macros = _write(
+        tmp_path / "macros.xml",
+        b'<macros><token name="@PROFILE@">19.01</token></macros>',
+    )
+    _write(tmp_path / "a.xml", _imported_token_tool("a"))
+    result = CliRunner().invoke(main, ["upgrade", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert b">19.01</token>" in macros.read_bytes()  # kept: valid at its value
+
+
+def test_upgrade_modernize_applies_runtime_gated_fix(tmp_path: Path) -> None:
     """End-to-end: crossing 21.09 strips a whitespace from_work_dir (GTR014)."""
-    # Declares 20.09 (< 21.09), so the bump to latest CROSSES the 21.09 boundary.
+    # Declares 20.09 (< 21.09), so the walk to latest CROSSES the 21.09 boundary.
     tool = (
         b'<tool id="m" name="M" version="1.0.0" profile="20.09">'
         b"<command><![CDATA[echo x]]></command><inputs/>"
         b'<outputs><data name="o" from_work_dir=" out.txt "/></outputs></tool>'
     )
     file = _write(tmp_path / "tool.xml", tool)
-    result = CliRunner().invoke(main, ["upgrade", str(file)])
+    result = CliRunner().invoke(main, ["upgrade", "--modernize", str(file)])
     assert result.exit_code == 0, result.output
     output = file.read_bytes()
     assert b'from_work_dir="out.txt"' in output
     assert b'from_work_dir=" out.txt "' not in output
 
 
-def test_upgrade_rewrites_inline_profile_token(tmp_path: Path) -> None:
-    """`upgrade` bumps a stale inline @PROFILE@ token, keeping the reference."""
+def test_upgrade_modernize_rewrites_inline_profile_token(tmp_path: Path) -> None:
+    """--modernize bumps a stale inline @PROFILE@ token, keeping the reference."""
     file = _write(
         tmp_path / "tool.xml",
         b'<tool id="m" name="M" version="1.0.0" profile="@PROFILE@">'
@@ -221,7 +274,7 @@ def test_upgrade_rewrites_inline_profile_token(tmp_path: Path) -> None:
         b"<command><![CDATA[echo x]]></command>"
         b'<inputs/><outputs><data name="o"/></outputs></tool>',
     )
-    result = CliRunner().invoke(main, ["upgrade", str(file)])
+    result = CliRunner().invoke(main, ["upgrade", "--modernize", str(file)])
     assert result.exit_code == 0, result.output
     output = file.read_bytes()
     assert b'profile="@PROFILE@"' in output  # reference preserved, not clobbered
@@ -237,15 +290,17 @@ def _imported_token_tool(tool_id: str) -> bytes:
     ).encode()
 
 
-def test_upgrade_bumps_shared_imported_profile_token(tmp_path: Path) -> None:
-    """`upgrade` bumps a stale @PROFILE@ in a shared imported macro file."""
+def test_upgrade_modernize_bumps_shared_imported_profile_token(
+    tmp_path: Path,
+) -> None:
+    """--modernize bumps a stale @PROFILE@ in a shared imported macro file."""
     _write(
         tmp_path / "macros.xml",
         b'<macros><token name="@PROFILE@">16.01</token></macros>',
     )
     _write(tmp_path / "a.xml", _imported_token_tool("a"))
     _write(tmp_path / "b.xml", _imported_token_tool("b"))
-    result = CliRunner().invoke(main, ["upgrade", str(tmp_path)])
+    result = CliRunner().invoke(main, ["upgrade", "--modernize", str(tmp_path)])
     assert result.exit_code == 0, result.output
     macros = (tmp_path / "macros.xml").read_bytes()
     assert f">{latest_profile()}<".encode() in macros  # token bumped once
@@ -260,7 +315,9 @@ def test_upgrade_check_does_not_write_imported_token(tmp_path: Path) -> None:
         b'<macros><token name="@PROFILE@">16.01</token></macros>',
     )
     _write(tmp_path / "a.xml", _imported_token_tool("a"))
-    result = CliRunner().invoke(main, ["upgrade", "--check", str(tmp_path)])
+    result = CliRunner().invoke(
+        main, ["upgrade", "--modernize", "--check", str(tmp_path)]
+    )
     assert result.exit_code == 1, result.output
     assert b"16.01" in macros.read_bytes()  # not written under --check
     assert "would upgrade @PROFILE@" in result.output
@@ -274,7 +331,9 @@ def test_upgrade_diff_reflects_pending_imported_token(tmp_path: Path) -> None:
         b'<macros><token name="@PROFILE@">16.01</token></macros>',
     )
     _write(tmp_path / "a.xml", _imported_token_tool("a"))
-    result = CliRunner().invoke(main, ["upgrade", "--diff", str(tmp_path)])
+    result = CliRunner().invoke(
+        main, ["upgrade", "--modernize", "--diff", str(tmp_path)]
+    )
     assert result.exit_code == 1, result.output
     assert b"16.01" in macros.read_bytes()  # not written under --diff
 
