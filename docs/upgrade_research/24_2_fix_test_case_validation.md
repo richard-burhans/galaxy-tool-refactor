@@ -6,7 +6,7 @@
 | **Profile** | 24.2 |
 | **Level** | `must_fix` |
 | **Auto-fix today** | **none** |
-| **Stuck tools** (must_fix-only) | **6,033**, the largest blocker (see `../upgrade_behavior_block_stats.md`; re-measured 2026-06-12 with the shipped gate, which resolves `@PROFILE@` baselines and detects on the macro-expanded view, so ~1,500 previously-excluded tools now count) |
+| **Stuck tools** (must_fix-only) | **3,665**, still the largest blocker (see `../upgrade_behavior_block_stats.md`; down from 6,033 once the detector was tightened to the provably-clean checker, §47) |
 | **Galaxy PR** | https://github.com/galaxyproject/galaxy/pull/18679 |
 
 > Galaxy-source citations from `.local/galaxy-src/` @ `c6e0ee3`.
@@ -53,24 +53,25 @@ parsed test case against it:
 The profile gate lives inside the coercion (`case.py:140`:
 `elif Version(profile) < Version("24.2"):` allows the old leniency).
 
-## Detection — Galaxy vs ours (important caveat)
+## Detection: Galaxy vs ours
 
 Galaxy's advisor **actually runs the validator** and reports any failure
 (`lib/galaxy/tool_util/upgrade/__init__.py:256-266`, `ProfileMigration24_2.advise`
 calls `validate_test_cases_for_tool_source(..., use_latest_profile=True)` and adds
 the code per `result.validation_error`).
 
-**Our detector is only an approximation**: `_detects_has_test` fires when the tool
-ships any `tests/test` (a necessary condition — no `<test>` ⇒ the code can't trip).
-We do **not** vendor Galaxy's parameter-model validator, so we cannot tell whether a
-given tool's tests *actually* fail. Consequence: our **6,033 over-counts**; it is
-"tools that ship tests and are below 24.2," an upper bound. The true number is some
-subset whose tests violate one of the four rules — and **smaller than the four-rule
-list suggests**, because two of the rules have escape hatches that exempt most cases:
-the select rule applies only to *static*-option selects (dynamic-options selects
-accept any string), and the `data_column` rule fails only on column-*name* strings
-(integer-as-string values coerce at any profile). So the true-failure subset is
-materially below 6,033.
+**History:** the first detector was a bare approximation, `_detects_has_test`,
+which fired on any tool shipping a `tests/test` (a necessary condition; no
+`<test>` means the code can't trip). That over-counted: it flagged **6,033**
+tools as first-blockers when the truth measure showed only ~1,972 actually
+fail. As of 2026-06-12 the detector is tightened to the provably-clean checker
+(below); it now flags **3,665**, recovering most of the gap soundly. The
+residual still exceeds the 1,972 true blockers because the checker is
+conservative, leaving the tools it cannot prove clean (the 1,930 `headroom`)
+blocked. Two of Galaxy's rules have escape hatches the checker honors: the
+select rule applies only to *static*-option selects (dynamic-options selects
+accept any string), and the `data_column` rule fails only on column-*name*
+strings (integer-as-string values coerce at any profile).
 
 ## The faithful fix (per violation)
 
@@ -85,9 +86,11 @@ parameter model (option value mapping, column semantics) and sometimes author in
 
 ## Mechanical-fix feasibility
 
-- **Detection** beyond our `<test>`-presence heuristic would require porting (or
-  importing) Galaxy's `galaxy.tool_util.parameters` validator — a heavy dependency
-  we currently don't carry. Without it we can only say "has tests," not "tests fail."
+- **Detection** is solved without the heavy dependency: the toolchain's own
+  structural checker (`test_case_check`, the shipped tightening below) answers
+  Galaxy's strict-validation decision as a direct query over the resident
+  macro-expanded tree, one-directional and parity-gated against Galaxy's real
+  validator. We can now say "provably clean," not just "has tests."
 - **Fixing** is mixed: name-qualification could be mechanical given the parsed model,
   but select/column corrections are ambiguous. A reliable codemod is **not**
   straightforward.
@@ -120,23 +123,50 @@ upper-bound population):
 | Galaxy's own test parser/model raises (retained) | 159 | 2.4% |
 
 So the true blocker population is **1,972, roughly one third of the 6,033 the
-ships-a-`<test>` detector counts as first blockers** in
-`../upgrade_behavior_block_stats.md`; the other two thirds of test-shipping
-tools could advance past 24.2 today if the detector could tell them apart
-(PR 3 of the behavior-gate arc). Per-case validation-error kinds across the
-1,972: `type-or-value-mismatch` 2,380 cases (strict pydantic coercion),
+original ships-a-`<test>` detector counted as first blockers** in
+`../upgrade_behavior_block_stats.md`; the tightened detector (§47) now flags
+3,665, recovering most of that gap soundly while conservatively keeping the
+1,930 not-yet-provable tools blocked. Per-case validation-error kinds across
+the 1,972: `type-or-value-mismatch` 2,380 cases (strict pydantic coercion),
 `unknown-parameter` 2,159 ("Invalid parameter name found", the
 name-qualification / typo class and the PR 4 mechanical-fix candidate),
 `extra-input-forbidden` 52, `other` 43. The 159 validator-error tools (Galaxy
 rejects the test block before validation, e.g. an output with nothing to
 check) are listed in `../corpus_data/test_case_validation_errors.json`.
 
+## The shipped tightening (2026-06-12, PR 3)
+
+Rather than ship Galaxy's validator (it re-parses the tool and generates a
+pydantic class per tool, ~200ms; `docs/galaxy_reimplementations.md` touchpoint
+3), the toolchain ships its **own** structural checker,
+`galaxy_tool_codemod.test_case_check.all_test_cases_provably_clean`, which
+answers the same decision as a direct query over the resident macro-expanded
+tree in milliseconds with no new dependency. `_detects_test_case_validation`
+now fires only when a tool ships a `<test>` **and** its tests are not provably
+clean (codemod decisions §47). The checker is one-directional: it suppresses
+the 24.2 blocker only for the provably-clean subset and leaves everything it
+cannot model (repeats, collections, drill-downs, any `<validator>`,
+un-expanded macros, novel types) blocked, so it is never wider than Galaxy.
+
+`scripts.measure test-case-validation-truth` is the standing parity oracle: it
+runs Galaxy's real validator beside the checker over every test-shipping
+corpus tool, gated on **zero unsound suppressions** (ours-clean but Galaxy
+returns an invalid verdict). A Galaxy validator *raise* is a separate
+non-blocking bucket (Galaxy's advisor cannot decide either; the underlying
+tools, malformed XML and unexpandable macros, are handled upstream in the
+shipped pipeline). The 2026-06-12 sweep: of 2,590 tools the checker proves
+clean, **2,587 agree with a clean Galaxy verdict, 0 are unsound, and 3 sit in
+the Galaxy-raised bucket**; 1,930 tools Galaxy validates clean are not yet
+provable by the checker (the `headroom`, the target for any future widening).
+Closing the last 2 unsound cases drove a principled narrowing: a
+leading-underscore parameter/conditional name breaks Galaxy's pydantic model
+builder, so the checker bails such tools to unclean.
+
 ## Status / recommendation
 
-The largest behaviour-block by our heuristic, and the truth measure above
-shows the headline count is inflated roughly 3x by the detector
-approximation. Next steps, in order: ship the real validator behind a tier-2
-`[galaxy]` extra with the static checker as the no-extra fallback (PR 3),
-then revisit the `unknown-parameter` subset for a mechanical
-name-qualification fix (PR 4). Treat as **detect/report-only** until then; a
-mechanical fix beyond that subset is low-confidence and only partial.
+The 24.2 detector is now tightened to the provably-clean checker, recovering
+the bulk of the ~3x over-count soundly. Remaining: the `unknown-parameter`
+subset (2,159 cases) is the candidate for a mechanical name-qualification fix
+(PR 4), and the measure's `headroom` figure (tools Galaxy validates clean but
+the checker cannot yet prove) is the target for any future widening, always
+behind the same zero-unsound gate.

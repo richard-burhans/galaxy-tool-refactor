@@ -30,8 +30,11 @@ exceed it. The claim reduces to five sub-claims:
    tree when expansion fails, the conservative direction (over-report, never
    silent). Detector tightenings are one-directional: they only suppress cases
    *provably* unaffected by the change (e.g. §28's single-simple-command
-   `set -e` suppression), so a tightening can remove a false block but never
-   admit a false pass.
+   `set -e` suppression, and the 24.2 test-case detector's own provably-clean
+   checker, codemod §47), so a tightening can remove a false block but never
+   admit a false pass. The 24.2 checker is itself parity-gated against Galaxy's
+   real validator with zero unsound suppressions
+   (`docs/galaxy_reimplementations.md` touchpoint 3).
 
 3. **Auto-fix credit is proof by execution, per tool.** A crossed, applicable
    `must_fix` code stops being a blocker only when its mapped
