@@ -33,7 +33,12 @@ from typing import TYPE_CHECKING
 from galaxy_tool_codemod import behavior_gate
 from galaxy_tool_fmt.cli_support import make_backup
 from galaxy_tool_fmt.format import format_macro_document
-from galaxy_tool_source.binding import load_macros, newest_valid_profile
+from galaxy_tool_source.binding import (
+    load_macros,
+    newest_valid_profile,
+    oldest_valid_profile,
+    validate_tool,
+)
 from galaxy_tool_source.macros import token_definitions
 from galaxy_tool_source.profiles import is_newer_profile
 from packaging.version import Version
@@ -83,16 +88,34 @@ class ProfileTokenPlan:
     agree: bool
 
 
+def _minimal_target(document: ToolDocument, *, baseline: str) -> str | None:
+    """The minimal-default target for one importer: keep, or the minimum bump.
+
+    Mirrors the facade's minimal default: an importer that validates at the
+    token's current value targets exactly that value (the bump-up-only apply
+    then makes the plan a no-op), an invalid one targets the minimum vendored
+    profile at or above it that validates, and an unplaceable baseline (or one
+    nothing validates at or above) yields ``None`` — no safe target, so the
+    group cannot agree.
+    """
+    if not behavior_gate.placeable_baseline(baseline):
+        return None
+    if validate_tool(document, profile=baseline).valid:
+        return baseline
+    return oldest_valid_profile(document, floor=baseline)
+
+
 def _gated_target(
     document: ToolDocument, *, baseline: str, target_profile: str | None
 ) -> str | None:
     """The newest profile this importer may reach under the behaviour gate.
 
-    Mirrors the facade's default: blockers cap the walk at the behaviour
-    ceiling; an importer whose ceiling falls at (or below) its baseline keeps
-    its current value (the bump becomes a no-op for it); an unplaceable
-    baseline yields ``None`` (no safe target, so the group cannot agree). An
-    explicit *target_profile* lowers the cap further, never raises it.
+    Mirrors the facade's modernize walk: blockers cap the walk at the
+    behaviour ceiling; an importer whose ceiling falls at (or below) its
+    baseline keeps its current value (the bump becomes a no-op for it); an
+    unplaceable baseline yields ``None`` (no safe target, so the group cannot
+    agree). An explicit *target_profile* lowers the cap further, never raises
+    it.
     """
     if not behavior_gate.placeable_baseline(baseline):
         return None
@@ -111,6 +134,7 @@ def profile_token_site(
     document: ToolDocument,
     /,
     *,
+    modernize: bool = False,
     allow_behavior_change: bool = False,
     target_profile: str | None = None,
 ) -> ProfileTokenSite | None:
@@ -120,10 +144,12 @@ def profile_token_site(
     handles those), an unresolved token, and an in-memory document with no
     ``source_path`` (imports cannot be resolved without a location on disk).
 
-    The site's target honors the same default behaviour gate as the facade's
-    ``upgrade`` (the token's value is the importer's runtime baseline);
-    *allow_behavior_change* lifts the gate and *target_profile* caps the
-    target, exactly as on the per-tool path.
+    The site's target follows the same mode policy as the facade's ``upgrade``
+    (the token's value is the importer's runtime baseline): by default the
+    minimal target (keep a valid importer's value, else the minimum valid
+    profile at or above it); *modernize* or *target_profile* opts into the
+    behaviour-gated walk, and *allow_behavior_change* lifts the gate, exactly
+    as on the per-tool path (the caller validates the flag composition).
     """
     profile_raw = document.profile
     if profile_raw is None or "@" not in profile_raw:
@@ -141,7 +167,9 @@ def profile_token_site(
     )
     if definition is None or definition.source is None:
         return None  # inline (GTR007), or the token resolves nowhere
-    if allow_behavior_change:
+    if not (modernize or target_profile is not None):
+        target = _minimal_target(document, baseline=definition.value)
+    elif allow_behavior_change:
         target = newest_valid_profile(document, ceiling=target_profile)
     else:
         target = _gated_target(
