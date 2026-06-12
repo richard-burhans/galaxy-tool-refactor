@@ -835,6 +835,16 @@ def test_measure_test_case_validation_truth_buckets(truth_corpus: Path) -> None:
     assert result.n_validator_error == 1
     assert len(result.retained) == 1
     assert result.retained[0]["path"].endswith("raises.xml")
+    # Parity: our checker proves clean.xml only (invalid.xml carries the
+    # unknown param; raises.xml carries the nothing-to-check output our
+    # output-bail rejects), so every suppression agrees with Galaxy.
+    assert result.n_ours_clean == 1
+    assert result.n_unsound == 0
+    assert result.n_suppressed == 1
+    assert result.n_headroom == 0
+    assert result.n_clean_galaxy_raised == 0
+    assert result.unsound_examples == []
+    assert result.raised_examples == []
 
 
 # --- cheetah-command-complexity -------------------------------------------------

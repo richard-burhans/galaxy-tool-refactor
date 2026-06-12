@@ -35,7 +35,7 @@ import sys
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -4263,10 +4263,16 @@ def _render_behavior_block_page(result: _BehaviorBlockResult) -> str:
         "would stall at 16.04 immediately, which is why it is not the default",
         "(`--allow-behavior-change` lifts the gate entirely instead).",
         "",
-        "`24_2_fix_test_case_validation` counts are an **upper bound** (ships `<test>`;",
-        "not validated): its detector fires on tools that merely *ship* a `<test>` —",
-        "we don't vendor Galaxy's parameter-model validator — not on tools whose tests",
-        "actually fail, so the true blocker count is a smaller subset (see",
+        "`24_2_fix_test_case_validation` is now tightened past the bare ships-a-`<test>`",
+        "necessary condition: its detector fires only when a tool ships a `<test>` AND",
+        "the tests are not provably clean under the toolchain's own structural 24.2",
+        "checker (`galaxy_tool_codemod.test_case_check`, codemod decisions §47), which",
+        "answers Galaxy's strict-validation decision as a direct query over the",
+        "macro-expanded tree (no per-tool pydantic model). The checker is",
+        "one-directional and parity-gated against Galaxy's real validator with zero",
+        "unsound suppressions (`scripts.measure test-case-validation-truth`;",
+        "`docs/galaxy_reimplementations.md`). The residual count below is the true",
+        "blocker subset plus the tools the checker cannot yet prove clean (see",
         "`upgrade_research/24_2_fix_test_case_validation.md`).",
         "",
         "Regenerate with (needs the corpus, so not run in CI):",
@@ -4355,6 +4361,25 @@ class _TestCaseTruthResult:
     error_kinds: Counter[str]  # normalized per-CASE validation-error kinds
     validator_error_kinds: Counter[str]  # exception type of each raised call
     retained: list[dict[str, str]]  # validator-error examples (path + signature)
+    # The PARITY half: our provably-clean checker (the shipped 24.2 detector
+    # tightening, galaxy_tool_codemod.test_case_check) judged on the expanded
+    # view beside Galaxy's verdict. n_unsound MUST be zero (the one-directional
+    # contract); n_suppressed is the shipped payoff; n_headroom is what a wider
+    # (still sound) checker could still recover.
+    n_ours_clean: int = 0
+    # The hard contract: ours clean AND Galaxy returned an invalid VERDICT.
+    # MUST be zero. A Galaxy validator *raise* is NOT a verdict (its advisor
+    # has no try/except around the call, so a raise is Galaxy failing to
+    # advise, not flagging 24_2); that goes to n_clean_galaxy_raised instead,
+    # and such tools are handled upstream in the shipped pipeline (malformed
+    # XML never loads; unexpandable macros validate at no profile, so the walk
+    # would not move them anyway).
+    n_unsound: int = 0
+    n_suppressed: int = 0  # ours clean, Galaxy clean: tools the detector frees
+    n_headroom: int = 0  # ours unclean, Galaxy clean: future widening room
+    n_clean_galaxy_raised: int = 0  # ours clean, Galaxy raised (no verdict)
+    unsound_examples: list[dict[str, str]] = field(default_factory=list)
+    raised_examples: list[dict[str, str]] = field(default_factory=list)
 
 
 # Normalisation table for per-case validation-error messages: first match wins,
@@ -4381,6 +4406,9 @@ def _measure_test_case_validation_truth(*, corpus_root: Path) -> _TestCaseTruthR
     """Run Galaxy's strict test-case validator over every test-shipping tool."""
     from galaxy.tool_util.parameters.case import validate_test_cases_for_tool_source
     from galaxy.tool_util.parser.factory import get_tool_source
+    from galaxy_tool_source.document import ToolDocument
+    from galaxy_tool_source.macros import expanded_detection_root
+    from galaxy_tool_codemod.test_case_check import all_test_cases_provably_clean
 
     result = _TestCaseTruthResult(
         n_with_tests=0,
@@ -4404,6 +4432,10 @@ def _measure_test_case_validation_truth(*, corpus_root: Path) -> _TestCaseTruthR
         if root.find("tests/test") is None:
             continue  # the detector would not fire; out of population
         result.n_with_tests += 1
+        document = ToolDocument(etree.ElementTree(root), source_path=path)
+        ours_clean = all_test_cases_provably_clean(expanded_detection_root(document))
+        if ours_clean:
+            result.n_ours_clean += 1
         try:
             source = get_tool_source(str(path))
             case_results = validate_test_cases_for_tool_source(
@@ -4420,6 +4452,14 @@ def _measure_test_case_validation_truth(*, corpus_root: Path) -> _TestCaseTruthR
                     "message": str(exc)[:200],
                 }
             )
+            if ours_clean:
+                result.n_clean_galaxy_raised += 1
+                result.raised_examples.append(
+                    {
+                        "path": str(path.relative_to(corpus_root)),
+                        "galaxy": f"validator raised {kind}",
+                    }
+                )
             continue
         case_errors = [
             str(case.validation_error)
@@ -4430,10 +4470,22 @@ def _measure_test_case_validation_truth(*, corpus_root: Path) -> _TestCaseTruthR
             result.n_invalid += 1
             for message in case_errors:
                 result.error_kinds[_normalize_validation_error(message)] += 1
+            if ours_clean:
+                result.n_unsound += 1
+                result.unsound_examples.append(
+                    {
+                        "path": str(path.relative_to(corpus_root)),
+                        "galaxy": case_errors[0][:160],
+                    }
+                )
         else:
             result.n_clean += 1
             if any(case.warnings for case in case_results):
                 result.n_clean_with_warnings += 1
+            if ours_clean:
+                result.n_suppressed += 1
+            else:
+                result.n_headroom += 1
     return result
 
 
@@ -4469,6 +4521,27 @@ def _report_test_case_validation_truth(result: _TestCaseTruthResult) -> None:
         print("  validator-error exception types:")
         for kind, count in result.validator_error_kinds.most_common():
             print(f"    {count:6d}  {kind}")
+    print("  parity (our provably-clean checker vs Galaxy's verdict):")
+    print(f"    ours-clean total: {result.n_ours_clean}")
+    print(
+        f"    UNSOUND suppressions (ours clean, Galaxy returns an invalid "
+        f"verdict) [MUST BE 0]: {result.n_unsound}"
+    )
+    print(
+        f"    suppressed soundly (ours clean, Galaxy clean): "
+        f"{result.n_suppressed}"
+    )
+    print(
+        f"    headroom (ours unclean, Galaxy clean): {result.n_headroom}"
+    )
+    print(
+        f"    ours clean, Galaxy validator raised (no verdict; handled "
+        f"upstream): {result.n_clean_galaxy_raised}"
+    )
+    for example in result.unsound_examples[:20]:
+        print(f"      UNSOUND {example['path']}: {example['galaxy']}")
+    for example in result.raised_examples[:20]:
+        print(f"      RAISED  {example['path']}: {example['galaxy']}")
 
 
 def _run_test_case_validation_truth(args: argparse.Namespace) -> None:

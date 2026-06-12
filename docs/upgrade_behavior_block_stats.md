@@ -26,10 +26,16 @@ which Galaxy emits **unconditionally** — so essentially every sub-16.04 tool
 would stall at 16.04 immediately, which is why it is not the default
 (`--allow-behavior-change` lifts the gate entirely instead).
 
-`24_2_fix_test_case_validation` counts are an **upper bound** (ships `<test>`;
-not validated): its detector fires on tools that merely *ship* a `<test>` —
-we don't vendor Galaxy's parameter-model validator — not on tools whose tests
-actually fail, so the true blocker count is a smaller subset (see
+`24_2_fix_test_case_validation` is now tightened past the bare ships-a-`<test>`
+necessary condition: its detector fires only when a tool ships a `<test>` AND
+the tests are not provably clean under the toolchain's own structural 24.2
+checker (`galaxy_tool_codemod.test_case_check`, codemod decisions §47), which
+answers Galaxy's strict-validation decision as a direct query over the
+macro-expanded tree (no per-tool pydantic model). The checker is
+one-directional and parity-gated against Galaxy's real validator with zero
+unsound suppressions (`scripts.measure test-case-validation-truth`;
+`docs/galaxy_reimplementations.md`). The residual count below is the true
+blocker subset plus the tools the checker cannot yet prove clean (see
 `upgrade_research/24_2_fix_test_case_validation.md`).
 
 Regenerate with (needs the corpus, so not run in CI):
@@ -42,17 +48,17 @@ Unique `<tool>` files (sha256-deduped) with a placeable baseline: **9,371**. Exc
 
 ## Blocking on `must_fix` only (the shipped default)
 
-Reaches latest behavior-preservingly: **3,003**; stuck: **6,368**.
+Reaches latest behavior-preservingly: **5,371**; stuck: **4,000**.
 
 | Profile | Level | Behavior code (first blocker) | Tools stuck |
 |---|---|---|--:|
 | 16.04 | must_fix | `16_04_fix_interpreter` | 302 |
 | 16.04 | must_fix | `16_04_fix_output_format` | 33 |
-| 24.2 | must_fix | `24_2_fix_test_case_validation` | 6,033 |
+| 24.2 | must_fix | `24_2_fix_test_case_validation` | 3,665 |
 
 ## Blocking on `must_fix` + `consider`
 
-Reaches latest behavior-preservingly: **680**; stuck: **8,691**.
+Reaches latest behavior-preservingly: **1,311**; stuck: **8,060**.
 
 | Profile | Level | Behavior code (first blocker) | Tools stuck |
 |---|---|---|--:|
@@ -65,4 +71,4 @@ Reaches latest behavior-preservingly: **680**; stuck: **8,691**.
 | 20.09 | consider | `20_09_consider_set_e` | 596 |
 | 21.09 | consider | `21_09_consider_python_environment` | 4 |
 | 23.0 | consider | `23_0_consider_optional_text` | 489 |
-| 24.2 | must_fix | `24_2_fix_test_case_validation` | 1,503 |
+| 24.2 | must_fix | `24_2_fix_test_case_validation` | 872 |
