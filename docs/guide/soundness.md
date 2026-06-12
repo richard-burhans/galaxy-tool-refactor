@@ -1,10 +1,13 @@
 # Soundness — what "safe" guarantees (and what it doesn't)
 
-> **TL;DR.** `format` never changes behaviour. `upgrade` guarantees the result is
-> **structurally valid** at the new profile — it does **not** guarantee behaviour is
-> identical in general. Behaviour-affecting edits are applied **only where the tool can
-> prove them safe**; everything else is reported, not changed. That conservatism is the
-> point: it's what makes the automation trustworthy.
+> **TL;DR.** `format` never changes behaviour. `upgrade` is **behavior-preserving by
+> default**: it advances the profile only as far as it can prove no applicable
+> breaking (`must_fix`) Galaxy behaviour change is crossed un-fixed, stops there with
+> an actionable report, and the result is **structurally valid** at the profile it
+> declares. Going further is an explicit choice (`--allow-behavior-change`).
+> Behaviour-affecting edits are applied **only where the tool can prove them safe**;
+> everything else is reported, not changed. That conservatism is the point: it's what
+> makes the automation trustworthy.
 
 ## Two different promises
 
@@ -13,11 +16,19 @@ attribute/element order, empty-element shorthand, and CDATA-wrapping a pure-text
 change *bytes*, not *meaning*. `format` is safe and idempotent and never touches
 `profile=`.
 
-**Upgrading is semantic, and its guarantee is bounded.** Bumping a tool's `profile=`
-can change how Galaxy interprets it. The engine's oracle for an upgrade is **XSD
-validity at the target profile** — it will only advance a tool to a profile where the
-tool still validates. Validity is a sound oracle for **structural** changes. It is
-**not** a behaviour oracle: two structurally-valid tools can behave differently.
+**Upgrading is semantic, and its guarantee is two-part.** Bumping a tool's `profile=`
+can change how Galaxy interprets it. Structurally, the oracle is **XSD validity at
+the target profile**: the engine only advances a tool to a profile where it still
+validates. Validity is a sound oracle for **structural** changes, not a behaviour
+oracle, so a second, behavioural gate caps the walk: the engine computes every
+Galaxy-catalogued behaviour change the bump would cross, detects per tool which
+actually apply, and **stops below the first applicable `must_fix` change it cannot
+provably fix on that tool**. A fix is credited only by execution (applied, then
+re-detected); the stop report names the blocking code and links to
+[`docs/profile_boundaries.md`](../profile_boundaries.md), the per-boundary
+what-changed-and-what-to-do reference. Advisory (`consider`) changes are warned
+about, never crossed silently. The full argument is
+[`docs/proofs/behavior-gate.md`](../proofs/behavior-gate.md).
 
 ## How we know `format` is behaviour-preserving — the audit
 
@@ -53,11 +64,15 @@ approximation tuned to the current corpus.
 
 ## How the boundary is enforced
 
-- The profile is advanced only to the **newest profile the tool structurally reaches**.
+- The profile is advanced only to the **newest profile the tool structurally
+  reaches**, capped by the **behaviour ceiling** (the newest vendored profile below
+  the first applicable, un-fixed `must_fix` change). An unresolvable `@PROFILE@`
+  baseline fails closed (no advance), and the gate never lowers a declared profile.
 - For profile bumps that carry **behaviour-affecting** Galaxy changes, the engine runs
   **per-tool detection** and only applies an automated repair where it can prove the
-  change is safe for *that* tool. Where it can't, it **reports** the issue instead of
-  silently changing behaviour.
+  change is safe for *that* tool. Where it can't, it **stops and reports** (for
+  `must_fix` changes) or warns (for `consider` changes) instead of silently changing
+  behaviour; `--allow-behavior-change` is the explicit opt-out.
 - The runtime-gated repairs are exactly as wide as their proofs (widened
   2026-06-10 when source archaeology extended the proofs):
   - **GTR016 (`interpreter=`)** rewrites any non-empty interpreter value — Galaxy
@@ -83,13 +98,19 @@ approximation tuned to the current corpus.
 
 `upgrade` reports a **`behavior_preserving`** flag for the bump:
 
-- `true` — it crossed no behaviour-affecting platform change that *applies to this tool*
-  (a clean pass);
-- `false` — at least one applies; look before accepting;
-- `null` — undetermined (e.g. the profile is expressed as a macro token).
+- `true`: it crossed no behaviour-affecting platform change that *applies to this
+  tool*, or every applicable breaking change was provably fixed (each credited fix
+  is named in a "fixed automatically" note);
+- `false`: at least one applies un-fixed (under the default gate this can only be
+  an advisory `consider` change; breaking changes stop the walk instead); look
+  before accepting;
+- `null`: undetermined (the profile is a macro token that resolves to no version;
+  the default walk then changes nothing).
 
-The CLI, library, and MCP server all surface it — so automation can auto-accept the
-safe case and escalate the rest, rather than trusting the bump blindly.
+Alongside it: `stopped_at` (where the gate capped the walk), `blocking_codes` (the
+full review list), and `auto_fixed_codes`. The CLI, library, and MCP server all
+surface these, so automation can auto-accept the safe case and escalate the rest,
+rather than trusting the bump blindly.
 
 ## What this means for you
 

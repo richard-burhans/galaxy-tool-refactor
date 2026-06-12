@@ -86,8 +86,13 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
 - `facade.py` — `run` / `upgrade` / `detect` / `find_references` / `rename_param`
   (the mutating sibling of `find_references`; deep-copies + serialises on success, see
   `docs/decisions.md` D11) / `convert_help` / `tokenize_version` / `list_rulesets` / `list_rules`.
+  `upgrade` is **behavior-preserving by default** (D21): the tier-2 behavior gate
+  caps the walk at the behaviour ceiling; `allow_behavior_change` lifts it and
+  `target_profile` caps it explicitly (typed `UnknownProfile` on a bad value);
+  `UpgradeResult` carries `stopped_at` / `blocking_codes` / `auto_fixed_codes`.
 - `macro_profile.py` — Phase-3b imported-`@PROFILE@` upgrade: `profile_token_site`
-  (one tool → defining file + target), the pure `plan_from_sites` (per-file
+  (one tool → defining file + target, computed through the same behavior gate and
+  flags as the per-tool path, D21), the pure `plan_from_sites` (per-file
   importer agreement), and `apply_profile_token_plans` (bump the agreed files'
   tokens via `format_macro_document`, skip the rest). See `docs/decisions.md` D5.
 - `version_token_share.py`: shared-macros version tokenization (`tokenize-version

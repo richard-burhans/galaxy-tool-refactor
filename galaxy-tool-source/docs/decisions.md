@@ -1396,3 +1396,17 @@ no token leaking elsewhere); anything else fails closed. The mutation reuses
 `base+galaxy0` tool); only the precondition (bare version, no `+`/`@`, equal to a
 package requirement) and the gate differ. Inline only; the bare-version population is
 sized by `scripts.measure version-tokenization` (`n_version_equals_req_no_suffix`).
+
+## 31. `newest_valid_profile` gains a `ceiling` (2026-06-12)
+
+Reproduced-by: `uv run --package galaxy-tool-source pytest
+galaxy-tool-source/tests/test_validate.py -k ceiling`.
+
+The newest-first scan accepts a keyword-only `ceiling`: profiles newer than it
+are skipped, so the result never exceeds it (and is `None` when no vendored
+profile lies at or below it). Motivation: the codemod tier's behavior gate
+(codemod decisions §45) must be able to ask "the newest profile this tool
+validates at *without crossing a behaviour boundary*"; capping the scan here
+keeps every declaration site (`UpdateProfile`, `UpgradeToLatest`, the
+registry's shared-token targets) on one primitive instead of post-filtering in
+each caller. Backward compatible; the default scans everything as before.

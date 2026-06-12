@@ -76,6 +76,47 @@ def test_upgrade_tool_bumps_profile() -> None:
     assert result["behavior_preserving"] in (True, False, None)
 
 
+_WITH_TESTS = (
+    '<tool id="m" name="M" version="1.0.0" profile="24.1">'
+    "<command><![CDATA[echo x]]></command>"
+    '<inputs/><outputs><data name="o"/></outputs>'
+    "<tests><test/></tests></tool>"
+)
+
+
+def test_upgrade_tool_default_stops_at_a_behavior_boundary() -> None:
+    result = service.upgrade_tool(_WITH_TESTS)
+    formatted = result["formatted"]
+    assert isinstance(formatted, str)
+    assert 'profile="24.1"' in formatted
+    assert result["stopped_at"] == "24.1"
+    assert result["blocking_codes"] == ["24_2_fix_test_case_validation"]
+    assert result["auto_fixed_codes"] == []
+
+
+def test_upgrade_tool_allow_behavior_change_reaches_latest() -> None:
+    result = service.upgrade_tool(_WITH_TESTS, allow_behavior_change=True)
+    formatted = result["formatted"]
+    assert isinstance(formatted, str)
+    assert f'profile="{latest_profile()}"' in formatted
+    assert result["stopped_at"] is None
+    assert result["behavior_preserving"] is False
+
+
+def test_upgrade_tool_target_profile_caps_the_walk() -> None:
+    result = service.upgrade_tool(_UPGRADABLE, target_profile="24.1")
+    formatted = result["formatted"]
+    assert isinstance(formatted, str)
+    assert 'profile="24.1"' in formatted
+
+
+def test_upgrade_tool_unknown_target_profile_raises() -> None:
+    from galaxy_tool_refactor_registry.errors import UnknownProfile
+
+    with pytest.raises(UnknownProfile):
+        service.upgrade_tool(_UPGRADABLE, target_profile="99.99")
+
+
 def test_list_rulesets_includes_default() -> None:
     rulesets = service.list_rulesets()
     assert rulesets

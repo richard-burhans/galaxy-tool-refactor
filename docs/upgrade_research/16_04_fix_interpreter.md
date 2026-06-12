@@ -6,7 +6,7 @@
 | **Profile** | 16.04 |
 | **Level** | `must_fix` |
 | **Auto-fix today** | **GTR016** `FixInterpreter` (bucket A — any non-empty interpreter since the 2026-06-10 widening; runtime-gated) |
-| **Stuck tools** (must_fix-only) | **299** now (post-widening; see `../upgrade_behavior_block_stats.md`) — down from 316 pre-widening and **1,726** without this codemod |
+| **Stuck tools** (must_fix-only) | **302** now (post-widening; see `../upgrade_behavior_block_stats.md`, re-measured 2026-06-12 with the shipped gate: token-resolved baselines + macro-expanded detection); 299 under the pre-gate raw-tree measurement, 316 pre-widening, and **1,726** without this codemod |
 | **Galaxy PR** | https://github.com/galaxyproject/galaxy/pull/1688 |
 
 > Galaxy-source citations are from the local clone `.local/galaxy-src/` @ `c6e0ee3`
@@ -156,6 +156,6 @@ sweep **rewrites 1,144** of them (idempotent, 0 post-validate-failed — the gap
 being bucket-A tools that don't actually cross the 16.04 boundary in the sweep,
 e.g. already declaring ≥ 16.04, so the runtime gate never fires; 1,127 before the
 widening); and the behaviour-block walk, which counts only sub-16.04
-first-blockers, drops **1,726 → 299** (`upgrade_behavior_block_stats.md`; 316
+first-blockers, drops **1,726 → 302** (`upgrade_behavior_block_stats.md`; 316
 before the widening — the 17 rescued tools are the dissolved-C tools that were
-actually stuck sub-16.04), the residual 299 being bucket B.
+actually stuck sub-16.04), the residual 302 being bucket B.

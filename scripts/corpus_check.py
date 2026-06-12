@@ -3389,8 +3389,355 @@ def _check_main(argv: list[str]) -> int:
 # =============================================================================
 
 
+# =============================================================================
+# `upgrade` subcommand: gated-upgrade invariants sweep with failure retention
+# =============================================================================
+#
+# Runs the SHIPPED default `upgrade` (the behavior-preserving gate, via the
+# registry facade) over every corpus tool and asserts the gate's contract per
+# tool: no crash, validity preserved, a second run is a byte no-op, an
+# unplaceable baseline fails closed, the declaration never crosses the first
+# blocker, and no applicable must_fix code is crossed un-fixed (recomputed
+# independently of the facade's own verdict). Every violation is retained as a
+# regression fixture (standing rule: keep every real-world failure) and listed
+# in docs/corpus_data/upgrade_gate_errors.json on a full sweep.
+
+from galaxy_tool_codemod import behavior_gate  # noqa: E402
+from galaxy_tool_codemod.profile_semantics import (  # noqa: E402
+    upgrade_codes_applicable,
+)
+from galaxy_tool_refactor_registry import facade  # noqa: E402
+from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes  # noqa: E402
+
+_UPGRADE_REGRESSIONS = (
+    _REPO_ROOT / "galaxy-tool-refactor-registry" / "tests" / "data" / "regressions"
+)
+_UPGRADE_ERRORS_FILE = _CORPUS_DATA_DIR / "upgrade_gate_errors.json"
+
+
+@dataclass
+class _UpgradeGateOutcome:
+    """Classification of one tool's pass through the gated upgrade."""
+
+    status: str
+    signature: str = ""
+    detail: str = ""
+
+
+@dataclass
+class _UpgradeSweepState:
+    """Mutable bookkeeping for one ``_upgrade_main`` invocation."""
+
+    eligible: int = 0
+    ineligible_unparseable: int = 0
+    ineligible_non_tool: int = 0
+    reached_free: int = 0  # walked with no gate cap below latest
+    stopped: int = 0  # capped below latest by the gate
+    failed: Counter[str] = field(default_factory=Counter)
+    signatures: Counter[str] = field(default_factory=Counter)
+    known_fixture_paths: set[tuple[str, str]] = field(default_factory=set)
+    retained: list[tuple[str, str, Path, str, str]] = field(default_factory=list)
+    failures_json: list[dict[str, str]] = field(default_factory=list)
+
+
+_UPGRADE_FAIL_STATUSES = (
+    "crash",
+    "fail-closed-violated",
+    "gate-cap-violated",
+    "must-fix-crossed",
+    "post-invalid",
+    "non-idempotent",
+)
+
+
+def _upgrade_gate_exercise(path: Path) -> _UpgradeGateOutcome:
+    """Run the default (gated) ``facade.upgrade`` on *path*; assert the contract.
+
+    Status is ``"ok"`` (walked, no cap below latest), ``"stopped"`` (the gate
+    capped the walk, a successful, expected outcome), one of the ineligible
+    statuses, or one of ``_UPGRADE_FAIL_STATUSES``. The must-fix-crossed check
+    recomputes the applicable set from the pre-upgrade tree independently, so
+    a crediting bug in the facade cannot hide itself.
+    """
+    try:
+        parsed = parse_tool(path)
+        if parsed.document is None or not parsed.well_formed:
+            return _UpgradeGateOutcome("ineligible-unparseable")
+        if parsed.document.root.tag != "tool":
+            return _UpgradeGateOutcome("ineligible-non-tool")
+        original = load_tool(path)
+        baseline = behavior_gate.resolved_baseline(original)
+        placeable = behavior_gate.placeable_baseline(baseline)
+        blockers = (
+            behavior_gate.blocking_codes(original, baseline=baseline)
+            if placeable and baseline is not None
+            else ()
+        )
+        declared_before = original.root.get("profile")
+        had_valid_profile = newest_valid_profile(original) is not None
+        result = facade.upgrade(load_tool(path), codes=resolve_upgrade_codes())
+        out_parsed = parse_tool(result.formatted).document
+        if out_parsed is None:
+            return _UpgradeGateOutcome(
+                "crash",
+                "output-unparseable",
+                result.formatted[:200].decode("utf-8", "replace"),
+            )
+        out_document = ToolDocument(out_parsed.tree, source_path=path)
+        declared_after = out_document.root.get("profile")
+        if not placeable and (
+            result.steps_applied or declared_after != declared_before
+        ):
+            return _UpgradeGateOutcome(
+                "fail-closed-violated",
+                "fail-closed-violated",
+                f"unplaceable baseline yet profile moved "
+                f"{declared_before!r} -> {declared_after!r}",
+            )
+        effective_after = behavior_gate.resolved_baseline(out_document)
+        after_placeable = (
+            effective_after is not None
+            and behavior_gate.placeable_baseline(effective_after)
+        )
+        if (
+            blockers
+            and after_placeable
+            and Version(str(effective_after))
+            >= min(Version(change.profile) for change in blockers)
+        ):
+            return _UpgradeGateOutcome(
+                "gate-cap-violated",
+                f"gate-cap-violated:{blockers[0].code}",
+                f"declared {effective_after} despite a blocker at "
+                f"{blockers[0].profile} ({blockers[0].code})",
+            )
+        if placeable and baseline is not None and after_placeable:
+            crossed_unfixed = [
+                change
+                for change in upgrade_codes_applicable(
+                    document=original,
+                    from_profile=baseline,
+                    to_profile=str(effective_after),
+                )
+                if change.level == "must_fix"
+                and change.code not in result.auto_fixed_codes
+            ]
+            if crossed_unfixed:
+                return _UpgradeGateOutcome(
+                    "must-fix-crossed",
+                    f"must-fix-crossed:{crossed_unfixed[0].code}",
+                    ", ".join(change.code for change in crossed_unfixed),
+                )
+        if had_valid_profile and newest_valid_profile(out_document) is None:
+            return _UpgradeGateOutcome(
+                "post-invalid", "post-invalid", "no valid profile after upgrade"
+            )
+        # The idempotence probe re-runs on bytes (no source path), so a macro
+        # tool logs an expected expansion-failed warning per call; silence the
+        # probe's noise, the comparison below is the signal.
+        logging.disable(logging.WARNING)
+        try:
+            second = facade.upgrade(result.formatted, codes=resolve_upgrade_codes())
+        finally:
+            logging.disable(logging.NOTSET)
+        if second.formatted != result.formatted:
+            return _UpgradeGateOutcome(
+                "non-idempotent",
+                "non-idempotent:upgrade",
+                _fmt_byte_diff_excerpt(result.formatted, second.formatted),
+            )
+        stopped = result.stopped_at is not None
+    except Exception as exc:  # noqa: BLE001 — diagnostic sweep: every crash is a finding
+        return _UpgradeGateOutcome("crash", _signature(exc), traceback.format_exc())
+    return _UpgradeGateOutcome("stopped" if stopped else "ok")
+
+
+def _upgrade_process_path(
+    path: Path,
+    *,
+    display_name: str,
+    repo_dir: Path,
+    version: str,
+    state: _UpgradeSweepState,
+) -> bool:
+    """Sweep one XML file through the gate; return ``True`` if it counted."""
+    if not path.is_file():
+        return False
+    outcome = _upgrade_gate_exercise(path)
+    status = outcome.status
+    if status == "ineligible-unparseable":
+        state.ineligible_unparseable += 1
+        return False
+    if status == "ineligible-non-tool":
+        state.ineligible_non_tool += 1
+        return False
+    state.eligible += 1
+    if status == "ok":
+        state.reached_free += 1
+        return True
+    if status == "stopped":
+        state.stopped += 1
+        return True
+    state.failed[status] += 1
+    relative = path.relative_to(repo_dir)
+    state.failures_json.append(
+        {
+            "status": status,
+            "signature": outcome.signature,
+            "repo": display_name,
+            "path": str(relative),
+            "version": version,
+        }
+    )
+    if (display_name, str(relative)) in state.known_fixture_paths:
+        return True
+    state.signatures[outcome.signature] += 1
+    state.known_fixture_paths.add((display_name, str(relative)))
+    dest = _retain(
+        path,
+        display_name.replace("/", "__"),
+        regressions_dir=_UPGRADE_REGRESSIONS,
+    )
+    state.retained.append(
+        (dest.name, display_name, relative, version, outcome.signature)
+    )
+    logger.warning(
+        "%s [%s] %s\n  %s\n  retained -> %s\n  %s",
+        status.upper(),
+        display_name,
+        outcome.signature,
+        relative,
+        dest,
+        outcome.detail.strip().replace("\n", "\n  "),
+    )
+    return True
+
+
+def _upgrade_main(argv: list[str]) -> int:
+    """Sweep the gated default upgrade across the corpus; retain violations."""
+    parser = argparse.ArgumentParser(
+        prog="python -m scripts.corpus_check upgrade",
+        description=(
+            "Run the shipped behavior-preserving `upgrade` default over every "
+            "corpus tool and assert its contract (fail-closed, gate cap, no "
+            "un-fixed must_fix crossing, validity, idempotence). Violations "
+            "are retained as regression fixtures and listed in "
+            "docs/corpus_data/upgrade_gate_errors.json."
+        ),
+    )
+    parser.add_argument(
+        "--source",
+        choices=("github", "toolshed", "combined"),
+        default="combined",
+        help=(
+            "corpus to sweep: 'github', 'toolshed', or 'combined' (both, "
+            "sha256-deduplicated). Default: combined."
+        ),
+    )
+    parser.add_argument(
+        "--repo",
+        help="sweep only this repository (by name); --source github only",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="stop after N eligible tools (0 sweeps everything)",
+    )
+    args = parser.parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+    if args.repo is not None and args.source != "github":
+        logger.error(
+            "--repo is only supported with --source github, not %r", args.source
+        )
+        return 1
+    if args.repo is not None:
+        known_names = {name for name, _ in _corpus_sources()}
+        if args.repo not in known_names:
+            known = ", ".join(sorted(known_names))
+            logger.error("unknown --repo %r; known: %s", args.repo, known)
+            return 1
+    sources = ("github", "toolshed") if args.source == "combined" else (args.source,)
+    if "toolshed" in sources and not _TOOLSHED_ROOT.exists():
+        logger.error(
+            "no toolshed corpus at %s; populate it via scripts/fetch_toolshed.py",
+            _TOOLSHED_ROOT.relative_to(_REPO_ROOT),
+        )
+        return 1
+    full_sweep = not (args.limit or args.repo)
+    if full_sweep and _toolshed_corpus_incomplete(sources):
+        return 1
+
+    _CORPUS_ROOT.mkdir(parents=True, exist_ok=True)
+    _UPGRADE_REGRESSIONS.mkdir(parents=True, exist_ok=True)
+    state = _UpgradeSweepState(
+        known_fixture_paths=_fmt_known_fixture_paths(
+            regressions_dir=_UPGRADE_REGRESSIONS
+        )
+    )
+    seen_sha: set[str] = set()
+    last_progress_log = 0
+    for _source_label, display_name, repo_dir, version in _iter_sources(
+        sources, repo_filter=args.repo
+    ):
+        for path in sorted(_iter_tool_xmls(repo_dir)):
+            if args.limit and state.eligible >= args.limit:
+                break
+            if not path.is_file():
+                continue
+            sha = _sha256_of(path)
+            if sha in seen_sha:
+                continue
+            seen_sha.add(sha)
+            _upgrade_process_path(
+                path,
+                display_name=display_name,
+                repo_dir=repo_dir,
+                version=version,
+                state=state,
+            )
+            if (
+                state.eligible
+                and state.eligible // 500 != last_progress_log // 500
+            ):
+                logger.info("... %d eligible tools", state.eligible)
+                last_progress_log = state.eligible
+        if args.limit and state.eligible >= args.limit:
+            break
+
+    logger.info(
+        "upgrade gate: %d eligible (skipped %d non-tool, %d unparseable); "
+        "%d reach their free target, %d stopped by the gate, %d FAILED",
+        state.eligible,
+        state.ineligible_non_tool,
+        state.ineligible_unparseable,
+        state.reached_free,
+        state.stopped,
+        sum(state.failed.values()),
+    )
+    for status in _UPGRADE_FAIL_STATUSES:
+        if state.failed[status]:
+            logger.info("  %6d  %s", state.failed[status], status)
+    for sig, count in state.signatures.most_common():
+        logger.info("  %6d  %s", count, sig)
+    if state.retained:
+        _append_provenance(state.retained, regressions_dir=_UPGRADE_REGRESSIONS)
+    if full_sweep:
+        _UPGRADE_ERRORS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _UPGRADE_ERRORS_FILE.write_text(
+            json.dumps(state.failures_json, indent=2) + "\n", encoding="utf-8"
+        )
+        logger.info(
+            "wrote %s (%d failure(s))",
+            _UPGRADE_ERRORS_FILE.relative_to(_REPO_ROOT),
+            len(state.failures_json),
+        )
+    return 1 if state.failed else 0
+
+
 def main(argv: list[str]) -> int:
-    """Dispatch to the ``validate``, ``fmt``, ``codemod``, or ``rules`` subcommand."""
+    """Dispatch to one of the sweep subcommands (see the choices below)."""
     parser = argparse.ArgumentParser(
         prog="python -m scripts.corpus_check",
         description="Sweep Galaxy tool repositories through the galaxy-tool-source ecosystem.",
@@ -3398,12 +3745,13 @@ def main(argv: list[str]) -> int:
     )
     parser.add_argument(
         "subcommand",
-        choices=("validate", "fmt", "codemod", "rules", "check"),
+        choices=("validate", "fmt", "codemod", "rules", "check", "upgrade"),
         help=(
             "validate: API invariants sweep; fmt: formatter idempotence "
             "sweep; codemod: one structural-codemod idempotence + validity "
             "sweep; rules: per-rule isolation QA sweep (every rule alone); "
-            "check: unified-detect violation counts (incl. detect-only IUC)"
+            "check: unified-detect violation counts (incl. detect-only IUC); "
+            "upgrade: gated-upgrade invariants sweep (failure retention)"
         ),
     )
     # Parse only the subcommand, pass the rest to the subcommand's own parser.
@@ -3419,6 +3767,8 @@ def main(argv: list[str]) -> int:
         return _codemod_main(remaining)
     if args.subcommand == "rules":
         return _rules_main(remaining)
+    if args.subcommand == "upgrade":
+        return _upgrade_main(remaining)
     return _check_main(remaining)
 
 

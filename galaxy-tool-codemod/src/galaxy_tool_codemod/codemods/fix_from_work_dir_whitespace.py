@@ -42,6 +42,7 @@ class FixFromWorkDirWhitespace(RuntimeGatedFix):
     )
 
     introduced_profile: ClassVar[str] = "21.09"
+    upgrade_code: ClassVar[str] = "21_09_fix_from_work_dir_whitespace"
 
     def detect_Data(self, cursor: Cursor) -> Iterable[Change]:
         value = cursor.get_attribute("from_work_dir")

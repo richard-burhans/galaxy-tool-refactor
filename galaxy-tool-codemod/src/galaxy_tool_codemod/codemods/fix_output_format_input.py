@@ -119,6 +119,7 @@ class FixOutputFormatInput(RuntimeGatedFix):
     )
 
     introduced_profile: ClassVar[str] = "16.04"
+    upgrade_code: ClassVar[str] = "16_04_fix_output_format"
 
     def detect(self, module: Module, /) -> Iterator[Change]:
         root = module.document.root

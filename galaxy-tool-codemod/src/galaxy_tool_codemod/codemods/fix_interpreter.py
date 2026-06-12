@@ -82,6 +82,7 @@ class FixInterpreter(RuntimeGatedFix):
     )
 
     introduced_profile: ClassVar[str] = "16.04"
+    upgrade_code: ClassVar[str] = "16_04_fix_interpreter"
 
     def detect(self, module: Module, /) -> Iterator[Change]:
         document = module.document

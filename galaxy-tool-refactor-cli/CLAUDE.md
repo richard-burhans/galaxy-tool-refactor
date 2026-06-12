@@ -34,8 +34,13 @@ longer imports the codemod / check tiers directly. It exposes the
   rules only (no codemods); selection governs tools (cli §D5).
 - `upgrade` — repair, then iterative profile upgrade, then cosmetic formatting.
   Opt-in and semantic. No `--ruleset`; `--select`/`--ignore` adjust its rule set.
+  **Behavior-preserving by default** (registry D21, cli D16): the walk stops at
+  the behaviour ceiling and the stop report names the blocking code(s) and links
+  to `docs/profile_boundaries.md`; `--allow-behavior-change` lifts the gate and
+  `--target-profile PROFILE` caps the walk (validated up front).
   Also bumps an imported `@PROFILE@` token in place when every profile-using
-  importer in the run agrees on the target, else reports+skips (cli §D6); the
+  importer in the run agrees on the target, else reports+skips (cli §D6); each
+  importer's target honors the same gate and flags; the
   inline-token case is GTR007's job.
 - `check` — report-only linter (mutates nothing) over the selected rules' detect
   phases: `file:line  CODE  message` per finding. The default ruleset reports only

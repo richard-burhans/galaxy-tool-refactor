@@ -78,7 +78,11 @@ from galaxy_tool_refactor_registry.bundle_rename import (
     rename_param_bundle,
     rename_param_consensus,
 )
-from galaxy_tool_refactor_registry.errors import UnknownRuleCode, UnknownRuleset
+from galaxy_tool_refactor_registry.errors import (
+    UnknownProfile,
+    UnknownRuleCode,
+    UnknownRuleset,
+)
 from galaxy_tool_refactor_registry.macro_datatype import normalize_macro_files
 from galaxy_tool_refactor_registry.macro_profile import (
     apply_profile_token_plans,
@@ -92,6 +96,7 @@ from galaxy_tool_refactor_registry.resolve import (
 )
 from galaxy_tool_source.binding import ToolXmlSyntaxError, load_macros, load_tool
 from galaxy_tool_source.document import MacroDocument, ToolDocument
+from galaxy_tool_source.profiles import available_profiles, latest_profile
 
 _PATH_ARGUMENT = click.argument(
     "paths",
@@ -287,6 +292,24 @@ def format_command(
 @_RULESET_OPTION
 @_SELECT_OPTION
 @_IGNORE_OPTION
+@click.option(
+    "--allow-behavior-change",
+    is_flag=True,
+    help=(
+        "Upgrade past Galaxy behaviour changes that apply to the tool"
+        " (the historical walk-to-latest). By default the walk stops at the"
+        " newest profile that provably preserves runtime behaviour."
+    ),
+)
+@click.option(
+    "--target-profile",
+    default=None,
+    metavar="PROFILE",
+    help=(
+        "Cap the upgrade at this vendored Galaxy profile (e.g. 23.0). Composes"
+        " with the behaviour gate: the lower of the two wins."
+    ),
+)
 def upgrade_command(
     paths: tuple[Path, ...],
     check: bool,
@@ -296,18 +319,32 @@ def upgrade_command(
     rulesets: tuple[str, ...],
     select: tuple[str, ...],
     ignore: tuple[str, ...],
+    allow_behavior_change: bool,
+    target_profile: str | None,
 ) -> None:
-    """Repair and upgrade tools to the latest profile they can reach, then format.
+    """Repair and upgrade tools as far as behaviour provably stays the same.
 
     Opt-in and semantic. The profile upgrade always runs; ``--select`` / ``--ignore``
     adjust the *other* fixable rules (by default typo repair + cosmetic
     formatting) — e.g. ``--ignore GTR006`` upgrades without typo repair. Rulesets
     are a ``format``/``check`` concept and are **not** accepted here.
 
+    **Behavior-preserving by default.** The walk stops at the behaviour
+    ceiling: the newest vendored profile reachable without crossing a Galaxy
+    ``must_fix`` behaviour change that applies to this tool and that no
+    bundled fix provably clears (a fix is credited only when re-detection
+    proves the construct gone). A stop is reported with the blocking code(s)
+    and where to read about them (``docs/profile_upgrades.md``). Applicable
+    consider-level changes are warned about but do not stop the walk.
+    ``--allow-behavior-change`` lifts the gate (the historical
+    walk-to-latest); ``--target-profile`` caps the walk at an explicit
+    vendored profile and composes with the gate (the lower wins).
+
     A ``profile="@PROFILE@"`` whose token lives in an *imported* macro file is
     upgraded by bumping that token in place — but only when every profile-using
     importer in this run agrees on the target profile; a macro file whose
-    importers disagree is reported and left untouched (no over-declaration). The
+    importers disagree is reported and left untouched (no over-declaration).
+    Each importer's target honors the same gate and flags. The
     inline-token case is handled per-file by GTR007. The token value is the *only*
     semantic edit, but the macro file it lives in **is** reserialised through fmt's
     ``format_macro_document`` when the token is bumped (so a bumped file is also
@@ -315,19 +352,28 @@ def upgrade_command(
     cosmetic macro pass over un-bumped macro files the way ``format`` does. PATHS
     may be files or directories.
 
-    The upgrade is structural, not behaviour-preserving: bumping ``profile=`` opts
-    the tool into newer Galaxy runtime defaults the XSD can't verify. When a bump
-    crosses such a boundary (e.g. ``set -e``, Python 3, optional-value templating),
-    a note lists the crossed versions to review — see ``docs/profile_upgrades.md``.
-    A few of those changes have a safe mechanical fix that is **applied
-    automatically** once the reached profile crosses them (e.g. stripping
-    whitespace from ``from_work_dir`` at 21.09); the rest are warn-only.
+    Bumping ``profile=`` opts the tool into newer Galaxy runtime defaults the
+    XSD can't verify; that is exactly what the gate guards. A few of those
+    changes have a safe mechanical fix that is **applied automatically** once
+    the reached profile crosses them (e.g. stripping whitespace from
+    ``from_work_dir`` at 21.09); the rest stop the walk (``must_fix``) or are
+    warn-only (``consider``).
     """
     if rulesets:
         raise click.BadParameter(
             "--ruleset is not applicable to 'upgrade'; rulesets govern "
             "'format' / 'check'. Use --select / --ignore to adjust the rule set.",
             param_hint="--ruleset",
+        )
+    if target_profile is not None and target_profile not in available_profiles():
+        profiles = available_profiles()
+        raise click.BadParameter(
+            str(
+                UnknownProfile(
+                    target_profile, oldest=profiles[0], latest=latest_profile()
+                )
+            ),
+            param_hint="--target-profile",
         )
     codes = _resolve_upgrade(select=select, ignore=ignore)
 
@@ -336,11 +382,22 @@ def upgrade_command(
     # per-file by GTR007 in the transform below). This edits *macro* files, so it
     # cannot ride the per-file tool transform.
     macro_pending = _upgrade_macro_profile_tokens(
-        paths, check=check, diff=diff, quiet=quiet, backup=backup
+        paths,
+        check=check,
+        diff=diff,
+        quiet=quiet,
+        backup=backup,
+        allow_behavior_change=allow_behavior_change,
+        target_profile=target_profile,
     )
 
     def transform(document: ToolDocument) -> TransformOutcome:
-        result = facade.upgrade(document, codes=codes)
+        result = facade.upgrade(
+            document,
+            codes=codes,
+            allow_behavior_change=allow_behavior_change,
+            target_profile=target_profile,
+        )
         return TransformOutcome(result.formatted, notes=result.notes)
 
     exit_code = run(
@@ -355,16 +412,24 @@ def upgrade_command(
 
 
 def _upgrade_macro_profile_tokens(
-    paths: tuple[Path, ...], *, check: bool, diff: bool, quiet: bool, backup: bool
+    paths: tuple[Path, ...],
+    *,
+    check: bool,
+    diff: bool,
+    quiet: bool,
+    backup: bool,
+    allow_behavior_change: bool = False,
+    target_profile: str | None = None,
 ) -> bool:
     """Upgrade imported ``@PROFILE@`` tokens across the run; return would-edit.
 
-    Walks the run's tool files, collects each one's imported-profile-token site,
-    and for every macro file whose profile-using importers agree on a target
-    bumps the ``<token>`` in place (writing unless ``check``/``diff``). A macro
-    file whose importers disagree is reported and left untouched. Returns whether
-    any macro file was (or, under preview, would be) edited — the caller folds
-    that into the ``--check`` exit code.
+    Walks the run's tool files, collects each one's imported-profile-token site
+    (each importer's target honors the behaviour gate and the flags, exactly as
+    the per-tool path does), and for every macro file whose profile-using
+    importers agree on a target bumps the ``<token>`` in place (writing unless
+    ``check``/``diff``). A macro file whose importers disagree is reported and
+    left untouched. Returns whether any macro file was (or, under preview,
+    would be) edited; the caller folds that into the ``--check`` exit code.
     """
     sites = []
     for path in iter_targets(paths):
@@ -378,7 +443,11 @@ def _upgrade_macro_profile_tokens(
             document = load_tool(path)  # load from path so imports resolve
         except ToolXmlSyntaxError:
             continue  # malformed tools are surfaced by the per-file run() below
-        site = profile_token_site(document)
+        site = profile_token_site(
+            document,
+            allow_behavior_change=allow_behavior_change,
+            target_profile=target_profile,
+        )
         if site is not None:
             sites.append(site)
     plans = plan_from_sites(sites)

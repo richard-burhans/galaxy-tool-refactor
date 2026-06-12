@@ -24,11 +24,17 @@ take the tool XML as a string and return JSON. Nothing is written to disk. See
 
 ```text
 // upgrade_tool(xml=...) ->
-{ "formatted": "<tool … profile=\"26.1\">…", "behavior_preserving": false, "steps_applied": [...] }
+{ "formatted": "<tool … profile=\"24.1\">…", "behavior_preserving": true,
+  "stopped_at": "24.1", "blocking_codes": ["24_2_fix_test_case_validation"],
+  "auto_fixed_codes": [], "steps_applied": [...] }
 ```
 
-`behavior_preserving` (`true`/`false`/`null`) lets an agent decide what to accept
-unattended versus surface to a human — the honest contract is in [soundness](soundness.md).
+The default is behavior-preserving: the walk stops at the behaviour ceiling, and
+`stopped_at`/`blocking_codes` say where and why (each code maps to a section of
+[`docs/profile_boundaries.md`](../profile_boundaries.md)). Crossing the boundary
+requires passing `allow_behavior_change=true` explicitly. `behavior_preserving`
+(`true`/`false`/`null`) lets an agent decide what to accept unattended versus
+surface to a human; the honest contract is in [soundness](soundness.md).
 
 ### Library (embed it)
 
@@ -45,8 +51,10 @@ Full surface and the path-vs-bytes gotcha: [usage/library](usage/library.md).
 
 1. `check` the draft → structured findings (fixable vs advisory).
 2. `format` → canonical XML (behaviour-preserving; accept freely).
-3. `upgrade` → newest valid profile; **gate on `behavior_preserving`** — auto-accept
-   `true`, escalate `false`/`null`.
+3. `upgrade` → the behaviour ceiling by default; **gate on `behavior_preserving`**:
+   auto-accept `true`, escalate `false`/`null` and any non-empty `blocking_codes`
+   (fix the tool per the boundary reference, or ask a human before passing
+   `allow_behavior_change`).
 4. Re-`check` to confirm.
 
 The engine is deterministic and report-first, so an agent can stay conservative: prefer
@@ -58,8 +66,10 @@ the proven-safe action, surface the rest.
 - **Agents authoring their own rules** (new codemods/checks the framework discovers and
   runs alongside the baked-in set): vision **Goal 2 — open design, not built**
   (`galaxy-tool-refactor-mcp/docs/vision.md`).
-- `upgrade` is sound for *structural* validity, not general behaviour — never treat a
-  bump as behaviour-neutral without checking `behavior_preserving` ([soundness](soundness.md)).
+- `upgrade`'s default stops rather than cross a breaking behaviour change it cannot
+  prove fixed; with `allow_behavior_change` it is sound for *structural* validity
+  only; never treat that bump as behaviour-neutral without checking
+  `behavior_preserving` ([soundness](soundness.md)).
 
 ## Go deeper
 

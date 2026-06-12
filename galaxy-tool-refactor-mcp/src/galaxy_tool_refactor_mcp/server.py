@@ -17,7 +17,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from galaxy_tool_refactor_registry.errors import UnknownRuleCode, UnknownRuleset
+from galaxy_tool_refactor_registry.errors import (
+    UnknownProfile,
+    UnknownRuleCode,
+    UnknownRuleset,
+)
 from galaxy_tool_source.binding import ToolXmlSyntaxError
 from mcp.server.fastmcp import FastMCP
 
@@ -36,7 +40,7 @@ def _guarded(produce: Callable[[], T], /) -> T:
     """Run *produce*, mapping the facade/parse errors to an agent-facing message."""
     try:
         return produce()
-    except (UnknownRuleset, UnknownRuleCode) as error:
+    except (UnknownRuleset, UnknownRuleCode, UnknownProfile) as error:
         raise ValueError(str(error)) from error
     except ToolXmlSyntaxError as error:
         raise ValueError(f"invalid tool XML: {error}") from error
@@ -60,10 +64,24 @@ def _upgrade_tool(
     xml: str,
     select: list[str] | None = None,
     ignore: list[str] | None = None,
+    allow_behavior_change: bool = False,
+    target_profile: str | None = None,
 ) -> dict[str, object]:
-    """Profile-upgrade then format; return upgraded XML, steps applied, and notes."""
+    """Profile-upgrade then format; return upgraded XML, steps applied, and notes.
+
+    Behavior-preserving by default: the walk stops at the behaviour ceiling and
+    reports the blocking codes (stopped_at / blocking_codes in the result).
+    Set allow_behavior_change to upgrade past applicable behaviour changes; set
+    target_profile to cap the walk at an explicit vendored profile.
+    """
     return _guarded(
-        lambda: service.upgrade_tool(xml, select=select or (), ignore=ignore or ())
+        lambda: service.upgrade_tool(
+            xml,
+            select=select or (),
+            ignore=ignore or (),
+            allow_behavior_change=allow_behavior_change,
+            target_profile=target_profile,
+        )
     )
 
 

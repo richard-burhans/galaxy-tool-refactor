@@ -21,3 +21,10 @@ are fetched shallow into the same clone.
 **Coverage is guarded:** `galaxy-tool-refactor-registry/tests/test_proof_documents.py`
 fails CI naming any fixable rule without a `<code>.md` here, so a new fixable
 rule cannot ship proofless.
+
+Beyond the per-rule documents, [`behavior-gate.md`](behavior-gate.md) is the
+composition-level argument for the `upgrade` default: why the gated walk
+crosses no applicable, un-fixed `must_fix` boundary for any tool. The same
+guard test pins it to the live registries (every `RuntimeGatedFix` and every
+`UPGRADE_CODEMODS` step must be covered), so a new auto-fix or upgrade step
+cannot join the gate without extending the argument.

@@ -49,17 +49,21 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 
 | Capability | Code | Status | Source |
 |---|---|---|---|
-| Upgrade a tool to the newest profile it can structurally reach | — | 🟡 Partial | `upgrade` command |
+| Upgrade a tool as far as behaviour provably stays the same (the behavior-gate default; `--allow-behavior-change` walks to the newest structurally-reachable profile) | — | ✅ Shipped | `upgrade` command; gate proof `docs/proofs/behavior-gate.md`; corpus contract sweep `corpus_check upgrade` (0 violations) |
 | Bump an inline `@PROFILE@` macro token | GTR007 | ✅ Shipped | upgrade rule set |
 | Bump an *imported* `@PROFILE@` token (only on importer consensus) | — | 🟡 Partial | `macro_profile` (registry) |
 | Runtime-gated repairs (`format_source` guard, `format="input"`, `interpreter=`) | GTR014, GTR015, GTR016 | 🟡 Partial | upgrade rule set |
 | Normalize literal `format`/`ftype` in *imported* macro files (opt-in `normalize-macros`) | — | ✅ Shipped | `macro_datatype` (registry); 15 tools unstuck (`docs/macro_format_residual_stats.md`) |
 
-> 🟡 **The soundness boundary (read `soundness.md`).** `upgrade` guarantees the result
-> is **structurally valid** at the new profile — it does **not** guarantee behaviour is
-> preserved in general. Behaviour-affecting changes are only applied where per-tool
-> detection proves them safe; otherwise they are reported, not made (`upgrade` surfaces a
-> `behavior_preserving` flag — `true`/`false`/`null` — so callers can gate on it). GTR016 (interpreter)
+> 🟡 **The soundness boundary (read `soundness.md`).** The default `upgrade` stops at
+> the **behaviour ceiling**: it never crosses a Galaxy `must_fix` change that applies
+> to the tool unless a bundled fix provably clears it on that tool (verified by
+> re-detection); the stop report links to `docs/profile_boundaries.md`. The result is
+> **structurally valid** at the profile it declares. Crossing further is the explicit
+> `--allow-behavior-change`. Behaviour-affecting changes are only applied where
+> per-tool detection proves them safe; otherwise they are reported, not made
+> (`upgrade` surfaces `behavior_preserving`, `true`/`false`/`null`, plus
+> `stopped_at`/`blocking_codes`/`auto_fixed_codes` so callers can gate on them). GTR016 (interpreter)
 > auto-fixes any non-empty interpreter whose command leads with a literal script
 > ("bucket A", widened 2026-06-10); GTR015 the sole data input — top-level or
 > conditional/section-nested via a qualified `format_source`.

@@ -1,25 +1,30 @@
 # Upgrade behavior-block statistics
 
-A hypothetical **behavior-preserving** auto-upgrade: walk each tool's
-profile from its declared (no-profile defaulted to Galaxy's `16.01`)
-baseline toward the latest, but **stop at the first Galaxy profile-behaviour
-change that both applies to the tool and the toolchain cannot auto-fix**.
-This is stricter than `galaxy-tool-refactor upgrade`, which bumps `profile=`
-to the newest structurally-valid version and only *warns* about crossed
-behaviour changes (codemod `docs/decisions.md` §22). A code *applies* when
-its per-tool detector fires (`upgrade_codes_applicable`); auto-fixability is
-judged exactly by applying the mapped codemod and re-detecting.
+Where the **shipped default** `galaxy-tool-refactor upgrade` stops: the walk
+caps at the behaviour ceiling: the newest vendored profile reachable from
+the tool's baseline (no-profile defaults to Galaxy's `16.01`; a `@PROFILE@`
+token is resolved through its definitions) without crossing a Galaxy
+`must_fix` behaviour change that applies to the tool and that no bundled fix
+provably clears (`galaxy_tool_codemod.behavior_gate`; codemod
+`docs/decisions.md`). A code *applies* when its per-tool detector fires on
+the macro-expanded view; auto-fixability is proven by execution, by the mapped
+fix is applied to a copy and the detector re-run. This page is computed with
+the same `behavior_gate` functions the live command uses, so the published
+numbers and the shipped behaviour cannot drift.
 
-Only two behaviour codes are auto-fixable: `21_09_fix_from_work_dir_whitespace`
-(GTR014, full) and `16_04_fix_output_format` (GTR015, only a sole-top-level
-data-input tool). The structural `upgrade_vN` codemods fix *validity*, not
-behaviour, so they never clear a blocker here.
+The auto-fixes are the runtime-gated codemods (GTR014 from_work_dir
+whitespace, GTR015 output format=input for a sole-data-input tool, GTR016
+interpreter inlining for a literal-script command). The structural
+`upgrade_vN` codemods fix *validity*, not behaviour, so they never clear a
+blocker here.
 
-Two policies are reported: blocking on `must_fix` codes only (the sharper,
-more actionable view) and on `must_fix` + `consider` (every behaviour change).
+Two policies are reported: blocking on `must_fix` codes only, **the shipped
+default** (applicable `consider` codes are warned about, never blocking),
+and the counterfactual `must_fix` + `consider` (every behaviour change).
 The latter is dominated by `16_04_consider_implicit_extra_file_collection`,
 which Galaxy emits **unconditionally** — so essentially every sub-16.04 tool
-stalls at 16.04 immediately.
+would stall at 16.04 immediately, which is why it is not the default
+(`--allow-behavior-change` lifts the gate entirely instead).
 
 `24_2_fix_test_case_validation` counts are an **upper bound** (ships `<test>`;
 not validated): its detector fires on tools that merely *ship* a `<test>` —
@@ -33,30 +38,31 @@ Regenerate with (needs the corpus, so not run in CI):
 uv run python -m scripts.measure upgrade-behavior-blocks
 ```
 
-Unique `<tool>` files (sha256-deduped) with a placeable baseline: **7,872**. Excluded (macro-token / unparseable `profile=`): **1,486**. Latest vendored profile: `26.1`. `Reaches latest` includes tools already at/above every applicable code.
+Unique `<tool>` files (sha256-deduped) with a placeable baseline: **9,371**. Excluded (unresolvable macro-token / unparseable `profile=`; the live gate fails closed on these): **2**. Latest vendored profile: `26.1`. `Reaches latest` includes tools already at/above every applicable code.
 
-## Blocking on `must_fix` only
+## Blocking on `must_fix` only (the shipped default)
 
-Reaches latest behavior-preservingly: **2,574**; stuck: **5,298**.
+Reaches latest behavior-preservingly: **3,003**; stuck: **6,368**.
 
 | Profile | Level | Behavior code (first blocker) | Tools stuck |
 |---|---|---|--:|
-| 16.04 | must_fix | `16_04_fix_interpreter` | 299 |
+| 16.04 | must_fix | `16_04_fix_interpreter` | 302 |
 | 16.04 | must_fix | `16_04_fix_output_format` | 33 |
-| 24.2 | must_fix | `24_2_fix_test_case_validation` | 4,966 |
+| 24.2 | must_fix | `24_2_fix_test_case_validation` | 6,033 |
 
 ## Blocking on `must_fix` + `consider`
 
-Reaches latest behavior-preservingly: **242**; stuck: **7,630**.
+Reaches latest behavior-preservingly: **680**; stuck: **8,691**.
 
 | Profile | Level | Behavior code (first blocker) | Tools stuck |
 |---|---|---|--:|
-| 16.04 | must_fix | `16_04_fix_interpreter` | 299 |
-| 16.04 | consider | `16_04_consider_implicit_extra_file_collection` | 5,398 |
+| 16.04 | must_fix | `16_04_fix_interpreter` | 302 |
+| 16.04 | consider | `16_04_consider_implicit_extra_file_collection` | 5,386 |
 | 18.01 | consider | `18_01_consider_structured_like` | 1 |
 | 18.01 | consider | `18_01_consider_home_directory` | 296 |
-| 20.09 | consider | `20_09_consider_output_collection_order` | 64 |
-| 20.09 | consider | `20_09_consider_set_e` | 388 |
+| 20.05 | consider | `20_05_consider_inputs_as_json_changes` | 9 |
+| 20.09 | consider | `20_09_consider_output_collection_order` | 105 |
+| 20.09 | consider | `20_09_consider_set_e` | 596 |
 | 21.09 | consider | `21_09_consider_python_environment` | 4 |
-| 23.0 | consider | `23_0_consider_optional_text` | 318 |
-| 24.2 | must_fix | `24_2_fix_test_case_validation` | 862 |
+| 23.0 | consider | `23_0_consider_optional_text` | 489 |
+| 24.2 | must_fix | `24_2_fix_test_case_validation` | 1,503 |

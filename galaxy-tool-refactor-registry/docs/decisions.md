@@ -749,3 +749,41 @@ construction, so the feature ships regardless of frequency. The facade
 module's `etree.tostring` / temp-dir `write_bytes` are the throwaway gate, allowlisted).
 Reproduced by `uv run python -m scripts.measure version-token-sharing` (which also
 retains any planner crash as a regression corpus, the standing retain-failures order).
+
+## D21 (2026-06-12): `upgrade` is behavior-preserving by default (the gate)
+
+Reproduced-by: `uv run --package galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_facade.py` (the gate tests) and
+`galaxy-tool-refactor-registry/tests/test_macro_profile.py` (the gated
+shared-token targets).
+
+- `facade.upgrade` computes the tier-2 behavior gate before walking
+  (`behavior_gate.blocking_codes` / `behavior_ceiling`; codemod decisions §45)
+  and passes the resulting ceiling into `UpgradeToLatest`. New keyword-only
+  parameters: `allow_behavior_change` (lifts the gate, the historical
+  walk-to-latest) and `target_profile` (an explicit vendored cap, validated up
+  front; the typed `UnknownProfile` joins `errors.py` for the CLI/MCP
+  boundaries). The policy lives here, the mechanism in tier 2, so lower tiers
+  stay consumable standalone.
+- `UpgradeResult` gains `stopped_at` (the deliberate cap applied, when below
+  latest), `blocking_codes` (every applicable un-fixed `must_fix` code over
+  `(baseline, latest]`, the user's full review list, reported under the
+  opt-out too), and `auto_fixed_codes` (codes whose executed fix was verified
+  by re-detection). `behavior_preserving` now credits those fixes; the
+  crossed-boundary warning and the verdict derive from one residual set, so
+  they cannot disagree. The stop note and the warning point at
+  `docs/profile_boundaries.md` (the generated per-boundary reference), and all
+  new user-facing text follows the Galaxy Community Code of Conduct (the tool
+  is "not yet provably safe to upgrade", never blamed).
+- Baseline resolution moved down to the gate (`behavior_gate.resolved_baseline`):
+  a `@PROFILE@` declaration resolves through `token_definitions` (inline, then
+  imported) before gating; an unresolvable token fails closed (no profile
+  advance, a loud note) instead of silently upgrading past unplaceable
+  boundaries.
+- The whole-run shared-token path is gated identically:
+  `macro_profile.profile_token_site` accepts the same two parameters and
+  computes each importer's target through `_gated_target` (the token's value
+  is that importer's runtime baseline), so the per-tool path and the
+  shared-macro path can never disagree on how far a tool may move. A
+  blocked-at-baseline importer contributes its current value (a no-op bump);
+  disagreement still skips the file (D5's consensus rule).

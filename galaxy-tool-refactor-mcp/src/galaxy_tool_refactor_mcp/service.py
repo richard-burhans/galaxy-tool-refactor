@@ -67,6 +67,9 @@ def _upgrade_result_to_dict(result: UpgradeResult, /) -> dict[str, object]:
         "steps_applied": list(result.steps_applied),
         "missing_upgrade": result.missing_upgrade,
         "behavior_preserving": result.behavior_preserving,
+        "stopped_at": result.stopped_at,
+        "blocking_codes": list(result.blocking_codes),
+        "auto_fixed_codes": list(result.auto_fixed_codes),
         "advisory": [_violation_to_dict(v) for v in result.advisory],
         "notes": list(result.notes),
     }
@@ -141,10 +144,25 @@ def upgrade_tool(
     *,
     select: Sequence[str] = (),
     ignore: Sequence[str] = (),
+    allow_behavior_change: bool = False,
+    target_profile: str | None = None,
 ) -> dict[str, object]:
-    """Profile-upgrade then format; return the upgraded XML, steps, and notes."""
+    """Profile-upgrade then format; return the upgraded XML, steps, and notes.
+
+    Behavior-preserving by default: the walk stops at the behaviour ceiling
+    and reports the blocking codes. *allow_behavior_change* lifts the gate
+    (the historical walk-to-latest); *target_profile* caps the walk at an
+    explicit vendored profile (raising ``UnknownProfile`` otherwise).
+    """
     codes = resolve_upgrade_codes(select=select, ignore=ignore)
-    return _upgrade_result_to_dict(facade.upgrade(xml.encode("utf-8"), codes=codes))
+    return _upgrade_result_to_dict(
+        facade.upgrade(
+            xml.encode("utf-8"),
+            codes=codes,
+            allow_behavior_change=allow_behavior_change,
+            target_profile=target_profile,
+        )
+    )
 
 
 def check_tool(

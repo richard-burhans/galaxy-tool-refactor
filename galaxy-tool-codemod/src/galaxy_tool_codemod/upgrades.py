@@ -55,14 +55,17 @@ UPGRADE_CODEMODS: dict[str, type[CodemodCommand]] = {
 
 
 class UpgradeToLatest(CodemodCommand):
-    """Iteratively upgrade a tool toward the latest profile.
+    """Iteratively upgrade a tool toward the latest profile (or a ceiling).
 
     Each round re-declares the newest valid profile and, if that is below the
-    latest, applies the registered single-step upgrade for it. Stops at the
-    latest profile, at a sticking version with no registered upgrade, or if a
-    round makes no progress (the same version twice) — the last two leave the
-    tool validating at the best version reached, which ``UpdateProfile`` has
-    already declared.
+    target, applies the registered single-step upgrade for it. The target is
+    the latest vendored profile, or the *ceiling* when one is given; the
+    behavior gate (``behavior_gate``) passes the newest profile reachable
+    without crossing an applicable, unfixable behaviour change. Stops at the
+    target, at a sticking version with no registered upgrade, or if a round
+    makes no progress (the same version twice); the last two leave the tool
+    validating at the best version reached, which ``UpdateProfile`` has
+    already declared. A stall *at the ceiling* is deliberate and not reported.
     """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
@@ -71,7 +74,12 @@ class UpgradeToLatest(CodemodCommand):
         since="0.0.1",
     )
 
-    def __init__(self) -> None:
+    def __init__(self, *, ceiling: str | None = None) -> None:
+        # The newest profile the walk may reach (a behaviour boundary from the
+        # behavior gate, or an explicit user target); ``None`` walks to the
+        # latest vendored profile. Stalling AT the ceiling is a deliberate cap,
+        # not a missing ``upgrade_vN``, so it is never warned about.
+        self._ceiling = ceiling
         # From-versions the most recent ``apply`` advanced the tool past, in
         # order. Read via ``upgrade_steps_applied`` for per-step sweep stats.
         self._applied_upgrades: list[str] = []
@@ -87,16 +95,16 @@ class UpgradeToLatest(CodemodCommand):
     def apply(self, module: Module, /) -> None:
         self._applied_upgrades = []
         self._missing_upgrade = None
-        latest = latest_profile()
+        target = self._ceiling if self._ceiling is not None else latest_profile()
         seen: set[str] = set()
         # One stateless instance, re-declared each round (matches the sweep's
         # "reuse a single codemod instance" rationale).
-        update_profile = UpdateProfile()
+        update_profile = UpdateProfile(ceiling=self._ceiling)
         update_profile.apply(module)
-        version = newest_valid_profile(module.document)
+        version = newest_valid_profile(module.document, ceiling=self._ceiling)
         # Each productive round advances to a strictly newer version; the
         # ``seen`` guard halts a non-advancing round so the loop terminates.
-        while version is not None and version != latest and version not in seen:
+        while version is not None and version != target and version not in seen:
             seen.add(version)
             upgrade = UPGRADE_CODEMODS.get(version)
             if upgrade is None:
@@ -108,16 +116,16 @@ class UpgradeToLatest(CodemodCommand):
                 self._missing_upgrade = version
                 logger.warning(
                     "no upgrade codemod for profile %s: the tool validates "
-                    "there but the latest profile is %s — an upgrade for %s "
+                    "there but the target profile is %s; an upgrade for %s "
                     "needs to be implemented",
                     version,
-                    latest,
+                    target,
                     version,
                 )
                 return
             upgrade().apply(module)
             update_profile.apply(module)
-            new_version = newest_valid_profile(module.document)
+            new_version = newest_valid_profile(module.document, ceiling=self._ceiling)
             if new_version != version:
                 # The step advanced the tool — credit it to this from-version.
                 self._applied_upgrades.append(version)

@@ -42,13 +42,27 @@ class UpgradeResult:
         formatted: The canonical-form XML bytes after upgrade + format.
         steps_applied: The from-profiles each upgrade step advanced past.
         missing_upgrade: A profile the tool stalled at with no registered
-            upgrade, or ``None`` if it reached the latest (or had nothing to do).
+            upgrade, or ``None`` if it reached its target (or had nothing to do).
         behavior_preserving: Whether the profile bump crossed no Galaxy
-            behaviour-change code that *applies* to this tool (so it changes no
-            runtime behaviour the tool exercises). ``True`` = clean pass,
-            ``False`` = ≥1 applicable code, ``None`` = undetermined (a profile is
-            unparseable, e.g. a macro token). Structurally independent of
-            ``missing_upgrade``, which reports a structural stall.
+            behaviour-change code that *applies* to this tool and was not
+            cleared by an auto-fix (so it changes no runtime behaviour the tool
+            exercises). ``True`` = clean pass, ``False`` = ≥1 applicable
+            uncleared code, ``None`` = undetermined (the baseline is
+            unplaceable, e.g. an unresolved macro token). Under the default
+            gate a ``False`` can only come from consider-level codes; opting
+            out (``allow_behavior_change``) reports must_fix crossings honestly
+            too. Structurally independent of ``missing_upgrade``, which reports
+            a structural stall.
+        stopped_at: The profile the walk was deliberately capped at when below
+            the latest (the behaviour gate's ceiling, or an explicit
+            ``target_profile``), or ``None`` when the walk was free to reach
+            the latest profile.
+        blocking_codes: Every applicable must_fix code between the baseline and
+            the latest profile that no auto-fix clears: the user's full
+            review list, reported even when ``allow_behavior_change`` lifted
+            the gate.
+        auto_fixed_codes: The applicable must_fix codes the upgrade crossed and
+            cleared by executing their mapped fix (verified by re-detection).
         advisory: Advisory findings the selection included.
         notes: The upgrade summary plus advisory note lines, for the CLI.
     """
@@ -57,6 +71,9 @@ class UpgradeResult:
     steps_applied: tuple[str, ...] = ()
     missing_upgrade: str | None = None
     behavior_preserving: bool | None = None
+    stopped_at: str | None = None
+    blocking_codes: tuple[str, ...] = ()
+    auto_fixed_codes: tuple[str, ...] = ()
     advisory: list[Violation] = field(default_factory=list)
     notes: tuple[str, ...] = ()
 

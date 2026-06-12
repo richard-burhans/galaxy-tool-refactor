@@ -15,7 +15,6 @@ from galaxy_tool_codemod.profile_semantics import (
     detect_codes_on_root,
     upgrade_codes_applicable,
     upgrade_codes_crossed,
-    upgrade_is_behavior_preserving,
 )
 
 
@@ -107,46 +106,43 @@ def test_crossed_and_applicable_none_for_unparseable_profile() -> None:
     )
 
 
-def test_behavior_preserving_true_when_nothing_applies() -> None:
-    """A bump that crosses codes none of which trip is behaviour-preserving."""
+def test_applicable_empty_when_nothing_trips() -> None:
+    """A bump that crosses codes none of which trip yields no applicable code.
+
+    This is the input the facade's behaviour-preserving verdict derives from
+    (verdict True when the applicable set, minus credited auto-fixes, is empty).
+    """
     # 24.1 -> latest crosses only 24_2; an empty tripped set means it doesn't apply.
-    assert (
-        upgrade_is_behavior_preserving(
-            baseline="24.1", target="26.1", tripped=frozenset()
-        )
-        is True
+    pair = crossed_and_applicable_codes(
+        baseline="24.1", target="26.1", tripped=frozenset()
     )
+    assert pair is not None
+    crossed, applicable = pair
+    assert crossed and applicable == []
 
 
-def test_behavior_preserving_false_when_a_crossed_code_applies() -> None:
-    assert (
-        upgrade_is_behavior_preserving(
-            baseline="24.1",
-            target="26.1",
-            tripped=frozenset({"24_2_fix_test_case_validation"}),
-        )
-        is False
+def test_applicable_names_a_crossed_code_that_trips() -> None:
+    pair = crossed_and_applicable_codes(
+        baseline="24.1",
+        target="26.1",
+        tripped=frozenset({"24_2_fix_test_case_validation"}),
     )
+    assert pair is not None
+    _crossed, applicable = pair
+    assert [change.code for change in applicable] == [
+        "24_2_fix_test_case_validation"
+    ]
 
 
-def test_behavior_preserving_ignores_an_applicable_but_uncrossed_code() -> None:
-    """A tripped code outside the bumped range must not flip the verdict."""
+def test_applicable_ignores_a_tripped_but_uncrossed_code() -> None:
+    """A tripped code outside the bumped range must not become applicable."""
     # 24.1 -> latest does not cross 16_04_exit_code (16.04 < 24.1 baseline).
-    assert (
-        upgrade_is_behavior_preserving(
-            baseline="24.1", target="26.1", tripped=frozenset({"16_04_exit_code"})
-        )
-        is True
+    pair = crossed_and_applicable_codes(
+        baseline="24.1", target="26.1", tripped=frozenset({"16_04_exit_code"})
     )
-
-
-def test_behavior_preserving_none_for_unparseable_profile() -> None:
-    assert (
-        upgrade_is_behavior_preserving(
-            baseline="@PROFILE@", target="26.1", tripped=frozenset()
-        )
-        is None
-    )
+    assert pair is not None
+    _crossed, applicable = pair
+    assert applicable == []
 
 
 # --- per-tool detection (upgrade_codes_applicable) ------------------------------

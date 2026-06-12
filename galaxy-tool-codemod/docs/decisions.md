@@ -1882,3 +1882,80 @@ Sizing: `uv run python -m scripts.measure iuc011-fixability`.
   the provable set. Corpus `check`/`rules` stat pages refresh on the next scheduled
   sweep (numbers, not coverage). The behaviour-preservation ledger records this as the
   second GTR020.1 over-quote class fixed (after the §32 multi-flag select).
+
+## 45. The behavior gate: `upgrade` stops at the behaviour ceiling by default
+
+**Date:** 2026-06-12. Reproduced-by: `uv run --package galaxy-tool-codemod pytest
+galaxy-tool-codemod/tests/test_behavior_gate.py` (the gate primitives),
+`galaxy-tool-codemod/tests/test_upgrades.py` (the capped walk), and the facade
+gate tests in `galaxy-tool-refactor-registry/tests/test_facade.py`. Corpus:
+`uv run python -m scripts.measure upgrade-behavior-blocks` (the stats page is
+computed with the shipped gate functions) and
+`uv run python -m scripts.corpus_check upgrade` (the per-tool contract sweep).
+
+- **The flip.** §22 established that the walk is validity-gated and therefore
+  structurally sound only; §23 added the per-tool warning. The default now
+  *stops* instead of warning-and-proceeding: `behavior_gate.py` computes the
+  applicable, non-auto-fixed `must_fix` codes over `(baseline, latest]`
+  (`blocking_codes`) and the **ceiling**, the newest vendored profile strictly
+  below the lowest blocker (`behavior_ceiling`). The walk, `UpdateProfile`,
+  and tier-1 `newest_valid_profile` all accept a keyword-only `ceiling` and
+  never declare past it. The maintainer's framing: stop when we can no longer
+  guarantee the same behavior. The full soundness argument lives in
+  `docs/proofs/behavior-gate.md` (guarded by `test_proof_documents.py`).
+- **The gate is precomputable, so it lives outside the loop.** Every catalogue
+  code is keyed to a fixed profile boundary and applicability is a property of
+  the pre-upgrade tree, so the ceiling is decided once before the walk; no
+  per-step re-evaluation. This is also exactly how the
+  `upgrade-behavior-blocks` measure already modelled the policy, which is why
+  the measure now consumes `blocking_codes` directly (one implementation, no
+  drift).
+- **"Auto-fixable" means proof by execution, never a static set.** A blocker is
+  cleared only when its mapped `RuntimeGatedFix` (each declares the Galaxy
+  `upgrade_code` it clears, pinned to the catalogue by test), applied to a
+  throwaway copy, leaves the code's detector quiet on the macro-expanded view
+  (`code_cleared_by_autofix`). Partial fix coverage (GTR015's sole-data-input
+  subset, GTR016's bucket A) and macro-supplied constructs are thereby exact.
+  The facade re-verifies on the live tree and credits `auto_fixed_codes` only
+  when post-apply re-detection shows the code gone.
+- **Policy: `must_fix` blocks; `consider` warns.** Galaxy emits
+  `16_04_consider_implicit_extra_file_collection` unconditionally, so blocking
+  on consider-level codes would freeze nearly every sub-16.04 tool at its
+  baseline (see `docs/upgrade_behavior_block_stats.md`, which reports the
+  counterfactual side by side). `blocking_codes(levels=...)` is the seam for a
+  future stricter mode once the noisy consider detectors are tightened
+  (follow-up); no `--block-on` knob is exposed today.
+- **Fail-closed branches.** An unresolvable `@PROFILE@` baseline cannot range
+  the crossings, so the profile does not move (`resolved_baseline` first tries
+  the token's definitions, inline then imported, so most tokens place
+  normally). No vendored profile below the lowest blocker (a 16.04 blocker on
+  a legacy-default baseline; the oldest vendored XSD is 16.10) means no
+  advance at all. The gate never lowers a declared profile.
+- **§23 verdict change (the deferred credit).** `behavior_preserving` now
+  credits auto-fixed codes: the warning and the verdict derive from one
+  applicable set minus the credited fixes, so a tool whose only applicable
+  must_fix crossing was provably fixed is reported behavior-preserving (and
+  gets a "fixed automatically" note naming the GTR code) instead of a
+  misleading must-fix warning. The un-credited §23 primitive
+  `upgrade_is_behavior_preserving` had no remaining production consumer and
+  was removed; `crossed_and_applicable_codes` stays the single source the
+  facade derives both the warning and the verdict from.
+- **Escape hatches, both explicit.** `allow_behavior_change` restores the
+  historical walk-to-latest (blockers still reported as the user's review
+  list); `target_profile` caps the walk at an explicit vendored profile
+  (`UnknownProfile` otherwise) and composes with the gate (the lower wins).
+  Stop reports name the blocking codes and point at
+  `docs/profile_boundaries.md`, the generated per-boundary "what changed and
+  what to do" reference (`scripts/gen_profile_boundaries.py`,
+  freshness-tested).
+- **`UpgradeToLatest`'s own default is unchanged** (walk to latest): tier 2
+  stays consumable standalone and the structural corpus oracle
+  (`corpus_check codemod galaxy_tool_codemod.upgrades:UpgradeToLatest`) keeps
+  testing §22's contract; the default flip is facade policy. A stall at a
+  requested ceiling is deliberate and is not a `missing_upgrade`.
+- **The per-tool contract is swept.** `corpus_check upgrade` runs the gated
+  default over every corpus tool and asserts: fail-closed honoured, the
+  declaration never crosses the first blocker, no applicable `must_fix` code
+  crossed un-fixed (recomputed independently of the facade), validity
+  preserved, and a second run is a byte no-op, retaining every violation as a
+  regression fixture (`docs/corpus_data/upgrade_gate_errors.json`).

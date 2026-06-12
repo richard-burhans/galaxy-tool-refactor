@@ -57,6 +57,13 @@ class UpdateProfile(CodemodCommand):
         since="0.0.1",
     )
 
+    def __init__(self, *, ceiling: str | None = None) -> None:
+        # The newest profile the declaration may rise to (a behaviour boundary
+        # from the behavior gate, or an explicit user target). ``None`` means
+        # uncapped. Bump-up-only still holds: a declaration already above the
+        # ceiling is never lowered.
+        self._ceiling = ceiling
+
     def detect(self, module: Module, /) -> Iterator[Change]:
         return coarse_detect(
             self,
@@ -66,7 +73,7 @@ class UpdateProfile(CodemodCommand):
 
     def apply(self, module: Module, /) -> None:
         document = module.document
-        target = newest_valid_profile(document)
+        target = newest_valid_profile(document, ceiling=self._ceiling)
         if target is None:
             return  # validates nowhere — nothing to point profile= at
         declared = document.profile

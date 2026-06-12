@@ -37,8 +37,12 @@ $ galaxy-tool-refactor upgrade --diff tools/bandage/bandage_info.xml
 +<tool id="bandage_info" … profile="26.1">
 ```
 
-It advances to the newest profile the tool **validates** at, applying only the repairs
-it can prove safe. **It does not blindly preserve behaviour** — read
+It advances the profile **only as far as behaviour provably stays the same**: the
+walk stops below the first Galaxy `must_fix` change that applies to your tool and
+that it cannot fix with a repair proven safe on that tool. A stop is a normal,
+successful outcome: the report names the blocking code and links to the
+[per-boundary reference](../profile_boundaries.md), which tells you what changed and
+what to do; `--allow-behavior-change` takes the bump anyway. Read
 [soundness](soundness.md); that boundary is what makes it trustworthy for review.
 
 ### 3. `check` — a best-practice report
@@ -69,9 +73,11 @@ Advisory (IUC) findings — missing tests, no version pins, no error handling �
 
 - On an already-IUC-compliant tool, `format`/`check` are often quiet — the value then is
   mostly in `upgrade` and in catching the occasional advisory gap.
-- `upgrade`'s guarantee is **structural validity**, not behaviour preservation in general
-  ([soundness](soundness.md)). Treat a `behavior_preserving: false` upgrade as
-  "needs a human look," not "rejected."
+- `upgrade`'s default guarantee is bounded: it stops rather than cross a breaking
+  behaviour change it cannot prove fixed, and the result is structurally valid at the
+  profile it declares ([soundness](soundness.md)). Under the default, a
+  `behavior_preserving: false` can only come from advisory (`consider`) changes;
+  treat it as "needs a human look," not "rejected."
 - The `format` fixes *are* behaviour-preserving — and that's not just asserted: every
   fixable rule is adversarially audited, with genuine breaks fixed (regression-pinned)
   and the verdicts recorded in the [behaviour-preservation ledger](../behavior_preservation.md)

@@ -114,6 +114,24 @@ def test_newest_valid_profile_none_when_never_valid() -> None:
     assert newest_valid_profile(b"<tool><not_a_real_element/></tool>") is None
 
 
+def test_newest_valid_profile_honors_a_ceiling(data_dir: Path) -> None:
+    # The minimal tool validates everywhere, so the capped scan returns the
+    # ceiling itself (a vendored profile); the default scan is unchanged.
+    unbounded = newest_valid_profile(data_dir / "minimal_tool.xml")
+    assert newest_valid_profile(data_dir / "minimal_tool.xml", ceiling="24.1") == "24.1"
+    assert (
+        newest_valid_profile(data_dir / "minimal_tool.xml", ceiling=None) == unbounded
+    )
+
+
+def test_newest_valid_profile_ceiling_below_all_profiles_is_none(
+    data_dir: Path,
+) -> None:
+    # No vendored profile lies at or below 16.04, so a capped scan has nothing
+    # to validate against.
+    assert newest_valid_profile(data_dir / "minimal_tool.xml", ceiling="16.04") is None
+
+
 _PROFILE_SWEEP_FIXTURES = [
     "minimal_tool.xml",
     "representative_tool.xml",
