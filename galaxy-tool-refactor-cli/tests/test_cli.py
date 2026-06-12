@@ -123,6 +123,79 @@ def test_upgrade_keeps_latest_profile(tmp_path: Path) -> None:
     assert f'profile="{latest_profile()}"'.encode() in file.read_bytes()
 
 
+def _tool_with_tests(*, profile: str) -> bytes:
+    """A valid tool shipping a <test>, so 24.2's must_fix code applies on bump."""
+    return (
+        f'<tool id="m" name="M" version="1.0.0" profile="{profile}">'
+        "<command><![CDATA[echo x]]></command>"
+        '<inputs/><outputs><data name="o"/></outputs>'
+        "<tests><test/></tests></tool>"
+    ).encode()
+
+
+def test_upgrade_default_stops_at_a_behavior_boundary(tmp_path: Path) -> None:
+    """A tool with tests stays at 24.1 by default: 24.2 validates test cases."""
+    file = _write(tmp_path / "tool.xml", _tool_with_tests(profile="24.1"))
+    result = CliRunner().invoke(main, ["upgrade", str(file)])
+    assert result.exit_code == 0, result.output
+    assert b'profile="24.1"' in file.read_bytes()
+    assert "stopped at 24.1" in result.output
+    assert "24_2_fix_test_case_validation" in result.output
+    assert "--allow-behavior-change" in result.output
+
+
+def test_upgrade_allow_behavior_change_reaches_latest(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _tool_with_tests(profile="24.1"))
+    result = CliRunner().invoke(
+        main, ["upgrade", "--allow-behavior-change", str(file)]
+    )
+    assert result.exit_code == 0, result.output
+    assert f'profile="{latest_profile()}"'.encode() in file.read_bytes()
+    assert "profile-behaviour" in result.output  # the review warning remains
+
+
+def test_upgrade_target_profile_caps_the_walk(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _valid_tool(profile="19.01"))
+    result = CliRunner().invoke(
+        main, ["upgrade", "--target-profile", "20.09", str(file)]
+    )
+    assert result.exit_code == 0, result.output
+    assert b'profile="20.09"' in file.read_bytes()
+
+
+def test_upgrade_rejects_an_unknown_target_profile(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _valid_tool(profile="24.1"))
+    result = CliRunner().invoke(
+        main, ["upgrade", "--target-profile", "99.99", str(file)]
+    )
+    assert result.exit_code != 0
+    assert "unknown profile" in result.output
+
+
+def test_upgrade_gates_a_shared_imported_profile_token(tmp_path: Path) -> None:
+    """The whole-run @PROFILE@ bump honors the gate: importers with tests agree
+    on the 24.1 ceiling, so the shared token lands there, not at latest."""
+    _write(
+        tmp_path / "macros.xml",
+        b'<macros><token name="@PROFILE@">19.01</token></macros>',
+    )
+    for tool_id in ("a", "b"):
+        _write(
+            tmp_path / f"{tool_id}.xml",
+            (
+                f'<tool id="{tool_id}" name="{tool_id}" version="1.0.0"'
+                ' profile="@PROFILE@">'
+                "<macros><import>macros.xml</import></macros>"
+                "<command><![CDATA[echo x]]></command>"
+                '<inputs/><outputs><data name="o"/></outputs>'
+                "<tests><test/></tests></tool>"
+            ).encode(),
+        )
+    result = CliRunner().invoke(main, ["upgrade", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert b">24.1<" in (tmp_path / "macros.xml").read_bytes()
+
+
 def test_upgrade_applies_runtime_gated_fix_at_reached_profile(tmp_path: Path) -> None:
     """End-to-end: crossing 21.09 strips a whitespace from_work_dir (GTR014)."""
     # Declares 20.09 (< 21.09), so the bump to latest CROSSES the 21.09 boundary.

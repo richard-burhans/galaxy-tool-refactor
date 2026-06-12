@@ -95,6 +95,63 @@ def test_profile_token_site_for_imported_token(tmp_path: Path) -> None:
     assert site.target == latest_profile()  # validates at latest despite 19.01 token
 
 
+def test_profile_token_site_is_gated_by_default(tmp_path: Path) -> None:
+    """An importer that ships tests targets the behaviour ceiling (24.1), not
+    latest: the shared-token bump honors the same default gate as `upgrade`."""
+    (tmp_path / "macros.xml").write_text(
+        '<macros><token name="@PROFILE@">19.01</token></macros>', encoding="utf-8"
+    )
+    tool = _write_tool(
+        tmp_path,
+        "tool.xml",
+        '<tool id="m" name="M" version="1.0.0" profile="@PROFILE@">'
+        "<macros><import>macros.xml</import></macros>"
+        "<command><![CDATA[echo x]]></command>"
+        '<inputs/><outputs><data name="o"/></outputs>'
+        "<tests><test/></tests></tool>",
+    )
+    site = profile_token_site(load_tool(tool))
+    assert site is not None
+    assert site.target == "24.1"
+
+
+def test_profile_token_site_ungated_with_allow_behavior_change(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "macros.xml").write_text(
+        '<macros><token name="@PROFILE@">19.01</token></macros>', encoding="utf-8"
+    )
+    tool = _write_tool(
+        tmp_path,
+        "tool.xml",
+        '<tool id="m" name="M" version="1.0.0" profile="@PROFILE@">'
+        "<macros><import>macros.xml</import></macros>"
+        "<command><![CDATA[echo x]]></command>"
+        '<inputs/><outputs><data name="o"/></outputs>'
+        "<tests><test/></tests></tool>",
+    )
+    site = profile_token_site(load_tool(tool), allow_behavior_change=True)
+    assert site is not None
+    assert site.target == latest_profile()
+
+
+def test_profile_token_site_honors_a_target_profile_cap(tmp_path: Path) -> None:
+    (tmp_path / "macros.xml").write_text(
+        '<macros><token name="@PROFILE@">19.01</token></macros>', encoding="utf-8"
+    )
+    tool = _write_tool(
+        tmp_path,
+        "tool.xml",
+        '<tool id="m" name="M" version="1.0.0" profile="@PROFILE@">'
+        "<macros><import>macros.xml</import></macros>"
+        "<command><![CDATA[echo x]]></command>"
+        '<inputs/><outputs><data name="o"/></outputs></tool>',
+    )
+    site = profile_token_site(load_tool(tool), target_profile="20.09")
+    assert site is not None
+    assert site.target == "20.09"
+
+
 def test_profile_token_site_none_for_inline_token(tmp_path: Path) -> None:
     tool = _write_tool(
         tmp_path,

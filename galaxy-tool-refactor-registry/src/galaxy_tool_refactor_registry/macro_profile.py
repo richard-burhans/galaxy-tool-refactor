@@ -30,11 +30,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from galaxy_tool_codemod import behavior_gate
 from galaxy_tool_fmt.cli_support import make_backup
 from galaxy_tool_fmt.format import format_macro_document
 from galaxy_tool_source.binding import load_macros, newest_valid_profile
 from galaxy_tool_source.macros import token_definitions
 from galaxy_tool_source.profiles import is_newer_profile
+from packaging.version import Version
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -81,12 +83,47 @@ class ProfileTokenPlan:
     agree: bool
 
 
-def profile_token_site(document: ToolDocument, /) -> ProfileTokenSite | None:
+def _gated_target(
+    document: ToolDocument, *, baseline: str, target_profile: str | None
+) -> str | None:
+    """The newest profile this importer may reach under the behaviour gate.
+
+    Mirrors the facade's default: blockers cap the walk at the behaviour
+    ceiling; an importer whose ceiling falls at (or below) its baseline keeps
+    its current value (the bump becomes a no-op for it); an unplaceable
+    baseline yields ``None`` (no safe target, so the group cannot agree). An
+    explicit *target_profile* lowers the cap further, never raises it.
+    """
+    if not behavior_gate.placeable_baseline(baseline):
+        return None
+    blockers = behavior_gate.blocking_codes(document, baseline=baseline)
+    ceiling = behavior_gate.behavior_ceiling(blockers)
+    if behavior_gate.blocked_below_baseline(ceiling=ceiling, baseline=baseline):
+        return baseline
+    if target_profile is not None and (
+        ceiling is None or Version(target_profile) < Version(ceiling)
+    ):
+        ceiling = target_profile
+    return newest_valid_profile(document, ceiling=ceiling)
+
+
+def profile_token_site(
+    document: ToolDocument,
+    /,
+    *,
+    allow_behavior_change: bool = False,
+    target_profile: str | None = None,
+) -> ProfileTokenSite | None:
     """Return the imported-profile-token site for *document*, or ``None``.
 
     ``None`` covers a literal profile, no profile, an inline token (``UpdateProfile``
     handles those), an unresolved token, and an in-memory document with no
     ``source_path`` (imports cannot be resolved without a location on disk).
+
+    The site's target honors the same default behaviour gate as the facade's
+    ``upgrade`` (the token's value is the importer's runtime baseline);
+    *allow_behavior_change* lifts the gate and *target_profile* caps the
+    target, exactly as on the per-tool path.
     """
     profile_raw = document.profile
     if profile_raw is None or "@" not in profile_raw:
@@ -104,11 +141,17 @@ def profile_token_site(document: ToolDocument, /) -> ProfileTokenSite | None:
     )
     if definition is None or definition.source is None:
         return None  # inline (GTR007), or the token resolves nowhere
+    if allow_behavior_change:
+        target = newest_valid_profile(document, ceiling=target_profile)
+    else:
+        target = _gated_target(
+            document, baseline=definition.value, target_profile=target_profile
+        )
     return ProfileTokenSite(
         tool=source_path,
         macro_file=definition.source,
         token_name=profile_raw,
-        target=newest_valid_profile(document),
+        target=target,
     )
 
 
