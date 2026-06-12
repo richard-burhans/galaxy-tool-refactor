@@ -19,6 +19,7 @@ from galaxy_tool_codemod.behavior_gate import (
     blocking_codes,
     code_cleared_by_autofix,
     placeable_baseline,
+    resolved_baseline,
 )
 from galaxy_tool_codemod.codemods.fix_interpreter import FixInterpreter
 from galaxy_tool_codemod.parse import parse_module
@@ -182,6 +183,26 @@ def test_placeable_baseline_rejects_tokens_and_none() -> None:
     assert placeable_baseline("24.2")
     assert not placeable_baseline(None)
     assert not placeable_baseline("@PROFILE@")
+
+
+def test_resolved_baseline_defaults_declares_and_resolves_tokens() -> None:
+    assert (
+        resolved_baseline(parse_module(_HEAD + b"<inputs/></tool>").document)
+        == "16.01"
+    )
+    declared = parse_module(
+        b'<tool id="t" name="T" version="1" profile="21.09"><inputs/></tool>'
+    )
+    assert resolved_baseline(declared.document) == "21.09"
+    tokenised = parse_module(
+        b'<tool id="t" name="T" version="1" profile="@PROFILE@">'
+        b'<macros><token name="@PROFILE@">24.1</token></macros><inputs/></tool>'
+    )
+    assert resolved_baseline(tokenised.document) == "24.1"
+    unresolved = parse_module(
+        b'<tool id="t" name="T" version="1" profile="@PROFILE@"><inputs/></tool>'
+    )
+    assert resolved_baseline(unresolved.document) is None
 
 
 def test_gate_never_lowers_a_declared_profile() -> None:

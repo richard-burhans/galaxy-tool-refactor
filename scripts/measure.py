@@ -50,7 +50,6 @@ from scripts._shared import sha256_of as _sha256_of
 from scripts._shared import unique_by_sha as _unique_by_sha
 
 if TYPE_CHECKING:
-    from galaxy_tool_codemod.codemod import CodemodCommand
     from galaxy_tool_codemod.profile_semantics import ProfileUpgradeCode
 
 logger = logging.getLogger("measure")
@@ -4149,48 +4148,20 @@ def _tally_behavior_blocks(
     )
 
 
-def _behavior_code_autofixed(
-    root: etree._Element, *, codemod_cls: type[CodemodCommand], code: str
-) -> bool:
-    """Whether *codemod_cls* clears *code*'s detector when applied to a copy of *root*.
+def _measure_upgrade_behavior_blocks(*, corpus_root: Path) -> _BehaviorBlockResult:
+    """Walk the corpus and tally where the gated (default) upgrade stops.
 
-    Applies the mapped codemod to a deep copy (so the caller's tree is untouched)
-    and re-runs the detectors on the raw result (``detect_codes_on_root`` — this
-    is a raw-tree diagnostic, matching the codemods, which operate on the raw
-    tree); the code is auto-fixable for this tool iff its detector no longer fires.
-    This captures partial coverage exactly (e.g. GTR015 only fixes a
-    sole-top-level-data-input tool).
+    This consumes the SHIPPED gate (``galaxy_tool_codemod.behavior_gate``) per
+    tool — token-resolved baseline, macro-expanded detection, and the
+    proof-by-execution auto-fix probe — so the published statistics and the
+    live ``upgrade`` default cannot drift. Each sample is the tool's
+    applicable, non-auto-fixed crossed codes at every severity; the pure tally
+    splits them into the two policies.
     """
     from galaxy_tool_source.document import ToolDocument
-    from galaxy_tool_codemod.module import Module
-    from galaxy_tool_codemod.profile_semantics import detect_codes_on_root
+    from galaxy_tool_source.profiles import latest_profile
+    from galaxy_tool_codemod import behavior_gate
 
-    copied = copy.deepcopy(root)
-    document = ToolDocument(etree.ElementTree(copied))
-    codemod_cls().apply(Module(document))
-    return code not in detect_codes_on_root(document.root)
-
-
-def _measure_upgrade_behavior_blocks(*, corpus_root: Path) -> _BehaviorBlockResult:
-    """Walk the corpus and tally where a behavior-preserving upgrade would stall."""
-    from galaxy_tool_source.profiles import GALAXY_DEFAULT_PROFILE, latest_profile
-    from galaxy_tool_codemod.codemods.fix_from_work_dir_whitespace import (
-        FixFromWorkDirWhitespace,
-    )
-    from galaxy_tool_codemod.codemods.fix_interpreter import FixInterpreter
-    from galaxy_tool_codemod.codemods.fix_output_format_input import (
-        FixOutputFormatInput,
-    )
-    from galaxy_tool_codemod.profile_semantics import (
-        detect_codes_on_root,
-        upgrade_codes_crossed,
-    )
-
-    autofix: dict[str, type[CodemodCommand]] = {
-        "16_04_fix_interpreter": FixInterpreter,
-        "16_04_fix_output_format": FixOutputFormatInput,
-        "21_09_fix_from_work_dir_whitespace": FixFromWorkDirWhitespace,
-    }
     latest = latest_profile()
     samples: list[tuple[ProfileUpgradeCode, ...]] = []
     n_excluded = 0
@@ -4205,33 +4176,20 @@ def _measure_upgrade_behavior_blocks(*, corpus_root: Path) -> _BehaviorBlockResu
         root = _parse_tool_root(path)
         if root is None:
             continue
-        declared = root.get("profile")
-        baseline = declared if declared is not None else GALAXY_DEFAULT_PROFILE
-        if _version_tuple(baseline) is None:
-            n_excluded += 1  # macro token / unparseable — can't range the bump
+        # Keep the source path so imported macros resolve: detection and the
+        # auto-fix probe run on the macro-expanded view, like the live gate.
+        document = ToolDocument(etree.ElementTree(root), source_path=path)
+        baseline = behavior_gate.resolved_baseline(document)
+        if baseline is None or not behavior_gate.placeable_baseline(baseline):
+            n_excluded += 1  # unresolvable macro token — the gate fails closed
             continue
-        # Raw-tree applicability (this is a raw-tree diagnostic; the auto-fix check
-        # below also runs raw, matching the codemods). The live `upgrade` warning
-        # detects post-expansion — see `macro-expansion-detection-gap` for the gap.
-        tripped = detect_codes_on_root(root)
-        applicable = [
-            change
-            for change in upgrade_codes_crossed(
-                from_profile=baseline, to_profile=latest
-            )
-            if change.code in tripped
-        ]
-        blocking = tuple(
-            change
-            for change in applicable
-            if not (
-                change.code in autofix
-                and _behavior_code_autofixed(
-                    root, codemod_cls=autofix[change.code], code=change.code
-                )
+        samples.append(
+            behavior_gate.blocking_codes(
+                document,
+                baseline=baseline,
+                levels=frozenset({"must_fix", "consider"}),
             )
         )
-        samples.append(blocking)
     return _tally_behavior_blocks(samples=samples, n_excluded=n_excluded, latest=latest)
 
 
@@ -4275,26 +4233,31 @@ def _render_behavior_block_page(result: _BehaviorBlockResult) -> str:
     lines: list[str] = [
         "# Upgrade behavior-block statistics",
         "",
-        "A hypothetical **behavior-preserving** auto-upgrade: walk each tool's",
-        "profile from its declared (no-profile defaulted to Galaxy's `16.01`)",
-        "baseline toward the latest, but **stop at the first Galaxy profile-behaviour",
-        "change that both applies to the tool and the toolchain cannot auto-fix**.",
-        "This is stricter than `galaxy-tool-refactor upgrade`, which bumps `profile=`",
-        "to the newest structurally-valid version and only *warns* about crossed",
-        "behaviour changes (codemod `docs/decisions.md` §22). A code *applies* when",
-        "its per-tool detector fires (`upgrade_codes_applicable`); auto-fixability is",
-        "judged exactly by applying the mapped codemod and re-detecting.",
+        "Where the **shipped default** `galaxy-tool-refactor upgrade` stops: the walk",
+        "caps at the behaviour ceiling — the newest vendored profile reachable from",
+        "the tool's baseline (no-profile defaults to Galaxy's `16.01`; a `@PROFILE@`",
+        "token is resolved through its definitions) without crossing a Galaxy",
+        "`must_fix` behaviour change that applies to the tool and that no bundled fix",
+        "provably clears (`galaxy_tool_codemod.behavior_gate`; codemod",
+        "`docs/decisions.md`). A code *applies* when its per-tool detector fires on",
+        "the macro-expanded view; auto-fixability is proven by execution — the mapped",
+        "fix is applied to a copy and the detector re-run. This page is computed with",
+        "the same `behavior_gate` functions the live command uses, so the published",
+        "numbers and the shipped behaviour cannot drift.",
         "",
-        "Only two behaviour codes are auto-fixable: `21_09_fix_from_work_dir_whitespace`",
-        "(GTR014, full) and `16_04_fix_output_format` (GTR015, only a sole-top-level",
-        "data-input tool). The structural `upgrade_vN` codemods fix *validity*, not",
-        "behaviour, so they never clear a blocker here.",
+        "The auto-fixes are the runtime-gated codemods (GTR014 from_work_dir",
+        "whitespace, GTR015 output format=input for a sole-data-input tool, GTR016",
+        "interpreter inlining for a literal-script command). The structural",
+        "`upgrade_vN` codemods fix *validity*, not behaviour, so they never clear a",
+        "blocker here.",
         "",
-        "Two policies are reported: blocking on `must_fix` codes only (the sharper,",
-        "more actionable view) and on `must_fix` + `consider` (every behaviour change).",
+        "Two policies are reported: blocking on `must_fix` codes only — **the shipped",
+        "default** (applicable `consider` codes are warned about, never blocking) —",
+        "and the counterfactual `must_fix` + `consider` (every behaviour change).",
         "The latter is dominated by `16_04_consider_implicit_extra_file_collection`,",
         "which Galaxy emits **unconditionally** — so essentially every sub-16.04 tool",
-        "stalls at 16.04 immediately.",
+        "would stall at 16.04 immediately, which is why it is not the default",
+        "(`--allow-behavior-change` lifts the gate entirely instead).",
         "",
         "`24_2_fix_test_case_validation` counts are an **upper bound** (ships `<test>`;",
         "not validated): its detector fires on tools that merely *ship* a `<test>` —",
@@ -4309,13 +4272,15 @@ def _render_behavior_block_page(result: _BehaviorBlockResult) -> str:
         "```",
         "",
         f"Unique `<tool>` files (sha256-deduped) with a placeable baseline: "
-        f"**{result.n_considered:,}**. Excluded (macro-token / unparseable "
-        f"`profile=`): **{result.n_excluded:,}**. Latest vendored profile: "
+        f"**{result.n_considered:,}**. Excluded (unresolvable macro-token / "
+        f"unparseable `profile=`; the live gate fails closed on these): "
+        f"**{result.n_excluded:,}**. Latest vendored profile: "
         f"`{result.latest}`. `Reaches latest` includes tools already at/above every "
         "applicable code.",
         "",
         *_render_behavior_block_section(
-            "Blocking on `must_fix` only", policy=result.must_fix
+            "Blocking on `must_fix` only (the shipped default)",
+            policy=result.must_fix,
         ),
         "",
         *_render_behavior_block_section(
@@ -4956,7 +4921,6 @@ class _RenameCoverageResult:
 
 def _measure_rename_coverage(*, corpus_root: Path) -> _RenameCoverageResult:
     """Rename every input definition of every tool; tally success vs each bail reason."""
-    import copy
 
     from galaxy_tool_source.cheetah_cdm import cheetah_cdm_available
     from galaxy_tool_source.cheetah_rename import rename_param, rename_param_plan
@@ -5109,7 +5073,6 @@ class _RenameMacroSpreadResult:
 
 def _measure_rename_macro_spread(*, corpus_root: Path) -> _RenameMacroSpreadResult:
     """Rename every input definition across its bundle; classify the spread + gate."""
-    import copy
 
     from galaxy_tool_source.binding import ToolXmlSyntaxError
     from galaxy_tool_source.bundle import load_bundle, rename_param_in_bundle

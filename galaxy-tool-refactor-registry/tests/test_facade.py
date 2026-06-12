@@ -173,7 +173,7 @@ def test_upgrade_warns_on_semantic_boundaries() -> None:
     assert "1 of 1" in note  # the one crossed 24.2 code applies (has tests)
     assert "24.2" in note  # the crossed release
     assert "must-fix" in note  # 24_2_fix_test_case_validation is must_fix
-    assert "docs/profile_upgrades.md" in note
+    assert "docs/profile_boundaries.md" in note
 
 
 def test_upgrade_silent_when_no_crossed_code_applies() -> None:

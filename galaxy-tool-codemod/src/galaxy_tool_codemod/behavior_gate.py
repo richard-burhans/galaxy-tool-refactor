@@ -33,6 +33,7 @@ import copy
 from typing import TYPE_CHECKING
 
 from galaxy_tool_source.document import ToolDocument
+from galaxy_tool_source.macros import token_definitions
 from galaxy_tool_source.profiles import available_profiles, latest_profile
 from lxml import etree
 from packaging.version import Version
@@ -145,6 +146,27 @@ def behavior_ceiling(blockers: tuple[ProfileUpgradeCode, ...], /) -> str | None:
     if not below:
         return None
     return max(below, key=Version)
+
+
+def resolved_baseline(document: ToolDocument, /) -> str | None:
+    """The runtime-behaviour baseline an upgrade is measured against.
+
+    A missing ``profile=`` runs under Galaxy's ``16.01`` default, so that is
+    the baseline. A declared literal version is itself. A ``@TOKEN@``
+    declaration is resolved through the tool's token definitions (inline, then
+    imported macro files); ``None`` when no definition resolves it, in which
+    case callers fail closed (crossing boundaries they cannot place would void
+    the guarantee).
+    """
+    declared = document.profile
+    if declared is None:
+        return "16.01"
+    if "@" not in declared:
+        return declared
+    for definition in token_definitions(document):
+        if definition.name == declared:
+            return definition.value
+    return None
 
 
 def placeable_baseline(baseline: str | None, /) -> bool:

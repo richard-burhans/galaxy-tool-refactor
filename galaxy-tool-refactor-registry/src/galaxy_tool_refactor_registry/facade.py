@@ -54,7 +54,6 @@ from galaxy_tool_source.binding import Source, load_tool, newest_valid_profile
 from galaxy_tool_source.cheetah_refs import tool_cheetah_references
 from galaxy_tool_source.cheetah_rename import rename_param as _rename_in_tree
 from galaxy_tool_source.document import ToolDocument
-from galaxy_tool_source.macros import token_definitions
 from galaxy_tool_source.profiles import available_profiles, latest_profile
 from packaging.version import Version
 
@@ -228,26 +227,6 @@ def _upgrade_summary(steps: tuple[str, ...], missing: str | None) -> str | None:
     return "  " + "; ".join(parts)
 
 
-def _resolved_baseline(document: ToolDocument) -> str | None:
-    """The runtime-behaviour baseline a profile bump is measured against.
-
-    A missing ``profile=`` runs under Galaxy's ``16.01`` default, so that is the
-    baseline. A declared literal version is itself. A ``@TOKEN@`` declaration is
-    resolved through the tool's token definitions (inline, then imported macro
-    files); ``None`` when no definition resolves it, in which case the gate
-    fails closed (crossing boundaries it cannot place would void the guarantee).
-    """
-    declared = document.profile
-    if declared is None:
-        return "16.01"
-    if "@" not in declared:
-        return declared
-    for definition in token_definitions(document):
-        if definition.name == declared:
-            return definition.value
-    return None
-
-
 def _semantic_warning(
     baseline: str | None,
     target: str | None,
@@ -274,7 +253,7 @@ def _semantic_warning(
         f"  profile {baseline}→{target}: {len(residual)} of {len(crossed)}"
         f" crossed Galaxy profile-behaviour change(s) apply to this tool"
         f"{must_fix_note} (releases {releases}); review against"
-        " docs/profile_upgrades.md before relying on this upgrade."
+        " docs/profile_boundaries.md before relying on this upgrade."
     )
 
 
@@ -326,7 +305,7 @@ def _behavior_stop_note(
         f"{change.code} ({change.level} at {change.profile})" for change in blockers
     )
     next_steps = (
-        "see docs/profile_upgrades.md for what changes there and how to update"
+        "see docs/profile_boundaries.md for what changes there and how to update"
         " the tool, or rerun with --allow-behavior-change to upgrade anyway"
     )
     if not walked:
@@ -393,7 +372,7 @@ def upgrade(
     # Capture the runtime baseline AND which upgrade codes the tool trips BEFORE
     # any codemod rewrites ``profile=`` or mutates the features detectors inspect
     # (GTR014/GTR015 fix the very things some detectors look for).
-    baseline = _resolved_baseline(document)
+    baseline = behavior_gate.resolved_baseline(document)
     placeable = behavior_gate.placeable_baseline(baseline)
     tripped = tripped_upgrade_codes(document)
     advisory = _detect_advisory(document, codes)
