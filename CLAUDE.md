@@ -257,6 +257,14 @@ uv run python -m scripts.measure upgrade-profile-shift
 # not run in CI):
 uv run python -m scripts.measure upgrade-behavior-blocks
 
+# Sizes the planned minimal-bump `upgrade` default (don't bump profile= unless
+# strictly needed for validity; the inversion of the shipped behavior-gate walk):
+# classify every tool as kept (validates at its baseline after repair) / bump-direct
+# / bump-step-assisted / unreachable / unplaceable, split by the declared vs
+# no-profile cohort, plus where the minimal bumps land vs the deployment ceiling.
+# Writes docs/upgrade_minimal_need_stats.md (needs the corpus, so not run in CI):
+uv run python -m scripts.measure upgrade-minimal-need
+
 # Sizing for the format="input" runtime-gated fix (GTR015, codemod decisions §24):
 # output <data format="input"> tools split by data-input cardinality (the single
 # top-level data input subset is auto-fixable), plus the format_source-guard and

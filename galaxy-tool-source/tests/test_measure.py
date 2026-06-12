@@ -54,17 +54,20 @@ from scripts.measure import (
     _measure_test_param_qualification,
     _measure_upgrade_behavior_blocks,
     _measure_upgrade_headroom,
+    _measure_upgrade_minimal_need,
     _measure_version_tokenization,
     _measure_xsd_tightenings,
     _normalize_validation_error,
     _ParamTypesResult,
     _render_behavior_block_page,
     _render_macro_stats_page,
+    _render_minimal_need_page,
     _render_profile_ownership_page,
     _render_profile_shift_page,
     _tally_applicability,
     _tally_behavior_blocks,
     _tally_expansion_gap,
+    _tally_minimal_need,
     _tally_profile_shift,
     _version_tuple,
 )
@@ -758,6 +761,94 @@ def test_measure_behavior_blocks_applies_autofix_and_stop(
     assert both.reached_latest == 1
     assert both.per_code["16_04_fix_interpreter"] == 1
     assert both.per_code["16_04_consider_implicit_extra_file_collection"] == 2
+
+
+# --- upgrade-minimal-need -------------------------------------------------------
+
+
+def test_tally_minimal_need_splits_classes_and_cohorts() -> None:
+    samples = [
+        ("declared", "kept", None),
+        ("declared", "kept", None),
+        ("no-profile", "kept", None),
+        ("declared", "bump-direct", "21.09"),
+        ("no-profile", "bump-step-assisted", "26.1"),  # lands above 25.1
+        ("declared", "unreachable", None),
+        ("declared", "unplaceable", None),
+    ]
+    result = _tally_minimal_need(
+        samples=samples, latest="26.1", deployment_ceiling="25.1"
+    )
+    assert result.n_tools == 7
+    assert result.totals == {
+        "kept": 3,
+        "bump-direct": 1,
+        "bump-step-assisted": 1,
+        "unreachable": 1,
+        "unplaceable": 1,
+    }
+    assert result.by_cohort["declared"]["kept"] == 2
+    assert result.by_cohort["no-profile"]["kept"] == 1
+    assert result.by_cohort["no-profile"]["bump-step-assisted"] == 1
+    # Both bump classes feed the needed-profile distribution.
+    assert result.needed == {"21.09": 1, "26.1": 1}
+    # Only the 26.1 bump exceeds the 25.1 deployment ceiling.
+    assert result.n_bump_above_deployment == 1
+
+
+def test_render_minimal_need_page_smoke() -> None:
+    result = _tally_minimal_need(
+        samples=[
+            ("declared", "kept", None),
+            ("declared", "bump-direct", "21.09"),
+        ],
+        latest="26.1",
+        deployment_ceiling="25.1",
+    )
+    page = _render_minimal_need_page(result)
+    assert "# Upgrade minimal-need statistics" in page
+    assert "Kept untouched: 1" in page
+    assert "| kept | 1 |" in page
+    assert "| 21.09 | 1 |" in page  # a needed-profile row
+
+
+@pytest.fixture()
+def minimal_need_corpus(tmp_path: Path) -> Path:
+    """Synthetic corpus exercising the kept, no-profile, and unplaceable paths."""
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # Declared profile the tool validates at -> kept (declared cohort).
+    (repo / "kept.xml").write_text(
+        '<tool id="k" name="K" version="1.0" profile="21.05">'
+        "<command>run</command><inputs/><outputs/></tool>",
+        encoding="utf-8",
+    )
+    # No declared profile, valid at the 16.01 default -> kept (no-profile cohort).
+    (repo / "noprofile.xml").write_text(
+        '<tool id="n" name="N" version="1.0">'
+        "<command>run</command><inputs/><outputs/></tool>",
+        encoding="utf-8",
+    )
+    # An unresolved @PROFILE@ token -> unplaceable (the gate fails closed).
+    (repo / "macro.xml").write_text(
+        '<tool profile="@PROFILE@"><command>run</command><inputs/><outputs/></tool>',
+        encoding="utf-8",
+    )
+    return tmp_path
+
+
+def test_measure_upgrade_minimal_need_kept_and_unplaceable(
+    minimal_need_corpus: Path,
+) -> None:
+    result = _measure_upgrade_minimal_need(corpus_root=minimal_need_corpus)
+    assert result.n_tools == 3
+    assert result.totals["kept"] == 2
+    assert result.totals["unplaceable"] == 1
+    assert result.by_cohort["declared"]["kept"] == 1
+    assert result.by_cohort["no-profile"]["kept"] == 1
+    # No tool needed a bump in this corpus.
+    assert result.needed == {}
+    assert result.n_bump_above_deployment == 0
 
 
 # --- test-case-validation-truth ---------------------------------------------------
