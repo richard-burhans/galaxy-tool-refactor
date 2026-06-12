@@ -4321,6 +4321,320 @@ def _report_upgrade_behavior_blocks(result: _BehaviorBlockResult) -> None:
     )
 
 
+# --- measurement: upgrade-minimal-need ------------------------------------------
+#
+# Sizes the planned "don't bump profile= unless strictly needed for validity"
+# default for `upgrade` (the inversion of the shipped #200 behavior-gate walk;
+# the user policy decision is recorded in the project memory). Under that default
+# a tool that validates at its declared profile is left untouched, and one that
+# does not is bumped only to the MINIMUM profile >= its baseline that validates.
+# This measure classifies every unique corpus tool into the buckets that default
+# produces, so the size of "kept untouched" (the whole point) is known before the
+# behaviour flips. The classes:
+#   kept              - validates at its resolved baseline after a FixTypos repair
+#                       (no bump; a no-profile tool stays undeclared)
+#   bump-direct       - invalid at the baseline, but some vendored profile >= the
+#                       baseline validates as-is (no structural upgrade codemod)
+#   bump-step-assisted- valid >= the baseline only after the `UpgradeToLatest`
+#                       step codemods run (sizes the UPGRADE_CODEMODS subtlety;
+#                       the planned `UpgradeToValid` keeps its step loop even if
+#                       this is zero, by construction)
+#   unreachable       - validates at no vendored profile >= the baseline, even
+#                       after the step codemods
+#   unplaceable       - an unresolved @PROFILE@ token / unparseable profile= (the
+#                       gate fails closed on these, so they never bump)
+# No-profile tools (baseline = Galaxy's 16.01 default) are tallied as a separate
+# cohort throughout: whether to leave them undeclared or declare their oldest
+# valid profile is the open user question this number settles. Needs the corpus,
+# so it is not run in CI. Writes docs/upgrade_minimal_need_stats.md.
+
+_MINIMAL_NEED_CLASSES = (
+    "kept",
+    "bump-direct",
+    "bump-step-assisted",
+    "unreachable",
+    "unplaceable",
+)
+
+
+@dataclass
+class _MinimalNeedResult:
+    """How the minimal-bump `upgrade` default would treat the corpus."""
+
+    n_tools: int
+    latest: str
+    deployment_ceiling: str
+    # class -> count (overall, across both cohorts)
+    totals: dict[str, int]
+    # cohort ("declared" / "no-profile") -> {class -> count}
+    by_cohort: dict[str, dict[str, int]]
+    # needed profile -> count, over the bumped tools (both bump classes)
+    needed: dict[str, int]
+    # bumped tools whose minimum valid profile lands ABOVE the deployment ceiling
+    n_bump_above_deployment: int
+
+
+def _tally_minimal_need(
+    *,
+    samples: list[tuple[str, str, str | None]],
+    latest: str,
+    deployment_ceiling: str,
+) -> _MinimalNeedResult:
+    """Tally minimal-bump classes over ``(cohort, klass, needed)`` samples.
+
+    Pure (no IO), so it is unit-tested with synthetic samples. ``needed`` is the
+    minimum valid profile for a bumped tool (both bump classes) or ``None``.
+    """
+    totals: Counter[str] = Counter()
+    by_cohort: dict[str, Counter[str]] = defaultdict(Counter)
+    needed: Counter[str] = Counter()
+    n_above = 0
+    ceiling_v = _version_tuple(deployment_ceiling)
+    for cohort, klass, need in samples:
+        totals[klass] += 1
+        by_cohort[cohort][klass] += 1
+        if klass in ("bump-direct", "bump-step-assisted") and need is not None:
+            needed[need] += 1
+            need_v = _version_tuple(need)
+            if need_v is not None and ceiling_v is not None and need_v > ceiling_v:
+                n_above += 1
+    return _MinimalNeedResult(
+        n_tools=len(samples),
+        latest=latest,
+        deployment_ceiling=deployment_ceiling,
+        totals={klass: totals.get(klass, 0) for klass in _MINIMAL_NEED_CLASSES},
+        by_cohort={cohort: dict(counts) for cohort, counts in by_cohort.items()},
+        needed=dict(needed),
+        n_bump_above_deployment=n_above,
+    )
+
+
+def _deployment_ceiling_snapshot() -> str:
+    """The committed deployment-floor profile ceiling, or ``25.1`` if absent.
+
+    Reads ``docs/galaxy_server_versions.json`` (written by
+    ``scripts.poll_galaxy_servers``); the constant is wired into ``upgrade``
+    itself in a later change, but the measure only needs it to size how many
+    minimal bumps would clear the lagging public servers.
+    """
+    snapshot = _repo_root() / "docs" / "galaxy_server_versions.json"
+    if not snapshot.is_file():
+        return "25.1"
+    data = json.loads(snapshot.read_text(encoding="utf-8"))
+    ceiling = data.get("profile_ceiling")
+    return ceiling if isinstance(ceiling, str) else "25.1"
+
+
+def _oldest_valid_at_or_above(document: object, *, floor: str) -> str | None:
+    """The oldest vendored profile >= *floor* the tool validates at, else ``None``.
+
+    A local ascending probe (the ``newest_valid_profile`` mirror) used only by
+    this measure; the shipped ``oldest_valid_profile`` lands with ``UpgradeToValid``.
+    """
+    from galaxy_tool_source.binding import validate_tool
+    from galaxy_tool_source.profiles import available_profiles
+
+    floor_v = _version_tuple(floor)
+    for version in available_profiles():
+        version_v = _version_tuple(version)
+        if floor_v is not None and version_v is not None and version_v < floor_v:
+            continue
+        if validate_tool(document, profile=version).valid:  # type: ignore[arg-type]
+            return version
+    return None
+
+
+def _measure_upgrade_minimal_need(*, corpus_root: Path) -> _MinimalNeedResult:
+    """Classify every corpus tool under the minimal-bump `upgrade` default.
+
+    Mirrors the live machinery: ``behavior_gate.resolved_baseline`` for the
+    baseline (no-profile -> 16.01; an unresolved token -> unplaceable), a
+    ``FixTypos`` repair (the same precondition the facade runs first), then a
+    validate-at-baseline keep test and an ascending minimal-bump probe. The
+    step-assisted probe runs the real ``UpgradeToLatest`` loop on a copy.
+    """
+    from galaxy_tool_source.binding import validate_tool
+    from galaxy_tool_source.document import ToolDocument
+    from galaxy_tool_source.profiles import latest_profile
+    from galaxy_tool_codemod import behavior_gate
+    from galaxy_tool_codemod.codemods.fix_typos import FixTypos
+    from galaxy_tool_codemod.module import Module
+    from galaxy_tool_codemod.upgrades import UpgradeToLatest
+
+    samples: list[tuple[str, str, str | None]] = []
+    seen_sha: set[str] = set()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        sha = _sha256_of(path)
+        if sha in seen_sha:
+            continue
+        seen_sha.add(sha)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        declared = root.get("profile")
+        cohort = "no-profile" if declared is None else "declared"
+        document = ToolDocument(etree.ElementTree(root), source_path=path)
+        baseline = behavior_gate.resolved_baseline(document)
+        if baseline is None or not behavior_gate.placeable_baseline(baseline):
+            samples.append(("declared", "unplaceable", None))
+            continue
+        # The repair precondition: the facade runs FixTypos before deciding.
+        FixTypos().apply(Module(document))
+        if validate_tool(document, profile=baseline).valid:
+            samples.append((cohort, "kept", None))
+            continue
+        direct = _oldest_valid_at_or_above(document, floor=baseline)
+        if direct is not None:
+            samples.append((cohort, "bump-direct", direct))
+            continue
+        # Step-assisted: run the structural upgrade loop on a fresh repaired copy.
+        probe_root = copy.deepcopy(root)
+        probe = ToolDocument(etree.ElementTree(probe_root), source_path=path)
+        FixTypos().apply(Module(probe))
+        UpgradeToLatest().apply(Module(probe))
+        stepped = _oldest_valid_at_or_above(probe, floor=baseline)
+        if stepped is not None:
+            samples.append((cohort, "bump-step-assisted", stepped))
+        else:
+            samples.append((cohort, "unreachable", None))
+    return _tally_minimal_need(
+        samples=samples,
+        latest=latest_profile(),
+        deployment_ceiling=_deployment_ceiling_snapshot(),
+    )
+
+
+def _minimal_need_rows(result: _MinimalNeedResult) -> list[str]:
+    """Per-class summary table rows (overall + per cohort)."""
+    total = result.n_tools
+
+    def pct(n: int) -> str:
+        return f"{100 * n / total:.1f}%" if total else "0.0%"
+
+    declared = result.by_cohort.get("declared", {})
+    no_profile = result.by_cohort.get("no-profile", {})
+    rows: list[str] = []
+    for klass in _MINIMAL_NEED_CLASSES:
+        overall = result.totals.get(klass, 0)
+        rows.append(
+            f"| {klass} | {overall:,} | {pct(overall)} "
+            f"| {declared.get(klass, 0):,} | {no_profile.get(klass, 0):,} |"
+        )
+    return rows
+
+
+def _render_minimal_need_page(result: _MinimalNeedResult) -> str:
+    """Render the upgrade-minimal-need stats markdown page (deterministic)."""
+    total = result.n_tools
+
+    def pct(n: int) -> str:
+        return f"{100 * n / total:.1f}%" if total else "0.0%"
+
+    kept = result.totals.get("kept", 0)
+    bumped = result.totals.get("bump-direct", 0) + result.totals.get(
+        "bump-step-assisted", 0
+    )
+    lines: list[str] = [
+        "# Upgrade minimal-need statistics",
+        "",
+        "How the planned **minimal-bump** `galaxy-tool-refactor upgrade` default would",
+        "treat the corpus: keep a tool's `profile=` when it validates there (after a",
+        "`FixTypos` repair), and otherwise bump only to the **minimum** vendored profile",
+        "at or above its baseline that validates. This inverts the shipped behavior-gate",
+        "walk (codemod `docs/decisions.md` §45): modernizing to the ceiling becomes an",
+        "opt-in, and this page sizes how often the new default changes nothing at all.",
+        "",
+        "A tool's baseline is its declared `profile=`, or Galaxy's `16.01` default when",
+        "undeclared (`behavior_gate.resolved_baseline`). No-profile tools are reported",
+        "as a separate cohort because whether to leave them undeclared or declare their",
+        "oldest valid profile is an open policy question.",
+        "",
+        "Regenerate with (needs the corpus, so not run in CI):",
+        "",
+        "```sh",
+        "uv run python -m scripts.measure upgrade-minimal-need",
+        "```",
+        "",
+        f"Unique `<tool>` files (sha256-deduped): **{result.n_tools:,}**. Latest vendored",
+        f"profile: `{result.latest}`. Deployment ceiling (the newest profile across the",
+        f"major public Galaxy servers): `{result.deployment_ceiling}`.",
+        "",
+        "## What the default would do",
+        "",
+        f"**Kept untouched: {kept:,} ({pct(kept)})**. Bumped to a minimum valid "
+        f"profile: {bumped:,} ({pct(bumped)}).",
+        "",
+        "| Class | Tools | Share | Declared cohort | No-profile cohort |",
+        "|---|--:|--:|--:|--:|",
+        *_minimal_need_rows(result),
+        "",
+        "`kept` = validates at its baseline (no bump). `bump-direct` / "
+        "`bump-step-assisted` = invalid at the baseline, moved up to the minimum valid "
+        "profile (the latter needed a structural upgrade codemod first). `unreachable` "
+        "= validates nowhere at or above the baseline. `unplaceable` = an unresolved "
+        "`@PROFILE@` token (the gate fails closed).",
+        "",
+        "## Where the minimal bumps land",
+        "",
+        f"Of the {bumped:,} bumped tools, **{result.n_bump_above_deployment:,}** land "
+        f"above the deployment ceiling `{result.deployment_ceiling}` (a minimum valid "
+        "profile the lagging public servers cannot yet install; validity still wins, so "
+        "these bump regardless).",
+        "",
+        "| Minimum valid profile | Tools | Histogram |",
+        "|---|--:|---|",
+        *_minimal_need_needed_rows(result),
+    ]
+    return "\n".join(lines)
+
+
+def _minimal_need_needed_rows(result: _MinimalNeedResult) -> list[str]:
+    """Minimum-valid-profile distribution rows for the bumped tools."""
+
+    def sort_key(item: tuple[str, int]) -> tuple[int, tuple[int, ...]]:
+        version = _version_tuple(item[0])
+        return (0, version) if version is not None else (1, ())
+
+    bar_max = max(result.needed.values(), default=0)
+    rows: list[str] = []
+    for profile, count in sorted(result.needed.items(), key=sort_key):
+        bar = "█" * round(30 * count / bar_max) if bar_max else ""
+        rows.append(f"| {profile} | {count:,} | {bar} |")
+    if not rows:
+        rows.append("| (none) | 0 | |")
+    return rows
+
+
+def _report_upgrade_minimal_need(result: _MinimalNeedResult) -> None:
+    total = result.n_tools
+    print("\n=== upgrade-minimal-need ===")
+    print(f"Unique tools (sha256 dedup): {total}; latest = {result.latest}")
+    if total:
+        for klass in _MINIMAL_NEED_CLASSES:
+            count = result.totals.get(klass, 0)
+            declared = result.by_cohort.get("declared", {}).get(klass, 0)
+            no_profile = result.by_cohort.get("no-profile", {}).get(klass, 0)
+            print(
+                f"  {klass:20} {count:6,} ({100 * count / total:5.1f}%)"
+                f"   declared={declared:,}  no-profile={no_profile:,}"
+            )
+        print(
+            f"  bumps above deployment ceiling {result.deployment_ceiling}: "
+            f"{result.n_bump_above_deployment:,}"
+        )
+
+
+def _run_upgrade_minimal_need(args: argparse.Namespace) -> None:
+    result = _measure_upgrade_minimal_need(corpus_root=args.corpus_root)
+    _report_upgrade_minimal_need(result)
+    if not args.all:
+        out_path = _repo_root() / "docs" / "upgrade_minimal_need_stats.md"
+        out_path.write_text(_render_minimal_need_page(result) + "\n", encoding="utf-8")
+        print(f"\nwrote {_display_path(out_path)}")
+
+
 # --- measurement: test-param-qualification ----------------------------------------
 #
 # Size AND prove sound the GTR096 fix (FixTestParamQualification): for tools the
@@ -7130,6 +7444,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "macro-expansion-detection-gap": _run_macro_expansion_detection_gap,
     "upgrade-profile-shift": _run_upgrade_profile_shift,
     "upgrade-behavior-blocks": _run_upgrade_behavior_blocks,
+    "upgrade-minimal-need": _run_upgrade_minimal_need,
     "test-case-validation-truth": _run_test_case_validation_truth,
     "test-param-qualification": _run_test_param_qualification,
     "element-cardinality": _run_element_cardinality,
