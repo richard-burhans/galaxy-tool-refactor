@@ -20,15 +20,17 @@ canonical pipeline) is surfaced rather than silently left behind. See
 
 from __future__ import annotations
 
+import copy
 import logging
 from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
-from galaxy_tool_source.binding import newest_valid_profile
+from galaxy_tool_source.binding import newest_valid_profile, oldest_valid_profile
 from galaxy_tool_source.profiles import latest_profile
 
 from galaxy_tool_codemod.codemod import CodemodCommand
 from galaxy_tool_codemod.codemods._coarse_detect import coarse_detect
+from galaxy_tool_codemod.codemods._validation_repair import restore_root
 from galaxy_tool_codemod.codemods.update_profile import UpdateProfile
 from galaxy_tool_codemod.codemods.upgrade_19_01 import Upgrade19_01
 from galaxy_tool_codemod.codemods.upgrade_21_09 import Upgrade21_09
@@ -143,3 +145,108 @@ class UpgradeToLatest(CodemodCommand):
         which an ``upgrade_vN`` codemod still needs to be written.
         """
         return self._missing_upgrade
+
+
+class UpgradeToValid(CodemodCommand):
+    """Declare the *minimum* profile at or above a floor the tool validates at.
+
+    The minimal-bump counterpart of ``UpgradeToLatest``: where that walks a
+    tool as far toward the latest profile as the behaviour gate allows, this
+    moves ``profile=`` no further than validity strictly requires. It backs the
+    ``upgrade`` default of not bumping a profile unless the tool is invalid
+    where it sits (registry facade policy; the modernize path keeps using
+    ``UpgradeToLatest``).
+
+    *floor* is the tool's resolved baseline (its declared ``profile=``, or
+    Galaxy's ``16.01`` legacy default when undeclared). Behaviour:
+
+    - The (already-repaired) tool validates at some profile at or above the
+      floor as-is → declare exactly the **oldest** such profile via
+      ``UpdateProfile`` and stop. When that profile equals an existing
+      declaration the apply is a byte no-op; an undeclared tool gains the floor.
+    - Nothing at or above the floor validates as-is → step through
+      ``UPGRADE_CODEMODS`` (the same single-step structural upgrades
+      ``UpgradeToLatest`` uses), re-probing after each step, and declare the
+      first profile at or above the floor that a step unblocks. The declaration
+      lands once, at the minimum — no intermediate ``UpdateProfile``.
+    - A stall (a sticking version with no registered upgrade, or a step that
+      cannot advance the tool) reverts any structural steps it tried and leaves
+      the tool byte-untouched, reporting the floor via ``unreachable_floor``
+      (the caller fails the tool closed).
+
+    This never lowers a profile: ``oldest_valid_profile`` only considers
+    profiles at or above the floor, so the declaration is always >= the
+    baseline.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR097",
+        summary=(
+            "Declare the minimum profile at or above the baseline the tool"
+            " validates at."
+        ),
+        since="0.0.1",
+    )
+
+    def __init__(self, *, floor: str) -> None:
+        # The tool's resolved baseline; the declaration never falls below it.
+        self._floor = floor
+        # From-versions a structural step advanced the tool past, in order.
+        self._applied_upgrades: list[str] = []
+        # The floor, when no profile at or above it could be reached, else
+        # ``None``. Read via ``unreachable_floor``.
+        self._unreachable_floor: str | None = None
+
+    def detect(self, module: Module, /) -> Iterator[Change]:
+        return coarse_detect(
+            self,
+            module,
+            message="profile= would be set to the minimum validating profile",
+        )
+
+    def apply(self, module: Module, /) -> None:
+        self._applied_upgrades = []
+        self._unreachable_floor = None
+        document = module.document
+        needed = oldest_valid_profile(document, floor=self._floor)
+        if needed is not None:
+            UpdateProfile(ceiling=needed).apply(module)
+            return
+        # Nothing at or above the floor validates as-is; step structurally,
+        # re-probing for the minimum after each advancing step. Snapshot first so
+        # a walk that advances partway but stalls below the floor is fully
+        # reverted — "unreachable" leaves the tool byte-untouched by construction,
+        # never half-upgraded with the profile undeclared.
+        snapshot = copy.deepcopy(document.root)
+        seen: set[str] = set()
+        version = newest_valid_profile(document)
+        while version is not None and version not in seen:
+            seen.add(version)
+            upgrade = UPGRADE_CODEMODS.get(version)
+            if upgrade is None:
+                break
+            upgrade().apply(module)
+            new_version = newest_valid_profile(document)
+            if new_version != version:
+                self._applied_upgrades.append(version)
+            needed = oldest_valid_profile(document, floor=self._floor)
+            if needed is not None:
+                UpdateProfile(ceiling=needed).apply(module)
+                return
+            version = new_version
+        restore_root(document.root, snapshot)
+        self._applied_upgrades = []
+        self._unreachable_floor = self._floor
+
+    def upgrade_steps_applied(self) -> tuple[str, ...]:
+        return tuple(self._applied_upgrades)
+
+    def unreachable_floor(self) -> str | None:
+        """The floor when no profile at or above it could be reached, else ``None``.
+
+        A non-``None`` value means the tool validates nowhere at or above its
+        baseline, even after the structural steps — a pre-existing breakage a
+        profile bump cannot fix. The apply reverts any steps it tried and leaves
+        such a tool byte-untouched.
+        """
+        return self._unreachable_floor

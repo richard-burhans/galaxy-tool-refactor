@@ -58,7 +58,7 @@ The downstream formatter project may rely on exactly these symbols. Everything
 else is private and may change without notice.
 
 ```python
-from galaxy_tool_source.binding import load_tool, parse_tool, validate_tool, newest_valid_profile
+from galaxy_tool_source.binding import load_tool, parse_tool, validate_tool, newest_valid_profile, oldest_valid_profile
 from galaxy_tool_source.binding import load_macros
 from galaxy_tool_source.binding import ParseResult, ValidationResult, XmlError, ToolXmlSyntaxError
 from galaxy_tool_source.document import ToolDocument, MacroDocument

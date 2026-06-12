@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from galaxy_tool_source.binding import load_tool, newest_valid_profile, validate_tool
+from galaxy_tool_source.binding import (
+    load_tool,
+    newest_valid_profile,
+    oldest_valid_profile,
+    validate_tool,
+)
 from galaxy_tool_source.profiles import (
     UnknownProfileError,
     available_profiles,
@@ -130,6 +135,67 @@ def test_newest_valid_profile_ceiling_below_all_profiles_is_none(
     # No vendored profile lies at or below 16.04, so a capped scan has nothing
     # to validate against.
     assert newest_valid_profile(data_dir / "minimal_tool.xml", ceiling="16.04") is None
+
+
+# <required_files> entered the schema at 21.09, so this tool is invalid at
+# every older vendored profile — it exercises the ascending scan's skip past
+# invalid profiles (the minimal-bump case).
+_REQUIRED_FILES_TOOL = (
+    b'<tool id="t" name="t" version="1">'
+    b'<required_files><include path="x.py"/></required_files>'
+    b"<command>echo</command><inputs/><outputs/></tool>"
+)
+
+
+def test_oldest_valid_profile_returns_the_floor_when_valid_there(
+    data_dir: Path,
+) -> None:
+    # The minimal tool validates everywhere, so the oldest profile at or above
+    # the floor is the floor itself.
+    assert oldest_valid_profile(data_dir / "minimal_tool.xml", floor="16.10") == "16.10"
+    assert oldest_valid_profile(data_dir / "minimal_tool.xml", floor="24.1") == "24.1"
+
+
+def test_oldest_valid_profile_non_vendored_floor_admits_the_next_profile(
+    data_dir: Path,
+) -> None:
+    # Galaxy's 16.01 legacy default is below every vendored XSD; the scan
+    # starts at the oldest vendored profile at or above the floor.
+    assert oldest_valid_profile(data_dir / "minimal_tool.xml", floor="16.01") == "16.10"
+
+
+def test_oldest_valid_profile_skips_profiles_the_tool_is_invalid_at() -> None:
+    assert oldest_valid_profile(_REQUIRED_FILES_TOOL, floor="16.01") == "21.09"
+
+
+def test_oldest_valid_profile_none_when_never_valid() -> None:
+    assert (
+        oldest_valid_profile(b"<tool><not_a_real_element/></tool>", floor="16.01")
+        is None
+    )
+
+
+def test_oldest_valid_profile_none_when_floor_above_all_profiles(
+    data_dir: Path,
+) -> None:
+    assert oldest_valid_profile(data_dir / "minimal_tool.xml", floor="99.9") is None
+
+
+def test_oldest_valid_profile_honors_a_ceiling(data_dir: Path) -> None:
+    # No vendored profile lies in [16.01, 16.04]; with the ceiling lifted to a
+    # vendored release the scan lands on it.
+    minimal = data_dir / "minimal_tool.xml"
+    assert oldest_valid_profile(minimal, floor="16.01", ceiling="16.04") is None
+    assert oldest_valid_profile(minimal, floor="16.10", ceiling="16.10") == "16.10"
+
+
+def test_oldest_valid_profile_ceiling_excludes_the_only_valid_profiles() -> None:
+    # The required-files tool first validates at 21.09; a ceiling below that
+    # leaves nothing to return even though the floor admits older profiles.
+    assert (
+        oldest_valid_profile(_REQUIRED_FILES_TOOL, floor="16.01", ceiling="21.05")
+        is None
+    )
 
 
 _PROFILE_SWEEP_FIXTURES = [

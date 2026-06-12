@@ -60,6 +60,7 @@ What each GTR rule does, across both tiers. *fmt*-tier rules are the cosmetic ru
 | GTR093 | codemod | Upgrade a tool stuck at profile 21.09 toward 22.01 (normalize collection_type + has_size Bytes; repair stdio exit_code/regex). |
 | GTR094 | codemod | Factor a literal version="`<base>`+galaxy`<suffix>`" into @TOOL_VERSION@/@VERSION_SUFFIX@ tokens shared with the matching package requirement (opt-in tokenize-version only). |
 | GTR096 | codemod | Fully-qualify a flat `<test>` parameter name to its unique nested parent|...|child input path (required at profile >= 24.2). |
+| GTR097 | codemod | Declare the minimum profile at or above the baseline the tool validates at. |
 
 ## Pass 1 rule triggers (raw input → canonical)
 

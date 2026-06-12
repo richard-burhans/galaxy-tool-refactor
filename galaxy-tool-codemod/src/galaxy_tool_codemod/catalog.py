@@ -59,7 +59,7 @@ from galaxy_tool_codemod.codemods.upgrade_24_1 import Upgrade24_1
 from galaxy_tool_codemod.codemods.upgrade_25_1 import Upgrade25_1
 from galaxy_tool_codemod.codemods.wrap_command_cdata import WrapCommandCdata
 from galaxy_tool_codemod.codemods.wrap_help_cdata import WrapHelpCdata
-from galaxy_tool_codemod.upgrades import UpgradeToLatest
+from galaxy_tool_codemod.upgrades import UpgradeToLatest, UpgradeToValid
 
 
 def coded_codemods() -> tuple[type[CodemodCommand], ...]:
@@ -76,6 +76,7 @@ def coded_codemods() -> tuple[type[CodemodCommand], ...]:
         Upgrade24_1,
         Upgrade25_1,
         UpgradeToLatest,
+        UpgradeToValid,
         FixFromWorkDirWhitespace,
         FixOutputFormatInput,
         FixInterpreter,

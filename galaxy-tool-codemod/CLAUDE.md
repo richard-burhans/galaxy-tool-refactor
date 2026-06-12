@@ -80,11 +80,16 @@ gate, applied solely by ``tokenize-version``.
 ``FixTypos``, ``NormalizeBooleanValues`` (GTR017 — boolean-case repair, the
 ``True``/``False`` → ``true``/``false`` fix ``FixTypos`` cannot reach), and
 ``UpgradeToLatest`` (which loops ``UpdateProfile`` + single-step ``upgrade_vN``
-codemods from ``upgrades.py``) are validation-driven and override ``apply``. The upgrade registry is grown
-empirically from ``corpus_check codemod`` discovery sweeps; see
-``docs/decisions.md`` §11–14, §16 for the canonical/upgrade split, and
-§17–18 for the element-order codemod (GTR013) + the `codemod` sweep's
-`--source combined` default.
+codemods from ``upgrades.py``) are validation-driven and override ``apply``. Its
+minimal-bump sibling ``UpgradeToValid(floor=…)`` (GTR097, ``docs/decisions.md``
+§49) declares the *oldest* profile at or above the tool's baseline it validates
+at — the mechanism behind the planned don't-bump-unless-needed ``upgrade``
+default — reusing the same ``UPGRADE_CODEMODS`` steps plus the tier-1
+``oldest_valid_profile`` probe; it never lowers a profile. The upgrade registry
+is grown empirically from ``corpus_check codemod`` discovery sweeps; see
+``docs/decisions.md`` §11–14, §16 for the canonical/upgrade split, §17–18 for the
+element-order codemod (GTR013) + the `codemod` sweep's `--source combined`
+default, and §49 for the minimal-bump orchestrator.
 
 **Tier independence:** this package does not depend on fmt. The
 orchestration — running these pipelines and writing output through fmt's

@@ -38,7 +38,9 @@ The repo directory, the distribution, and the CLI command are all
 truth**, faithfully preserving CDATA, comments, and attribute order.
 `binding.py` parses (`load_tool`, `parse_tool`; `load_macros` for a `<macros>`
 file → `MacroDocument`), validates (`validate_tool`), and finds a tool's newest
-valid profile (`newest_valid_profile`). `MacroDocument` (`document.py`) is the
+valid profile (`newest_valid_profile`) or its oldest valid profile at or above
+a floor (`oldest_valid_profile`, the minimal-bump probe). `MacroDocument`
+(`document.py`) is the
 macro-file counterpart to `ToolDocument` — a mutable tree with no profile/model
 and no standalone XSD validation. `profiles.py`
 resolves a tool's `profile` to one of the ~28 vendored per-release XSDs.
