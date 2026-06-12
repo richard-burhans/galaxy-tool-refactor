@@ -3984,7 +3984,7 @@ def _render_profile_shift_page(result: _ProfileShiftResult) -> str:
         "(GTR007-012) actually run, so a tool stuck below its ceiling by a",
         "restrict-transition climbs. `UpgradeToLatest`-only (no `FixTypos`); the",
         "runtime-gated fixes (GTR014/015) don't change `profile=`. NOTE: this is",
-        "the **ungated structural walk** — since the behavior gate became the",
+        "the **ungated structural walk**: since the behavior gate became the",
         "default (codemod `docs/decisions.md` §45) this distribution describes",
         "`upgrade --allow-behavior-change`; where the gated default stops is",
         "`upgrade_behavior_block_stats.md`. See",
@@ -4156,8 +4156,8 @@ def _measure_upgrade_behavior_blocks(*, corpus_root: Path) -> _BehaviorBlockResu
     """Walk the corpus and tally where the gated (default) upgrade stops.
 
     This consumes the SHIPPED gate (``galaxy_tool_codemod.behavior_gate``) per
-    tool — token-resolved baseline, macro-expanded detection, and the
-    proof-by-execution auto-fix probe — so the published statistics and the
+    tool (token-resolved baseline, macro-expanded detection, and the
+    proof-by-execution auto-fix probe), so the published statistics and the
     live ``upgrade`` default cannot drift. Each sample is the tool's
     applicable, non-auto-fixed crossed codes at every severity; the pure tally
     splits them into the two policies.
@@ -4185,7 +4185,7 @@ def _measure_upgrade_behavior_blocks(*, corpus_root: Path) -> _BehaviorBlockResu
         document = ToolDocument(etree.ElementTree(root), source_path=path)
         baseline = behavior_gate.resolved_baseline(document)
         if baseline is None or not behavior_gate.placeable_baseline(baseline):
-            n_excluded += 1  # unresolvable macro token — the gate fails closed
+            n_excluded += 1  # unresolvable macro token; the gate fails closed
             continue
         samples.append(
             behavior_gate.blocking_codes(
@@ -4238,13 +4238,13 @@ def _render_behavior_block_page(result: _BehaviorBlockResult) -> str:
         "# Upgrade behavior-block statistics",
         "",
         "Where the **shipped default** `galaxy-tool-refactor upgrade` stops: the walk",
-        "caps at the behaviour ceiling — the newest vendored profile reachable from",
+        "caps at the behaviour ceiling: the newest vendored profile reachable from",
         "the tool's baseline (no-profile defaults to Galaxy's `16.01`; a `@PROFILE@`",
         "token is resolved through its definitions) without crossing a Galaxy",
         "`must_fix` behaviour change that applies to the tool and that no bundled fix",
         "provably clears (`galaxy_tool_codemod.behavior_gate`; codemod",
         "`docs/decisions.md`). A code *applies* when its per-tool detector fires on",
-        "the macro-expanded view; auto-fixability is proven by execution — the mapped",
+        "the macro-expanded view; auto-fixability is proven by execution, by the mapped",
         "fix is applied to a copy and the detector re-run. This page is computed with",
         "the same `behavior_gate` functions the live command uses, so the published",
         "numbers and the shipped behaviour cannot drift.",
@@ -4255,8 +4255,8 @@ def _render_behavior_block_page(result: _BehaviorBlockResult) -> str:
         "`upgrade_vN` codemods fix *validity*, not behaviour, so they never clear a",
         "blocker here.",
         "",
-        "Two policies are reported: blocking on `must_fix` codes only — **the shipped",
-        "default** (applicable `consider` codes are warned about, never blocking) —",
+        "Two policies are reported: blocking on `must_fix` codes only, **the shipped",
+        "default** (applicable `consider` codes are warned about, never blocking),",
         "and the counterfactual `must_fix` + `consider` (every behaviour change).",
         "The latter is dominated by `16_04_consider_implicit_extra_file_collection`,",
         "which Galaxy emits **unconditionally** — so essentially every sub-16.04 tool",

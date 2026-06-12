@@ -40,7 +40,7 @@ $ galaxy-tool-refactor upgrade --diff tools/bandage/bandage_info.xml
 It advances the profile **only as far as behaviour provably stays the same**: the
 walk stops below the first Galaxy `must_fix` change that applies to your tool and
 that it cannot fix with a repair proven safe on that tool. A stop is a normal,
-successful outcome — the report names the blocking code and links to the
+successful outcome: the report names the blocking code and links to the
 [per-boundary reference](../profile_boundaries.md), which tells you what changed and
 what to do; `--allow-behavior-change` takes the bump anyway. Read
 [soundness](soundness.md); that boundary is what makes it trustworthy for review.
@@ -76,7 +76,7 @@ Advisory (IUC) findings — missing tests, no version pins, no error handling �
 - `upgrade`'s default guarantee is bounded: it stops rather than cross a breaking
   behaviour change it cannot prove fixed, and the result is structurally valid at the
   profile it declares ([soundness](soundness.md)). Under the default, a
-  `behavior_preserving: false` can only come from advisory (`consider`) changes —
+  `behavior_preserving: false` can only come from advisory (`consider`) changes;
   treat it as "needs a human look," not "rejected."
 - The `format` fixes *are* behaviour-preserving — and that's not just asserted: every
   fixable rule is adversarially audited, with genuine breaks fixed (regression-pinned)

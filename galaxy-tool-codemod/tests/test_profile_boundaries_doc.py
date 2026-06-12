@@ -3,7 +3,7 @@
 If the vendored behaviour-code catalogue or the auto-fix registry changes,
 ``docs/profile_boundaries.md`` must be regenerated
 (``uv run python -m scripts.gen_profile_boundaries``) or this fails, naming
-the command — the stop note points users at this doc, so it must always match
+the command; the stop note points users at this doc, so it must always match
 the shipped gate.
 """
 
@@ -28,6 +28,6 @@ def test_boundary_reference_block_is_fresh() -> None:
     committed = text[begin:end]
     expected = f"{BEGIN_MARKER}\n{render_boundary_reference()}\n{END_MARKER}"
     assert committed == expected, (
-        "docs/profile_boundaries.md reference is stale — regenerate with "
+        "docs/profile_boundaries.md reference is stale; regenerate with "
         "`uv run python -m scripts.gen_profile_boundaries`"
     )

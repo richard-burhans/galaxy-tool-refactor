@@ -18,7 +18,7 @@ change *bytes*, not *meaning*. `format` is safe and idempotent and never touches
 
 **Upgrading is semantic, and its guarantee is two-part.** Bumping a tool's `profile=`
 can change how Galaxy interprets it. Structurally, the oracle is **XSD validity at
-the target profile** — the engine only advances a tool to a profile where it still
+the target profile**: the engine only advances a tool to a profile where it still
 validates. Validity is a sound oracle for **structural** changes, not a behaviour
 oracle, so a second, behavioural gate caps the walk: the engine computes every
 Galaxy-catalogued behaviour change the bump would cross, detects per tool which
@@ -98,18 +98,18 @@ approximation tuned to the current corpus.
 
 `upgrade` reports a **`behavior_preserving`** flag for the bump:
 
-- `true` — it crossed no behaviour-affecting platform change that *applies to this
+- `true`: it crossed no behaviour-affecting platform change that *applies to this
   tool*, or every applicable breaking change was provably fixed (each credited fix
   is named in a "fixed automatically" note);
-- `false` — at least one applies un-fixed (under the default gate this can only be
+- `false`: at least one applies un-fixed (under the default gate this can only be
   an advisory `consider` change; breaking changes stop the walk instead); look
   before accepting;
-- `null` — undetermined (the profile is a macro token that resolves to no version;
+- `null`: undetermined (the profile is a macro token that resolves to no version;
   the default walk then changes nothing).
 
 Alongside it: `stopped_at` (where the gate capped the walk), `blocking_codes` (the
 full review list), and `auto_fixed_codes`. The CLI, library, and MCP server all
-surface these — so automation can auto-accept the safe case and escalate the rest,
+surface these, so automation can auto-accept the safe case and escalate the rest,
 rather than trusting the bump blindly.
 
 ## What this means for you

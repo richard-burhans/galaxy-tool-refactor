@@ -6,7 +6,7 @@
 | **Profile** | 16.04 |
 | **Level** | `must_fix` |
 | **Auto-fix today** | **GTR016** `FixInterpreter` (bucket A — any non-empty interpreter since the 2026-06-10 widening; runtime-gated) |
-| **Stuck tools** (must_fix-only) | **302** now (post-widening; see `../upgrade_behavior_block_stats.md`, re-measured 2026-06-12 with the shipped gate: token-resolved baselines + macro-expanded detection) — 299 under the pre-gate raw-tree measurement, 316 pre-widening, and **1,726** without this codemod |
+| **Stuck tools** (must_fix-only) | **302** now (post-widening; see `../upgrade_behavior_block_stats.md`, re-measured 2026-06-12 with the shipped gate: token-resolved baselines + macro-expanded detection); 299 under the pre-gate raw-tree measurement, 316 pre-widening, and **1,726** without this codemod |
 | **Galaxy PR** | https://github.com/galaxyproject/galaxy/pull/1688 |
 
 > Galaxy-source citations are from the local clone `.local/galaxy-src/` @ `c6e0ee3`

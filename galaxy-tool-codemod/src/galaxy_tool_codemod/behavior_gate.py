@@ -4,16 +4,16 @@ The ``upgrade_vN`` walk (``upgrades.py``) is validity-gated, which is sound for
 *structure* only (``docs/decisions.md`` §22). This module supplies the missing
 behavioural half: given a tool and its pre-upgrade baseline, compute the Galaxy
 behaviour codes (``profile_semantics.PROFILE_UPGRADE_CODES``) that would survive
-an upgrade-to-latest as genuine blockers, and the **ceiling** — the newest
+an upgrade-to-latest as genuine blockers, and the **ceiling**: the newest
 vendored profile the tool can reach without crossing any of them.
 
 A crossed code stops being a blocker in exactly two ways, both proofs:
 
-- its per-tool detector does not fire (``tripped_upgrade_codes`` — the construct
+- its per-tool detector does not fire (``tripped_upgrade_codes``; the construct
   is absent, so the tool is free to move past it; §23), or
 - its mapped auto-fix (``RuntimeGatedFix.upgrade_code``) clears it **by
   execution**: the fix is applied to a throwaway copy and the detector re-run;
-  only a detector that goes quiet counts. Never a static "fixable codes" set —
+  only a detector that goes quiet counts. Never a static "fixable codes" set:
   GTR015 fixes only the sole-data-input subset and GTR016 only bucket A, and a
   macro-supplied construct (which the raw-tree codemod cannot reach) must stay a
   blocker.
@@ -52,7 +52,7 @@ if TYPE_CHECKING:
 
 # The default blocking policy: stop only at codes Galaxy marks must_fix (the
 # tool breaks or changes output). Applicable consider-level codes are surfaced
-# as warnings by the facade but do not stop the walk — blocking on them would
+# as warnings by the facade but do not stop the walk; blocking on them would
 # freeze nearly every tool at its baseline, because Galaxy emits one consider
 # code unconditionally (16_04_consider_implicit_extra_file_collection; see
 # docs/upgrade_behavior_block_stats.md). The ``levels`` parameter on
@@ -63,7 +63,7 @@ DEFAULT_BLOCKING_LEVELS: frozenset[str] = frozenset({"must_fix"})
 def auto_fixes_by_code() -> dict[str, type[RuntimeGatedFix]]:
     """Map each Galaxy behaviour code to the runtime-gated fix that clears it.
 
-    Derived from ``RUNTIME_GATED_FIXES`` — the single source of truth for what
+    Derived from ``RUNTIME_GATED_FIXES``, the single source of truth for what
     the toolchain can auto-fix (the measure consumes this too, so the shipped
     gate and the published statistics agree by construction).
     """
@@ -73,7 +73,7 @@ def auto_fixes_by_code() -> dict[str, type[RuntimeGatedFix]]:
 def code_cleared_by_autofix(
     document: ToolDocument, *, fix: type[RuntimeGatedFix], code: str
 ) -> bool:
-    """Whether *fix* provably clears *code* for this tool — proof by execution.
+    """Whether *fix* provably clears *code* for this tool: proof by execution.
 
     Applies *fix* to a deep copy of the document's tree (the caller's tree is
     never touched) and re-runs detection on the result through the same
@@ -101,7 +101,7 @@ def blocking_codes(
 
     A code blocks when it is crossed over ``(baseline, latest]``, its severity
     is in *levels*, its per-tool detector fires (on the macro-expanded view),
-    and its auto-fix — if one exists — fails to clear it by execution. The
+    and its auto-fix, if one exists, fails to clear it by execution. The
     result preserves catalogue (profile) order.
 
     An unparseable *baseline* (e.g. a ``@PROFILE@`` macro token) cannot range
@@ -131,11 +131,11 @@ def behavior_ceiling(blockers: tuple[ProfileUpgradeCode, ...], /) -> str | None:
     """The newest vendored profile reachable without crossing any of *blockers*.
 
     ``latest_profile()`` when there are none. Otherwise the newest
-    ``available_profiles()`` entry strictly below the lowest blocker's profile —
+    ``available_profiles()`` entry strictly below the lowest blocker's profile;
     declaring that version crosses none of the blocked boundaries. ``None`` when
     no vendored profile lies below the lowest blocker (e.g. an unfixable 16.04
     code on a legacy-default baseline: the oldest vendored profile is 16.10, so
-    even declaring it would cross 16.04 — the tool's profile must not move).
+    even declaring it would cross 16.04; the tool's profile must not move).
     """
     if not blockers:
         return latest_profile()

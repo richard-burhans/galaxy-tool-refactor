@@ -1883,7 +1883,7 @@ Sizing: `uv run python -m scripts.measure iuc011-fixability`.
   sweep (numbers, not coverage). The behaviour-preservation ledger records this as the
   second GTR020.1 over-quote class fixed (after the §32 multi-flag select).
 
-## 45. The behavior gate — `upgrade` stops at the behaviour ceiling by default
+## 45. The behavior gate: `upgrade` stops at the behaviour ceiling by default
 
 **Date:** 2026-06-12. Reproduced-by: `uv run --package galaxy-tool-codemod pytest
 galaxy-tool-codemod/tests/test_behavior_gate.py` (the gate primitives),
@@ -1897,7 +1897,7 @@ computed with the shipped gate functions) and
   structurally sound only; §23 added the per-tool warning. The default now
   *stops* instead of warning-and-proceeding: `behavior_gate.py` computes the
   applicable, non-auto-fixed `must_fix` codes over `(baseline, latest]`
-  (`blocking_codes`) and the **ceiling** — the newest vendored profile strictly
+  (`blocking_codes`) and the **ceiling**, the newest vendored profile strictly
   below the lowest blocker (`behavior_ceiling`). The walk, `UpdateProfile`,
   and tier-1 `newest_valid_profile` all accept a keyword-only `ceiling` and
   never declare past it. The maintainer's framing: stop when we can no longer
@@ -1954,5 +1954,5 @@ computed with the shipped gate functions) and
   default over every corpus tool and asserts: fail-closed honoured, the
   declaration never crosses the first blocker, no applicable `must_fix` code
   crossed un-fixed (recomputed independently of the facade), validity
-  preserved, and a second run is a byte no-op — retaining every violation as a
+  preserved, and a second run is a byte no-op, retaining every violation as a
   regression fixture (`docs/corpus_data/upgrade_gate_errors.json`).

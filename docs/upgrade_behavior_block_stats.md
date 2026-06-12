@@ -1,13 +1,13 @@
 # Upgrade behavior-block statistics
 
 Where the **shipped default** `galaxy-tool-refactor upgrade` stops: the walk
-caps at the behaviour ceiling — the newest vendored profile reachable from
+caps at the behaviour ceiling: the newest vendored profile reachable from
 the tool's baseline (no-profile defaults to Galaxy's `16.01`; a `@PROFILE@`
 token is resolved through its definitions) without crossing a Galaxy
 `must_fix` behaviour change that applies to the tool and that no bundled fix
 provably clears (`galaxy_tool_codemod.behavior_gate`; codemod
 `docs/decisions.md`). A code *applies* when its per-tool detector fires on
-the macro-expanded view; auto-fixability is proven by execution — the mapped
+the macro-expanded view; auto-fixability is proven by execution, by the mapped
 fix is applied to a copy and the detector re-run. This page is computed with
 the same `behavior_gate` functions the live command uses, so the published
 numbers and the shipped behaviour cannot drift.
@@ -18,8 +18,8 @@ interpreter inlining for a literal-script command). The structural
 `upgrade_vN` codemods fix *validity*, not behaviour, so they never clear a
 blocker here.
 
-Two policies are reported: blocking on `must_fix` codes only — **the shipped
-default** (applicable `consider` codes are warned about, never blocking) —
+Two policies are reported: blocking on `must_fix` codes only, **the shipped
+default** (applicable `consider` codes are warned about, never blocking),
 and the counterfactual `must_fix` + `consider` (every behaviour change).
 The latter is dominated by `16_04_consider_implicit_extra_file_collection`,
 which Galaxy emits **unconditionally** — so essentially every sub-16.04 tool

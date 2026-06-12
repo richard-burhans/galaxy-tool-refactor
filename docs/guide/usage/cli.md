@@ -88,7 +88,7 @@ $ galaxy-tool-refactor upgrade --diff tools/bandage/bandage_info.xml
 
 See [soundness](../soundness.md) for exactly what `upgrade` guarantees.
 
-## My upgrade stopped — now what?
+## My upgrade stopped. Now what?
 
 The default `upgrade` is behavior-preserving: when a Galaxy `must_fix` behaviour
 change applies to your tool and has no automatic fix, the walk stops below that
@@ -115,7 +115,7 @@ This is a successful partial upgrade, not an error (exit code 0). Your options:
 
 When the upgrade crosses a boundary it *fixed* for you, the note says so
 (`crossed 21.09 21_09_fix_from_work_dir_whitespace: fixed automatically
-(GTR014).`) — those fixes are verified on your tool by re-detection before
+(GTR014).`); those fixes are verified on your tool by re-detection before
 being credited.
 
 ## Report only

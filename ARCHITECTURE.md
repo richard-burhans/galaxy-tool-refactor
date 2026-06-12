@@ -283,7 +283,7 @@ will change.
   `FixFromWorkDirWhitespace` GTR014 @21.09) are upgrade-only — in `coded_codemods()`,
   not `canonical_codemods()`. Each also declares the Galaxy `upgrade_code` it
   clears, which is how the behavior gate maps blockers to their fixes.
-- **The behavior gate** — `behavior_gate.py` (codemod §45) — the behavioural cap on
+- **The behavior gate** (`behavior_gate.py`, codemod §45): the behavioural cap on
   the upgrade walk: `blocking_codes` (applicable, non-auto-fixed `must_fix` codes
   over `(baseline, latest]`, with auto-fixability proven by executing the mapped
   `RuntimeGatedFix` on a copy and re-detecting) and `behavior_ceiling` (the newest

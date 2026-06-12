@@ -1,4 +1,4 @@
-"""Tests for ``behavior_gate`` — the behavior-preserving upgrade ceiling.
+"""Tests for ``behavior_gate``: the behavior-preserving upgrade ceiling.
 
 The gate decides how far an upgrade can walk while provably preserving runtime
 behaviour: every Galaxy behaviour code the bump would cross must be either not

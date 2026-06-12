@@ -34,7 +34,7 @@ The default is behavior-preserving: the walk stops at the behaviour ceiling, and
 [`docs/profile_boundaries.md`](../profile_boundaries.md)). Crossing the boundary
 requires passing `allow_behavior_change=true` explicitly. `behavior_preserving`
 (`true`/`false`/`null`) lets an agent decide what to accept unattended versus
-surface to a human — the honest contract is in [soundness](soundness.md).
+surface to a human; the honest contract is in [soundness](soundness.md).
 
 ### Library (embed it)
 
@@ -51,7 +51,7 @@ Full surface and the path-vs-bytes gotcha: [usage/library](usage/library.md).
 
 1. `check` the draft → structured findings (fixable vs advisory).
 2. `format` → canonical XML (behaviour-preserving; accept freely).
-3. `upgrade` → the behaviour ceiling by default; **gate on `behavior_preserving`** —
+3. `upgrade` → the behaviour ceiling by default; **gate on `behavior_preserving`**:
    auto-accept `true`, escalate `false`/`null` and any non-empty `blocking_codes`
    (fix the tool per the boundary reference, or ask a human before passing
    `allow_behavior_change`).
@@ -68,7 +68,7 @@ the proven-safe action, surface the rest.
   (`galaxy-tool-refactor-mcp/docs/vision.md`).
 - `upgrade`'s default stops rather than cross a breaking behaviour change it cannot
   prove fixed; with `allow_behavior_change` it is sound for *structural* validity
-  only — never treat that bump as behaviour-neutral without checking
+  only; never treat that bump as behaviour-neutral without checking
   `behavior_preserving` ([soundness](soundness.md)).
 
 ## Go deeper

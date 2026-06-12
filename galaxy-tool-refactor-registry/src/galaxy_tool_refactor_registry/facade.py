@@ -267,7 +267,7 @@ def _behavior_preserving_note(
     """The positive clean-pass note, or ``None`` when there is no story to tell.
 
     Emitted only when the bump actually crossed at least one catalogue boundary
-    (*crossed_any*) and is behaviour-preserving — the affirmative complement of
+    (*crossed_any*) and is behaviour-preserving, the affirmative complement of
     ``_semantic_warning``. A no-op upgrade (already at its target) is vacuously
     preserving but says nothing, and a bump that crosses an applicable,
     uncleared code is reported by the warning instead.
@@ -352,7 +352,7 @@ def upgrade(
     """Profile-upgrade *source*, plus the fixable rules in *codes*, then format.
 
     **Behavior-preserving by default**: the walk stops at the behaviour
-    ceiling — the newest vendored profile reachable without crossing a Galaxy
+    ceiling: the newest vendored profile reachable without crossing a Galaxy
     ``must_fix`` behaviour change that applies to this tool and that no
     runtime-gated fix provably clears (``behavior_gate``). Applicable
     consider-level changes are warned about but do not stop the walk.

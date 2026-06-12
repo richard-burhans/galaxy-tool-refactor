@@ -6,7 +6,7 @@
 | **Profile** | 24.2 |
 | **Level** | `must_fix` |
 | **Auto-fix today** | **none** |
-| **Stuck tools** (must_fix-only) | **6,033** — the largest blocker (see `../upgrade_behavior_block_stats.md`; re-measured 2026-06-12 with the shipped gate, which resolves `@PROFILE@` baselines and detects on the macro-expanded view, so ~1,500 previously-excluded tools now count) |
+| **Stuck tools** (must_fix-only) | **6,033**, the largest blocker (see `../upgrade_behavior_block_stats.md`; re-measured 2026-06-12 with the shipped gate, which resolves `@PROFILE@` baselines and detects on the macro-expanded view, so ~1,500 previously-excluded tools now count) |
 | **Galaxy PR** | https://github.com/galaxyproject/galaxy/pull/18679 |
 
 > Galaxy-source citations from `.local/galaxy-src/` @ `c6e0ee3`.
@@ -63,7 +63,7 @@ the code per `result.validation_error`).
 **Our detector is only an approximation**: `_detects_has_test` fires when the tool
 ships any `tests/test` (a necessary condition — no `<test>` ⇒ the code can't trip).
 We do **not** vendor Galaxy's parameter-model validator, so we cannot tell whether a
-given tool's tests *actually* fail. Consequence: our **6,033 over-counts** — it is
+given tool's tests *actually* fail. Consequence: our **6,033 over-counts**; it is
 "tools that ship tests and are below 24.2," an upper bound. The true number is some
 subset whose tests violate one of the four rules — and **smaller than the four-rule
 list suggests**, because two of the rules have escape hatches that exempt most cases:

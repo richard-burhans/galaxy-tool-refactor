@@ -62,7 +62,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 > **structurally valid** at the profile it declares. Crossing further is the explicit
 > `--allow-behavior-change`. Behaviour-affecting changes are only applied where
 > per-tool detection proves them safe; otherwise they are reported, not made
-> (`upgrade` surfaces `behavior_preserving` — `true`/`false`/`null` — plus
+> (`upgrade` surfaces `behavior_preserving`, `true`/`false`/`null`, plus
 > `stopped_at`/`blocking_codes`/`auto_fixed_codes` so callers can gate on them). GTR016 (interpreter)
 > auto-fixes any non-empty interpreter whose command leads with a literal script
 > ("bucket A", widened 2026-06-10); GTR015 the sole data input — top-level or

@@ -429,7 +429,7 @@ def _upgrade_macro_profile_tokens(
     importers agree on a target bumps the ``<token>`` in place (writing unless
     ``check``/``diff``). A macro file whose importers disagree is reported and
     left untouched. Returns whether any macro file was (or, under preview,
-    would be) edited — the caller folds that into the ``--check`` exit code.
+    would be) edited; the caller folds that into the ``--check`` exit code.
     """
     sites = []
     for path in iter_targets(paths):

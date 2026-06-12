@@ -59,11 +59,11 @@ class UpgradeToLatest(CodemodCommand):
 
     Each round re-declares the newest valid profile and, if that is below the
     target, applies the registered single-step upgrade for it. The target is
-    the latest vendored profile, or the *ceiling* when one is given — the
+    the latest vendored profile, or the *ceiling* when one is given; the
     behavior gate (``behavior_gate``) passes the newest profile reachable
     without crossing an applicable, unfixable behaviour change. Stops at the
     target, at a sticking version with no registered upgrade, or if a round
-    makes no progress (the same version twice) — the last two leave the tool
+    makes no progress (the same version twice); the last two leave the tool
     validating at the best version reached, which ``UpdateProfile`` has
     already declared. A stall *at the ceiling* is deliberate and not reported.
     """
@@ -116,7 +116,7 @@ class UpgradeToLatest(CodemodCommand):
                 self._missing_upgrade = version
                 logger.warning(
                     "no upgrade codemod for profile %s: the tool validates "
-                    "there but the target profile is %s — an upgrade for %s "
+                    "there but the target profile is %s; an upgrade for %s "
                     "needs to be implemented",
                     version,
                     target,

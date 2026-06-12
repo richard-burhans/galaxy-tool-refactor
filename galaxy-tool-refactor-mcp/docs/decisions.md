@@ -79,7 +79,7 @@ expansion-equality gate cannot resolve imports without a source directory —
 and the skip reason says to use the path-based CLI `tokenize-version` instead.
 No ruleset/select parameters: GTR094, like GTR092, is not selectable anywhere.
 
-## D4 (2026-06-12) — `upgrade_tool` exposes the behavior gate
+## D4 (2026-06-12): `upgrade_tool` exposes the behavior gate
 
 Reproduced-by: `uv run --package galaxy-tool-refactor-mcp pytest
 galaxy-tool-refactor-mcp/tests/test_service.py -k "behavior or target"`.

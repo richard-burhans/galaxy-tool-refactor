@@ -1,6 +1,6 @@
 """Tests for the per-boundary reference renderer (``boundaries.py``).
 
-The rendered block is the generated half of ``docs/profile_boundaries.md`` — the
+The rendered block is the generated half of ``docs/profile_boundaries.md``: the
 user-facing "my upgrade stopped, now what" reference the stop note points at.
 Derived entirely from ``PROFILE_UPGRADE_CODES`` plus the auto-fix registry, so
 it cannot drift from the shipped gate; a freshness test in the registry tier

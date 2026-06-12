@@ -1,4 +1,4 @@
-# The behavior gate — the `upgrade` default's soundness argument
+# The behavior gate: the `upgrade` default's soundness argument
 
 **Contract:** the default `upgrade` crosses no Galaxy `must_fix` behaviour
 boundary whose change applies to the tool, except boundaries whose change it
@@ -27,7 +27,7 @@ exceed it. The claim reduces to five sub-claims:
    detector ports the corresponding `ProfileMigration.advise` predicate
    (codemod decisions §25), runs on the **macro-expanded** view (matching
    Galaxy's advisors, which parse post-expansion), and falls back to the raw
-   tree when expansion fails — the conservative direction (over-report, never
+   tree when expansion fails, the conservative direction (over-report, never
    silent). Detector tightenings are one-directional: they only suppress cases
    *provably* unaffected by the change (e.g. §28's single-simple-command
    `set -e` suppression), so a tightening can remove a false block but never
@@ -35,10 +35,10 @@ exceed it. The claim reduces to five sub-claims:
 
 3. **Auto-fix credit is proof by execution, per tool.** A crossed, applicable
    `must_fix` code stops being a blocker only when its mapped
-   `RuntimeGatedFix` — each individually proven behaviour-preserving in its
+   `RuntimeGatedFix`, each individually proven behaviour-preserving in its
    own document ([GTR014](GTR014.md) `21_09_fix_from_work_dir_whitespace`,
    [GTR015](GTR015.md) `16_04_fix_output_format`, [GTR016](GTR016.md)
-   `16_04_fix_interpreter`) — is applied to a throwaway copy of *this tool*
+   `16_04_fix_interpreter`), is applied to a throwaway copy of *this tool*
    and the code's detector no longer fires (`code_cleared_by_autofix`). There
    is no static "fixable codes" set: a fix's partial coverage (GTR015's
    sole-data-input subset, GTR016's bucket A) and macro-supplied constructs
@@ -71,7 +71,7 @@ exceed it. The claim reduces to five sub-claims:
 
 ## What the default does NOT claim
 
-Applicable `consider`-level changes do not stop the walk — a deliberate,
+Applicable `consider`-level changes do not stop the walk, a deliberate,
 documented policy choice (blocking on them would freeze nearly every tool at
 16.04 because Galaxy emits one such code unconditionally; see
 `docs/upgrade_behavior_block_stats.md`). They are surfaced in the

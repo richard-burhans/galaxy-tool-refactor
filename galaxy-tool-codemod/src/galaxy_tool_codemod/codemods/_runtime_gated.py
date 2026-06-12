@@ -19,7 +19,7 @@ class RuntimeGatedFix(CodemodCommand):
     """A codemod for a runtime (non-XSD) profile change, gated on its profile."""
 
     introduced_profile: ClassVar[str]
-    # The Galaxy behaviour code this fix clears — a ``PROFILE_UPGRADE_CODES``
+    # The Galaxy behaviour code this fix clears: a ``PROFILE_UPGRADE_CODES``
     # name whose ``profile`` equals ``introduced_profile`` (pinned by
     # ``test_every_fix_declares_its_galaxy_upgrade_code``). The behavior gate
     # maps blockers to their auto-fixes through this.

@@ -184,7 +184,7 @@ the historical walk-to-latest with the §23 warning; the user-facing per-code
 When a bump that advances the profile crosses **no** applicable code (or every
 applicable `must_fix` was provably fixed), the inverse is surfaced
 affirmatively: `UpgradeResult.behavior_preserving` is `True` and a clean-pass
-note says so — proving the governed construct is absent (or fixed) lets the
+note says so; proving the governed construct is absent (or fixed) lets the
 tool move past the boundary behaviour-safely (codemod §23 + §45). The per-code
 corpus blast radius is `scripts/measure.py
 semantic-upgrade-boundaries`, crossed-vs-applicable is `scripts/measure.py

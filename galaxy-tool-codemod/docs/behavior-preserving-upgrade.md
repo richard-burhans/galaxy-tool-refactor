@@ -3,8 +3,8 @@
 > **Superseded (2026-06-12).** The direction this investigated is now SHIPPED in
 > a different shape: rather than pinning legacy behaviour across a full bump
 > (the all-or-nothing finding below still holds), the default `upgrade` now
-> **stops at the behaviour ceiling** — the newest profile reachable without
-> crossing an applicable, un-auto-fixed `must_fix` change — with
+> **stops at the behaviour ceiling**: the newest profile reachable without
+> crossing an applicable, un-auto-fixed `must_fix` change, with
 > `--allow-behavior-change` as the opt-out. See `docs/decisions.md` §45, the
 > gate proof (`docs/proofs/behavior-gate.md`), and the user-facing reference
 > (`docs/profile_boundaries.md`). This document remains the pinnability

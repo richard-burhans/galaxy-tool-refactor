@@ -750,7 +750,7 @@ module's `etree.tostring` / temp-dir `write_bytes` are the throwaway gate, allow
 Reproduced by `uv run python -m scripts.measure version-token-sharing` (which also
 retains any planner crash as a regression corpus, the standing retain-failures order).
 
-## D21 (2026-06-12) — `upgrade` is behavior-preserving by default (the gate)
+## D21 (2026-06-12): `upgrade` is behavior-preserving by default (the gate)
 
 Reproduced-by: `uv run --package galaxy-tool-refactor-registry pytest
 galaxy-tool-refactor-registry/tests/test_facade.py` (the gate tests) and
@@ -760,14 +760,14 @@ shared-token targets).
 - `facade.upgrade` computes the tier-2 behavior gate before walking
   (`behavior_gate.blocking_codes` / `behavior_ceiling`; codemod decisions §45)
   and passes the resulting ceiling into `UpgradeToLatest`. New keyword-only
-  parameters: `allow_behavior_change` (lifts the gate — the historical
+  parameters: `allow_behavior_change` (lifts the gate, the historical
   walk-to-latest) and `target_profile` (an explicit vendored cap, validated up
   front; the typed `UnknownProfile` joins `errors.py` for the CLI/MCP
   boundaries). The policy lives here, the mechanism in tier 2, so lower tiers
   stay consumable standalone.
 - `UpgradeResult` gains `stopped_at` (the deliberate cap applied, when below
   latest), `blocking_codes` (every applicable un-fixed `must_fix` code over
-  `(baseline, latest]` — the user's full review list, reported under the
+  `(baseline, latest]`, the user's full review list, reported under the
   opt-out too), and `auto_fixed_codes` (codes whose executed fix was verified
   by re-detection). `behavior_preserving` now credits those fixes; the
   crossed-boundary warning and the verdict derive from one residual set, so

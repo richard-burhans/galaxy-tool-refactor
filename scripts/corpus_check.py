@@ -3390,7 +3390,7 @@ def _check_main(argv: list[str]) -> int:
 
 
 # =============================================================================
-# `upgrade` subcommand — gated-upgrade invariants sweep with failure retention
+# `upgrade` subcommand: gated-upgrade invariants sweep with failure retention
 # =============================================================================
 #
 # Runs the SHIPPED default `upgrade` (the behavior-preserving gate, via the
@@ -3454,7 +3454,7 @@ def _upgrade_gate_exercise(path: Path) -> _UpgradeGateOutcome:
     """Run the default (gated) ``facade.upgrade`` on *path*; assert the contract.
 
     Status is ``"ok"`` (walked, no cap below latest), ``"stopped"`` (the gate
-    capped the walk — a successful, expected outcome), one of the ineligible
+    capped the walk, a successful, expected outcome), one of the ineligible
     statuses, or one of ``_UPGRADE_FAIL_STATUSES``. The must-fix-crossed check
     recomputes the applicable set from the pre-upgrade tree independently, so
     a crediting bug in the facade cannot hide itself.

@@ -34,14 +34,14 @@ is the breaking-change channel.
 - `UpgradeResult` fields `stopped_at`, `blocking_codes`, and
   `auto_fixed_codes` (also in the MCP `upgrade_tool` result), and the typed
   `UnknownProfile` error for a bad `--target-profile`.
-- **`docs/profile_boundaries.md`** — the user-facing per-boundary reference
+- **`docs/profile_boundaries.md`**: the user-facing per-boundary reference
   ("my upgrade stopped, now what"): per Galaxy behaviour code, what changes,
   what the toolchain does, Galaxy's own description, and the release link.
   Generated from the vendored catalogue + the auto-fix registry by
   `scripts/gen_profile_boundaries.py`; freshness-tested.
-- **`docs/proofs/behavior-gate.md`** — the gate's construction-grade soundness
+- **`docs/proofs/behavior-gate.md`**: the gate's construction-grade soundness
   argument, pinned to the live registries by the proof coverage guard.
-- **`corpus_check upgrade`** — the gated-upgrade contract sweep: runs the
+- **`corpus_check upgrade`**: the gated-upgrade contract sweep: runs the
   default `upgrade` over every corpus tool, asserts fail-closed / gate-cap /
   no un-fixed `must_fix` crossing / validity / idempotence, and retains every
   violation (first full sweep: 9,331 tools, **0 violations**).

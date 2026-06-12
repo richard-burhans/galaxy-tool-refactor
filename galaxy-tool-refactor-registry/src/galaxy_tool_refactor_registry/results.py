@@ -58,7 +58,7 @@ class UpgradeResult:
             ``target_profile``), or ``None`` when the walk was free to reach
             the latest profile.
         blocking_codes: Every applicable must_fix code between the baseline and
-            the latest profile that no auto-fix clears — the user's full
+            the latest profile that no auto-fix clears: the user's full
             review list, reported even when ``allow_behavior_change`` lifted
             the gate.
         auto_fixed_codes: The applicable must_fix codes the upgrade crossed and

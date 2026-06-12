@@ -42,10 +42,10 @@ An agent passes the XML in and gets structured JSON back, e.g. `check_tool`:
 `behavior_preserving` (`true`/`false`/`null`), `stopped_at`, `blocking_codes`, and
 `auto_fixed_codes`. The default is **behavior-preserving for agents too**: the walk
 stops at the behaviour ceiling, and crossing it requires passing
-`allow_behavior_change=true` explicitly — an unattended behaviour change is worse,
+`allow_behavior_change=true` explicitly; an unattended behaviour change is worse,
 not better. The blocking codes map to sections of
 [`docs/profile_boundaries.md`](../../profile_boundaries.md), so an agent can read
-exactly what changed and decide deliberately — see [soundness](../soundness.md).
+exactly what changed and decide deliberately; see [soundness](../soundness.md).
 
 ## Why it's a thin adapter
 

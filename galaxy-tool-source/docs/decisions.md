@@ -1406,7 +1406,7 @@ The newest-first scan accepts a keyword-only `ceiling`: profiles newer than it
 are skipped, so the result never exceeds it (and is `None` when no vendored
 profile lies at or below it). Motivation: the codemod tier's behavior gate
 (codemod decisions §45) must be able to ask "the newest profile this tool
-validates at *without crossing a behaviour boundary*" — capping the scan here
+validates at *without crossing a behaviour boundary*"; capping the scan here
 keeps every declaration site (`UpdateProfile`, `UpgradeToLatest`, the
 registry's shared-token targets) on one primitive instead of post-filtering in
 each caller. Backward compatible; the default scans everything as before.

@@ -470,7 +470,7 @@ population is sized by `scripts.measure version-tokenization`
 (`adopt_suffix_skip_reason` + `adopt_suffix_equality_holds`); facade
 `adopt_version_suffix`.
 
-## D16 (2026-06-12) — `upgrade` flags for the behavior-preserving default
+## D16 (2026-06-12): `upgrade` flags for the behavior-preserving default
 
 Reproduced-by: `uv run --package galaxy-tool-refactor-cli pytest
 galaxy-tool-refactor-cli/tests/test_cli.py -k "behavior or target_profile"`.
