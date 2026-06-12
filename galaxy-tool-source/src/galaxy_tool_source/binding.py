@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import BinaryIO
 
 from lxml import etree
+from packaging.version import Version
 
 from galaxy_tool_source.document import MacroDocument, ToolDocument
 from galaxy_tool_source.macros import (
@@ -305,13 +306,21 @@ def validate_tool(
     )
 
 
-def newest_valid_profile(target: Source | ToolDocument) -> str | None:
+def newest_valid_profile(
+    target: Source | ToolDocument, *, ceiling: str | None = None
+) -> str | None:
     """Return the newest vendored profile whose XSD the tool satisfies.
 
     The tool is validated — with macros expanded — against each vendored profile
     from newest to oldest, and the first profile that validates cleanly is
     returned. ``None`` means no vendored profile validates, including when the
     tool is malformed or its macros cannot be expanded.
+
+    *ceiling* (a version string) caps the scan: profiles newer than it are
+    skipped, so the result never exceeds it. ``None`` when no vendored profile
+    lies at or below the ceiling. The default (no ceiling) scans every vendored
+    profile. Callers that must not advance a tool past a behaviour boundary
+    (the codemod tier's behavior gate) pass the boundary here.
 
     The scan stops at the first (newest) profile that validates and assumes
     nothing about the older ones — a tool's valid profiles are often *not* a
@@ -332,7 +341,10 @@ def newest_valid_profile(target: Source | ToolDocument) -> str | None:
         if parsed is None:
             return None
         probe = parsed
+    cap = Version(ceiling) if ceiling is not None else None
     for version in reversed(available_profiles()):
+        if cap is not None and Version(version) > cap:
+            continue
         if validate_tool(probe, profile=version).valid:
             return version
     return None

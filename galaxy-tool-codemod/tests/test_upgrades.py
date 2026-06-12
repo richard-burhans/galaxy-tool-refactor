@@ -131,3 +131,39 @@ def test_no_missing_upgrade_when_latest_reached() -> None:
     upgrade = UpgradeToLatest()
     upgrade.apply(module)
     assert upgrade.missing_upgrade() is None
+
+
+def test_walk_stops_at_the_requested_ceiling() -> None:
+    """A ceiling equal to the starting profile means no step runs at all."""
+    module = parse_module(_tool(profile="24.1", param_fmt="BAM"))
+    before = etree.tostring(module.document.root)
+    upgrade = UpgradeToLatest(ceiling="24.1")
+    upgrade.apply(module)
+    # The walk never crossed 24.1: the uppercase format (the 24.2 repair) is
+    # untouched and the declaration stays put.
+    assert etree.tostring(module.document.root) == before
+    assert upgrade.upgrade_steps_applied() == ()
+
+
+def test_walk_advances_up_to_but_not_past_the_ceiling() -> None:
+    """Intermediate steps below the ceiling run; the declaration caps there."""
+    module = parse_module(_tool(profile="24.1", param_fmt="BAM"))
+    upgrade = UpgradeToLatest(ceiling="25.1")
+    upgrade.apply(module)
+    root = module.document.root
+    assert root.get("profile") == "25.1"
+    assert upgrade.upgrade_steps_applied() == ("24.1",)
+    # The 24.1 step ran (format lowercased), even though the walk capped at 25.1.
+    assert root.find(".//param[@format]").get("format") == "bam"
+
+
+def test_a_deliberate_cap_is_not_a_missing_upgrade(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Stalling at the requested ceiling is silent: no warning, no report."""
+    module = parse_module(_tool(profile="24.1", param_fmt="BAM"))
+    upgrade = UpgradeToLatest(ceiling="24.1")
+    with caplog.at_level("WARNING"):
+        upgrade.apply(module)
+    assert upgrade.missing_upgrade() is None
+    assert not caplog.records

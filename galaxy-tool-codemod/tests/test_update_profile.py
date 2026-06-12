@@ -69,6 +69,20 @@ def test_never_lowers_a_newer_declared_profile() -> None:
     assert _apply(_tool("99.0")).get("profile") == "99.0"
 
 
+def test_ceiling_caps_the_declared_profile() -> None:
+    """With a ceiling, the declaration never rises above it."""
+    module = parse_module(_tool(None))
+    UpdateProfile(ceiling="24.1").apply(module)
+    assert module.document.root.get("profile") == "24.1"
+
+
+def test_ceiling_never_lowers_a_declared_profile() -> None:
+    """The ceiling caps the bump; it never takes a declaration backwards."""
+    module = parse_module(_tool("25.1"))
+    UpdateProfile(ceiling="24.1").apply(module)
+    assert module.document.root.get("profile") == "25.1"
+
+
 def test_leaves_unparseable_declared_profile_alone() -> None:
     """A non-version declaration (e.g. a macro placeholder) is never rewritten."""
     assert _apply(_tool("@PROFILE@")).get("profile") == "@PROFILE@"
