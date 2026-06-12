@@ -80,10 +80,12 @@ def _upgrade_tool(
     undeclared tool stays undeclared); an invalid one is bumped to the minimum
     valid profile at or above its baseline (baseline_profile/reached_profile in
     the result). Set modernize to walk toward the latest profile instead — the
-    walk stops at the behaviour ceiling and reports the blocking codes
-    (stopped_at / blocking_codes). Set allow_behavior_change to walk past
-    applicable behaviour changes (requires modernize or target_profile); set
-    target_profile to walk up to an explicit vendored profile.
+    walk is capped by the lower of the behaviour ceiling (reported via
+    stopped_at / blocking_codes) and the deployment ceiling, the newest profile
+    every major public Galaxy server runs. Set allow_behavior_change to walk
+    past applicable behaviour changes (requires modernize or target_profile;
+    the deployment ceiling still caps); set target_profile to walk up to an
+    explicit vendored profile (it may exceed the deployment ceiling).
     """
     return _guarded(
         lambda: service.upgrade_tool(

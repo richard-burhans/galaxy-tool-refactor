@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
+from galaxy_tool_refactor_registry.deployment import DEPLOYMENT_CEILING
 from galaxy_tool_refactor_registry.registry import advisory_codes
 from galaxy_tool_source.profiles import latest_profile
 
@@ -69,9 +70,11 @@ def test_upgrade_modernize_bumps_profile_and_runs_migration(tmp_path: Path) -> N
     result = CliRunner().invoke(main, ["upgrade", "--modernize", str(file)])
     assert result.exit_code == 0, result.output
     output = file.read_bytes()
-    assert f'profile="{latest_profile()}"'.encode() in output
+    # The walk lands on the deployment ceiling, not the (pre-release) latest.
+    assert f'profile="{DEPLOYMENT_CEILING}"'.encode() in output
     assert b'format="bam"' in output  # the 24.1 -> 24.2 migration ran
     assert "upgraded past 24.1" in result.output
+    assert "deployment ceiling" in result.output
 
 
 def test_upgrade_default_keeps_a_valid_declared_profile(tmp_path: Path) -> None:
@@ -181,14 +184,28 @@ def test_upgrade_modernize_stops_at_a_behavior_boundary(tmp_path: Path) -> None:
     assert "--allow-behavior-change" in result.output
 
 
-def test_upgrade_allow_behavior_change_reaches_latest(tmp_path: Path) -> None:
+def test_upgrade_allow_behavior_change_walks_past_the_gate(tmp_path: Path) -> None:
+    """The flag lifts the behaviour gate; the deployment ceiling still caps."""
     file = _write(tmp_path / "tool.xml", _tool_with_tests(profile="24.1"))
     result = CliRunner().invoke(
         main, ["upgrade", "--modernize", "--allow-behavior-change", str(file)]
     )
     assert result.exit_code == 0, result.output
-    assert f'profile="{latest_profile()}"'.encode() in file.read_bytes()
+    assert f'profile="{DEPLOYMENT_CEILING}"'.encode() in file.read_bytes()
     assert "profile-behaviour" in result.output  # the review warning remains
+
+
+def test_upgrade_target_profile_may_exceed_the_deployment_ceiling(
+    tmp_path: Path,
+) -> None:
+    """An explicit target expresses intent: it wins over the deployment cap."""
+    file = _write(tmp_path / "tool.xml", _valid_tool(profile="24.1"))
+    result = CliRunner().invoke(
+        main, ["upgrade", "--target-profile", latest_profile(), str(file)]
+    )
+    assert result.exit_code == 0, result.output
+    assert f'profile="{latest_profile()}"'.encode() in file.read_bytes()
+    assert "deployment ceiling" in result.output  # informed, never silent
 
 
 def test_upgrade_target_profile_caps_the_walk(tmp_path: Path) -> None:
@@ -278,7 +295,7 @@ def test_upgrade_modernize_rewrites_inline_profile_token(tmp_path: Path) -> None
     assert result.exit_code == 0, result.output
     output = file.read_bytes()
     assert b'profile="@PROFILE@"' in output  # reference preserved, not clobbered
-    assert f">{latest_profile()}<".encode() in output  # token value bumped
+    assert f">{DEPLOYMENT_CEILING}<".encode() in output  # token value bumped
 
 
 def _imported_token_tool(tool_id: str) -> bytes:
@@ -303,7 +320,7 @@ def test_upgrade_modernize_bumps_shared_imported_profile_token(
     result = CliRunner().invoke(main, ["upgrade", "--modernize", str(tmp_path)])
     assert result.exit_code == 0, result.output
     macros = (tmp_path / "macros.xml").read_bytes()
-    assert f">{latest_profile()}<".encode() in macros  # token bumped once
+    assert f">{DEPLOYMENT_CEILING}<".encode() in macros  # token bumped once
     # the tools keep the reference; the import is what advanced them
     assert b'profile="@PROFILE@"' in (tmp_path / "a.xml").read_bytes()
     assert "2 tool(s)" in result.output  # both importers drove the one edit

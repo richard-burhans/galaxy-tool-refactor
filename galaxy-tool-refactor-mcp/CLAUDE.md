@@ -70,7 +70,8 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
   `list_rulesets` / `list_rules` entry points `service.py` wraps; `results.py` for the structured result shapes serialised.
 - `galaxy-tool-refactor-cli/src/galaxy_tool_refactor_cli/cli.py` — the sibling
   front-end over the same facade.
-- `docs/decisions.md` D1–D5 — the design, the `convert_help_tool` /
-  `tokenize_version_tool` additions, and `upgrade_tool`'s minimal-bump default
-  (`modernize` opts into the gated walk, D4/D5); `docs/vision.md` — the
-  agent-authored-rules future (Goal 2).
+- `docs/decisions.md` D1–D6 — the design, the `convert_help_tool` /
+  `tokenize_version_tool` additions, `upgrade_tool`'s minimal-bump default
+  (`modernize` opts into the gated walk, D4/D5), and the deployment ceiling
+  on that walk (D6); `docs/vision.md` — the agent-authored-rules future
+  (Goal 2).

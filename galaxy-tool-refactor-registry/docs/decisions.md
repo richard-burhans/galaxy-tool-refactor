@@ -836,3 +836,53 @@ maintainer feedback on featurecounts PR #8090, mvdbeek and bgruening).
   above its baseline both leave the declaration untouched with a loud note;
   `UpgradeToValid` never lowers a profile (codemod §49). The per-tool
   contract is swept by `corpus_check upgrade --mode minimal` (codemod §50).
+
+## D23 (2026-06-12): the deployment ceiling caps the modernize walk
+
+Reproduced-by: `uv run --package galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_deployment.py` (the constants and
+their drift guard) and `galaxy-tool-refactor-registry/tests/test_facade.py -k
+deployment` (the cap, the explicit-target escape, and the staleness note).
+Origin: the IUC maintainer feedback behind D22 (featurecounts PR #8090,
+mvdbeek: "not to an unreleased pre-release") plus the server poll finding
+that even the flagship public servers run pre-releases.
+
+- **The second, orthogonal cap.** The behaviour gate (D21) proves a walk
+  behaviour-safe; it says nothing about whether a server can *install* the
+  result. The newest vendored profile (26.1 at the snapshot) is a
+  pre-release no public server runs, so a behaviour-safe walk-to-latest still
+  strands the tool. `deployment.py` vendors the **deployment ceiling**: the
+  newest vendored profile at or below the deployment floor, the lowest
+  release across the major public Galaxy servers (usegalaxy.org, .eu,
+  .org.au, .fr, and .ca; 25.1 at the snapshot). A walk with no explicit
+  target caps at `min(behaviour ceiling, deployment ceiling)`, floored at
+  the baseline (the cap limits bumps, it never lowers a declaration already
+  above it). The shared imported-`@PROFILE@` walk targets honor the same cap
+  (`macro_profile._walk_cap`), so the two paths cannot disagree.
+- **Vendored, drift-guarded, never read at runtime.** The installed package
+  must not depend on a repo doc, so the ceiling and its snapshot date are
+  constants, pinned to the committed `docs/galaxy_server_versions.json`
+  (written by `scripts.poll_galaxy_servers`) by `test_deployment.py`: a
+  re-poll that moves the snapshot fails CI naming both files. A snapshot
+  older than `SNAPSHOT_STALE_AFTER` (180 days, roughly one Galaxy release)
+  earns a re-poll note on every capped walk (`snapshot_is_stale` takes
+  *today* as a keyword so callers stay deterministic).
+- **Escapes are explicit and asymmetric.** `target_profile` expresses
+  deliberate intent and **may exceed** the ceiling (a note still mentions
+  it, so the choice is informed, never silent). `allow_behavior_change`
+  lifts the behaviour gate only: an unattended walk never lands on a profile
+  the public servers cannot run, whichever gates were lifted. Reaching the
+  true latest therefore reads `--modernize --allow-behavior-change
+  --target-profile <latest>`, each flag naming the specific guarantee it
+  trades away.
+- **The minimal default is untouched.** A bump the tool strictly needs for
+  validity always wins over deployability (a tool that validates nowhere
+  below the needed profile is broken everywhere anyway); corpus-wide, zero
+  needed bumps land above the ceiling (`docs/upgrade_minimal_need_stats.md`),
+  so the conflict is theoretical today.
+- **Stop attribution.** When the deployment ceiling binds, the stop note
+  names it (with the snapshot date and the `--target-profile` escape)
+  instead of the behaviour-gate note; on a tie the gate's note wins (it is
+  the actionable one, naming the blocking codes). The walk contract sweep
+  (`corpus_check upgrade --mode modernize`) splits its success counter into
+  `stopped-deployment` / `stopped-gate` accordingly.

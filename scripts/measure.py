@@ -4412,22 +4412,6 @@ def _tally_minimal_need(
     )
 
 
-def _deployment_ceiling_snapshot() -> str:
-    """The committed deployment-floor profile ceiling, or ``25.1`` if absent.
-
-    Reads ``docs/galaxy_server_versions.json`` (written by
-    ``scripts.poll_galaxy_servers``); the constant is wired into ``upgrade``
-    itself in a later change, but the measure only needs it to size how many
-    minimal bumps would clear the lagging public servers.
-    """
-    snapshot = _repo_root() / "docs" / "galaxy_server_versions.json"
-    if not snapshot.is_file():
-        return "25.1"
-    data = json.loads(snapshot.read_text(encoding="utf-8"))
-    ceiling = data.get("profile_ceiling")
-    return ceiling if isinstance(ceiling, str) else "25.1"
-
-
 def _oldest_valid_at_or_above(document: object, *, floor: str) -> str | None:
     """The oldest vendored profile >= *floor* the tool validates at, else ``None``.
 
@@ -4502,10 +4486,15 @@ def _measure_upgrade_minimal_need(*, corpus_root: Path) -> _MinimalNeedResult:
             samples.append((cohort, "bump-step-assisted", stepped))
         else:
             samples.append((cohort, "unreachable", None))
+    # The shipped vendored ceiling (drift-guarded against the committed
+    # server-poll snapshot by registry tests/test_deployment.py), so the
+    # measure and the live `upgrade --modernize` cap can never disagree.
+    from galaxy_tool_refactor_registry.deployment import DEPLOYMENT_CEILING
+
     return _tally_minimal_need(
         samples=samples,
         latest=latest_profile(),
-        deployment_ceiling=_deployment_ceiling_snapshot(),
+        deployment_ceiling=DEPLOYMENT_CEILING,
     )
 
 

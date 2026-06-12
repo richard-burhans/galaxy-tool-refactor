@@ -33,11 +33,13 @@ galaxy-tool-refactor format tools/                       # also formats <macros>
 # stays undeclared, else the minimum valid profile at or above the baseline).
 # --modernize opts into the behavior-preserving walk: upgrade profile= as far
 # as behaviour provably stays the same, stopping at the behaviour ceiling
-# with a report naming the blocking code(s) and pointing at
-# docs/profile_boundaries.md. No --ruleset; --select/--ignore tune it.
+# (report naming the blocking code(s), pointing at docs/profile_boundaries.md)
+# and never past the deployment ceiling (the newest profile every major
+# public Galaxy server runs). Only an explicit --target-profile exceeds the
+# deployment ceiling. No --ruleset; --select/--ignore tune it.
 galaxy-tool-refactor upgrade tool.xml
-galaxy-tool-refactor upgrade --modernize tool.xml              # gated walk to the ceiling
-galaxy-tool-refactor upgrade --modernize --allow-behavior-change tool.xml  # historical walk-to-latest
+galaxy-tool-refactor upgrade --modernize tool.xml              # gated walk to the ceilings
+galaxy-tool-refactor upgrade --modernize --allow-behavior-change tool.xml  # lift the behaviour gate
 galaxy-tool-refactor upgrade --target-profile 23.0 tool.xml    # explicit cap (implies the walk)
 
 # Report-only linter: one `file:line  CODE  message` per finding, mutating

@@ -50,7 +50,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Capability | Code | Status | Source |
 |---|---|---|---|
 | Repair, then bump `profile=` only when strictly needed for validity (the minimal-bump default: a valid tool keeps its declaration, undeclared stays undeclared, else the minimum valid profile) | GTR097 | ✅ Shipped | `upgrade` command; proof `docs/proofs/GTR097.md`; corpus contract sweep `corpus_check upgrade` (0 violations, both modes) |
-| Upgrade a tool as far as behaviour provably stays the same (the opt-in `--modernize` walk; `--allow-behavior-change` walks to the newest structurally-reachable profile) | — | ✅ Shipped | `upgrade --modernize`; gate proof `docs/proofs/behavior-gate.md`; corpus contract sweep `corpus_check upgrade` (0 violations) |
+| Upgrade a tool as far as behaviour provably stays the same (the opt-in `--modernize` walk, also capped at the deployment ceiling, the newest profile every major public Galaxy server runs; `--allow-behavior-change` lifts the behaviour gate, an explicit `--target-profile` exceeds the deployment ceiling) | — | ✅ Shipped | `upgrade --modernize`; gate proof `docs/proofs/behavior-gate.md`; ceiling drift guard `registry tests/test_deployment.py`; corpus contract sweep `corpus_check upgrade` (0 violations) |
 | Bump an inline `@PROFILE@` macro token | GTR007 | ✅ Shipped | upgrade rule set |
 | Bump an *imported* `@PROFILE@` token (only on importer consensus) | — | 🟡 Partial | `macro_profile` (registry) |
 | Runtime-gated repairs (`format_source` guard, `format="input"`, `interpreter=`) | GTR014, GTR015, GTR016 | 🟡 Partial | upgrade rule set |

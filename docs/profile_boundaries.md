@@ -23,6 +23,10 @@ How to read it:
 - After updating your tool, rerun `galaxy-tool-refactor upgrade --modernize`.
   To upgrade past a boundary without changing the tool, rerun with
   `--modernize --allow-behavior-change` and review the warnings it prints.
+- A walk that clears every behaviour boundary still stops at the
+  **deployment ceiling**, the newest profile every major public Galaxy
+  server runs (the note names it); only an explicit `--target-profile`
+  declares past it.
 
 Related documents: [`profile_upgrades.md`](profile_upgrades.md) is the
 maintainer-facing ledger of the *structural* (XSD) requirements of each bump

@@ -155,12 +155,14 @@ def upgrade_tool(
     Minimal bump by default: a tool that validates at its declared profile
     keeps it (an undeclared tool stays undeclared); an invalid one is bumped
     to the minimum valid profile at or above its baseline. *modernize* opts
-    into the behaviour-gated walk toward the latest profile (the walk stops at
-    the behaviour ceiling and reports the blocking codes);
-    *allow_behavior_change* lifts that gate (requiring a walk mode, raising
-    ``UpgradeFlagError`` otherwise); *target_profile* walks up to an explicit
-    vendored profile (raising ``UnknownProfile`` otherwise), implying the walk
-    mode by itself.
+    into the behaviour-gated walk toward the latest profile, capped by the
+    lower of the behaviour ceiling (reported via the blocking codes) and the
+    deployment ceiling (the newest profile every major public Galaxy server
+    runs); *allow_behavior_change* lifts the behaviour gate only (requiring a
+    walk mode, raising ``UpgradeFlagError`` otherwise); *target_profile* walks
+    up to an explicit vendored profile (raising ``UnknownProfile`` otherwise),
+    implying the walk mode by itself and exceeding the deployment ceiling when
+    asked.
     """
     codes = resolve_upgrade_codes(select=select, ignore=ignore)
     return _upgrade_result_to_dict(

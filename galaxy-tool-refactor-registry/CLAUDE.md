@@ -89,10 +89,12 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
   `upgrade` is **minimal-bump by default** (D22): keep `profile=` when the
   repaired tool validates at its resolved baseline (an undeclared tool stays
   undeclared), else declare the minimum valid profile at or above it via
-  `UpgradeToValid` (GTR097). `modernize=True` runs the behavior-gated walk to
-  the behaviour ceiling (D21); `target_profile` implies the walk and caps it
-  (typed `UnknownProfile` on a bad value); `allow_behavior_change` lifts the
-  walk's gate and without a walk mode raises `UpgradeFlagError`.
+  `UpgradeToValid` (GTR097). `modernize=True` runs the behavior-gated walk,
+  capped at the lower of the behaviour ceiling (D21) and the deployment
+  ceiling (D23, `deployment.py`); `target_profile` implies the walk, caps it
+  (typed `UnknownProfile` on a bad value), and may exceed the deployment
+  ceiling; `allow_behavior_change` lifts the walk's behaviour gate only and
+  without a walk mode raises `UpgradeFlagError`.
   `UpgradeResult` carries `baseline_profile` / `reached_profile` /
   `stopped_at` (walk-only) / `blocking_codes` / `auto_fixed_codes`.
 - `macro_profile.py` — Phase-3b imported-`@PROFILE@` upgrade: `profile_token_site`
@@ -107,6 +109,10 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
   is inert for every other importer of the file). The facade's `tokenize_version` (one
   tool) and `tokenize_version_shared` (a directory group) sit on top. See
   `docs/decisions.md` D20.
+- `deployment.py` — the vendored deployment ceiling (the newest profile every
+  major public Galaxy server runs) + snapshot date + staleness probe; caps the
+  no-explicit-target walk (D23). Drift-guarded against the committed
+  `docs/galaxy_server_versions.json` by `tests/test_deployment.py`.
 - `results.py` — the structured result + introspection dataclasses.
 - `errors.py` — `UnknownRuleCode` / `UnknownRuleset` / `UnknownProfile` /
   `UpgradeFlagError`.

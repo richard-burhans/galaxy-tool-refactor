@@ -122,7 +122,11 @@ def test_profile_token_site_default_minimal_bump_when_invalid_at_value(
     assert site.target == "21.09"
 
 
-def test_profile_token_site_modernize_walks_to_latest(tmp_path: Path) -> None:
+def test_profile_token_site_modernize_walks_to_the_deployment_ceiling(
+    tmp_path: Path,
+) -> None:
+    from galaxy_tool_refactor_registry import deployment
+
     (tmp_path / "macros.xml").write_text(
         '<macros><token name="@PROFILE@">19.01</token></macros>', encoding="utf-8"
     )
@@ -136,7 +140,27 @@ def test_profile_token_site_modernize_walks_to_latest(tmp_path: Path) -> None:
     )
     site = profile_token_site(load_tool(tool), modernize=True)
     assert site is not None
-    assert site.target == latest_profile()  # validates at latest despite 19.01
+    # Unblocked, so the deployment ceiling caps the walk (not the latest).
+    assert site.target == deployment.DEPLOYMENT_CEILING
+
+
+def test_profile_token_site_target_may_exceed_the_deployment_ceiling(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "macros.xml").write_text(
+        '<macros><token name="@PROFILE@">19.01</token></macros>', encoding="utf-8"
+    )
+    tool = _write_tool(
+        tmp_path,
+        "tool.xml",
+        '<tool id="m" name="M" version="1.0.0" profile="@PROFILE@">'
+        "<macros><import>macros.xml</import></macros>"
+        "<command><![CDATA[echo x]]></command>"
+        '<inputs/><outputs><data name="o"/></outputs></tool>',
+    )
+    site = profile_token_site(load_tool(tool), target_profile=latest_profile())
+    assert site is not None
+    assert site.target == latest_profile()
 
 
 def test_profile_token_site_modernize_is_gated(tmp_path: Path) -> None:
@@ -159,7 +183,7 @@ def test_profile_token_site_modernize_is_gated(tmp_path: Path) -> None:
     assert site.target == "24.1"
 
 
-def test_profile_token_site_ungated_with_allow_behavior_change(
+def test_profile_token_site_allow_behavior_change_is_deployment_capped(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "macros.xml").write_text(
@@ -178,7 +202,10 @@ def test_profile_token_site_ungated_with_allow_behavior_change(
         load_tool(tool), modernize=True, allow_behavior_change=True
     )
     assert site is not None
-    assert site.target == latest_profile()
+    # The flag lifts the behaviour gate; the deployment ceiling still caps.
+    from galaxy_tool_refactor_registry import deployment
+
+    assert site.target == deployment.DEPLOYMENT_CEILING
 
 
 def test_profile_token_site_honors_a_target_profile_cap(tmp_path: Path) -> None:

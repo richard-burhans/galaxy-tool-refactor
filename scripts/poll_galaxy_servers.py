@@ -9,13 +9,17 @@ newest profile Galaxy has ever shipped (which may be an unreleased pre-release).
 This script gathers that data: it queries each curated server's public
 ``/api/version`` endpoint (no auth) and reports the per-server release, the
 deployment floor (the lowest ``version_major`` across the set), and the newest
-*vendored* profile at or below that floor (the candidate deployment ceiling).
+*vendored* profile at or below that floor (the deployment ceiling).
 
-It writes a dated snapshot to ``docs/galaxy_server_versions.json`` so the result
-is reviewable and re-runnable; a future ``upgrade`` deployment-ceiling feature
-can consume it. Network failures degrade gracefully: an unreachable server is
-reported as such and excluded from the floor, and the run still exits 0 as long
-as at least one server answered.
+It writes a dated snapshot to ``docs/galaxy_server_versions.json``, the source
+of truth for the vendored ``DEPLOYMENT_CEILING`` that caps
+``upgrade --modernize`` (``galaxy_tool_refactor_registry/deployment.py``,
+registry decisions D23). After a re-poll moves the snapshot, update
+``deployment.py`` to match; the drift-guard test
+(``galaxy-tool-refactor-registry/tests/test_deployment.py``) fails naming both
+files until they agree. Network failures degrade gracefully: an unreachable
+server is reported as such and excluded from the floor, and the run still
+exits 0 as long as at least one server answered.
 
 Run from the workspace root::
 

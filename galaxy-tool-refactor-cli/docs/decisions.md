@@ -523,3 +523,18 @@ upgrade"`. Policy: registry D22, codemod decisions §50.
 - Help text leads with the minimal-bump contract; the behavior-gate
   paragraph now describes `--modernize`. Exit codes are unchanged, and
   `--check`/`--diff` semantics are untouched.
+
+## D18 (2026-06-12): the deployment ceiling on `--modernize`; `--target-profile` exceeds it
+
+Reproduced-by: `uv run --package galaxy-tool-refactor-cli pytest
+galaxy-tool-refactor-cli/tests/test_cli.py -k "deployment or modernize"`.
+Policy: registry D23.
+
+No new flags. The `--modernize` walk now lands on the deployment ceiling
+(the newest profile every major public Galaxy server runs) when nothing
+lower stops it first, and the report says so with the snapshot date and the
+escape. `--allow-behavior-change` keeps its single meaning (lift the
+behaviour gate); the only way past the deployment ceiling is an explicit
+`--target-profile`, which prints an informational note when the requested
+target exceeds it. The help text names both ceilings so the flag surface
+stays self-describing.

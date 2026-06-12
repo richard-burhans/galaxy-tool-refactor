@@ -6,7 +6,10 @@
 > gate proven here bounds the opt-in **`--modernize` walk**; read "the walk"
 > below as that mode. The minimal default crosses a boundary only when
 > validity strictly requires it, and any boundary a needed bump does cross
-> still receives the same runtime-gated fixes and reporting.
+> still receives the same runtime-gated fixes and reporting. The walk is
+> additionally capped by the **deployment ceiling** (registry decisions D23),
+> an orthogonal installability bound outside this document's behaviour claim:
+> a lower cap can only shrink the set of crossed boundaries, never grow it.
 
 **Contract:** the modernize walk crosses no Galaxy `must_fix` behaviour
 boundary whose change applies to the tool, except boundaries whose change it

@@ -38,11 +38,14 @@ longer imports the codemod / check tiers directly. It exposes the
   when strictly needed for validity — kept when the repaired tool validates at
   its baseline, undeclared stays undeclared, else the minimum valid profile at
   or above the baseline (`UpgradeToValid`, GTR097). `--modernize` opts into
-  the behavior-gated walk to the behaviour ceiling (registry D21, cli D16):
-  the stop report names the blocking code(s) and links to
-  `docs/profile_boundaries.md`; `--allow-behavior-change` lifts the walk's
-  gate (an error without a walk mode) and `--target-profile PROFILE` caps the
-  walk (validated up front, implies the walk).
+  the behavior-gated walk, capped at the lower of the behaviour ceiling
+  (registry D21, cli D16) and the deployment ceiling (registry D23, cli D18;
+  the newest profile every major public Galaxy server runs): the stop report
+  names the blocking code(s) and links to `docs/profile_boundaries.md`, or
+  names the deployment cap; `--allow-behavior-change` lifts the walk's
+  behaviour gate only (an error without a walk mode) and
+  `--target-profile PROFILE` caps the walk (validated up front, implies the
+  walk, and may exceed the deployment ceiling).
   Also bumps an imported `@PROFILE@` token in place when every profile-using
   importer in the run agrees on the target, else reports+skips (cli §D6); each
   importer's target honors the same mode and flags; the

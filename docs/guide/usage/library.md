@@ -24,8 +24,11 @@ for v in det.violations:                    # v.code, v.line, v.message
 
 # upgrade: repair, then bump profile= only when strictly needed for validity
 # (minimal-bump default; a valid tool keeps its declaration). modernize=True
-# opts into the behavior-preserving walk to the behaviour ceiling;
-# allow_behavior_change=True restores the walk-to-latest, target_profile caps it.
+# opts into the behavior-preserving walk, capped at the lower of the
+# behaviour ceiling and the deployment ceiling (the newest profile every
+# major public Galaxy server runs); allow_behavior_change=True lifts the
+# behaviour gate only, target_profile caps the walk and may exceed the
+# deployment ceiling.
 up = facade.upgrade(tool, codes=resolve.resolve_upgrade_codes())
 upgraded_xml: bytes = up.formatted
 print(up.baseline_profile, up.reached_profile)  # where it started and landed

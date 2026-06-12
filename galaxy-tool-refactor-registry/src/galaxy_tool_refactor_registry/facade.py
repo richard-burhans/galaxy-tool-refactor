@@ -20,6 +20,7 @@ profile upgrade and additionally applies the fixable rules in the selection.
 from __future__ import annotations
 
 import copy
+from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -62,6 +63,7 @@ from galaxy_tool_source.document import ToolDocument
 from galaxy_tool_source.profiles import available_profiles, latest_profile
 from packaging.version import Version
 
+from galaxy_tool_refactor_registry import deployment
 from galaxy_tool_refactor_registry.adapters import fmt_rule_by_code
 from galaxy_tool_refactor_registry.apply import apply_selection
 from galaxy_tool_refactor_registry.errors import UnknownProfile, UpgradeFlagError
@@ -333,6 +335,56 @@ def _behavior_stop_note(
     )
 
 
+def _deployment_cap_note(*, cap: str, baseline: str | None) -> str:
+    """The walk was capped by the deployment ceiling, not a behaviour code.
+
+    Phrased per the Galaxy Community Code of Conduct: the cap is about where
+    the tool can install today, not a problem with the tool.
+    """
+    snapshot = deployment.DEPLOYMENT_SNAPSHOT_DATE.isoformat()
+    if baseline == cap and cap != deployment.DEPLOYMENT_CEILING:
+        return (
+            f"  profile walk capped at the declared baseline {cap}: it already"
+            f" exceeds the deployment ceiling"
+            f" {deployment.DEPLOYMENT_CEILING} (the newest profile every major"
+            f" public Galaxy server runs; snapshot {snapshot}). Pass"
+            " --target-profile to walk newer profiles."
+        )
+    return (
+        f"  profile walk capped at {cap}, the deployment ceiling: the newest"
+        f" profile every major public Galaxy server runs (snapshot {snapshot},"
+        " docs/galaxy_server_versions.json). A newer declaration could not"
+        " install on the lagging servers yet; pass --target-profile to upgrade"
+        " past it deliberately."
+    )
+
+
+def _deployment_target_note(target: str, /) -> str | None:
+    """An explicit target above the ceiling gets an informational note."""
+    if Version(target) <= Version(deployment.DEPLOYMENT_CEILING):
+        return None
+    return (
+        f"  note: the requested target {target} is newer than the deployment"
+        f" ceiling {deployment.DEPLOYMENT_CEILING} (the newest profile every"
+        f" major public Galaxy server runs; snapshot"
+        f" {deployment.DEPLOYMENT_SNAPSHOT_DATE.isoformat()}), so the tool may"
+        " not install everywhere yet."
+    )
+
+
+def _deployment_stale_note() -> str | None:
+    """A re-poll suggestion when the vendored snapshot may lag a release."""
+    if not deployment.snapshot_is_stale(today=date.today()):
+        return None
+    return (
+        "  note: the deployment-ceiling snapshot is from"
+        f" {deployment.DEPLOYMENT_SNAPSHOT_DATE.isoformat()} and may lag a"
+        " Galaxy release; re-run `python -m scripts.poll_galaxy_servers` to"
+        " refresh docs/galaxy_server_versions.json and update the vendored"
+        " ceiling."
+    )
+
+
 def _minimal_outcome_note(
     *,
     declared: str | None,
@@ -407,17 +459,21 @@ def upgrade(
     newest profile, so a gratuitous bump would only narrow where the tool can
     run.
 
-    *modernize* opts into the walk toward the latest profile, stopping at the
-    behaviour ceiling: the newest vendored profile reachable without crossing
-    a Galaxy ``must_fix`` behaviour change that applies to this tool and that
-    no runtime-gated fix provably clears (``behavior_gate``). Applicable
-    consider-level changes are warned about but do not stop the walk.
-    *target_profile* caps the walk at an explicit vendored profile (raising
-    ``UnknownProfile`` otherwise), implying the walk mode by itself, and
-    composes with the gate (the lower wins). *allow_behavior_change* lifts
-    the gate (the historical walk-to-latest); it requires a walk mode
-    (raising ``UpgradeFlagError`` otherwise — the minimal default has no gate
-    to lift).
+    *modernize* opts into the walk toward the latest profile, capped by the
+    lower of two ceilings: the behaviour ceiling — the newest vendored
+    profile reachable without crossing a Galaxy ``must_fix`` behaviour change
+    that applies to this tool and that no runtime-gated fix provably clears
+    (``behavior_gate``) — and the **deployment ceiling** — the newest profile
+    every major public Galaxy server runs (``deployment``, vendored from the
+    committed server-poll snapshot; a newer declaration could not install
+    everywhere yet). Applicable consider-level changes are warned about but
+    do not stop the walk. *target_profile* walks to an explicit vendored
+    profile (raising ``UnknownProfile`` otherwise), implying the walk mode by
+    itself; it composes with the behaviour gate (the lower wins) and, being
+    deliberate, **may exceed the deployment ceiling** (a note still mentions
+    it). *allow_behavior_change* lifts the behaviour gate only, never the
+    deployment cap; it requires a walk mode (raising ``UpgradeFlagError``
+    otherwise — the minimal default has no gate to lift).
 
     ``FixTypos`` runs first when its code is in *codes* (the repair
     precondition). Runtime-gated fixes for the profile actually crossed then
@@ -458,6 +514,21 @@ def upgrade(
     unreachable: str | None = None
     walk = False
     ceiling = target
+    deployment_cap: str | None = None
+    gate_ceiling: str | None = None
+    if walk_mode and target is None:
+        # The deployment ceiling (registry D23): a walk with no explicit
+        # target never declares past what the major public servers can run.
+        # Floored at the baseline so a tool already declared above it is left
+        # where it sits (the cap limits bumps, it never lowers).
+        deployment_cap = deployment.DEPLOYMENT_CEILING
+        if (
+            placeable
+            and baseline is not None
+            and Version(baseline) > Version(deployment_cap)
+        ):
+            deployment_cap = baseline
+        ceiling = deployment_cap
     if walk_mode:
         walk = True
         if placeable and baseline is not None:
@@ -507,6 +578,19 @@ def upgrade(
     else:
         # Unplaceable baseline under the minimal default: fail closed.
         reached_profile = baseline
+
+    # Which cap bound the walk decides which stop note the user reads: the
+    # behaviour gate's (actionable per blocking code) or the deployment
+    # ceiling's. On a tie the gate's note wins (it is the actionable one).
+    deployment_bound = (
+        walk
+        and deployment_cap is not None
+        and ceiling == deployment_cap
+        and not (
+            gate_ceiling is not None
+            and Version(gate_ceiling) <= Version(deployment_cap)
+        )
+    )
 
     # Runtime-gated fixes correct profile behaviours the XSD does not enforce, so
     # they ride neither the validity loop nor the selection. Apply each fix the tool
@@ -571,9 +655,20 @@ def upgrade(
         _behavior_stop_note(
             blockers, stopped_at=stopped_at, walked=walk, target_profile=target
         )
-        if walk_mode and not allow_behavior_change
+        if walk_mode and not allow_behavior_change and not deployment_bound
         else None
     )
+    deployment_note = (
+        _deployment_cap_note(cap=ceiling, baseline=baseline)
+        if deployment_bound
+        and ceiling is not None
+        and ceiling != latest_profile()
+        else None
+    )
+    target_ceiling_note = (
+        _deployment_target_note(target) if target is not None else None
+    )
+    stale_note = _deployment_stale_note() if deployment_cap is not None else None
     minimal_note = (
         _minimal_outcome_note(
             declared=declared,
@@ -607,6 +702,9 @@ def upgrade(
         for note in (
             summary,
             stop_note,
+            deployment_note,
+            target_ceiling_note,
+            stale_note,
             minimal_note,
             unplaceable_note,
             semantic,

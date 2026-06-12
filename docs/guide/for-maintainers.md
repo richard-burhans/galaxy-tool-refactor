@@ -34,7 +34,7 @@ idempotent and behaviour-preserving. `format --check` is a clean CI gate.
 ```diff
 $ galaxy-tool-refactor upgrade --modernize --diff tools/bandage/bandage_info.xml
 -<tool id="bandage_info" … profile="18.01">
-+<tool id="bandage_info" … profile="26.1">
++<tool id="bandage_info" … profile="25.1">
 ```
 
 By default it moves `profile=` **only when strictly needed for validity**: a
@@ -45,7 +45,8 @@ a pre-release a public server cannot run). `--modernize` opts into the walk
 shown above, which advances the profile **only as far as behaviour provably
 stays the same**: it stops below the first Galaxy `must_fix` change that
 applies to your tool and that it cannot fix with a repair proven safe on that
-tool. A stop is a normal, successful outcome: the report names the blocking
+tool, and never past the deployment ceiling, the newest profile every major
+public Galaxy server runs (`--target-profile` is the explicit way past it). A stop is a normal, successful outcome: the report names the blocking
 code and links to the [per-boundary reference](../profile_boundaries.md),
 which tells you what changed and what to do;
 `--modernize --allow-behavior-change` takes the bump anyway. Read

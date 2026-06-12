@@ -33,10 +33,13 @@ take the tool XML as a string and return JSON. Nothing is written to disk. See
 The default is minimal-bump: `profile=` moves only when strictly needed for
 validity, and a tool that validates where it sits comes back byte-identical
 (`baseline_profile == reached_profile`). `modernize=true` opts into the
-behavior-preserving walk, which stops at the behaviour ceiling;
+behavior-preserving walk, which stops at the behaviour ceiling and never
+passes the deployment ceiling (the newest profile every major public Galaxy
+server runs; only an explicit `target_profile` exceeds it);
 `stopped_at`/`blocking_codes` say where and why (each code maps to a section of
-[`docs/profile_boundaries.md`](../profile_boundaries.md)). Crossing the boundary
-additionally requires `allow_behavior_change=true` explicitly.
+[`docs/profile_boundaries.md`](../profile_boundaries.md)). Crossing a
+behaviour boundary additionally requires `allow_behavior_change=true`
+explicitly.
 `behavior_preserving` (`true`/`false`/`null`) lets an agent decide what to
 accept unattended versus surface to a human; the honest contract is in
 [soundness](soundness.md).
