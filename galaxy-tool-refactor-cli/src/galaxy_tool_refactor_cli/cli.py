@@ -297,9 +297,11 @@ def format_command(
     "--modernize",
     is_flag=True,
     help=(
-        "Walk profile= toward the latest profile (capped at the behaviour"
-        " ceiling) instead of the default minimal bump, which moves profile="
-        " only as far as validity strictly requires."
+        "Walk profile= toward the latest profile (capped at the lower of the"
+        " behaviour ceiling and the deployment ceiling, the newest profile"
+        " every major public Galaxy server runs) instead of the default"
+        " minimal bump, which moves profile= only as far as validity strictly"
+        " requires."
     ),
 )
 @click.option(
@@ -307,9 +309,10 @@ def format_command(
     is_flag=True,
     help=(
         "Let the --modernize / --target-profile walk cross Galaxy behaviour"
-        " changes that apply to the tool (the historical walk-to-latest)."
-        " Requires one of those flags: the default minimal bump has no gated"
-        " walk to lift."
+        " changes that apply to the tool. Requires one of those flags: the"
+        " default minimal bump has no gated walk to lift. Lifts the behaviour"
+        " gate only; exceeding the deployment ceiling takes an explicit"
+        " --target-profile."
     ),
 )
 @click.option(
@@ -318,8 +321,9 @@ def format_command(
     metavar="PROFILE",
     help=(
         "Walk the upgrade up to this vendored Galaxy profile (e.g. 23.0);"
-        " implies the walk mode. Composes with the behaviour gate: the lower"
-        " of the two wins."
+        " implies the walk mode. Composes with the behaviour gate (the lower"
+        " of the two wins) and, being deliberate, may exceed the deployment"
+        " ceiling (a note still mentions it)."
     ),
 )
 def upgrade_command(
@@ -350,16 +354,21 @@ def upgrade_command(
     profile, so a gratuitous bump would only narrow where a tool can install.
 
     **--modernize** opts into the behaviour-gated walk toward the latest
-    profile: it stops at the behaviour ceiling, the newest vendored profile
-    reachable without crossing a Galaxy ``must_fix`` behaviour change that
-    applies to this tool and that no bundled fix provably clears (a fix is
-    credited only when re-detection proves the construct gone). A stop is
-    reported with the blocking code(s) and where to read about them
-    (``docs/profile_boundaries.md``). Applicable consider-level changes are
-    warned about but do not stop the walk. ``--target-profile`` walks up to an
-    explicit vendored profile (implying the walk mode by itself) and composes
-    with the gate (the lower wins); ``--allow-behavior-change`` lifts the gate
-    (the historical walk-to-latest) and requires one of the walk flags.
+    profile, capped by the lower of two ceilings: the behaviour ceiling, the
+    newest vendored profile reachable without crossing a Galaxy ``must_fix``
+    behaviour change that applies to this tool and that no bundled fix
+    provably clears (a fix is credited only when re-detection proves the
+    construct gone), and the deployment ceiling, the newest profile every
+    major public Galaxy server runs (a newer declaration could not install
+    everywhere yet; vendored from the committed server-poll snapshot). A stop
+    is reported with the blocking code(s) and where to read about them
+    (``docs/profile_boundaries.md``), or with the deployment cap. Applicable
+    consider-level changes are warned about but do not stop the walk.
+    ``--target-profile`` walks up to an explicit vendored profile (implying
+    the walk mode by itself), composes with the behaviour gate (the lower
+    wins), and may exceed the deployment ceiling deliberately;
+    ``--allow-behavior-change`` lifts the behaviour gate only and requires
+    one of the walk flags.
 
     A ``profile="@PROFILE@"`` whose token lives in an *imported* macro file is
     handled by editing that token in place — but only when every profile-using
