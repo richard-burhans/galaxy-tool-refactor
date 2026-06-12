@@ -108,7 +108,7 @@ def test_profile_token_site_is_gated_by_default(tmp_path: Path) -> None:
         "<macros><import>macros.xml</import></macros>"
         "<command><![CDATA[echo x]]></command>"
         '<inputs/><outputs><data name="o"/></outputs>'
-        "<tests><test/></tests></tool>",
+        '<tests><test><param name="nosuch" value="1"/></test></tests></tool>',
     )
     site = profile_token_site(load_tool(tool))
     assert site is not None
@@ -128,7 +128,7 @@ def test_profile_token_site_ungated_with_allow_behavior_change(
         "<macros><import>macros.xml</import></macros>"
         "<command><![CDATA[echo x]]></command>"
         '<inputs/><outputs><data name="o"/></outputs>'
-        "<tests><test/></tests></tool>",
+        '<tests><test><param name="nosuch" value="1"/></test></tests></tool>',
     )
     site = profile_token_site(load_tool(tool), allow_behavior_change=True)
     assert site is not None

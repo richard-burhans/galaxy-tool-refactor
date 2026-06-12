@@ -73,6 +73,7 @@ from galaxy_tool_source.macros import expanded_detection_root
 from packaging.version import Version
 
 from galaxy_tool_codemod._version import version_or_none
+from galaxy_tool_codemod.test_case_check import all_test_cases_provably_clean
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -479,9 +480,24 @@ def _detects_non_optional_text(root: etree._Element, /) -> bool:
 
 
 def _detects_has_test(root: etree._Element, /) -> bool:
-    # Approximation of Galaxy's run-the-test-case-validator check: a tool with no
-    # ``<test>`` cannot produce a test-case validation error.
+    # The necessary condition of Galaxy's run-the-test-case-validator check: a
+    # tool with no ``<test>`` cannot produce a test-case validation error.
     return root.find("tests/test") is not None
+
+
+def _detects_test_case_validation(root: etree._Element, /) -> bool:
+    """24_2 applies when tests exist AND are not provably clean.
+
+    Tightens the bare has-a-``<test>`` necessary condition with the toolchain's
+    own implementation of Galaxy's strict 24.2 decision
+    (``test_case_check.all_test_cases_provably_clean``): one-directional, so it
+    only ever removes a false block, never under-reports. Parity with Galaxy's
+    real validator is held by the standing oracle (``scripts.measure
+    test-case-validation-truth``, zero unsound suppressions) and the in-CI
+    fixture parity test. See ``docs/decisions.md`` §47 and
+    ``docs/galaxy_reimplementations.md`` touchpoint 3.
+    """
+    return _detects_has_test(root) and not all_test_cases_provably_clean(root)
 
 
 def _tool_type_is(*tool_types: str) -> Callable[[etree._Element], bool]:
@@ -513,7 +529,7 @@ _DETECTORS: dict[str, Callable[[etree._Element], bool]] = {
     "23_0_consider_optional_text": _detects_non_optional_text,
     "24_0_consider_python_environment": _tool_type_is("data_source_async"),
     "24_0_request_cleaning": _tool_type_is("data_source_async", "data_source"),
-    "24_2_fix_test_case_validation": _detects_has_test,
+    "24_2_fix_test_case_validation": _detects_test_case_validation,
 }
 
 
