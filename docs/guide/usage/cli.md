@@ -75,10 +75,7 @@ Both `format` and `upgrade` take `--diff` (print a unified diff, write nothing) 
 $ galaxy-tool-refactor format --diff tools/coverm/macros.xml
 --- tools/coverm/macros.xml (original)
 +++ tools/coverm/macros.xml (rewritten)
-@@ -1,3 +1,4 @@
-+<?xml version='1.0' encoding='utf-8'?>
- <macros>
-@@ -48,7 +49,7 @@
+@@ -48,7 +48,7 @@
 -        <param argument="--sharded" type="boolean" ... help="..." />
 +        <param argument="--sharded" type="boolean" ... help="..."/>
 ```

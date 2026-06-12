@@ -12,6 +12,12 @@ is the breaking-change channel.
 ## [Unreleased]
 
 ### Changed
+- **The formatter emits no XML declaration** (fmt decisions §D21; from the IUC
+  review of featurecounts PR #8090). `serializer.to_bytes` now passes
+  `xml_declaration=False`, so canonical output omits `<?xml ...?>` (optional by
+  the XML spec, and IUC removes it even when present). Drops the declaration
+  from every output path in one place; a second deliberate default-`format`
+  byte shift after GTR020.1, `format` idempotence unaffected.
 - **`upgrade` is minimal-bump by default** (codemod decisions §50, registry
   D22, cli D17, mcp D5; from IUC maintainer feedback on featurecounts PR
   #8090). `profile=` moves only when strictly needed for validity: a tool
