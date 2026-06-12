@@ -172,17 +172,26 @@ the `upgrade_codes.json` code(s) (mirrored as `PROFILE_UPGRADE_CODES` in
 `galaxy-tool-codemod/.../profile_semantics.py`) whose profile == the *To*
 version, with their `level` (`must_fix` / `consider`). "none documented" = no
 upgrade code at that step. The behaviour takes effect for a tool **declaring** the
-*To* profile (bumping `profile=` into that row opts in). `galaxy-tool-refactor
-upgrade` warns on the codes a bump crosses **that actually apply to the tool**
-(per-tool detection ported from Galaxy's advisor; codemod `docs/decisions.md`
-§23 + §25). When a bump that advances the profile crosses **no** applicable code,
-the inverse is surfaced affirmatively: `UpgradeResult.behavior_preserving` is
-`True` and a clean-pass note says so — proving the governed construct is absent
-lets the tool move past the boundary behaviour-safely (codemod §23). The per-code
+*To* profile (bumping `profile=` into that row opts in). Since 2026-06-12 the
+default `galaxy-tool-refactor upgrade` **stops** at the behaviour ceiling: it
+never crosses a `must_fix` code that applies to the tool (per-tool detection
+ported from Galaxy's advisor; codemod `docs/decisions.md` §25 + §45) unless a
+runtime-gated fix provably clears it on that tool; applicable `consider` codes
+are warned about and do not stop the walk. `--allow-behavior-change` restores
+the historical walk-to-latest with the §23 warning; the user-facing per-code
+"what changed and what to do" reference is
+[`profile_boundaries.md`](profile_boundaries.md) (generated, freshness-tested).
+When a bump that advances the profile crosses **no** applicable code (or every
+applicable `must_fix` was provably fixed), the inverse is surfaced
+affirmatively: `UpgradeResult.behavior_preserving` is `True` and a clean-pass
+note says so — proving the governed construct is absent (or fixed) lets the
+tool move past the boundary behaviour-safely (codemod §23 + §45). The per-code
 corpus blast radius is `scripts/measure.py
-semantic-upgrade-boundaries`, and crossed-vs-applicable is `scripts/measure.py
-upgrade-codes-applicability`; pinnability is in
-`galaxy-tool-codemod/docs/behavior-preserving-upgrade.md`.
+semantic-upgrade-boundaries`, crossed-vs-applicable is `scripts/measure.py
+upgrade-codes-applicability`, and where the gated default stops is
+`docs/upgrade_behavior_block_stats.md` (`scripts/measure.py
+upgrade-behavior-blocks`, computed with the shipped gate functions);
+pinnability is in `galaxy-tool-codemod/docs/behavior-preserving-upgrade.md`.
 
 > **Two scopes the catalogue doesn't cover, flagged inline:** (1) **16.04**'s four
 > codes (interpreter/output-format/exit-code/extra-file) predate the oldest vendored

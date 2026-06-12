@@ -33,7 +33,10 @@ The ten commands:
 ```text
 check            Report where tools deviate from the selection, without changing them.
 format           Apply a ruleset's fixable rules then cosmetic formatting (never profile=).
-upgrade          Repair and upgrade tools to the latest profile they can reach, then format.
+upgrade          Repair and upgrade tools as far as behaviour provably stays the same,
+                 then format. Stops at the behaviour ceiling with an actionable report;
+                 --allow-behavior-change walks to the latest profile anyway, and
+                 --target-profile caps the walk at an explicit vendored profile.
 find-references  Report every Cheetah $var reference to a parameter across a tool AND its
                  imported macro files (read-only).
 rename-param     Rename a parameter OLD->NEW across every Cheetah section, cross-ref attribute,
@@ -84,6 +87,36 @@ $ galaxy-tool-refactor upgrade --diff tools/bandage/bandage_info.xml
 ```
 
 See [soundness](../soundness.md) for exactly what `upgrade` guarantees.
+
+## My upgrade stopped — now what?
+
+The default `upgrade` is behavior-preserving: when a Galaxy `must_fix` behaviour
+change applies to your tool and has no automatic fix, the walk stops below that
+boundary and tells you why:
+
+```text
+$ galaxy-tool-refactor upgrade tools/mytool/mytool.xml
+upgraded tools/mytool/mytool.xml
+  profile upgrade stopped at 24.1 (latest is 26.1): 24_2_fix_test_case_validation
+  (must_fix at 24.2) applies to this tool and cannot be fixed automatically yet;
+  see docs/profile_boundaries.md for what changes there and how to update the
+  tool, or rerun with --allow-behavior-change to upgrade anyway.
+```
+
+This is a successful partial upgrade, not an error (exit code 0). Your options:
+
+1. Open [`docs/profile_boundaries.md`](../../profile_boundaries.md), find the
+   named code's section, and update the tool following Galaxy's description;
+   then rerun `upgrade` to continue past the boundary.
+2. Rerun with `--allow-behavior-change` to take the bump anyway, and review the
+   crossed-boundary warning it prints.
+3. Pin a specific stopping point with `--target-profile PROFILE` (composes with
+   the gate; the lower wins).
+
+When the upgrade crosses a boundary it *fixed* for you, the note says so
+(`crossed 21.09 21_09_fix_from_work_dir_whitespace: fixed automatically
+(GTR014).`) — those fixes are verified on your tool by re-detection before
+being credited.
 
 ## Report only
 

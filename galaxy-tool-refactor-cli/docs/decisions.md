@@ -469,3 +469,26 @@ population is sized by `scripts.measure version-tokenization`
 (`n_version_equals_req_no_suffix`, ~284 tools). Tier-1 `version_tokens`
 (`adopt_suffix_skip_reason` + `adopt_suffix_equality_holds`); facade
 `adopt_version_suffix`.
+
+## D16 (2026-06-12) — `upgrade` flags for the behavior-preserving default
+
+Reproduced-by: `uv run --package galaxy-tool-refactor-cli pytest
+galaxy-tool-refactor-cli/tests/test_cli.py -k "behavior or target_profile"`.
+
+- `upgrade` gains `--allow-behavior-change` (named for the consequence the
+  user accepts; lifts the registry facade's default gate, registry D21) and
+  `--target-profile PROFILE` (an explicit vendored cap; validated **up front**
+  against `available_profiles()` so a typo fails before any file or the
+  whole-run macro phase is touched, reusing the typed `UnknownProfile`
+  message). Exit codes are unchanged: a gate stop is a successful partial
+  upgrade, and `--check`/`--diff` semantics are untouched.
+- Both flags thread into the whole-run imported `@PROFILE@` bump
+  (`_upgrade_macro_profile_tokens` -> `profile_token_site`), so the
+  shared-token targets honor the same gate as the per-tool transform; without
+  this the macro path could over-declare a profile the gated per-tool walk
+  would refuse (the D6 phase ordering makes the macro edit happen first, so
+  the gap would be real).
+- The command docstring now leads with the behavior-preserving contract and
+  the stop report; the historical "structural, not behaviour-preserving"
+  paragraph is replaced by the gate description (the structural caveat
+  remains true of `--allow-behavior-change`).

@@ -78,3 +78,18 @@ disk), so a tool whose `<macros>` imports files fails closed — the
 expansion-equality gate cannot resolve imports without a source directory —
 and the skip reason says to use the path-based CLI `tokenize-version` instead.
 No ruleset/select parameters: GTR094, like GTR092, is not selectable anywhere.
+
+## D4 (2026-06-12) — `upgrade_tool` exposes the behavior gate
+
+Reproduced-by: `uv run --package galaxy-tool-refactor-mcp pytest
+galaxy-tool-refactor-mcp/tests/test_service.py -k "behavior or target"`.
+
+`upgrade_tool` gains `allow_behavior_change` and `target_profile` (the same
+two escape hatches as the CLI; registry D21) and its result dict gains
+`stopped_at`, `blocking_codes`, and `auto_fixed_codes`, so an agent can see
+where and why the default walk stopped and decide deliberately whether to opt
+past the boundary. `UnknownProfile` joins the `_guarded` error boundary in
+`server.py` (translated to a clean tool error, like the other typed facade
+errors). The default stays gated for agents too: an agent must pass
+`allow_behavior_change=True` explicitly, mirroring the human flag, because an
+unattended behaviour change is worse, not better.

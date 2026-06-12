@@ -22,10 +22,13 @@ det = facade.detect(tool, codes=resolve.resolve_codes(rulesets=["strict"]))
 for v in det.violations:                    # v.code, v.line, v.message
     print(v.code, det.is_advisory(v))
 
-# upgrade: profile bump + the repairs proven safe, then format
+# upgrade: profile bump + the repairs proven safe, then format.
+# Behavior-preserving by default: stops at the behaviour ceiling;
+# allow_behavior_change=True restores the walk-to-latest, target_profile caps it.
 up = facade.upgrade(tool, codes=resolve.resolve_upgrade_codes())
 upgraded_xml: bytes = up.formatted
 print(up.behavior_preserving)               # True / False / None — see soundness
+print(up.stopped_at, up.blocking_codes)     # where and why the gate stopped
 ```
 
 > **Gotcha (honest).** Pass a **`Path`** (or a `ToolDocument` loaded from a path), not
@@ -39,7 +42,7 @@ print(up.behavior_preserving)               # True / False / None — see soundn
 |---|---|
 | `FormatResult` (`run`) | `formatted: bytes`, `advisory: list[Violation]`, `notes` |
 | `DetectResult` (`detect`) | `violations: list[Violation]`, `advisory_codes`, `is_advisory(v)` |
-| `UpgradeResult` (`upgrade`) | `formatted: bytes`, `steps_applied`, `missing_upgrade`, `behavior_preserving`, `advisory` |
+| `UpgradeResult` (`upgrade`) | `formatted: bytes`, `steps_applied`, `missing_upgrade`, `behavior_preserving`, `stopped_at`, `blocking_codes`, `auto_fixed_codes`, `advisory` |
 
 Rule selection is shared: `resolve.resolve_codes(rulesets=…, select=…, ignore=…)` for
 `run`/`detect` (the base is the union of the named rulesets);

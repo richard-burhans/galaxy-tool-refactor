@@ -11,7 +11,7 @@
 | Tool | Input | Returns |
 |---|---|---|
 | `format_tool` | `xml`, optional `rulesets`/`select`/`ignore` | canonical XML + advisory notes |
-| `upgrade_tool` | `xml`, optional `select`/`ignore` | upgraded XML, steps, `behavior_preserving`, notes |
+| `upgrade_tool` | `xml`, optional `select`/`ignore`, `allow_behavior_change`, `target_profile` | upgraded XML, steps, `behavior_preserving`, `stopped_at`, `blocking_codes`, `auto_fixed_codes`, notes |
 | `check_tool` | `xml`, optional `rulesets`/`select`/`ignore` | report-only findings (never mutates) |
 | `convert_help_tool` | `xml` | `{converted, formatted, skip_reason}` — opt-in RST→Markdown help conversion; a skip (e.g. "profile below 24.2 — run `upgrade` first") is a normal result an agent can act on |
 | `tokenize_version_tool` | `xml` | `{tokenized, formatted, skip_reason}` — opt-in @TOOL_VERSION@ extraction (expansion-equality gated); macro-importing tools fail closed (content-based — use the path-based CLI for those) |
@@ -39,8 +39,13 @@ An agent passes the XML in and gets structured JSON back, e.g. `check_tool`:
 ```
 
 `format_tool` returns the canonical XML; `upgrade_tool` returns the upgraded XML plus
-`behavior_preserving` (`true`/`false`/`null`) so an agent can decide whether the bump
-is safe to accept unattended — see [soundness](../soundness.md).
+`behavior_preserving` (`true`/`false`/`null`), `stopped_at`, `blocking_codes`, and
+`auto_fixed_codes`. The default is **behavior-preserving for agents too**: the walk
+stops at the behaviour ceiling, and crossing it requires passing
+`allow_behavior_change=true` explicitly — an unattended behaviour change is worse,
+not better. The blocking codes map to sections of
+[`docs/profile_boundaries.md`](../../profile_boundaries.md), so an agent can read
+exactly what changed and decide deliberately — see [soundness](../soundness.md).
 
 ## Why it's a thin adapter
 

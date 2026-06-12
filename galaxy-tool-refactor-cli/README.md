@@ -27,10 +27,14 @@ galaxy-tool-refactor format --ruleset cosmetic tool.xml  # whitespace only
 galaxy-tool-refactor format --ignore GTR002 tool.xml     # all but param-reorder
 galaxy-tool-refactor format tools/                       # also formats <macros> files
 
-# Opt-in, semantic: repair typos, then upgrade profile= to the latest reachable
-# version (applying each step's structural migration), then format. Reports the
-# steps applied and warns if a tool stalls. No --ruleset; --select/--ignore tune it.
+# Opt-in, semantic: repair typos, then upgrade profile= as far as behaviour
+# provably stays the same (applying each step's structural migration), then
+# format. Behavior-preserving by default: the walk stops at the behaviour
+# ceiling with a report naming the blocking code(s) and pointing at
+# docs/profile_boundaries.md. No --ruleset; --select/--ignore tune it.
 galaxy-tool-refactor upgrade tool.xml
+galaxy-tool-refactor upgrade --allow-behavior-change tool.xml  # historical walk-to-latest
+galaxy-tool-refactor upgrade --target-profile 23.0 tool.xml    # explicit cap
 
 # Report-only linter: one `file:line  CODE  message` per finding, mutating
 # nothing. The default ruleset reports the fixable GTR rules; `--ruleset strict` adds

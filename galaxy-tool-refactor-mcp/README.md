@@ -22,7 +22,7 @@ disk writes unless asked, introspectable), so the server is a *thin adapter*:
 | MCP tool | What it does |
 |---|---|
 | `format_tool` | Apply a ruleset's fixable rules then format; returns canonical XML + advisory notes. |
-| `upgrade_tool` | Profile-upgrade then format; returns upgraded XML, steps applied, the behavior-preserving verdict, and notes. |
+| `upgrade_tool` | Profile-upgrade then format — behavior-preserving by default (stops at the behaviour ceiling; `allow_behavior_change` lifts the gate, `target_profile` caps the walk); returns upgraded XML, steps applied, the behavior-preserving verdict, `stopped_at`/`blocking_codes`/`auto_fixed_codes`, and notes. |
 | `check_tool` | Report-only detect over the selected rules; returns the findings (each flagged fixable vs advisory). |
 | `convert_help_tool` | Convert an RST `<help>` body to Markdown when provable (profile ≥ 24.2 + render-equivalence gate); returns converted XML or a skip reason. |
 | `tokenize_version_tool` | Factor a literal `version="<base>+galaxy<suffix>"` into `@TOOL_VERSION@`/`@VERSION_SUFFIX@` tokens when the expansion-equality gate proves it byte-identical; returns tokenized XML or a skip reason. |

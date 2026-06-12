@@ -17,12 +17,13 @@ galaxy-tool-refactor/
 ├── galaxy-tool-refactor-mcp/ Tier 4 (MCP server over the registry facade; thin FastMCP adapter)
 ├── galaxy-tool-refactor-meta/ Front-door metapackage (dist `galaxy-tool-refactor`; deps cli + `[mcp]` extra; no code)
 ├── scripts/                  Shared maintainer scripts (not installed)
-│   ├── corpus_check.py         validate | fmt | codemod | rules | check subcommands
+│   ├── corpus_check.py         validate | fmt | codemod | rules | check | upgrade subcommands
 │   ├── fetch_schemas.py        download release XSDs
 │   ├── fetch_toolshed.py       clone Toolshed repos
 │   ├── measure.py              ad-hoc corpus queries
 │   ├── regenerate.py           regenerate per-version xsdata models
 │   ├── gen_planemo_parity.py   regenerate the GTR coverage table (docs/planemo_linter_parity.md)
+│   ├── gen_profile_boundaries.py regenerate the per-boundary upgrade reference (docs/profile_boundaries.md)
 │   ├── bump_version.py         set the lockstep version across all 9 packages
 │   └── galaxy_blog.py          scaffold/lint a Galaxy Hub news/blog post
 ├── docs/
@@ -123,10 +124,16 @@ uv run python -m scripts.corpus_check rules [--source github|toolshed|combined] 
 # IUC): per-rule tools-flagged + total findings, write docs/corpus_check_stats.md.
 uv run python -m scripts.corpus_check check [--source github|toolshed|combined] [--repo NAME] [--limit N]
 
+# Gated-upgrade contract sweep: run the DEFAULT (behavior-preserving) `upgrade` over
+# every tool, assert fail-closed / gate-cap / no un-fixed must_fix crossing / validity /
+# idempotence, retain violations as fixtures + docs/corpus_data/upgrade_gate_errors.json.
+uv run python -m scripts.corpus_check upgrade [--source github|toolshed|combined] [--repo NAME] [--limit N]
+
 uv run python -m scripts.fetch_schemas         # download release XSDs
 uv run python -m scripts.fetch_toolshed        # clone Toolshed repos
 uv run python -m scripts.regenerate            # regenerate per-version models
 uv run python -m scripts.gen_planemo_parity    # regenerate the GTR coverage table in docs/planemo_linter_parity.md (from rule metadata; freshness-tested)
+uv run python -m scripts.gen_profile_boundaries # regenerate the per-boundary upgrade reference docs/profile_boundaries.md (from PROFILE_UPGRADE_CODES + the auto-fix registry; freshness-tested)
 uv run python -m scripts.measure               # ad-hoc corpus queries (--list)
 
 # Macro organisation across the corpus (inline vs imported macro files,
@@ -380,8 +387,18 @@ commands:
   *provably*-single-valued Cheetah vars in `<command>`, a behaviour-preserving fix;
   codemod `docs/decisions.md` §30.)
 - `galaxy-tool-refactor upgrade` — repair, then iterative profile upgrade, then
-  format. Opt-in, semantic. No `--ruleset` (rulesets are a format/check concept);
-  `--select`/`--ignore` adjust its fixable rule set.
+  format. Opt-in, semantic. **Behavior-preserving by default**: the walk stops at
+  the behaviour ceiling (the newest vendored profile reachable without crossing a
+  Galaxy `must_fix` change that applies to the tool and that no runtime-gated fix
+  provably clears; the auto-fix probe is proof-by-execution per tool). Stop
+  reports name the blocking code(s) and link to `docs/profile_boundaries.md`;
+  applicable `consider` changes warn but never stop.
+  `--allow-behavior-change` lifts the gate (the historical walk-to-latest);
+  `--target-profile` caps at an explicit vendored profile. The shared
+  imported-`@PROFILE@` bump honors the same gate per importer. No `--ruleset`
+  (rulesets are a format/check concept); `--select`/`--ignore` adjust its
+  fixable rule set. (Codemod `docs/decisions.md` §45, registry D21, cli D16;
+  proof: `docs/proofs/behavior-gate.md`.)
 - `galaxy-tool-refactor check` — report-only over the selected rules' detect
   phases. Fixable findings exit non-zero; advisory findings appear only
   under `--ruleset strict` and are informational unless `--strict`.

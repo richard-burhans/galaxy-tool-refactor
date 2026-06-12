@@ -11,6 +11,44 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+### Changed
+- **`upgrade` is behavior-preserving by default** (the behavior gate; codemod
+  decisions §45, registry D21, cli D16, mcp D4). The walk stops at the
+  behaviour ceiling: the newest vendored profile reachable without crossing a
+  Galaxy `must_fix` behaviour change that applies to the tool and that no
+  runtime-gated fix provably clears on that tool (auto-fixability is proven by
+  executing the fix on a copy and re-detecting). Stop reports name the blocking
+  code(s) and link to the new per-boundary reference. The historical
+  walk-to-latest is the explicit `--allow-behavior-change`; `--target-profile
+  PROFILE` caps the walk at a vendored profile. The whole-run imported
+  `@PROFILE@` bump honors the same gate per importer. `behavior_preserving`
+  now credits auto-fixed codes, and a credited fix gets a
+  "fixed automatically" note instead of a must-fix warning.
+- `newest_valid_profile`, `UpdateProfile`, and `UpgradeToLatest` accept a
+  keyword-only `ceiling` (tier-1 decisions §31); defaults unchanged.
+- A `@PROFILE@` profile declaration now resolves through the tool's token
+  definitions before gating (an unresolvable token fails closed, with a note);
+  across the corpus this places 9,371 of 9,373 baselines.
+
+### Added
+- `UpgradeResult` fields `stopped_at`, `blocking_codes`, and
+  `auto_fixed_codes` (also in the MCP `upgrade_tool` result), and the typed
+  `UnknownProfile` error for a bad `--target-profile`.
+- **`docs/profile_boundaries.md`** — the user-facing per-boundary reference
+  ("my upgrade stopped, now what"): per Galaxy behaviour code, what changes,
+  what the toolchain does, Galaxy's own description, and the release link.
+  Generated from the vendored catalogue + the auto-fix registry by
+  `scripts/gen_profile_boundaries.py`; freshness-tested.
+- **`docs/proofs/behavior-gate.md`** — the gate's construction-grade soundness
+  argument, pinned to the live registries by the proof coverage guard.
+- **`corpus_check upgrade`** — the gated-upgrade contract sweep: runs the
+  default `upgrade` over every corpus tool, asserts fail-closed / gate-cap /
+  no un-fixed `must_fix` crossing / validity / idempotence, and retains every
+  violation (first full sweep: 9,331 tools, **0 violations**).
+- The `upgrade-behavior-blocks` measure now consumes the shipped gate
+  functions (one implementation for the live default and the published
+  statistics).
+
 ## [0.2.0] — 2026-06-11
 
 First lockstep release across all eight packages. (`galaxy-tool-source` was

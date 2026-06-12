@@ -59,6 +59,16 @@ contracts in ``canonical.py``:
 - ``AUTO_UPGRADE_CODEMODS`` = ``FixTypos`` → ``NormalizeBooleanValues`` →
   ``UpgradeToLatest`` (the opt-in profile-upgrade pipeline).
 
+``behavior_gate.py`` (``docs/decisions.md`` §45) supplies the behavioural half
+of the upgrade story: the applicable, non-auto-fixed ``must_fix`` blockers over
+a baseline (``blocking_codes``, with the proof-by-execution auto-fix probe
+``code_cleared_by_autofix``) and the **ceiling** (``behavior_ceiling``) the
+facade's default ``upgrade`` passes into ``UpgradeToLatest(ceiling=…)``. The
+mechanism lives here; the default-flip policy lives in the tier-3.6 facade.
+``boundaries.py`` renders the user-facing per-boundary reference
+(``docs/profile_boundaries.md``) from ``PROFILE_UPGRADE_CODES`` + the auto-fix
+registry; the soundness argument is ``docs/proofs/behavior-gate.md``.
+
 ``ConvertHelpToMarkdown`` (GTR092, ``docs/decisions.md`` §38) is in neither
 pipeline: the first of the catalog's **opt-in-command-only** codemods (no ruleset; applied
 solely by the app's ``convert-help``) — the RST → Markdown ``<help>`` conversion
