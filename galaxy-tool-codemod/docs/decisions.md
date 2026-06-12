@@ -2036,3 +2036,38 @@ recovers it.
   Galaxy validates clean but the checker cannot yet prove) is reported by the
   measure as the target for any future widening, always behind the same
   zero-unsound gate.
+
+## 48. GTR096 FixTestParamQualification: the first 24.2 auto-fix
+
+**Date:** 2026-06-12. Reproduced-by: `uv run --package galaxy-tool-codemod pytest
+galaxy-tool-codemod/tests/test_fix_test_param_qualification.py` (the codemod) and
+`uv run python -m scripts.measure test-param-qualification` (the sizing + the
+fix's corpus soundness proof). Follows §47 (the 24.2 detector tightening).
+
+- **The opportunity.** §46's truth measure showed `unknown-parameter` is the
+  largest 24.2 validation-error class (2,159 cases). Resolving each bad name
+  against the input tree splits them: a flat test name whose leaf matches
+  exactly one *nested* input parameter is the migration Galaxy prescribes
+  (fully-qualify it `parent|...|child`); a name matching no input (a typo, a
+  removed parameter, or a Galaxy built-in like `chromInfo`), a top-level input
+  (already correct), or more than one (ambiguous) is not safely fixable.
+- **The fix.** `FixTestParamQualification` (a runtime-gated fix, `upgrade_code`
+  `24_2_fix_test_case_validation`, `introduced_profile` 24.2) rewrites only the
+  unique-leaf nested case, via the shared
+  `test_param_qualify.plan_test_param_qualifications`. It is the **first**
+  auto-fix for the 24.2 code, so it slots into the gate's 1:1
+  `auto_fixes_by_code()` mapping cleanly: the gate now probes 24.2 by applying
+  it and re-detecting (`test_case_check`), crediting the code for the tools
+  qualification clears.
+- **Behaviour-preserving by construction.** It edits only `<tests>`, never a
+  tool runtime element, and the unique-leaf precondition means the unqualified
+  name already referred to exactly that one parameter. The crossing gate means
+  a tool the fix does not fully clear is left blocked and its tests are not
+  edited at all. Proof: `docs/proofs/GTR096.md`.
+- **Sound at corpus scale, by execution.** `scripts.measure
+  test-param-qualification` applies the fix to every checker-blocked tool and
+  validates the **qualified** tree with Galaxy's real validator; the contract is
+  zero unsound fixes (we unblock but Galaxy still rejects). It unblocks 159
+  tools the 24.2 checker otherwise stops; the behavior gate's reaches-latest
+  count rises accordingly (`docs/upgrade_behavior_block_stats.md`), and the
+  gated `corpus_check upgrade` contract sweep stays at 0 violations.

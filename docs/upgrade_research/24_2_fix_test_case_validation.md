@@ -6,7 +6,7 @@
 | **Profile** | 24.2 |
 | **Level** | `must_fix` |
 | **Auto-fix today** | **none** |
-| **Stuck tools** (must_fix-only) | **3,665**, still the largest blocker (see `../upgrade_behavior_block_stats.md`; down from 6,033 once the detector was tightened to the provably-clean checker, §47) |
+| **Stuck tools** (must_fix-only) | **3,483**, still the largest blocker (see `../upgrade_behavior_block_stats.md`; down from 6,033 via the provably-clean detector (§47) and the GTR096 qualification auto-fix (§48)) |
 | **Galaxy PR** | https://github.com/galaxyproject/galaxy/pull/18679 |
 
 > Galaxy-source citations from `.local/galaxy-src/` @ `c6e0ee3`.
@@ -65,10 +65,11 @@ which fired on any tool shipping a `tests/test` (a necessary condition; no
 `<test>` means the code can't trip). That over-counted: it flagged **6,033**
 tools as first-blockers when the truth measure showed only ~1,972 actually
 fail. As of 2026-06-12 the detector is tightened to the provably-clean checker
-(below); it now flags **3,665**, recovering most of the gap soundly. The
-residual still exceeds the 1,972 true blockers because the checker is
-conservative, leaving the tools it cannot prove clean (the 1,930 `headroom`)
-blocked. Two of Galaxy's rules have escape hatches the checker honors: the
+(below), and the GTR096 qualification auto-fix (§48) clears another slice, so
+the gate now stops **3,483**, recovering most of the gap soundly. The residual
+still exceeds the 1,972 true blockers because the checker is conservative,
+leaving the tools it cannot prove clean (the `headroom`) blocked. Two of
+Galaxy's rules have escape hatches the checker honors: the
 select rule applies only to *static*-option selects (dynamic-options selects
 accept any string), and the `data_column` rule fails only on column-*name*
 strings (integer-as-string values coerce at any profile).
@@ -124,9 +125,10 @@ upper-bound population):
 
 So the true blocker population is **1,972, roughly one third of the 6,033 the
 original ships-a-`<test>` detector counted as first blockers** in
-`../upgrade_behavior_block_stats.md`; the tightened detector (§47) now flags
-3,665, recovering most of that gap soundly while conservatively keeping the
-1,930 not-yet-provable tools blocked. Per-case validation-error kinds across
+`../upgrade_behavior_block_stats.md`; the tightened detector (§47) plus the
+GTR096 qualification auto-fix (§48) bring the gate's 24.2 stop down to 3,483,
+recovering most of that gap soundly while conservatively keeping the
+not-yet-provable tools blocked. Per-case validation-error kinds across
 the 1,972: `type-or-value-mismatch` 2,380 cases (strict pydantic coercion),
 `unknown-parameter` 2,159 ("Invalid parameter name found", the
 name-qualification / typo class and the PR 4 mechanical-fix candidate),

@@ -216,6 +216,13 @@ uv run python -m scripts.measure upgrade-codes-applicability
 # Needs the corpus, not in CI:
 uv run python -m scripts.measure test-case-validation-truth
 
+# Size + prove sound the GTR096 fix (FixTestParamQualification, codemod §48): for
+# every tool the 24.2 checker blocks, apply the unique-leaf test-param qualification
+# and report how many become provably clean, then validate each QUALIFIED tree with
+# Galaxy's REAL validator (gated on zero unsound verdicts). The fix's corpus
+# soundness proof; backs docs/proofs/GTR096.md. Needs galaxy-tool-util + corpus:
+uv run python -m scripts.measure test-param-qualification
+
 # Detector-precision sizing: how many tools the always-firing 20_09_consider_set_e
 # detector (any <command> w/o strict=) would SOUNDLY stop flagging if tightened to
 # "provably single simple command" — set -e cannot change a lone command (backs

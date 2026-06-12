@@ -51,6 +51,7 @@ from scripts.measure import (
     _measure_semantic_upgrade_boundaries,
     _measure_shell_oracle_quoting,
     _measure_test_case_validation_truth,
+    _measure_test_param_qualification,
     _measure_upgrade_behavior_blocks,
     _measure_upgrade_headroom,
     _measure_version_tokenization,
@@ -843,6 +844,45 @@ def test_measure_test_case_validation_truth_buckets(truth_corpus: Path) -> None:
     assert result.n_suppressed == 1
     assert result.n_headroom == 0
     assert result.n_clean_galaxy_raised == 0
+    assert result.unsound_examples == []
+    assert result.raised_examples == []
+
+
+# --- test-param-qualification -----------------------------------------------------
+
+
+def test_measure_test_param_qualification_unblocks_and_proves(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # A nested section param given by its flat leaf name: the 24.2 checker blocks
+    # it, and unique-leaf qualification (adv|k) clears it; Galaxy must agree.
+    (repo / "fixable.xml").write_text(
+        '<tool id="f" name="F" version="1.0"><command>echo</command>'
+        '<inputs><section name="adv" title="A">'
+        '<param name="k" type="integer" value="1"/></section></inputs>'
+        '<outputs><data name="o" format="txt"/></outputs>'
+        '<tests><test><param name="k" value="9"/>'
+        '<output name="o"><assert_contents><has_text text="x"/>'
+        "</assert_contents></output></test></tests></tool>",
+        encoding="utf-8",
+    )
+    # A genuine unknown name (typo): qualification does not apply, stays blocked.
+    (repo / "typo.xml").write_text(
+        '<tool id="t" name="T" version="1.0"><command>echo</command>'
+        '<inputs><section name="adv" title="A">'
+        '<param name="k" type="integer" value="1"/></section></inputs>'
+        '<outputs><data name="o" format="txt"/></outputs>'
+        '<tests><test><param name="nosuch" value="9"/>'
+        '<output name="o"><assert_contents><has_text text="x"/>'
+        "</assert_contents></output></test></tests></tool>",
+        encoding="utf-8",
+    )
+    result = _measure_test_param_qualification(corpus_root=tmp_path)
+    assert result.n_blocked == 2
+    assert result.n_unblocked == 1  # fixable.xml
+    assert result.n_partial == 0  # typo.xml has 0 rewrites, not partial
+    assert result.n_unsound_fix == 0
+    assert result.n_fix_galaxy_raised == 0  # no test-data files referenced
     assert result.unsound_examples == []
     assert result.raised_examples == []
 

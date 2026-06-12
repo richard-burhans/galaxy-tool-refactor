@@ -41,7 +41,8 @@ exceed it. The claim reduces to five sub-claims:
    `RuntimeGatedFix`, each individually proven behaviour-preserving in its
    own document ([GTR014](GTR014.md) `21_09_fix_from_work_dir_whitespace`,
    [GTR015](GTR015.md) `16_04_fix_output_format`, [GTR016](GTR016.md)
-   `16_04_fix_interpreter`), is applied to a throwaway copy of *this tool*
+   `16_04_fix_interpreter`, [GTR096](GTR096.md)
+   `24_2_fix_test_case_validation`), is applied to a throwaway copy of *this tool*
    and the code's detector no longer fires (`code_cleared_by_autofix`). There
    is no static "fixable codes" set: a fix's partial coverage (GTR015's
    sole-data-input subset, GTR016's bucket A) and macro-supplied constructs
