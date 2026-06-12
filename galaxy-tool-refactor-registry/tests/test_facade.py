@@ -125,28 +125,27 @@ _UPGRADABLE = (
 
 
 def test_upgrade_modernize_bumps_profile_and_runs_migration() -> None:
-    from galaxy_tool_source.profiles import latest_profile
-
+    from galaxy_tool_refactor_registry import deployment
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
     result = facade.upgrade(
         _UPGRADABLE, codes=resolve_upgrade_codes(), modernize=True
     )
-    assert f'profile="{latest_profile()}"'.encode() in result.formatted
+    # The walk lands on the deployment ceiling, not the (pre-release) latest.
+    assert f'profile="{deployment.DEPLOYMENT_CEILING}"'.encode() in result.formatted
     assert b'format="bam"' in result.formatted  # the 24.1 -> 24.2 migration ran
     assert "24.1" in result.steps_applied
     assert any("upgraded past 24.1" in note for note in result.notes)
 
 
 def test_upgrade_modernize_ignore_fixtypos_still_upgrades() -> None:
-    from galaxy_tool_source.profiles import latest_profile
-
+    from galaxy_tool_refactor_registry import deployment
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
     codes = resolve_upgrade_codes(ignore=["GTR006"])
     result = facade.upgrade(_UPGRADABLE, codes=codes, modernize=True)
     # The profile upgrade is intrinsic; dropping FixTypos does not disable it.
-    assert f'profile="{latest_profile()}"'.encode() in result.formatted
+    assert f'profile="{deployment.DEPLOYMENT_CEILING}"'.encode() in result.formatted
 
 
 def test_upgrade_warns_on_semantic_boundaries() -> None:
@@ -536,9 +535,9 @@ def test_upgrade_modernize_walks_up_to_the_boundary_from_below() -> None:
     assert result.behavior_preserving is False
 
 
-def test_upgrade_allow_behavior_change_restores_the_walk_to_latest() -> None:
-    from galaxy_tool_source.profiles import latest_profile
-
+def test_upgrade_allow_behavior_change_walks_past_the_gate() -> None:
+    """The flag lifts the behaviour gate; the deployment ceiling still caps."""
+    from galaxy_tool_refactor_registry import deployment
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
     result = facade.upgrade(
@@ -547,8 +546,9 @@ def test_upgrade_allow_behavior_change_restores_the_walk_to_latest() -> None:
         modernize=True,
         allow_behavior_change=True,
     )
-    assert f'profile="{latest_profile()}"'.encode() in result.formatted
-    assert result.stopped_at is None
+    ceiling = deployment.DEPLOYMENT_CEILING
+    assert f'profile="{ceiling}"'.encode() in result.formatted
+    assert result.stopped_at == ceiling
     # The work list is still reported so the user knows what to review.
     assert result.blocking_codes == ("24_2_fix_test_case_validation",)
     assert result.behavior_preserving is False
@@ -587,8 +587,7 @@ def test_upgrade_unknown_target_profile_raises() -> None:
 def test_upgrade_modernize_credits_an_auto_fixed_must_fix_code() -> None:
     """Crossing 21.09 with a fixable from_work_dir is auto-fixed AND credited:
     the verdict is behavior-preserving and no crossed-boundary warning remains."""
-    from galaxy_tool_source.profiles import latest_profile
-
+    from galaxy_tool_refactor_registry import deployment
     from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
 
     tool = (
@@ -597,7 +596,7 @@ def test_upgrade_modernize_credits_an_auto_fixed_must_fix_code() -> None:
         b'<outputs><data name="o" from_work_dir=" out.txt "/></outputs></tool>'
     )
     result = facade.upgrade(tool, codes=resolve_upgrade_codes(), modernize=True)
-    assert f'profile="{latest_profile()}"'.encode() in result.formatted
+    assert f'profile="{deployment.DEPLOYMENT_CEILING}"'.encode() in result.formatted
     assert result.auto_fixed_codes == ("21_09_fix_from_work_dir_whitespace",)
     assert result.blocking_codes == ()
     assert result.behavior_preserving is True
@@ -941,3 +940,98 @@ def test_tokenize_version_shared_consensus_writes_group(tmp_path: Path) -> None:
     for tool in (a, b):
         assert b"<import>macros.xml</import>" in tool.read_bytes()
         assert b'version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"' in tool.read_bytes()
+
+
+_CLEAN_LEGACY = (
+    b'<tool id="m" name="M" version="1.0.0">'
+    b"<command><![CDATA[echo x]]></command><inputs/>"
+    b'<outputs><data name="o"/></outputs></tool>'
+)
+
+
+def test_upgrade_modernize_is_capped_at_the_deployment_ceiling() -> None:
+    """A plain modernize walk lands on the deployment ceiling, not latest."""
+    from galaxy_tool_refactor_registry import deployment
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    result = facade.upgrade(
+        _CLEAN_LEGACY, codes=resolve_upgrade_codes(), modernize=True
+    )
+    ceiling = deployment.DEPLOYMENT_CEILING
+    assert f'profile="{ceiling}"'.encode() in result.formatted
+    assert result.stopped_at == ceiling
+    assert [n for n in result.notes if "deployment ceiling" in n]
+
+
+def test_upgrade_target_profile_may_exceed_the_deployment_ceiling() -> None:
+    """An explicit target expresses intent: it wins over the deployment cap."""
+    from galaxy_tool_source.profiles import latest_profile
+
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    result = facade.upgrade(
+        _CLEAN_LEGACY,
+        codes=resolve_upgrade_codes(),
+        target_profile=latest_profile(),
+    )
+    assert f'profile="{latest_profile()}"'.encode() in result.formatted
+    # The ceiling is still mentioned so the choice is informed, never silent.
+    assert [n for n in result.notes if "deployment ceiling" in n]
+
+
+def test_upgrade_allow_behavior_change_is_still_deployment_capped() -> None:
+    """allow_behavior_change lifts the behaviour gate, not the deployment cap."""
+    from galaxy_tool_refactor_registry import deployment
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    result = facade.upgrade(
+        _CLEAN_LEGACY,
+        codes=resolve_upgrade_codes(),
+        modernize=True,
+        allow_behavior_change=True,
+    )
+    ceiling = deployment.DEPLOYMENT_CEILING
+    assert f'profile="{ceiling}"'.encode() in result.formatted
+    assert result.stopped_at == ceiling
+
+
+def test_upgrade_modernize_keeps_a_baseline_above_the_ceiling() -> None:
+    """A tool already declared past the ceiling is never lowered to it."""
+    from galaxy_tool_source.profiles import latest_profile
+
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    latest = latest_profile()
+    tool = _CLEAN_LEGACY.replace(
+        b'version="1.0.0"', f'version="1.0.0" profile="{latest}"'.encode()
+    )
+    result = facade.upgrade(tool, codes=resolve_upgrade_codes(), modernize=True)
+    assert f'profile="{latest}"'.encode() in result.formatted
+    assert result.reached_profile == latest
+
+
+def test_upgrade_modernize_warns_when_the_snapshot_is_stale(
+    monkeypatch: object,
+) -> None:
+    """An old server-poll snapshot earns a re-poll suggestion in the notes."""
+    from datetime import date
+
+    from galaxy_tool_refactor_registry import deployment
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    monkeypatch.setattr(  # type: ignore[attr-defined]
+        deployment, "DEPLOYMENT_SNAPSHOT_DATE", date(2000, 1, 1)
+    )
+    result = facade.upgrade(
+        _CLEAN_LEGACY, codes=resolve_upgrade_codes(), modernize=True
+    )
+    assert [n for n in result.notes if "poll_galaxy_servers" in n]
+
+
+def test_upgrade_default_ignores_the_deployment_ceiling() -> None:
+    """The minimal default has no walk to cap: no deployment note appears."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    result = facade.upgrade(_CLEAN_LEGACY, codes=resolve_upgrade_codes())
+    assert not [n for n in result.notes if "deployment ceiling" in n]
+    assert result.stopped_at is None

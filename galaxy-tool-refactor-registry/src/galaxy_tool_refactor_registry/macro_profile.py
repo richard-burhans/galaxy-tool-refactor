@@ -43,6 +43,8 @@ from galaxy_tool_source.macros import token_definitions
 from galaxy_tool_source.profiles import is_newer_profile
 from packaging.version import Version
 
+from galaxy_tool_refactor_registry import deployment
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
@@ -105,6 +107,19 @@ def _minimal_target(document: ToolDocument, *, baseline: str) -> str | None:
     return oldest_valid_profile(document, floor=baseline)
 
 
+def _walk_cap(baseline: str, *, target_profile: str | None) -> str:
+    """The walk's non-behaviour cap: the explicit target, or the deployment
+    ceiling floored at the importer's baseline (the cap limits bumps, it
+    never lowers a token already above it). Mirrors the facade (D23)."""
+    if target_profile is not None:
+        return target_profile
+    if behavior_gate.placeable_baseline(baseline) and Version(baseline) > Version(
+        deployment.DEPLOYMENT_CEILING
+    ):
+        return baseline
+    return deployment.DEPLOYMENT_CEILING
+
+
 def _gated_target(
     document: ToolDocument, *, baseline: str, target_profile: str | None
 ) -> str | None:
@@ -114,8 +129,8 @@ def _gated_target(
     behaviour ceiling; an importer whose ceiling falls at (or below) its
     baseline keeps its current value (the bump becomes a no-op for it); an
     unplaceable baseline yields ``None`` (no safe target, so the group cannot
-    agree). An explicit *target_profile* lowers the cap further, never raises
-    it.
+    agree). The walk cap (an explicit *target_profile*, else the deployment
+    ceiling, D23) lowers the cap further, never raises it.
     """
     if not behavior_gate.placeable_baseline(baseline):
         return None
@@ -123,10 +138,9 @@ def _gated_target(
     ceiling = behavior_gate.behavior_ceiling(blockers)
     if behavior_gate.blocked_below_baseline(ceiling=ceiling, baseline=baseline):
         return baseline
-    if target_profile is not None and (
-        ceiling is None or Version(target_profile) < Version(ceiling)
-    ):
-        ceiling = target_profile
+    cap = _walk_cap(baseline, target_profile=target_profile)
+    if ceiling is None or Version(cap) < Version(ceiling):
+        ceiling = cap
     return newest_valid_profile(document, ceiling=ceiling)
 
 
@@ -170,7 +184,12 @@ def profile_token_site(
     if not (modernize or target_profile is not None):
         target = _minimal_target(document, baseline=definition.value)
     elif allow_behavior_change:
-        target = newest_valid_profile(document, ceiling=target_profile)
+        # The behaviour gate is lifted; the walk cap (explicit target, else
+        # the deployment ceiling) still applies, exactly as on the per-tool path.
+        target = newest_valid_profile(
+            document,
+            ceiling=_walk_cap(definition.value, target_profile=target_profile),
+        )
     else:
         target = _gated_target(
             document, baseline=definition.value, target_profile=target_profile
