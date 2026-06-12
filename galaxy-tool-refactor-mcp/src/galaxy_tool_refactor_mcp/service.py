@@ -64,6 +64,8 @@ def _format_result_to_dict(result: FormatResult, /) -> dict[str, object]:
 def _upgrade_result_to_dict(result: UpgradeResult, /) -> dict[str, object]:
     return {
         "formatted": result.formatted.decode("utf-8"),
+        "baseline_profile": result.baseline_profile,
+        "reached_profile": result.reached_profile,
         "steps_applied": list(result.steps_applied),
         "missing_upgrade": result.missing_upgrade,
         "behavior_preserving": result.behavior_preserving,
@@ -144,21 +146,28 @@ def upgrade_tool(
     *,
     select: Sequence[str] = (),
     ignore: Sequence[str] = (),
+    modernize: bool = False,
     allow_behavior_change: bool = False,
     target_profile: str | None = None,
 ) -> dict[str, object]:
-    """Profile-upgrade then format; return the upgraded XML, steps, and notes.
+    """Repair then format; ``profile=`` moves only as far as strictly needed.
 
-    Behavior-preserving by default: the walk stops at the behaviour ceiling
-    and reports the blocking codes. *allow_behavior_change* lifts the gate
-    (the historical walk-to-latest); *target_profile* caps the walk at an
-    explicit vendored profile (raising ``UnknownProfile`` otherwise).
+    Minimal bump by default: a tool that validates at its declared profile
+    keeps it (an undeclared tool stays undeclared); an invalid one is bumped
+    to the minimum valid profile at or above its baseline. *modernize* opts
+    into the behaviour-gated walk toward the latest profile (the walk stops at
+    the behaviour ceiling and reports the blocking codes);
+    *allow_behavior_change* lifts that gate (requiring a walk mode, raising
+    ``UpgradeFlagError`` otherwise); *target_profile* walks up to an explicit
+    vendored profile (raising ``UnknownProfile`` otherwise), implying the walk
+    mode by itself.
     """
     codes = resolve_upgrade_codes(select=select, ignore=ignore)
     return _upgrade_result_to_dict(
         facade.upgrade(
             xml.encode("utf-8"),
             codes=codes,
+            modernize=modernize,
             allow_behavior_change=allow_behavior_change,
             target_profile=target_profile,
         )

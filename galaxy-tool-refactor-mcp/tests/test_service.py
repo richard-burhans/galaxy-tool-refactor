@@ -66,14 +66,32 @@ def test_check_tool_strict_marks_advisory() -> None:
     assert advisory
 
 
-def test_upgrade_tool_bumps_profile() -> None:
-    result = service.upgrade_tool(_UPGRADABLE)
+def test_upgrade_tool_modernize_bumps_profile() -> None:
+    result = service.upgrade_tool(_UPGRADABLE, modernize=True)
     formatted = result["formatted"]
     assert isinstance(formatted, str)
     assert f'profile="{latest_profile()}"' in formatted
     assert "24.1" in result["steps_applied"]  # type: ignore[operator]
     assert result["missing_upgrade"] is None
     assert result["behavior_preserving"] in (True, False, None)
+
+
+def test_upgrade_tool_default_keeps_a_valid_declared_profile() -> None:
+    """The minimal default: valid at the declared profile means no bump."""
+    result = service.upgrade_tool(_UPGRADABLE)
+    formatted = result["formatted"]
+    assert isinstance(formatted, str)
+    assert 'profile="24.1"' in formatted
+    assert result["baseline_profile"] == "24.1"
+    assert result["reached_profile"] == "24.1"
+    assert result["stopped_at"] is None
+
+
+def test_upgrade_tool_allow_behavior_change_alone_raises() -> None:
+    from galaxy_tool_refactor_registry.errors import UpgradeFlagError
+
+    with pytest.raises(UpgradeFlagError):
+        service.upgrade_tool(_UPGRADABLE, allow_behavior_change=True)
 
 
 _WITH_TESTS = (
@@ -84,8 +102,8 @@ _WITH_TESTS = (
 )
 
 
-def test_upgrade_tool_default_stops_at_a_behavior_boundary() -> None:
-    result = service.upgrade_tool(_WITH_TESTS)
+def test_upgrade_tool_modernize_stops_at_a_behavior_boundary() -> None:
+    result = service.upgrade_tool(_WITH_TESTS, modernize=True)
     formatted = result["formatted"]
     assert isinstance(formatted, str)
     assert 'profile="24.1"' in formatted
@@ -95,7 +113,9 @@ def test_upgrade_tool_default_stops_at_a_behavior_boundary() -> None:
 
 
 def test_upgrade_tool_allow_behavior_change_reaches_latest() -> None:
-    result = service.upgrade_tool(_WITH_TESTS, allow_behavior_change=True)
+    result = service.upgrade_tool(
+        _WITH_TESTS, modernize=True, allow_behavior_change=True
+    )
     formatted = result["formatted"]
     assert isinstance(formatted, str)
     assert f'profile="{latest_profile()}"' in formatted

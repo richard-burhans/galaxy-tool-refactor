@@ -21,6 +21,7 @@ from galaxy_tool_refactor_registry.errors import (
     UnknownProfile,
     UnknownRuleCode,
     UnknownRuleset,
+    UpgradeFlagError,
 )
 from galaxy_tool_source.binding import ToolXmlSyntaxError
 from mcp.server.fastmcp import FastMCP
@@ -40,7 +41,12 @@ def _guarded(produce: Callable[[], T], /) -> T:
     """Run *produce*, mapping the facade/parse errors to an agent-facing message."""
     try:
         return produce()
-    except (UnknownRuleset, UnknownRuleCode, UnknownProfile) as error:
+    except (
+        UnknownRuleset,
+        UnknownRuleCode,
+        UnknownProfile,
+        UpgradeFlagError,
+    ) as error:
         raise ValueError(str(error)) from error
     except ToolXmlSyntaxError as error:
         raise ValueError(f"invalid tool XML: {error}") from error
@@ -64,21 +70,27 @@ def _upgrade_tool(
     xml: str,
     select: list[str] | None = None,
     ignore: list[str] | None = None,
+    modernize: bool = False,
     allow_behavior_change: bool = False,
     target_profile: str | None = None,
 ) -> dict[str, object]:
-    """Profile-upgrade then format; return upgraded XML, steps applied, and notes.
+    """Repair then format; profile= moves only as far as strictly needed.
 
-    Behavior-preserving by default: the walk stops at the behaviour ceiling and
-    reports the blocking codes (stopped_at / blocking_codes in the result).
-    Set allow_behavior_change to upgrade past applicable behaviour changes; set
-    target_profile to cap the walk at an explicit vendored profile.
+    Minimal bump by default: a tool valid at its declared profile keeps it (an
+    undeclared tool stays undeclared); an invalid one is bumped to the minimum
+    valid profile at or above its baseline (baseline_profile/reached_profile in
+    the result). Set modernize to walk toward the latest profile instead — the
+    walk stops at the behaviour ceiling and reports the blocking codes
+    (stopped_at / blocking_codes). Set allow_behavior_change to walk past
+    applicable behaviour changes (requires modernize or target_profile); set
+    target_profile to walk up to an explicit vendored profile.
     """
     return _guarded(
         lambda: service.upgrade_tool(
             xml,
             select=select or (),
             ignore=ignore or (),
+            modernize=modernize,
             allow_behavior_change=allow_behavior_change,
             target_profile=target_profile,
         )
