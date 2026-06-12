@@ -42,10 +42,12 @@ An agent passes the XML in and gets structured JSON back, e.g. `check_tool`:
 `behavior_preserving` (`true`/`false`/`null`), `baseline_profile`/`reached_profile`,
 `stopped_at`, `blocking_codes`, and `auto_fixed_codes`. The default is
 **minimal-bump for agents too**: `profile=` moves only when strictly needed for
-validity, modernizing requires passing `modernize=true` explicitly, and crossing
+validity, modernizing requires passing `modernize=true` explicitly, crossing
 the modernize walk's behaviour ceiling additionally requires
-`allow_behavior_change=true`; an unattended behaviour change is worse, not
-better. The blocking codes map to sections of
+`allow_behavior_change=true`, and the walk never passes the deployment ceiling
+(the newest profile every major public Galaxy server runs) without an explicit
+`target_profile`; an unattended behaviour change, or a profile no server can
+install, is worse, not better. The blocking codes map to sections of
 [`docs/profile_boundaries.md`](../../profile_boundaries.md), so an agent can read
 exactly what changed and decide deliberately; see [soundness](../soundness.md).
 

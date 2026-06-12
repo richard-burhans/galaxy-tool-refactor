@@ -113,3 +113,16 @@ not better, mirroring D4's reasoning for the gate. `UpgradeFlagError`
 (`allow_behavior_change` without a walk mode) joins the `_guarded` error
 boundary in `server.py`, translated to a clean tool error like the other
 typed facade errors.
+
+## D6 (2026-06-12): `upgrade_tool` honors the deployment ceiling
+
+Reproduced-by: `uv run --package galaxy-tool-refactor-mcp pytest
+galaxy-tool-refactor-mcp/tests/test_service.py -k "deployment or modernize"`.
+Policy: registry D23.
+
+No new parameters. `modernize=true` walks to the deployment ceiling (the
+newest profile every major public Galaxy server runs) unless the behaviour
+gate stops it lower; `target_profile` may exceed the ceiling (the notes
+mention it). The asymmetry is deliberate for agents: an unattended
+`allow_behavior_change=true` walk still never lands on a profile the public
+servers cannot install; exceeding the ceiling takes the explicit target.

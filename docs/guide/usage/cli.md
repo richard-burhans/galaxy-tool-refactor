@@ -37,9 +37,11 @@ upgrade          Repair tools, bump profile= only when strictly needed for valid
                  (the minimum valid profile; a valid tool keeps its declaration), then
                  format. --modernize opts into the behavior-preserving walk: as far as
                  behaviour provably stays the same, stopping at the behaviour ceiling
-                 with an actionable report; --allow-behavior-change (walk modes only)
-                 walks to the latest profile anyway, and --target-profile caps the
-                 walk at an explicit vendored profile (and implies it).
+                 with an actionable report and never past the deployment ceiling (the
+                 newest profile every major public Galaxy server runs);
+                 --allow-behavior-change (walk modes only) lifts the behaviour gate,
+                 and --target-profile walks to an explicit vendored profile (implies
+                 the walk; the one way past the deployment ceiling).
 find-references  Report every Cheetah $var reference to a parameter across a tool AND its
                  imported macro files (read-only).
 rename-param     Rename a parameter OLD->NEW across every Cheetah section, cross-ref attribute,
@@ -87,7 +89,7 @@ part; the bare `upgrade` keeps a valid tool's `profile=` untouched):
 ```diff
 $ galaxy-tool-refactor upgrade --modernize --diff tools/bandage/bandage_info.xml
 -<tool id="bandage_info" name="Bandage Info" version="@TOOL_VERSION@+galaxy2" profile="18.01">
-+<tool id="bandage_info" name="Bandage Info" version="@TOOL_VERSION@+galaxy2" profile="26.1">
++<tool id="bandage_info" name="Bandage Info" version="@TOOL_VERSION@+galaxy2" profile="25.1">
 ```
 
 See [soundness](../soundness.md) for exactly what `upgrade` guarantees.
@@ -123,6 +125,12 @@ When the upgrade crosses a boundary it *fixed* for you, the note says so
 (`crossed 21.09 21_09_fix_from_work_dir_whitespace: fixed automatically
 (GTR014).`); those fixes are verified on your tool by re-detection before
 being credited.
+
+A walk that meets no behaviour boundary still stops at the **deployment
+ceiling**: the newest profile every major public Galaxy server runs (the
+note names it, with the snapshot date). That is deliberate, because a newer
+profile could not install on the lagging servers yet, and `--target-profile`
+is the explicit way past it.
 
 ## Report only
 

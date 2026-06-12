@@ -137,10 +137,12 @@ uv run python -m scripts.fetch_schemas         # download release XSDs
 uv run python -m scripts.fetch_toolshed        # clone Toolshed repos
 # Poll a curated list of major public Galaxy servers (usegalaxy.org/.eu/.org.au/.fr/.ca)
 # for the Galaxy release each runs, and report the DEPLOYMENT FLOOR (lowest release across
-# the set) + the newest vendored profile at or below it (the candidate deployment ceiling).
+# the set) + the newest vendored profile at or below it (the deployment ceiling).
 # A tool whose profile exceeds the floor cannot install on the lagging servers. Writes a
-# dated snapshot to docs/galaxy_server_versions.json. Foundation for a future upgrade
-# deployment-ceiling (see the deployment-profile-ceiling plan). Needs network, not in CI:
+# dated snapshot to docs/galaxy_server_versions.json — the source of truth for the
+# vendored DEPLOYMENT_CEILING that caps `upgrade --modernize` (registry deployment.py,
+# drift-guarded; registry decisions D23). After a re-poll moves the snapshot, update
+# deployment.py to match (the guard test names both). Needs network, not in CI:
 uv run python -m scripts.poll_galaxy_servers   # --no-write to report only
 uv run python -m scripts.regenerate            # regenerate per-version models
 uv run python -m scripts.gen_planemo_parity    # regenerate the GTR coverage table in docs/planemo_linter_parity.md (from rule metadata; freshness-tested)
@@ -429,19 +431,24 @@ commands:
   when strictly needed for validity — kept when the repaired tool validates at
   its baseline, undeclared stays undeclared, else the minimum valid profile at
   or above the baseline (`UpgradeToValid`, GTR097). `--modernize` opts into
-  the **behavior-preserving walk**: it stops at the behaviour ceiling (the
-  newest vendored profile reachable without crossing a Galaxy `must_fix`
-  change that applies to the tool and that no runtime-gated fix provably
-  clears; the auto-fix probe is proof-by-execution per tool). Stop reports
-  name the blocking code(s) and link to `docs/profile_boundaries.md`;
-  applicable `consider` changes warn but never stop.
-  `--allow-behavior-change` lifts the walk's gate (the historical
-  walk-to-latest; an error without a walk mode); `--target-profile` caps at
-  an explicit vendored profile and implies the walk. The shared
-  imported-`@PROFILE@` bump honors the same mode per importer. No `--ruleset`
-  (rulesets are a format/check concept); `--select`/`--ignore` adjust its
-  fixable rule set. (Codemod `docs/decisions.md` §45/§50, registry D21/D22,
-  cli D16/D17; proof: `docs/proofs/behavior-gate.md`.)
+  the **behavior-preserving walk**, capped at the lower of two ceilings: the
+  behaviour ceiling (the newest vendored profile reachable without crossing
+  a Galaxy `must_fix` change that applies to the tool and that no
+  runtime-gated fix provably clears; the auto-fix probe is
+  proof-by-execution per tool) and the deployment ceiling (the newest
+  profile every major public Galaxy server runs; vendored in registry
+  `deployment.py`, drift-guarded against `docs/galaxy_server_versions.json`).
+  Stop reports name the blocking code(s) and link to
+  `docs/profile_boundaries.md`, or name the deployment cap; applicable
+  `consider` changes warn but never stop.
+  `--allow-behavior-change` lifts the walk's behaviour gate only (an error
+  without a walk mode); `--target-profile` walks to an explicit vendored
+  profile, implies the walk, and may exceed the deployment ceiling. The
+  shared imported-`@PROFILE@` bump honors the same mode per importer. No
+  `--ruleset` (rulesets are a format/check concept); `--select`/`--ignore`
+  adjust its fixable rule set. (Codemod `docs/decisions.md` §45/§50,
+  registry D21/D22/D23, cli D16/D17/D18; proof:
+  `docs/proofs/behavior-gate.md`.)
 - `galaxy-tool-refactor check` — report-only over the selected rules' detect
   phases. Fixable findings exit non-zero; advisory findings appear only
   under `--ruleset strict` and are informational unless `--strict`.

@@ -86,11 +86,14 @@ which the app CLI consumes:
   `--modernize` opts into the behavior-preserving walk: it stops at the
   newest profile the tool can reach without crossing a Galaxy `must_fix`
   behaviour change that applies to it and that no bundled fix provably clears
-  on that tool. The stop report names the blocking code(s) and links to
-  [`docs/profile_boundaries.md`](docs/profile_boundaries.md) (what changed
-  and what to do); `--allow-behavior-change` upgrades past the boundary
-  anyway (walk modes only), and `--target-profile` caps the walk at an
-  explicit vendored profile.
+  on that tool, and never past the **deployment ceiling** (the newest profile
+  every major public Galaxy server runs; a newer declaration could not
+  install everywhere yet). The stop report names the blocking code(s) and
+  links to [`docs/profile_boundaries.md`](docs/profile_boundaries.md) (what
+  changed and what to do), or names the deployment cap;
+  `--allow-behavior-change` upgrades past behaviour boundaries anyway (walk
+  modes only), and `--target-profile` walks to an explicit vendored profile,
+  exceeding the deployment ceiling when asked.
   No `--ruleset`; `--select`/`--ignore` adjust its fixable rule set.
 - `galaxy-tool-refactor check` — report-only linter: prints
   `file:line  CODE  message` for the selected rules. The default ruleset reports

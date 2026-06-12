@@ -24,6 +24,17 @@ is the breaking-change channel.
   `baseline_profile`/`reached_profile`; `stopped_at` is walk-mode-only.
   `corpus_check upgrade` gains `--mode minimal|modernize|both` and sweeps
   both contracts (0 violations over 9,331 corpus tools).
+- **The deployment ceiling caps the modernize walk** (registry D23, cli D18,
+  mcp D6). A walk with no explicit target never declares past the newest
+  profile every major public Galaxy server runs (25.1; the newest vendored
+  profile 26.1 is a pre-release no public server runs). The ceiling is
+  vendored in registry `deployment.py` from the committed
+  `docs/galaxy_server_versions.json` server-poll snapshot, drift-guarded by
+  test, with a staleness note when the snapshot may lag a release.
+  `allow_behavior_change` lifts the behaviour gate only; an explicit
+  `target_profile` may exceed the ceiling (an informational note keeps the
+  choice visible). The minimal-bump default is unaffected (a bump validity
+  strictly needs always wins; zero corpus tools need one above the ceiling).
 - **The behavior-gated walk** (now the opt-in `--modernize`; the behavior
   gate, codemod decisions §45, registry D21, cli D16, mcp D4). The walk stops at the
   behaviour ceiling: the newest vendored profile reachable without crossing a

@@ -74,7 +74,11 @@ approximation tuned to the current corpus.
   and the profile is never lowered.
 - Under `--modernize` the profile is advanced only to the **newest profile the
   tool structurally reaches**, capped by the **behaviour ceiling** (the newest
-  vendored profile below the first applicable, un-fixed `must_fix` change).
+  vendored profile below the first applicable, un-fixed `must_fix` change) and
+  by the **deployment ceiling** (the newest profile every major public Galaxy
+  server runs, vendored from a committed server-poll snapshot; a newer
+  declaration could not install everywhere yet). Only an explicit
+  `--target-profile` exceeds the deployment ceiling.
 - For profile bumps that carry **behaviour-affecting** Galaxy changes, the engine runs
   **per-tool detection** and only applies an automated repair where it can prove the
   change is safe for *that* tool. Where it can't, it **stops and reports** (for
