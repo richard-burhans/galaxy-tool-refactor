@@ -126,6 +126,7 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR094 | — | ✓ | ✓ | codemod | — | Factor a literal version="`<base>`+galaxy`<suffix>`" into @TOOL_VERSION@/@VERSION_SUFFIX@ tokens shared with the matching package requirement (opt-in tokenize-version only). |
 | GTR095 | ToolIDMissing, ToolNameMissing, ToolVersionMissing | ✓ | ✗ | check | strict | Tool must declare a non-empty id, name, and version. |
 | GTR096 | — | ✓ | ✓ | upgrade | — | Fully-qualify a flat `<test>` parameter name to its unique nested parent|...|child input path (required at profile >= 24.2). |
+| GTR097 | — | ✓ | ✓ | upgrade | — | Declare the minimum profile at or above the baseline the tool validates at. |
 <!-- END GENERATED -->
 
 The remaining unmapped planemo linters (the ~80 correctness checks + the advisory-by-design

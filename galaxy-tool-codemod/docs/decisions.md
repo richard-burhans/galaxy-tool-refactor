@@ -2071,3 +2071,41 @@ fix's corpus soundness proof). Follows §47 (the 24.2 detector tightening).
   tools the 24.2 checker otherwise stops; the behavior gate's reaches-latest
   count rises accordingly (`docs/upgrade_behavior_block_stats.md`), and the
   gated `corpus_check upgrade` contract sweep stays at 0 violations.
+
+## 49. GTR097 UpgradeToValid: the minimal-bump orchestrator
+
+**Date:** 2026-06-12. Reproduced-by: `uv run --package galaxy-tool-codemod pytest
+galaxy-tool-codemod/tests/test_upgrades.py` (the orchestrator) and `uv run
+--package galaxy-tool-source pytest galaxy-tool-source/tests/test_validate.py -k
+oldest` (the tier-1 probe). Mechanism for the don't-bump-unless-needed
+policy; the default flip itself lands separately in the registry facade.
+
+- **The shift.** The user's policy (2026-06-12): `upgrade` should not bump
+  `profile=` unless the tool is invalid where it sits — modernizing to the
+  behaviour ceiling becomes opt-in (IUC feedback on featurecounts PR #8090:
+  "do not bump for no reason and not to an unreleased pre-release"). This is the
+  inverse of `UpgradeToLatest`, which walks as far toward latest as the behaviour
+  gate allows.
+- **The probe.** Tier-1 `oldest_valid_profile(target, *, floor, ceiling=None)`
+  (`galaxy-tool-source`, the ascending sibling of `newest_valid_profile`):
+  the oldest vendored profile at or above *floor* the tool validates at, or
+  `None`. *floor* need not be vendored (Galaxy's `16.01` legacy default admits
+  `16.10`), and like the descending scan it assumes nothing about profiles past
+  the first hit (a tool's valid profiles can have gaps, source §10.3).
+- **The orchestrator.** `UpgradeToValid(floor=...)` declares exactly the oldest
+  validating profile at or above the floor via `UpdateProfile(ceiling=needed)`
+  when the repaired tool validates as-is; otherwise it steps through the same
+  `UPGRADE_CODEMODS` `UpgradeToLatest` uses, re-probing after each advancing
+  step, and declares the first profile at or above the floor a step unblocks —
+  the declaration lands once, at the minimum. A stall leaves the tool untouched
+  and reports `unreachable_floor` (the caller fails closed). It **never lowers a
+  profile** (the floor is the tool's baseline; `oldest_valid_profile` only
+  considers profiles at or above it). Proof: `docs/proofs/GTR097.md`.
+- **Registry + sweep wiring.** `coded_codemods()` gains GTR097; it carries no
+  ruleset, so it is non-selectable (registry `test_ruleset_membership` pins it
+  in the upgrade-pipeline set). The per-rule isolation sweep
+  (`corpus_check rules`) cannot exercise it with one stateless instance — the
+  floor is per-tool, and a hard-coded floor would lower a high-profile tool — so
+  it is skipped there (`_NON_ISOLATABLE_CODEMODS`) and earns only a glossary row;
+  its corpus QA is the gated `upgrade` sweep, which drives it per tool once the
+  facade adopts it.

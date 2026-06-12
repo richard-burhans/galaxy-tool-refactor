@@ -2086,7 +2086,15 @@ import importlib  # noqa: E402
 
 from galaxy_tool_codemod.codemod import CodemodCommand  # noqa: E402
 from galaxy_tool_codemod.parse import parse_module  # noqa: E402
-from galaxy_tool_codemod.upgrades import UpgradeToLatest  # noqa: E402
+from galaxy_tool_codemod.upgrades import UpgradeToLatest, UpgradeToValid  # noqa: E402
+
+# Codemods the per-rule isolation sweep cannot exercise with one stateless
+# instance: ``UpgradeToValid`` (GTR097) needs a per-tool ``floor`` (its declared
+# baseline) — a single hard-coded floor would lower a high-profile tool, the one
+# thing it must never do. Its real QA is the gated ``upgrade`` sweep (the
+# ``upgrade`` subcommand), which drives it per tool. It still earns a glossary row
+# (it is a ``coded_codemods()`` member); only the isolated-row table skips it.
+_NON_ISOLATABLE_CODEMODS: frozenset[type[CodemodCommand]] = frozenset({UpgradeToValid})
 
 _CODEMOD_REGRESSIONS = (
     _REPO_ROOT / "galaxy-tool-codemod" / "tests" / "data" / "regressions"
@@ -3004,6 +3012,14 @@ def _rules_main(argv: list[str]) -> int:
     codemod_rows: list[tuple[str, str, _CodemodSweepState]] = []
     upgrade_state: _CodemodSweepState | None = None
     for codemod_cls in coded_codemods():
+        if codemod_cls in _NON_ISOLATABLE_CODEMODS:
+            logger.info(
+                "skipping isolated sweep of %s (%s): per-tool floor, QA'd by the "
+                "upgrade sweep",
+                codemod_cls.meta.code,
+                codemod_cls.__name__,
+            )
+            continue
         name = codemod_cls.__name__
         logger.info("isolating codemod %s (%s) ...", codemod_cls.meta.code, name)
         state = _sweep_codemod_isolated(

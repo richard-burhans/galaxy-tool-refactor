@@ -31,6 +31,7 @@ _EXPECTED_CODES = {
     "GTR093",  # Upgrade21_09 (collection_type whitespace; 21.09 -> 22.01)
     "GTR094",  # TokenizeVersion (opt-in tokenize-version only; no ruleset)
     "GTR096",  # FixTestParamQualification (runtime-gated; 24.2 test qualification)
+    "GTR097",  # UpgradeToValid (minimal-bump orchestrator; default upgrade driver)
 }
 
 

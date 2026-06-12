@@ -348,3 +348,48 @@ def newest_valid_profile(
         if validate_tool(probe, profile=version).valid:
             return version
     return None
+
+
+def oldest_valid_profile(
+    target: Source | ToolDocument, *, floor: str, ceiling: str | None = None
+) -> str | None:
+    """Return the oldest vendored profile at or above *floor* the tool satisfies.
+
+    The ascending sibling of ``newest_valid_profile``: the tool is validated,
+    with macros expanded, against each vendored profile from oldest to newest,
+    skipping profiles older than *floor*, and the first profile that validates
+    cleanly is returned. ``None`` means no vendored profile in range validates,
+    including when the tool is malformed or its macros cannot be expanded.
+
+    *floor* need not itself be vendored: Galaxy's ``16.01`` legacy default (a
+    no-profile tool's baseline) admits ``16.10``, our oldest vendored XSD.
+    *ceiling*, when given, caps the scan exactly as in
+    ``newest_valid_profile``: profiles newer than it are skipped.
+
+    This is the minimal-bump probe behind the ``upgrade`` default of declaring
+    no profile newer than the tool strictly needs for validity: the caller
+    passes the declared (or resolved legacy) profile as the floor and moves the
+    declaration to the returned version, no further. Like the descending scan,
+    it assumes nothing about profiles beyond the first hit — a tool's valid
+    profiles are often not a contiguous range (``docs/decisions.md`` §10.3).
+    """
+    if isinstance(target, str | Path):
+        probe: Source | ToolDocument = Path(target)
+    elif isinstance(target, ToolDocument):
+        probe = target
+    else:
+        parsed = parse_tool(target).document
+        if parsed is None:
+            return None
+        probe = parsed
+    floor_version = Version(floor)
+    cap = Version(ceiling) if ceiling is not None else None
+    for version in available_profiles():
+        parsed_version = Version(version)
+        if parsed_version < floor_version:
+            continue
+        if cap is not None and parsed_version > cap:
+            continue
+        if validate_tool(probe, profile=version).valid:
+            return version
+    return None
