@@ -204,6 +204,15 @@ uv run python -m scripts.measure semantic-upgrade-boundaries
 # needs the corpus, so not run in CI):
 uv run python -m scripts.measure upgrade-codes-applicability
 
+# The TRUE 24.2 test-case-validation blocker population: run Galaxy's REAL strict
+# validator (validate_test_cases_for_tool_source, the exact ProfileMigration24_2.advise
+# call; needs the galaxy-tool-util dev dep) over every test-shipping tool: clean
+# (would NOT block) / invalid (true blocker, with an error-kind histogram) /
+# validator-error (retained to docs/corpus_data/test_case_validation_errors.json).
+# Right-sizes the behavior gate's dominant stop (codemod §45/§46; the shipped
+# ships-a-<test> detector is an upper bound). Needs the corpus, not in CI:
+uv run python -m scripts.measure test-case-validation-truth
+
 # Detector-precision sizing: how many tools the always-firing 20_09_consider_set_e
 # detector (any <command> w/o strict=) would SOUNDLY stop flagging if tightened to
 # "provably single simple command" — set -e cannot change a lone command (backs

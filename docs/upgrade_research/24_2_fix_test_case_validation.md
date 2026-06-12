@@ -103,10 +103,40 @@ from values only, `parameters.py:1720`). If a fix is ever scoped, restrict it to
 static-options selects with the parsed option set, and guard idempotence for values
 that already validate.
 
+## The measured truth (2026-06-12)
+
+Reproduced by: `uv run python -m scripts.measure test-case-validation-truth`
+(runs Galaxy's REAL validator, the exact `ProfileMigration24_2.advise` call,
+over every test-shipping corpus tool; needs the `galaxy-tool-util` dev
+dependency and the corpus).
+
+Of the **6,648** unique tools shipping at least one `<test>` (the detector's
+upper-bound population):
+
+| Outcome | Tools | Share |
+|---|--:|--:|
+| Every test case validates at 24.2 (would NOT block) | **4,517** | 67.9% |
+| At least one invalid test case (**true blockers**) | **1,972** | 29.7% |
+| Galaxy's own test parser/model raises (retained) | 159 | 2.4% |
+
+So the true blocker population is **1,972, roughly one third of the 6,033 the
+ships-a-`<test>` detector counts as first blockers** in
+`../upgrade_behavior_block_stats.md`; the other two thirds of test-shipping
+tools could advance past 24.2 today if the detector could tell them apart
+(PR 3 of the behavior-gate arc). Per-case validation-error kinds across the
+1,972: `type-or-value-mismatch` 2,380 cases (strict pydantic coercion),
+`unknown-parameter` 2,159 ("Invalid parameter name found", the
+name-qualification / typo class and the PR 4 mechanical-fix candidate),
+`extra-input-forbidden` 52, `other` 43. The 159 validator-error tools (Galaxy
+rejects the test block before validation, e.g. an output with nothing to
+check) are listed in `../corpus_data/test_case_validation_errors.json`.
+
 ## Status / recommendation
 
-The largest behaviour-block by our heuristic, but the headline count is inflated by
-the detector approximation. Highest-value next step is **measurement, not a fix**:
-quantify how many tools' tests *truly* fail (e.g. by running Galaxy's validator over
-the corpus, or porting a narrow check), which would right-size this blocker. Treat as
-**detect/report-only** for now; a mechanical fix is low-confidence and only partial.
+The largest behaviour-block by our heuristic, and the truth measure above
+shows the headline count is inflated roughly 3x by the detector
+approximation. Next steps, in order: ship the real validator behind a tier-2
+`[galaxy]` extra with the static checker as the no-extra fallback (PR 3),
+then revisit the `unknown-parameter` subset for a mechanical
+name-qualification fix (PR 4). Treat as **detect/report-only** until then; a
+mechanical fix beyond that subset is low-confidence and only partial.

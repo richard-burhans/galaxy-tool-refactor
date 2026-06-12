@@ -1959,3 +1959,34 @@ computed with the shipped gate functions) and
   crossed un-fixed (recomputed independently of the facade), validity
   preserved, and a second run is a byte no-op, retaining every violation as a
   regression fixture (`docs/corpus_data/upgrade_gate_errors.json`).
+
+## 46. The 24.2 truth measure: the dominant blocker is a 3x over-count
+
+**Date:** 2026-06-12. Reproduced-by: `uv run python -m scripts.measure
+test-case-validation-truth` (full numbers in
+`docs/upgrade_research/24_2_fix_test_case_validation.md`); pinned by the
+synthetic-fixture tests in `galaxy-tool-source/tests/test_measure.py`.
+
+- **The question.** §45's gate stops 6,033 tools at 24.1 because
+  `24_2_fix_test_case_validation`'s detector is a ships-a-`<test>` necessary
+  condition (we do not vendor Galaxy's pydantic parameter models). How many of
+  those tools' tests would *actually* fail Galaxy's strict 24.2 validation?
+- **The oracle.** `galaxy-tool-util` joined the **dev** dependency group (the
+  `markdown-it-py` precedent: measure-only, never a tier dependency; shipping
+  it is PR 3's separate `[galaxy]`-extra decision). The measure calls
+  `validate_test_cases_for_tool_source(tool_source, use_latest_profile=True)`,
+  byte-for-byte the call `ProfileMigration24_2.advise` makes, so the numbers
+  are Galaxy's own verdicts, not a reimplementation.
+- **The answer.** Of 6,648 test-shipping tools: **4,517 (67.9%) validate
+  cleanly** and would not block; **1,972 (29.7%) are true blockers**; 159
+  (2.4%) crash Galaxy's own test parser/model (every one retained to
+  `docs/corpus_data/test_case_validation_errors.json`, standing
+  retain-failures rule). The error-kind histogram (type-or-value-mismatch
+  2,380 cases; unknown-parameter 2,159; extra-input-forbidden 52; other 43)
+  sizes PR 3's tightening payoff and PR 4's mechanical
+  name-qualification candidate.
+- **Consequence.** Tightening the 24.2 detector to the real validator (PR 3)
+  would let roughly two thirds of the gate's currently-stopped tools advance
+  past 24.2; construction soundness still governs (the fallback static checker
+  must suppress only provably-clean tools, with this measure as its validation
+  oracle, never its definition of correctness).
