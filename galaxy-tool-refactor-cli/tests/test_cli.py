@@ -129,7 +129,7 @@ def _tool_with_tests(*, profile: str) -> bytes:
         f'<tool id="m" name="M" version="1.0.0" profile="{profile}">'
         "<command><![CDATA[echo x]]></command>"
         '<inputs/><outputs><data name="o"/></outputs>'
-        "<tests><test/></tests></tool>"
+        '<tests><test><param name="nosuch" value="1"/></test></tests></tool>'
     ).encode()
 
 
@@ -188,7 +188,7 @@ def test_upgrade_gates_a_shared_imported_profile_token(tmp_path: Path) -> None:
                 "<macros><import>macros.xml</import></macros>"
                 "<command><![CDATA[echo x]]></command>"
                 '<inputs/><outputs><data name="o"/></outputs>'
-                "<tests><test/></tests></tool>"
+                '<tests><test><param name="nosuch" value="1"/></test></tests></tool>'
             ).encode(),
         )
     result = CliRunner().invoke(main, ["upgrade", str(tmp_path)])

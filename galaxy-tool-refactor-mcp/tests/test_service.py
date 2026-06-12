@@ -80,7 +80,7 @@ _WITH_TESTS = (
     '<tool id="m" name="M" version="1.0.0" profile="24.1">'
     "<command><![CDATA[echo x]]></command>"
     '<inputs/><outputs><data name="o"/></outputs>'
-    "<tests><test/></tests></tool>"
+    '<tests><test><param name="nosuch" value="1"/></test></tests></tool>'
 )
 
 

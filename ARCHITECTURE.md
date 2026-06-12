@@ -16,7 +16,10 @@ the per-rule behaviour-preservation claims, their adversarial verdicts, and the
 open remediation backlog see
 [`docs/behavior_preservation.md`](docs/behavior_preservation.md); the canonical
 per-rule **proof documents** (coverage-guarded) are
-[`docs/proofs/`](docs/proofs/README.md).
+[`docs/proofs/`](docs/proofs/README.md); and where the toolchain re-implements
+(or deliberately keeps) Galaxy library code, with the advantage and the parity
+oracle that keeps each re-implementation honest, see
+[`docs/galaxy_reimplementations.md`](docs/galaxy_reimplementations.md).
 
 ---
 

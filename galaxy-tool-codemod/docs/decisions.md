@@ -1990,3 +1990,49 @@ synthetic-fixture tests in `galaxy-tool-source/tests/test_measure.py`.
   past 24.2; construction soundness still governs (the fallback static checker
   must suppress only provably-clean tools, with this measure as its validation
   oracle, never its definition of correctness).
+
+## 47. Our own 24.2 test-case checker tightens the detector (the Galaxy advantage)
+
+**Date:** 2026-06-12. Reproduced-by: `uv run --package galaxy-tool-codemod pytest
+galaxy-tool-codemod/tests/test_test_case_check.py` (rules + in-CI parity against
+Galaxy's real validator) and `uv run python -m scripts.measure
+test-case-validation-truth` (the corpus parity oracle). Background: §46 measured
+the 24.2 blocker as a ~3x over-count; this is the shipped tightening that
+recovers it.
+
+- **The advantage (documented in `docs/galaxy_reimplementations.md` touchpoint
+  3).** Galaxy's strict 24.2 validation re-parses the tool, builds a
+  parameter-model tree, and **generates a pydantic class per tool** (~200ms).
+  The decision needs only structural facts the toolchain already holds on its
+  resident, macro-expanded lxml tree, so
+  `test_case_check.all_test_cases_provably_clean` answers it as a direct
+  query in milliseconds with no new dependency. `_detects_test_case_validation`
+  now fires only when a tool ships a `<test>` **and** its tests are not provably
+  clean, replacing the bare ships-a-`<test>` necessary condition.
+- **One-directional by construction (the §28 rule).** The checker returns
+  `True` (suppress the blocker, let the tool past 24.2) only when every test
+  input is provably valid under rules justified from Galaxy's model code
+  (per-type `py_type` + `requires_value` for the `test_case_xml`
+  representation, `legacy_from_string` coercions at >= 24.2, the strict
+  `Literal` membership for static selects, the `extra="forbid"` unknown-input
+  rule, and the test parser's nothing-to-check `<output>` raise). Every
+  construct it cannot model (repeats, collections, drill-downs, `<validator>`,
+  un-expanded macros, novel types) returns `False` and stays blocked, so it is
+  never wider than Galaxy.
+- **Parity is a standing oracle, not a claim.** `scripts.measure
+  test-case-validation-truth` now runs the checker beside Galaxy's real
+  validator over every test-shipping corpus tool. The hard gate is
+  `n_unsound == 0` where unsound = ours-clean AND Galaxy returns an invalid
+  **verdict**. A Galaxy validator *raise* is not a verdict (its advisor has no
+  try/except around the call, so a raise is Galaxy failing to advise, not
+  flagging 24_2); those go to a separate `n_clean_galaxy_raised` bucket, and
+  the tools behind them are handled upstream in the shipped pipeline (malformed
+  XML never loads through tier-1; a tool whose macros do not expand validates
+  at no profile, so the walk would not move it). The in-CI fixture parity test
+  pins the same agreement without the corpus.
+- **Payoff.** Of the 6,648 test-shipping corpus tools, the checker soundly
+  suppresses the 24.2 blocker for the provably-clean subset (regenerated in
+  `docs/upgrade_behavior_block_stats.md`); the residual `headroom` (tools
+  Galaxy validates clean but the checker cannot yet prove) is reported by the
+  measure as the target for any future widening, always behind the same
+  zero-unsound gate.

@@ -94,6 +94,11 @@ def test_probe_blocks_an_unfixable_interpreter_tool() -> None:
 # --- blocking_codes (the policy filter) ------------------------------------------
 
 
+# A test case Galaxy's strict 24.2 validation genuinely rejects (an unknown
+# parameter name), so the tightened 24_2 detector keeps firing on it.
+_BAD_TEST = b'<tests><test><param name="nosuch" value="1"/></test></tests>'
+
+
 def test_blocking_codes_default_policy_keeps_unfixable_must_fix_only() -> None:
     # Trips: 16_04_fix_interpreter (auto-fixable here), 24_2_fix_test_case_validation
     # (no auto-fix), and several consider-level codes (implicit extra-file
@@ -102,7 +107,8 @@ def test_blocking_codes_default_policy_keeps_unfixable_must_fix_only() -> None:
     module = parse_module(
         _HEAD
         + b'<command interpreter="python">myscript.py</command>'
-        + b"<tests><test/></tests></tool>"
+        + _BAD_TEST
+        + b"</tool>"
     )
     blockers = blocking_codes(module.document, baseline="16.01")
     assert [change.code for change in blockers] == ["24_2_fix_test_case_validation"]
@@ -112,7 +118,8 @@ def test_blocking_codes_keeps_an_unfixable_interpreter_in_profile_order() -> Non
     module = parse_module(
         _HEAD
         + b'<command interpreter="python">$script</command>'
-        + b"<tests><test/></tests></tool>"
+        + _BAD_TEST
+        + b"</tool>"
     )
     blockers = blocking_codes(module.document, baseline="16.01")
     assert [change.code for change in blockers] == [

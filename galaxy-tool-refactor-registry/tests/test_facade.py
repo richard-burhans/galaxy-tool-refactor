@@ -355,7 +355,7 @@ def test_upgrade_default_walks_up_to_the_boundary_from_below() -> None:
         b'<tool id="m" name="M" version="1.0.0">'
         b"<command><![CDATA[echo x]]></command><inputs/>"
         b'<outputs><data name="o"/></outputs>'
-        b"<tests><test/></tests></tool>"
+        b'<tests><test><param name="nosuch" value="1"/></test></tests></tool>'
     )
     result = facade.upgrade(no_profile_with_tests, codes=resolve_upgrade_codes())
     assert b'profile="24.1"' in result.formatted
@@ -476,7 +476,7 @@ def test_upgrade_resolvable_inline_token_baseline_gates_normally() -> None:
         b'<macros><token name="@PROFILE@">24.1</token></macros>'
         b"<command><![CDATA[echo x]]></command><inputs/>"
         b'<outputs><data name="o"/></outputs>'
-        b"<tests><test/></tests></tool>"
+        b'<tests><test><param name="nosuch" value="1"/></test></tests></tool>'
     )
     result = facade.upgrade(tokenised, codes=resolve_upgrade_codes())
     assert result.stopped_at == "24.1"
