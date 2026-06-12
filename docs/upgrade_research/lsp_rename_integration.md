@@ -75,7 +75,7 @@ The minimum viable path, almost entirely on galaxyls's side:
 
 Pros: a day of work, no new API in our repo. Cons: our facade serialises through fmt
 (the only serializer), so the edit **reformats the whole file** (attribute-quote
-normalisation, an added XML declaration). Acceptable for a project that already runs
+normalisation, whitespace canonicalisation). Acceptable for a project that already runs
 our formatter; jarring as a standalone "rename one symbol" gesture (a clean rename
 should not reflow the document).
 

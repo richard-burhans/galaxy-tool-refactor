@@ -345,9 +345,9 @@ and a throwaway temp-dir round-trip for macro expansion — neither is output.)
   a throwaway deep copy, records the last rule to touch each node, and diffs
   against the original — one `Violation` per net-changed node, attributed to the
   owning rule. An already-canonical document reports nothing.
-- **`serializer.py`** — `to_bytes(tree)` (UTF-8 + XML declaration) plus the
-  CDATA-safe whitespace setters. Every byte of XML the project writes flows
-  through here.
+- **`serializer.py`** — `to_bytes(tree)` (UTF-8, no XML declaration — the IUC
+  convention, fmt `docs/decisions.md` §D21) plus the CDATA-safe whitespace
+  setters. Every byte of XML the project writes flows through here.
 - **`cli_support.py`** — the shared file-walking engine both fmt's own CLI and the
   app CLI consume: `run(paths, *, transform, action, options, macro_transform)`,
   `iter_targets`, `is_tool_root` / `is_macros_root`, `TransformOutcome`, `Action`,

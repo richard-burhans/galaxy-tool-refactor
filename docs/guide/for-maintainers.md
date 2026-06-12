@@ -20,7 +20,6 @@ Preview with `--diff`; it writes nothing until you drop the flag:
 
 ```diff
 $ galaxy-tool-refactor format --diff tools/coverm/macros.xml
-+<?xml version='1.0' encoding='utf-8'?>
  <macros>
 -        <param argument="--sharded" type="boolean" ... help="..." />
 +        <param argument="--sharded" type="boolean" ... help="..."/>

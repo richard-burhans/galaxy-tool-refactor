@@ -1014,3 +1014,36 @@ galaxy-tool-fmt/tests/test_rule_indent.py`.
   text-bearing subtrees preserved); GTR004 touched 1,404 → 1,370 / edits 2,468
   → 2,429 (ws-only option/filter/description/… bodies kept). Idempotence and
   validity unaffected across all sweeps.
+
+## D21 (2026-06-12) — The serialiser emits no XML declaration
+
+**Date:** 2026-06-12. From the IUC review of Richard's featurecounts PR
+(tools-iuc #8090): on the `+<?xml version='1.0' encoding='utf-8'?>` line
+bernt-matthias wrote "No, actually we are normally removing it", and Richard
+committed to dropping it from future PRs. Reproduced-by: `uv run --package
+galaxy-tool-fmt pytest galaxy-tool-fmt/tests/test_serializer.py`.
+
+- **The change.** `serializer.to_bytes` now calls `etree.tostring(...,
+  xml_declaration=False)`. It is the single serialisation chokepoint (the only
+  `xml_declaration=` call in the workspace), so every output path — the fmt
+  library (`format_tool_document` / `format_macro_document` / the subset
+  seams), the registry facade's `run` / `upgrade` / `convert_help` /
+  `tokenize_version` / `rename_param`, and both front-ends — drops the
+  declaration in one place.
+- **Why it is safe.** The XML declaration is optional; a document with no
+  declaration and no BOM is UTF-8 by the XML spec, which is exactly what
+  Galaxy tool XML is. No information is lost, and the tree is unchanged — this
+  is a serialisation-trivia choice, not a rule, so there is no detect phase
+  and nothing to select or ignore.
+- **Never emit, even when present.** IUC removes the declaration even from
+  tools that shipped one, so the canonical form is unconditional: an
+  author-supplied `<?xml ...?>` is dropped on the next `format`. (lxml parses
+  the declaration as document metadata, not a node, so there is no tree edit
+  to make — only the serialiser flag.)
+- **Byte-shift, like GTR020.1.** This removes the first line from the output
+  of every previously-formatted tool that carried a declaration (and every
+  tool the formatter used to prepend one to). `format`→`format` idempotence
+  holds trivially (the second pass has no declaration to drop), confirmed by
+  the corpus `fmt` sweep; the regression fixtures pin idempotence, not the
+  byte prefix, so they are unaffected. This is the second deliberate
+  default-`format` byte shift after GTR020.1 (codemod §30).
