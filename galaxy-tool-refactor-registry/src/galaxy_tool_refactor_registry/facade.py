@@ -40,7 +40,7 @@ from galaxy_tool_codemod.profile_semantics import (
     tripped_upgrade_codes,
 )
 from galaxy_tool_codemod.runtime_fixes import runtime_fixes_for
-from galaxy_tool_codemod.upgrades import UpgradeToLatest
+from galaxy_tool_codemod.upgrades import UpgradeToLatest, UpgradeToValid
 from galaxy_tool_fmt.detect import detect_tool_document_subset
 from galaxy_tool_fmt.format import format_tool_document_subset
 from galaxy_tool_lint.detect import sort_violations
@@ -50,7 +50,12 @@ from galaxy_tool_refactor_rules.rulesets import (
     ruleset_names,
 )
 from galaxy_tool_source import version_tokens
-from galaxy_tool_source.binding import Source, load_tool, newest_valid_profile
+from galaxy_tool_source.binding import (
+    Source,
+    load_tool,
+    newest_valid_profile,
+    validate_tool,
+)
 from galaxy_tool_source.cheetah_refs import tool_cheetah_references
 from galaxy_tool_source.cheetah_rename import rename_param as _rename_in_tree
 from galaxy_tool_source.document import ToolDocument
@@ -59,7 +64,7 @@ from packaging.version import Version
 
 from galaxy_tool_refactor_registry.adapters import fmt_rule_by_code
 from galaxy_tool_refactor_registry.apply import apply_selection
-from galaxy_tool_refactor_registry.errors import UnknownProfile
+from galaxy_tool_refactor_registry.errors import UnknownProfile, UpgradeFlagError
 from galaxy_tool_refactor_registry.registry import all_handles, registry
 from galaxy_tool_refactor_registry.results import (
     ConvertHelpResult,
@@ -328,6 +333,46 @@ def _behavior_stop_note(
     )
 
 
+def _minimal_outcome_note(
+    *,
+    declared: str | None,
+    baseline: str | None,
+    reached: str | None,
+    unreachable: str | None,
+) -> str | None:
+    """The per-tool report for the minimal default: kept / bumped / unreachable.
+
+    ``None`` for an unplaceable baseline (the unplaceable note covers that
+    case). Phrased per the Galaxy Community Code of Conduct: an unreachable
+    floor means the tool needs repairs a profile bump cannot make, not that the
+    tool is "broken".
+    """
+    if baseline is None:
+        return None
+    if declared is None:
+        return (
+            "  no profile= declared: left undeclared (Galaxy runs the tool"
+            f" under its {baseline} legacy defaults); rerun with --modernize"
+            " to declare and upgrade a profile."
+        )
+    if unreachable is not None:
+        return (
+            "  profile= left unchanged: the tool does not validate at any"
+            f" vendored profile at or above {baseline}, so no profile bump can"
+            " make it valid; `galaxy-tool-source validate` shows what to fix"
+            " first."
+        )
+    if reached == baseline:
+        return (
+            f"  profile {baseline} kept: the tool validates at its declared"
+            " profile; rerun with --modernize to walk newer profiles."
+        )
+    return (
+        f"  profile {baseline}→{reached}: bumped to the minimum profile the"
+        " tool validates at after repair."
+    )
+
+
 def _validated_target_profile(target_profile: str | None) -> str | None:
     """Pass through a vendored *target_profile*, or raise ``UnknownProfile``."""
     if target_profile is None:
@@ -346,77 +391,122 @@ def upgrade(
     *,
     codes: frozenset[str],
     write_path: Path | None = None,
+    modernize: bool = False,
     allow_behavior_change: bool = False,
     target_profile: str | None = None,
 ) -> UpgradeResult:
-    """Profile-upgrade *source*, plus the fixable rules in *codes*, then format.
+    """Repair *source*, move ``profile=`` only as far as needed, then format.
 
-    **Behavior-preserving by default**: the walk stops at the behaviour
-    ceiling: the newest vendored profile reachable without crossing a Galaxy
-    ``must_fix`` behaviour change that applies to this tool and that no
-    runtime-gated fix provably clears (``behavior_gate``). Applicable
+    **Minimal bump by default**: after the repair the tool's ``profile=`` is
+    left untouched when the tool validates at its resolved baseline (its
+    declared profile, or Galaxy's ``16.01`` legacy default — an undeclared
+    tool stays undeclared); when it does not, the declaration moves to the
+    **minimum** vendored profile at or above the baseline that validates
+    (``UpgradeToValid``), no further. A tool that validates nowhere at or
+    above its baseline is left unchanged and reported. Galaxy servers lag the
+    newest profile, so a gratuitous bump would only narrow where the tool can
+    run.
+
+    *modernize* opts into the walk toward the latest profile, stopping at the
+    behaviour ceiling: the newest vendored profile reachable without crossing
+    a Galaxy ``must_fix`` behaviour change that applies to this tool and that
+    no runtime-gated fix provably clears (``behavior_gate``). Applicable
     consider-level changes are warned about but do not stop the walk.
-    *allow_behavior_change* lifts the gate (the historical walk-to-latest);
     *target_profile* caps the walk at an explicit vendored profile (raising
-    ``UnknownProfile`` otherwise) and composes with the gate (the lower wins).
+    ``UnknownProfile`` otherwise), implying the walk mode by itself, and
+    composes with the gate (the lower wins). *allow_behavior_change* lifts
+    the gate (the historical walk-to-latest); it requires a walk mode
+    (raising ``UpgradeFlagError`` otherwise — the minimal default has no gate
+    to lift).
 
     ``FixTypos`` runs first when its code is in *codes* (the repair
-    precondition). Runtime-gated fixes for the reached profile then apply
-    (e.g. the 21.09 ``from_work_dir`` strip), and codes they provably clear
-    (re-detected after the fix) are credited to the behaviour verdict. Any
-    other selected codemods run after (canonical order), then the selected
-    cosmetic fmt rules. Advisory rules in *codes* are reported as notes.
+    precondition). Runtime-gated fixes for the profile actually crossed then
+    apply (e.g. the 21.09 ``from_work_dir`` strip — a kept tool crosses
+    nothing, so none apply), and codes they provably clear (re-detected after
+    the fix) are credited to the behaviour verdict. Any other selected
+    codemods run after (canonical order), then the selected cosmetic fmt
+    rules. Advisory rules in *codes* are reported as notes.
     """
     target = _validated_target_profile(target_profile)
+    walk_mode = modernize or target is not None
+    if allow_behavior_change and not walk_mode:
+        raise UpgradeFlagError()
     document = _to_document(source)
     # Capture the runtime baseline AND which upgrade codes the tool trips BEFORE
     # any codemod rewrites ``profile=`` or mutates the features detectors inspect
     # (GTR014/GTR015 fix the very things some detectors look for).
     baseline = behavior_gate.resolved_baseline(document)
     placeable = behavior_gate.placeable_baseline(baseline)
+    declared = document.profile
     tripped = tripped_upgrade_codes(document)
     advisory = _detect_advisory(document, codes)
 
-    # The gate: blockers are computed whenever the baseline is placeable (under
-    # the opt-out they are reporting-only, the user's review list); the ceiling
-    # caps the walk only under the default.
+    # Blockers are computed whenever the baseline is placeable: in the walk
+    # mode they gate the walk (or, under the opt-out, are reporting-only, the
+    # user's review list); under the minimal default they are the preview of
+    # where a modernize walk would stop.
     blockers: tuple[ProfileUpgradeCode, ...] = ()
-    walk = True
-    ceiling = target
     if placeable and baseline is not None:
         blockers = behavior_gate.blocking_codes(document, baseline=baseline)
-        if not allow_behavior_change:
-            gate_ceiling = behavior_gate.behavior_ceiling(blockers)
-            if behavior_gate.blocked_below_baseline(
-                ceiling=gate_ceiling, baseline=baseline
-            ):
-                walk = False
-            elif ceiling is None or (
-                gate_ceiling is not None and Version(gate_ceiling) < Version(ceiling)
-            ):
-                ceiling = gate_ceiling
-    elif not allow_behavior_change:
-        # An unplaceable baseline (an unresolved @PROFILE@ token): crossing
-        # boundaries we cannot place would void the guarantee, so fail closed.
-        walk = False
 
     module = Module(document)
     if FixTypos.meta.code in codes:
         FixTypos().apply(module)
+
     steps: tuple[str, ...] = ()
     missing: str | None = None
-    if walk:
-        upgrader = UpgradeToLatest(ceiling=ceiling)
-        upgrader.apply(module)
-        steps = tuple(upgrader.upgrade_steps_applied())
-        missing = upgrader.missing_upgrade()
-
-    # The profile actually reached (a literal version, even when ``profile=`` is
-    # a macro token), measured under the same ceiling as the walk; the runtime
-    # baseline when the walk did not run.
-    reached_profile = (
-        newest_valid_profile(document, ceiling=ceiling) if walk else baseline
-    )
+    unreachable: str | None = None
+    walk = False
+    ceiling = target
+    if walk_mode:
+        walk = True
+        if placeable and baseline is not None:
+            if not allow_behavior_change:
+                gate_ceiling = behavior_gate.behavior_ceiling(blockers)
+                if behavior_gate.blocked_below_baseline(
+                    ceiling=gate_ceiling, baseline=baseline
+                ):
+                    walk = False
+                elif ceiling is None or (
+                    gate_ceiling is not None
+                    and Version(gate_ceiling) < Version(ceiling)
+                ):
+                    ceiling = gate_ceiling
+        elif not allow_behavior_change:
+            # An unplaceable baseline (an unresolved @PROFILE@ token): crossing
+            # boundaries we cannot place would void the guarantee, so fail closed.
+            walk = False
+        if walk:
+            upgrader = UpgradeToLatest(ceiling=ceiling)
+            upgrader.apply(module)
+            steps = tuple(upgrader.upgrade_steps_applied())
+            missing = upgrader.missing_upgrade()
+        # The profile actually reached (a literal version, even when
+        # ``profile=`` is a macro token), measured under the same ceiling as
+        # the walk; the runtime baseline when the walk did not run.
+        reached_profile = (
+            newest_valid_profile(document, ceiling=ceiling) if walk else baseline
+        )
+    elif placeable and baseline is not None:
+        # The minimal default. An undeclared tool stays undeclared (declaring
+        # a profile is best practice, not strictly needed); a declared tool
+        # that validates at its baseline is kept there; only an invalid one
+        # moves, to the minimum validating profile at or above the baseline.
+        if declared is None or validate_tool(document, profile=baseline).valid:
+            reached_profile = baseline
+        else:
+            minimal = UpgradeToValid(floor=baseline)
+            minimal.apply(module)
+            steps = tuple(minimal.upgrade_steps_applied())
+            unreachable = minimal.unreachable_floor()
+            reached_profile = (
+                baseline
+                if unreachable is not None
+                else behavior_gate.resolved_baseline(document)
+            )
+    else:
+        # Unplaceable baseline under the minimal default: fail closed.
+        reached_profile = baseline
 
     # Runtime-gated fixes correct profile behaviours the XSD does not enforce, so
     # they ride neither the validity loop nor the selection. Apply each fix the tool
@@ -424,10 +514,11 @@ def upgrade(
     # stalled below it is left alone (Galaxy ran it under the old behaviour), and one
     # that already declared a profile at/above it is left alone too (Galaxy already
     # applied the new behaviour; rewriting would change, not preserve, behaviour).
+    # A kept tool crosses nothing, so the strict lower bound applies none.
     # Upgrade-only: never in `format`/canonical.
     applied_fixes = (
         runtime_fixes_for(reached_profile, baseline_profile=baseline)
-        if walk and reached_profile is not None
+        if reached_profile is not None
         else ()
     )
     for fix in applied_fixes:
@@ -467,7 +558,10 @@ def upgrade(
     pass_note = _behavior_preserving_note(
         baseline, reached_profile, preserving=preserving, crossed_any=bool(crossed)
     )
-    if not walk:
+    # ``stopped_at`` is a walk-mode concept: the deliberate cap below latest.
+    if not walk_mode:
+        stopped_at = None
+    elif not walk:
         stopped_at = baseline if placeable else None
     elif ceiling is not None and ceiling != latest_profile():
         stopped_at = ceiling
@@ -477,14 +571,28 @@ def upgrade(
         _behavior_stop_note(
             blockers, stopped_at=stopped_at, walked=walk, target_profile=target
         )
-        if not allow_behavior_change
+        if walk_mode and not allow_behavior_change
         else None
+    )
+    minimal_note = (
+        _minimal_outcome_note(
+            declared=declared,
+            baseline=baseline,
+            reached=reached_profile,
+            unreachable=unreachable,
+        )
+        if not walk_mode
+        else None
+    )
+    opt_out = (
+        "--allow-behavior-change"
+        if walk_mode
+        else "--modernize --allow-behavior-change"
     )
     unplaceable_note = (
         "  profile= is a macro token that does not resolve to a version, so"
         " behaviour boundaries cannot be placed; profile= was left unchanged."
-        " Rerun with --allow-behavior-change to upgrade without the behavior"
-        " gate."
+        f" Rerun with {opt_out} to upgrade without the behavior gate."
         if not placeable and not allow_behavior_change
         else None
     )
@@ -499,6 +607,7 @@ def upgrade(
         for note in (
             summary,
             stop_note,
+            minimal_note,
             unplaceable_note,
             semantic,
             pass_note,
@@ -511,6 +620,8 @@ def upgrade(
         write_path.write_bytes(formatted)
     return UpgradeResult(
         formatted=formatted,
+        baseline_profile=baseline,
+        reached_profile=reached_profile,
         steps_applied=steps,
         missing_upgrade=missing,
         behavior_preserving=preserving,

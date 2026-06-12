@@ -36,31 +36,42 @@ class FormatResult:
 
 @dataclass(frozen=True)
 class UpgradeResult:
-    """The outcome of ``upgrade`` (profile upgrade + selected fixers).
+    """The outcome of ``upgrade`` (profile repair/upgrade + selected fixers).
 
     Attributes:
         formatted: The canonical-form XML bytes after upgrade + format.
-        steps_applied: The from-profiles each upgrade step advanced past.
-        missing_upgrade: A profile the tool stalled at with no registered
-            upgrade, or ``None`` if it reached its target (or had nothing to do).
+        baseline_profile: The runtime baseline the upgrade was measured
+            against: the declared ``profile=`` (a macro token resolved to its
+            version), or Galaxy's ``16.01`` legacy default when undeclared.
+            ``None`` when unresolvable (an unplaceable macro token).
+        reached_profile: The profile the tool runs under after the upgrade (a
+            literal version, even when ``profile=`` is a macro token). Equals
+            ``baseline_profile`` when the tool was kept where it sits.
+        steps_applied: The from-profiles each structural upgrade step advanced
+            past (in either mode).
+        missing_upgrade: A profile the modernize walk stalled at with no
+            registered upgrade, or ``None`` (always ``None`` under the minimal
+            default, whose stall is "the floor is unreachable", reported via
+            the notes with the profile left unchanged).
         behavior_preserving: Whether the profile bump crossed no Galaxy
             behaviour-change code that *applies* to this tool and was not
             cleared by an auto-fix (so it changes no runtime behaviour the tool
-            exercises). ``True`` = clean pass, ``False`` = ≥1 applicable
-            uncleared code, ``None`` = undetermined (the baseline is
-            unplaceable, e.g. an unresolved macro token). Under the default
-            gate a ``False`` can only come from consider-level codes; opting
-            out (``allow_behavior_change``) reports must_fix crossings honestly
-            too. Structurally independent of ``missing_upgrade``, which reports
-            a structural stall.
-        stopped_at: The profile the walk was deliberately capped at when below
-            the latest (the behaviour gate's ceiling, or an explicit
-            ``target_profile``), or ``None`` when the walk was free to reach
-            the latest profile.
+            exercises). ``True`` = clean pass (a kept tool crosses nothing, so
+            it is vacuously preserving), ``False`` = ≥1 applicable uncleared
+            code (a *needed* minimal bump reports its crossings honestly too),
+            ``None`` = undetermined (the baseline is unplaceable, e.g. an
+            unresolved macro token). Structurally independent of
+            ``missing_upgrade``, which reports a structural stall.
+        stopped_at: Walk-mode-only: the profile the modernize walk was
+            deliberately capped at when below the latest (the behaviour gate's
+            ceiling, or an explicit ``target_profile``); ``None`` when the walk
+            was free to reach the latest profile, and always ``None`` under the
+            minimal default (no walk runs).
         blocking_codes: Every applicable must_fix code between the baseline and
-            the latest profile that no auto-fix clears: the user's full
-            review list, reported even when ``allow_behavior_change`` lifted
-            the gate.
+            the latest profile that no auto-fix clears. Under the minimal
+            default this is the preview of what a ``modernize`` walk would stop
+            at; in walk modes it is the user's review list, reported even when
+            ``allow_behavior_change`` lifted the gate.
         auto_fixed_codes: The applicable must_fix codes the upgrade crossed and
             cleared by executing their mapped fix (verified by re-detection).
         advisory: Advisory findings the selection included.
@@ -68,6 +79,8 @@ class UpgradeResult:
     """
 
     formatted: bytes
+    baseline_profile: str | None = None
+    reached_profile: str | None = None
     steps_applied: tuple[str, ...] = ()
     missing_upgrade: str | None = None
     behavior_preserving: bool | None = None
