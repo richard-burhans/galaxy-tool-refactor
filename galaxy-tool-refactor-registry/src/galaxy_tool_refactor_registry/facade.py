@@ -67,11 +67,11 @@ from galaxy_tool_refactor_registry import deployment
 from galaxy_tool_refactor_registry.adapters import fmt_rule_by_code
 from galaxy_tool_refactor_registry.apply import apply_selection
 from galaxy_tool_refactor_registry.errors import UnknownProfile, UpgradeFlagError
-from galaxy_tool_refactor_registry.registry import all_handles, registry
 from galaxy_tool_refactor_registry.lint_skip import (
     covering_codes,
     is_completely_covered,
 )
+from galaxy_tool_refactor_registry.registry import all_handles, registry
 from galaxy_tool_refactor_registry.results import (
     ConvertHelpResult,
     DetectResult,
