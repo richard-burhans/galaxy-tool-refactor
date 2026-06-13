@@ -34,11 +34,11 @@ def test_io_file_names_inputs_and_output_data_only() -> None:
 def test_is_io_file_ref_resolution() -> None:
     io_files = {"reads", "ref", "out"}
     structural = {"anno"}
-    assert is_io_file_ref("$reads", io_files, structural)        # bare input file
-    assert is_io_file_ref("$out", io_files, structural)          # bare output file
-    assert is_io_file_ref("$anno.ref", io_files, structural)     # structural drill to a file
-    assert not is_io_file_ref("$reads.ext", io_files, structural)  # metadata, not the file
-    assert not is_io_file_ref("$thr", io_files, structural)      # a number, not a file
+    assert is_io_file_ref("$reads", io_files, structural)  # bare input file
+    assert is_io_file_ref("$out", io_files, structural)  # bare output file
+    assert is_io_file_ref("$anno.ref", io_files, structural)  # structural drill
+    assert not is_io_file_ref("$reads.ext", io_files, structural)  # metadata, not file
+    assert not is_io_file_ref("$thr", io_files, structural)  # a number, not a file
     assert not is_io_file_ref("$__tool_directory__", io_files, structural)
 
 
