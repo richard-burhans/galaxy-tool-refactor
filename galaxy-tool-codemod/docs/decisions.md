@@ -583,9 +583,13 @@ ships GTR013 and the validation-driven codemods).
   tree state, not a codemod bug, so the safe response is to leave the element
   untouched. The cross-tier coverage map records this in
   `../../docs/iuc_best_practices.md`.
-- **Corpus result (combined, 8,607 eligible tools):** 4,640 modified, 8,607
+- **Corpus result (combined, 8,622 eligible tools):** 683 modified, 8,622
   idempotent, 0 non-idempotent, 0 post-validate-failed, 0 crashed — clean. So
-  ~54% of validatable tools have out-of-order `<tool>` children today.
+  ~7.9% of validatable tools have out-of-order *known* `<tool>` children today.
+  (This was 4,640 / ~54% before §53: the old planner floated every opaque
+  `<expand>` to the end, so a macro-using tool with its `<expand>` not already
+  last was counted "out of order"; pinning those expands dropped the count to the
+  tools whose *known* children genuinely need reordering.)
 - **Reproduced-by:** `uv run --package galaxy-tool-codemod pytest
   galaxy-tool-codemod/tests/test_reorder_tool_children.py
   galaxy-tool-codemod/tests/test_cursor.py`; corpus gate `uv run python -m
@@ -650,8 +654,11 @@ ships GTR013 and the validation-driven codemods).
   with no behavioural change — the three reorderers report the **same** modified
   counts as before the refactor.
 - **Corpus result (combined, 8,607 eligible tools), 0 parity mismatches:**
-  GTR002 6,075 modified · GTR005 1,020 · GTR013 4,640 — identical to §16–17
-  baselines; FixTypos and UpgradeToLatest coarse-detect parity also clean.
+  GTR002 6,075 modified · GTR005 1,020 · GTR013 4,640 (the count at the time of
+  this parity refactor; §53 later dropped GTR013 to 683 by pinning opaque
+  `<expand>` children — the detect==modified parity this entry verifies is
+  unchanged) — identical to §16–17 baselines; FixTypos and UpgradeToLatest
+  coarse-detect parity also clean.
 - **Reproduced-by:** `uv run --package galaxy-tool-codemod pytest
   galaxy-tool-codemod/tests/` (`test_change.py`, `test_codemod.py`,
   `test_coarse_detect.py`, the reorderer suites, `test_cursor.py`); corpus gate
@@ -2263,9 +2270,19 @@ tools-iuc vg suite for an external PR.
   place it correctly, so this is a no-op on a well-formed tool and never a
   wrong-looking move). Idempotent; the detect predicate shares the planner so it
   reports a reorder exactly when one would happen.
-- **Why this and not macro resolution.** The principled "correct" fix ranks an
-  `<expand>` by the tag it *expands to* (a tier-1 faithful-expansion resolver +
+- **Why this and not (yet) macro resolution.** The principled "correct" fix ranks
+  an `<expand>` by the tag it *expands to* (a tier-1 faithful-expansion resolver +
   a facade-built rank map). That is the future layer; pinning is the floor it
-  sits on (an unresolvable expand still degrades to "pin", never "float"). The
-  corpus measure of how often an author actually misplaces a top-level `<expand>`
-  decides whether the resolution layer earns its plumbing.
+  sits on (an unresolvable expand still degrades to "pin", never "float").
+- **The corpus says the resolution layer is worth building.** Reproduced-by: `uv
+  run python -m scripts.measure expand-reorder-resolution`. Of 9,373 unique tools,
+  4,081 carry a top-level `<expand>`; 3,366 of those resolve fully (every expand →
+  one known IUC tag). **452 tools** would be laid out differently by the
+  resolution layer than by pinning — i.e. 452 tools placed a top-level `<expand>`
+  out of its IUC slot that only faithful resolution would correct (e.g.
+  `emboss_transeq.xml` has `<expand macro="bio_tools"/>` → `<xrefs>` sitting
+  *before* `<macros>`). That is material (not ~0), and reordering is
+  behaviour-preserving by construction (`<tool>` is `xs:all`), so the
+  faithful-resolution layer is justified as a follow-up. Pinning ships first as
+  the safe floor; the 452 stay correctly-placed-where-the-author-put-them until
+  the resolver lands.

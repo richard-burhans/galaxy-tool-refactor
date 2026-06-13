@@ -8087,6 +8087,187 @@ def _run_lint_skip_corpus(args: argparse.Namespace) -> None:
     _report_lint_skip_corpus(_measure_lint_skip_corpus(corpus_root=args.corpus_root))
 
 
+# --- measurement: expand-reorder-resolution -------------------------------------
+#
+# Sizes whether GTR013's future faithful-resolution layer earns its plumbing over
+# the shipped pinning fix (codemod decisions §53). For every tool with a top-level
+# <expand>, resolve the macro to the element tags it produces (shallow: the
+# element children of the tool's inline + imported <xml name=>/<macro name=>
+# definitions; nested expand/yield or a non-IUC tag => unresolvable), then compare
+# two layouts of the <tool> children: PINNING (knowns sorted into their slots,
+# every <expand> pinned) vs RESOLUTION (a single-known-IUC-tag <expand> scored by
+# its resolved tag, the rest pinned). The decision number is how many tools the
+# two layouts disagree on — i.e. how many tools have a top-level <expand> the
+# author placed out of its IUC slot, which only the resolution layer would fix.
+
+
+def _macro_xml_tag_map(path: Path) -> dict[str, list[str]]:
+    """Map macro name -> the element-child tags of its ``<xml>``/``<macro>`` def.
+
+    Scans the tool's own inline ``<macros>`` block plus every imported macro file
+    (tier-1 ``imported_macro_paths``). A definition is an ``<xml name=…>`` or a
+    ``<macro name=… type="xml">`` (``type`` defaults to ``xml``); its value is the
+    tags of its direct element children. Shallow by design — a definition whose
+    body is itself a nested ``<expand>``/``<yield>`` yields those literal tags
+    (``expand``/``yield``), which are not IUC tags, so the caller treats it as
+    unresolvable. Galaxy-faithful expansion is the shipped layer's job, not this
+    sizing measure's.
+    """
+    from galaxy_tool_source.macros import imported_macro_paths
+
+    tag_map: dict[str, list[str]] = {}
+    sources: list[Path] = [path]
+    sources.extend(imported_macro_paths(path))
+    for source in sources:
+        root = _parse_any_root(source)
+        if root is None:
+            continue
+        for definition in root.iter("xml", "macro"):
+            name = definition.get("name")
+            if name is None:
+                continue
+            if str(definition.tag) == "macro" and definition.get("type", "xml") != "xml":
+                continue
+            tag_map[name] = [
+                str(child.tag)
+                for child in definition
+                if isinstance(child.tag, str)
+            ]
+    return tag_map
+
+
+def _parse_any_root(path: Path) -> etree._Element | None:
+    """Parse *path* leniently and return its root element (any tag), or ``None``."""
+    if not path.is_file():
+        return None
+    parser = etree.XMLParser(strip_cdata=False, recover=True)
+    tree = etree.parse(str(path), parser=parser)
+    return tree.getroot()
+
+
+def _plan_order(ranked: list[tuple[int, int | None]]) -> list[int]:
+    """Mirror ``Cursor._plan_reorder_children``: knowns (rank not None) sort into
+    the slots they occupy; unknowns (``None``) stay pinned. Returns original
+    indices in their resulting order."""
+    known = iter(sorted((r for r in ranked if r[1] is not None), key=lambda r: r[1]))
+    return [next(known)[0] if rank is not None else idx for idx, rank in ranked]
+
+
+@dataclass
+class _ExpandReorderResult:
+    """Pinning-vs-resolution sizing for top-level ``<expand>`` placement."""
+
+    n_unique_tools: int
+    n_with_top_expand: int
+    n_fully_resolvable: int
+    n_partially_resolvable: int
+    n_unresolvable: int
+    n_resolution_differs_from_pinning: int
+    differing_examples: list[str]
+
+
+def _measure_expand_reorder_resolution(
+    *, corpus_root: Path
+) -> _ExpandReorderResult:
+    """Size the marginal value of GTR013 macro-resolution over pinning."""
+    from galaxy_tool_codemod.codemods.reorder_tool_children import _IUC_ELEMENT_ORDER
+
+    rank_of = {tag: i for i, tag in enumerate(_IUC_ELEMENT_ORDER)}
+    seen: set[str] = set()
+    n_tools = n_expand = n_full = n_partial = n_unres = n_differ = 0
+    examples: list[str] = []
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        n_tools += 1
+        children = list(root)
+        if any(not isinstance(c.tag, str) for c in children):
+            continue  # the codemod bails on a free-floating comment; both agree
+        expands = [c for c in children if str(c.tag) == "expand"]
+        if not expands:
+            continue
+        n_expand += 1
+        tag_map = _macro_xml_tag_map(path)
+
+        def _resolved_rank(child: etree._Element) -> int | None:
+            tags = tag_map.get(child.get("macro", ""), [])
+            if len(tags) == 1 and tags[0] in rank_of:
+                return rank_of[tags[0]]
+            return None
+
+        resolved = sum(1 for e in expands if _resolved_rank(e) is not None)
+        if resolved == len(expands):
+            n_full += 1
+        elif resolved:
+            n_partial += 1
+        else:
+            n_unres += 1
+        # Pinning: literals ranked, every expand pinned (None).
+        pinning = [
+            (i, rank_of.get(str(c.tag)) if str(c.tag) != "expand" else None)
+            for i, c in enumerate(children)
+        ]
+        # Resolution: a single-known-tag expand gets its resolved rank.
+        resolution = [
+            (
+                i,
+                _resolved_rank(c)
+                if str(c.tag) == "expand"
+                else rank_of.get(str(c.tag)),
+            )
+            for i, c in enumerate(children)
+        ]
+        if _plan_order(pinning) != _plan_order(resolution):
+            n_differ += 1
+            if len(examples) < 15:
+                examples.append(str(path))
+    return _ExpandReorderResult(
+        n_unique_tools=n_tools,
+        n_with_top_expand=n_expand,
+        n_fully_resolvable=n_full,
+        n_partially_resolvable=n_partial,
+        n_unresolvable=n_unres,
+        n_resolution_differs_from_pinning=n_differ,
+        differing_examples=examples,
+    )
+
+
+def _report_expand_reorder_resolution(measurement: _ExpandReorderResult) -> None:
+    m = measurement
+    print("\n=== expand-reorder-resolution ===")
+    print(f"Unique tools (sha256 dedup): {m.n_unique_tools}")
+    print(f"Tools with >=1 top-level <expand>: {m.n_with_top_expand}")
+    if m.n_with_top_expand:
+        print(
+            f"  fully resolvable (every expand -> 1 known IUC tag): "
+            f"{m.n_fully_resolvable}"
+        )
+        print(f"  partially resolvable: {m.n_partially_resolvable}")
+        print(f"  none resolvable: {m.n_unresolvable}")
+    print(
+        "\nDECISION NUMBER -- tools where RESOLUTION would lay out children "
+        f"differently than PINNING: {m.n_resolution_differs_from_pinning}"
+    )
+    print(
+        "  (= tools with a top-level <expand> the author placed out of its IUC "
+        "slot; only the faithful-resolution layer would move it. ~0 => the "
+        "pinning fix alone suffices and layers 1+2 are unjustified.)"
+    )
+    for example in m.differing_examples:
+        print(f"    {example}")
+
+
+def _run_expand_reorder_resolution(args: argparse.Namespace) -> None:
+    _report_expand_reorder_resolution(
+        _measure_expand_reorder_resolution(corpus_root=args.corpus_root)
+    )
+
+
 # --- passthrough: corpus-check --------------------------------------------------
 #
 # corpus_check.py is the canonical (and slow) sweep step. Exposing it here as a
@@ -8166,6 +8347,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "lint-skip-corpus": _run_lint_skip_corpus,
     "command-quoting-kinds": _run_command_quoting_kinds,
     "text-param-quotable": _run_text_param_quotable,
+    "expand-reorder-resolution": _run_expand_reorder_resolution,
 }
 
 _PASSTHROUGH: dict[str, Callable[[argparse.Namespace, list[str]], int]] = {
