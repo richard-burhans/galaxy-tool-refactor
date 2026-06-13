@@ -368,6 +368,14 @@ uv run python -m scripts.measure macro-format-residual
 # Writes docs/macro_token_residual_stats.md (needs the corpus, so not run in CI):
 uv run python -m scripts.measure macro-token-datatype-residual
 
+# Provable subset of text-param quoting (the GTR020.2 residual): of the bare
+# $text_param <command> refs GTR020.1 leaves unquoted, how many resolve to a text
+# param whose value a regex validator proves is one shell-inert, non-empty token
+# (end-anchored, inert charset, non-optional) — i.e. provably safe to auto-quote.
+# Corpus: 26 of 2,202 (1.2%); 91% have no validator. Backs the decision to keep
+# text-param quoting advisory (GTR020.2), not auto-fixed. Print-only; needs corpus:
+uv run python -m scripts.measure text-param-quotable
+
 # GTR020.1 quoting scope vs the IUC "text/input/output files must be quoted" rule:
 # classify the <command> vars GTR020.1 auto-quotes today by Galaxy param KIND
 # (input-file / numeric / select / boolean / attr / builtin), so a proposed

@@ -54,6 +54,7 @@ from scripts.measure import (
     _measure_shell_oracle_quoting,
     _measure_test_case_validation_truth,
     _measure_test_param_qualification,
+    _measure_text_param_quotable,
     _measure_upgrade_behavior_blocks,
     _measure_upgrade_headroom,
     _measure_upgrade_minimal_need,
@@ -62,6 +63,7 @@ from scripts.measure import (
     _normalize_validation_error,
     _ParamTypesResult,
     _parse_lint_skip,
+    _regex_bounds_to_inert_token,
     _render_behavior_block_page,
     _render_macro_stats_page,
     _render_minimal_need_page,
@@ -2271,3 +2273,46 @@ def test_measure_command_quoting_kinds_splits_keep_vs_drop(tmp_path: Path) -> No
     # IUC-scope reference still not auto-quoted (the text param; GTR020.2 reports it):
     assert result.iuc_unquoted["text-param"] == 1
     assert "output-file" not in result.iuc_unquoted  # outputs are now covered
+
+
+# --- text-param-quotable --------------------------------------------------------
+
+
+def test_regex_bounds_to_inert_token() -> None:
+    ok = _regex_bounds_to_inert_token
+    # Provably one inert, non-empty token:
+    assert ok(r"^\w+$") and ok(r"^[\w,]+$") and ok(r"^[a-zA-Z]+$")
+    assert ok(r"^\d{4}-\d{2}-\d{2}$") and ok(r"\d{4}-\d{2}-\d{2}$")
+    # Not provable, for the documented reasons:
+    assert not ok(r"[0-9a-zA-Z_]+")     # no end anchor (regex.match is prefix-only)
+    assert not ok(r"^[a-zA-Z0-9._-]*$")  # * admits the empty string
+    assert not ok(r"^\S+$")              # \S admits shell metacharacters
+    assert not ok(r"^[a-z]+ [a-z]+$")    # literal space -> word-splits
+    assert not ok(r"^[^']*$")            # negated class
+
+
+def test_measure_text_param_quotable_counts_provable_subset(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    (repo / "tool.xml").write_text(
+        "<tool>"
+        "<command><![CDATA[run --id $sample_id --opts $extra --opt2 $maybe]]></command>"
+        "<inputs>"
+        # provable: required text param with an end-anchored, inert, non-empty regex
+        '<param name="sample_id" type="text">'
+        '<validator type="regex">^[\\w-]+$</validator></param>'
+        # not provable: free-form text, no validator (the splat idiom)
+        '<param name="extra" type="text"/>'
+        # not provable: validator present but optional -> empty could slip through
+        '<param name="maybe" type="text" optional="true">'
+        '<validator type="regex">^\\w+$</validator></param>'
+        "</inputs>"
+        "<outputs/></tool>",
+        encoding="utf-8",
+    )
+    result = _measure_text_param_quotable(corpus_root=tmp_path)
+    assert result.n_text_refs == 3
+    assert result.n_provable == 1  # only sample_id
+    assert result.reason_not["no-validator"] == 1  # extra
+    assert result.reason_not["optional"] == 1  # maybe
+    assert result.provable_patterns[r"^[\w-]+$"] == 1

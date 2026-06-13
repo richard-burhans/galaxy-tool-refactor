@@ -30,6 +30,7 @@ import importlib.resources
 import json
 import logging
 import re
+import string
 import subprocess
 import sys
 from collections import Counter, defaultdict
@@ -2404,6 +2405,243 @@ def _report_command_quoting_kinds(result: _CommandQuotingKindsResult) -> None:
 def _run_command_quoting_kinds(args: argparse.Namespace) -> None:
     _report_command_quoting_kinds(
         _measure_command_quoting_kinds(corpus_root=args.corpus_root)
+    )
+
+
+# --- measurement: text-param-quotable -------------------------------------------
+#
+# Sizes the PROVABLE subset of text-param quoting: of the bare `$text_param`
+# references in `<command>` that GTR020.1 leaves unquoted today (the GTR020.2
+# advisory residual), how many resolve to a text param whose value is provably a
+# single shell-inert token — so single-quoting it would be behaviour-preserving
+# and could join the GTR020.1 fixer, leaving the genuinely-ambiguous majority
+# (the splat idiom, free-form options) advisory.
+#
+# A text param qualifies only when it carries a `<validator type="regex">` that
+# PROVES the value is one inert token. The checker (`_regex_bounds_to_inert_token`)
+# is deliberately conservative — it accepts only patterns it can prove safe and
+# rejects everything else:
+#   - end-anchored (`…$`): Galaxy validates with `regex.match` (a PREFIX match,
+#     galaxy `tool_util_models/parameter_validators.py`), so without an end anchor
+#     the value can carry arbitrary trailing junk;
+#   - charset is whitespace-free AND shell-inert: built only from `\w` / `\d` /
+#     a safelist of inert literals — never space, the globs `*` `?`, a wildcard
+#     `.`, `\S` (which admits metacharacters), or `$`/parens;
+#   - cannot match empty (`+` / `{n,}` n>=1, never `*` / `?` / `{0,}`), so a quoted
+#     value never collapses to a stray `''` (the boolean `falsevalue=""` hazard);
+#   - non-negated, and the param is non-optional (so the validator is always
+#     enforced and an empty value is rejected before the command line).
+# The default sanitizer is NOT relied on (authors can override it; and it leaves
+# space/`*`/`?` literal anyway), so the proof rests on the regex charset alone.
+# Print-only; needs the corpus.
+
+_INERT_LITERALS = frozenset(string.ascii_letters + string.digits + "_,:=+-")
+# Escaped punctuation that is a safe literal (`\.` `\-` …). Escaped LETTERS/digits
+# other than \w/\d are shorthands (\S \D \W \b \s …) and are never safe here.
+_SAFE_ESCAPED_PUNCT = frozenset("./-+,:=_")
+
+
+def _safe_escape(nxt: str) -> bool:
+    """Whether ``\\nxt`` is a safe atom: ``\\w`` / ``\\d`` or an escaped inert literal."""
+    return nxt in ("w", "d") or (len(nxt) == 1 and not nxt.isalnum() and nxt in _SAFE_ESCAPED_PUNCT)
+
+
+def _charclass_is_inert(body: str) -> bool:
+    """Whether a regex ``[...]`` class body matches only shell-inert, non-space chars.
+
+    Rejects a negated class (``[^...]`` admits anything) and any member outside the
+    inert set; a literal ``.`` / ``/`` inside a class is a safe literal, and ``\\w`` /
+    ``\\d`` are safe shorthands (but ``\\s`` / ``\\S`` / ``\\W`` / ``\\D`` are not).
+    """
+    if body.startswith("^") or not body:
+        return False
+    i = 0
+    while i < len(body):
+        char = body[i]
+        if char == "\\":
+            if not _safe_escape(body[i + 1] if i + 1 < len(body) else ""):
+                return False  # \s \S \W \D \b … admit whitespace/metacharacters
+            i += 2
+        elif char in _INERT_LITERALS or char in "./-":
+            i += 1  # inert literal, literal dot/slash inside a class, or a range hyphen
+        else:
+            return False  # space, *, ?, (, ), $, … inside the class
+    return True
+
+
+def _regex_bounds_to_inert_token(pattern: str) -> bool:
+    """Whether *pattern* PROVES a passing value is one non-empty shell-inert token.
+
+    Conservative under-approximation (see the measure header): accept only
+    end-anchored patterns built from inert atoms with non-empty quantifiers.
+    """
+    body = pattern.strip()
+    if not body.endswith("$"):
+        return False  # regex.match is prefix-only -> trailing junk possible
+    body = body[:-1]
+    if body.startswith("^"):
+        body = body[1:]
+    if not body:
+        return False
+    i = 0
+    atoms = 0
+    while i < len(body):
+        char = body[i]
+        if char == "[":
+            close = body.find("]", i + 1)
+            if close == -1 or not _charclass_is_inert(body[i + 1 : close]):
+                return False
+            i = close + 1
+        elif char == "\\":
+            if not _safe_escape(body[i + 1] if i + 1 < len(body) else ""):
+                return False
+            i += 2
+        elif char in _INERT_LITERALS:
+            i += 1
+        else:
+            return False  # space, ., *, ?, (, ), |, ^, $ mid-pattern … not provable
+        # an optional quantifier; reject any that admits the empty string
+        if i < len(body) and body[i] in "+*?{":
+            quant = body[i]
+            if quant in "*?":
+                return False
+            if quant == "+":
+                i += 1
+            else:  # {n} / {n,} / {n,m}
+                close = body.find("}", i + 1)
+                spec = re.fullmatch(r"(\d+)(?:,(\d*))?", body[i + 1 : close]) if close != -1 else None
+                if spec is None or int(spec.group(1)) < 1:
+                    return False
+                i = close + 1
+        atoms += 1
+    return atoms > 0
+
+
+def _text_param_provably_quotable(param: etree._Element) -> bool:
+    """Whether a ``type="text"`` param's value is provably a single inert token.
+
+    Requires a non-negated, value-bounding regex validator and a non-optional
+    param (so the validator is always enforced and empty is rejected).
+    """
+    if param.get("optional") in ("true", "True", "1"):
+        return False
+    for validator in param.findall("validator"):
+        if validator.get("type") != "regex":
+            continue
+        if validator.get("negate") in ("true", "True", "1"):
+            continue
+        pattern = validator.get("expression") or (validator.text or "")
+        if pattern and _regex_bounds_to_inert_token(pattern.strip()):
+            return True
+    return False
+
+
+@dataclass
+class _TextParamQuotableResult:
+    n_text_refs: int  # bare $text_param command references GTR020.1 leaves unquoted
+    n_provable: int  # ...of which a validator proves single-inert-token (fixable)
+    reason_not: Counter[str]  # why the rest are not provable
+    provable_patterns: Counter[str]  # the qualifying regex patterns, by frequency
+    example_tools: list[str]
+
+
+def _measure_text_param_quotable(*, corpus_root: Path) -> _TextParamQuotableResult:
+    """Size the provably-quotable text-param command references across the corpus."""
+    from galaxy_tool_source.command_text import unquoted_cheetah_vars
+    from galaxy_tool_source.command_vars import classify_var, command_var_info
+
+    seen: set[str] = set()
+    result = _TextParamQuotableResult(
+        n_text_refs=0,
+        n_provable=0,
+        reason_not=Counter(),
+        provable_patterns=Counter(),
+        example_tools=[],
+    )
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        command = root.find("command")
+        inputs = root.find("inputs")
+        if command is None or len(command) > 0 or inputs is None:
+            continue
+        # leaf name -> the text <param> element (recursive, like input_param_info)
+        text_params = {
+            param.get("name"): param
+            for param in inputs.iter("param")
+            if param.get("type") == "text" and param.get("name")
+        }
+        if not text_params:
+            continue
+        kinds, structural = command_var_info(root)
+        for occurrence in unquoted_cheetah_vars("".join(command.itertext())):
+            if classify_var(occurrence.name, kinds, structural) != "text":
+                continue
+            bare = occurrence.name.translate({ord("$"): None, ord("{"): None, ord("}"): None})
+            leaf = re.split(r"[.\[]", bare)[-1].rstrip("]") if (
+                "." in bare or "[" in bare
+            ) else bare
+            param = text_params.get(leaf)
+            if param is None:
+                param = text_params.get(bare)
+            if param is None:
+                continue  # a "text" classification with no resolvable element (rare)
+            result.n_text_refs += 1
+            if _text_param_provably_quotable(param):
+                result.n_provable += 1
+                for validator in param.findall("validator"):
+                    pattern = validator.get("expression") or (validator.text or "")
+                    if pattern and _regex_bounds_to_inert_token(pattern.strip()):
+                        result.provable_patterns[pattern.strip()] += 1
+                        break
+                if len(result.example_tools) < 15:
+                    result.example_tools.append(f"{_display_path(path)}  {occurrence.name}")
+            elif param.get("optional") in ("true", "True", "1"):
+                result.reason_not["optional"] += 1
+            elif any(v.get("type") == "regex" for v in param.findall("validator")):
+                result.reason_not["validator-not-provable"] += 1
+            else:
+                result.reason_not["no-validator"] += 1
+    return result
+
+
+def _report_text_param_quotable(result: _TextParamQuotableResult) -> None:
+    total = result.n_text_refs
+
+    def pct(n: int) -> float:
+        return 100 * n / total if total else 0.0
+
+    print("\n=== text-param-quotable (provable subset of text-param quoting) ===")
+    print(
+        f"Bare $text_param refs GTR020.1 leaves unquoted (GTR020.2 residual): {total}"
+    )
+    print(
+        f"\nPROVABLY quotable (validator bounds the value to one inert token): "
+        f"{result.n_provable} ({pct(result.n_provable):.1f}%)  <- the fixable subset"
+    )
+    print("\nWhy the rest stay ambiguous (left to the GTR020.2 advisory):")
+    for reason, count in result.reason_not.most_common():
+        print(f"  {reason:24} {count:7d}  ({pct(count):.1f}%)")
+    if result.provable_patterns:
+        print("\nQualifying validator patterns (provably-safe), by frequency:")
+        for pattern, count in result.provable_patterns.most_common(15):
+            print(f"  {count:5d}  {pattern!r}")
+    if result.example_tools:
+        print("\nExample provably-quotable text-param references:")
+        for line in result.example_tools[:10]:
+            print(f"  {line}")
+
+
+def _run_text_param_quotable(args: argparse.Namespace) -> None:
+    _report_text_param_quotable(
+        _measure_text_param_quotable(corpus_root=args.corpus_root)
     )
 
 
@@ -7916,6 +8154,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "macro-token-datatype-residual": _run_macro_token_residual,
     "lint-skip-corpus": _run_lint_skip_corpus,
     "command-quoting-kinds": _run_command_quoting_kinds,
+    "text-param-quotable": _run_text_param_quotable,
 }
 
 _PASSTHROUGH: dict[str, Callable[[argparse.Namespace, list[str]], int]] = {
