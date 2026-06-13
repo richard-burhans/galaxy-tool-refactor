@@ -8268,6 +8268,128 @@ def _run_expand_reorder_resolution(args: argparse.Namespace) -> None:
     )
 
 
+# --- measurement: version-suffix-shape ------------------------------------------
+#
+# Tests the hypothesis that most tools-iuc tools write
+# version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" with BOTH tokens imported from a
+# shared macros file (backs docs/iuc_conference_questions.md #1, the suite-wide
+# version-suffix question). Per tool with a version=, classify the version SHAPE,
+# and for the IUC-standard two-token shape resolve where each token is defined
+# (inline in the tool's own <macros> vs imported from a macros file, via tier-1
+# token_definitions).
+
+
+_VER_TWO_TOKEN = re.compile(r"^@([A-Za-z0-9_]+)@\+galaxy@([A-Za-z0-9_]+)@$")
+_VER_TOKEN_LITERAL_SUFFIX = re.compile(r"^@([A-Za-z0-9_]+)@\+galaxy(\d+)$")
+_VER_BARE_TOKEN = re.compile(r"^@([A-Za-z0-9_]+)@$")
+_VER_LITERAL_GALAXY = re.compile(r"^[^@]+\+galaxy\d+$")
+
+
+@dataclass
+class _VersionSuffixShapeResult:
+    """Version-attribute shape distribution + token-definition provenance."""
+
+    n_unique_tools: int
+    n_with_version: int
+    shape_counts: list[tuple[str, int]]
+    n_two_token_canonical: int
+    token_source_counts: list[tuple[str, int]]
+
+
+def _version_shape(version: str) -> str:
+    """Classify a ``version=`` attribute into a coarse shape bucket."""
+    if _VER_TWO_TOKEN.match(version):
+        return "two-token (@A@+galaxy@B@)"
+    if _VER_TOKEN_LITERAL_SUFFIX.match(version):
+        return "token base + literal galaxyN"
+    if _VER_BARE_TOKEN.match(version):
+        return "bare token (no suffix)"
+    if "@" in version:
+        return "other token shape"
+    if _VER_LITERAL_GALAXY.match(version):
+        return "literal base + galaxyN"
+    return "literal (no galaxy suffix)"
+
+
+def _measure_version_suffix_shape(
+    *, corpus_root: Path
+) -> _VersionSuffixShapeResult:
+    """Bucket each tool's ``version=`` shape; resolve two-token provenance."""
+    from galaxy_tool_source.macros import token_definitions
+
+    seen: set[str] = set()
+    n_tools = n_version = n_canonical = 0
+    shapes: Counter[str] = Counter()
+    sources: Counter[str] = Counter()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        n_tools += 1
+        version = root.get("version")
+        if version is None:
+            continue
+        n_version += 1
+        shape = _version_shape(version)
+        shapes[shape] += 1
+        match = _VER_TWO_TOKEN.match(version)
+        if match is None:
+            continue
+        tok_a, tok_b = f"@{match.group(1)}@", f"@{match.group(2)}@"
+        if (tok_a, tok_b) == ("@TOOL_VERSION@", "@VERSION_SUFFIX@"):
+            n_canonical += 1
+        # source: None => inline in the tool; Path => imported macros file.
+        by_name = {t.name: t for t in token_definitions(path)}
+        def_a, def_b = by_name.get(tok_a), by_name.get(tok_b)
+        if def_a is None or def_b is None:
+            sources["a token undefined / unresolved"] += 1
+        elif def_a.source is not None and def_b.source is not None:
+            sources["both imported from macros file"] += 1
+        elif def_a.source is None and def_b.source is None:
+            sources["both inline in tool <macros>"] += 1
+        else:
+            sources["mixed (one inline, one imported)"] += 1
+    return _VersionSuffixShapeResult(
+        n_unique_tools=n_tools,
+        n_with_version=n_version,
+        shape_counts=sorted(shapes.items(), key=lambda kv: -kv[1]),
+        n_two_token_canonical=n_canonical,
+        token_source_counts=sorted(sources.items(), key=lambda kv: -kv[1]),
+    )
+
+
+def _report_version_suffix_shape(measurement: _VersionSuffixShapeResult) -> None:
+    m = measurement
+    print("\n=== version-suffix-shape ===")
+    print(f"Unique tools (sha256 dedup): {m.n_unique_tools}")
+    print(f"Tools with a version= attribute: {m.n_with_version}")
+    print("\n  version shape distribution:")
+    for shape, count in m.shape_counts:
+        pct = count / m.n_with_version * 100 if m.n_with_version else 0
+        print(f"    {shape:<34}{count:>7}{pct:>7.1f}%")
+    two_token = next(
+        (c for s, c in m.shape_counts if s.startswith("two-token")), 0
+    )
+    print(
+        f"\n  of the two-token tools, canonical names "
+        f"(@TOOL_VERSION@+galaxy@VERSION_SUFFIX@): {m.n_two_token_canonical}"
+    )
+    print("\n  two-token token provenance:")
+    for label, count in m.token_source_counts:
+        pct = count / two_token * 100 if two_token else 0
+        print(f"    {label:<34}{count:>7}{pct:>7.1f}%")
+
+
+def _run_version_suffix_shape(args: argparse.Namespace) -> None:
+    _report_version_suffix_shape(
+        _measure_version_suffix_shape(corpus_root=args.corpus_root)
+    )
+
+
 # --- passthrough: corpus-check --------------------------------------------------
 #
 # corpus_check.py is the canonical (and slow) sweep step. Exposing it here as a
@@ -8348,6 +8470,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "command-quoting-kinds": _run_command_quoting_kinds,
     "text-param-quotable": _run_text_param_quotable,
     "expand-reorder-resolution": _run_expand_reorder_resolution,
+    "version-suffix-shape": _run_version_suffix_shape,
 }
 
 _PASSTHROUGH: dict[str, Callable[[argparse.Namespace, list[str]], int]] = {
