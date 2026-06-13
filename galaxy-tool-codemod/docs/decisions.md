@@ -2239,3 +2239,33 @@ review of featurecounts PR #8090.
 - **Default-`format` byte shift.** Removes the select/number/boolean/attr/built-in
   quoting GTR020.1 had been adding (e.g. on featurecounts, `-s '$strand'` reverts
   to `-s $strand`); the input/output file quoting (§51) stays. Behaviour-preserving.
+
+## 53. GTR013 pins unknown `<tool>` children instead of floating them to the end
+
+**Date:** 2026-06-13. Reproduced-by: `uv run --package galaxy-tool-codemod pytest
+galaxy-tool-codemod/tests/test_reorder_tool_children.py
+galaxy-tool-codemod/tests/test_cursor.py`. Origin: running `format` over the
+tools-iuc vg suite for an external PR.
+
+- **The bug.** `Cursor._plan_reorder_children` ranked children by their literal
+  tag and gave any tag absent from `_IUC_ELEMENT_ORDER` the sentinel rank
+  `len(order)`, so a stable sort floated every unknown tag past all known
+  elements to the end. A top-level `<expand macro="requirements"/>` is opaque
+  (its tag is `expand`, and the codemod does not resolve the macro), so all three
+  vg tools had `<requirements>` driven to the bottom of the tool, next to
+  `<citations>`. Validity is unaffected (`<tool>` is `xs:all`), but the layout is
+  wrong and reviewer-rejectable.
+- **The fix (the safe floor).** Unknown children are now **pinned to their
+  original position**: walk the original child order, give each slot that held a
+  known element the next known element in IUC order, and leave every unknown
+  exactly where it was. Knowns are still normalised among their own slots; an
+  `<expand>` simply stays where the author placed it (IUC authors almost always
+  place it correctly, so this is a no-op on a well-formed tool and never a
+  wrong-looking move). Idempotent; the detect predicate shares the planner so it
+  reports a reorder exactly when one would happen.
+- **Why this and not macro resolution.** The principled "correct" fix ranks an
+  `<expand>` by the tag it *expands to* (a tier-1 faithful-expansion resolver +
+  a facade-built rank map). That is the future layer; pinning is the floor it
+  sits on (an unresolvable expand still degrades to "pin", never "float"). The
+  corpus measure of how often an author actually misplaces a top-level `<expand>`
+  decides whether the resolution layer earns its plumbing.

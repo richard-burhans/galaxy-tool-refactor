@@ -54,8 +54,10 @@ decisions §17).
 **Canonical order** (IUC #52): `description, macros, edam_topics,
 edam_operations, xrefs, parallelism, requirements, code, stdio, version_command,
 command, environment_variables, configfiles, inputs, request_param_translation,
-outputs, tests, help, citations`. Tags outside this list keep their relative
-position after the known ones.
+outputs, tests, help, citations`. Tags outside this list (notably an opaque
+`<expand macro="…"/>`) are pinned to their original position, never floated to
+the end; the known elements sort into the slots around them (codemod decisions
+§53).
 
 **Comment safety.** A tool whose `<tool>` root has a free-floating comment is
 left untouched: `Cursor.children()` hides comment/PI nodes, so reordering

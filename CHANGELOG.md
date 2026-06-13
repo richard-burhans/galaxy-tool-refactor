@@ -87,6 +87,16 @@ is the breaking-change channel.
   definitions before gating (an unresolvable token fails closed, with a note);
   across the corpus this places 9,371 of 9,373 baselines.
 
+### Fixed
+- **GTR013 no longer floats opaque `<tool>` children to the end** (codemod
+  decisions §53; found running `format` on the tools-iuc vg suite). Children
+  whose tag is absent from the IUC order — notably a bare `<expand macro="…"/>`,
+  whose expanded tag the codemod can't see — were sorted past every known
+  element to the bottom, dropping `<expand macro="requirements"/>` to the end of
+  the tool. They are now pinned to their original position while the known
+  elements still sort into the slots around them; idempotent, validity-safe
+  (`<tool>` is `xs:all`).
+
 ### Added
 - `UpgradeResult` fields `stopped_at`, `blocking_codes`, and
   `auto_fixed_codes` (also in the MCP `upgrade_tool` result), and the typed

@@ -203,20 +203,35 @@ class Cursor:
     ) -> list[etree._Element] | None:
         """Return the reordered child nodes, or ``None`` if nothing would move.
 
-        Children whose tag appears in ``order`` are placed in that order; tags
-        not in ``order`` keep their original relative position, after the known
-        ones (a stable sort by ``(rank, original index)`` — no alphabetical
-        guess, unlike ``reorder_attributes``). Returns ``None`` when the element
-        has any non-element child (Comment / ProcessingInstruction) — see
-        ``reorder_children`` — or when the order already matches, so neither the
-        detect predicate nor the mutator churns an already-ordered element.
+        Children whose tag appears in ``order`` are sorted into that order and
+        placed into the slots those known elements originally occupied; tags not
+        in ``order`` are **pinned to their original position** (they are *not*
+        floated to the end). Pinning matters for opaque macro children: a bare
+        ``<expand macro="requirements"/>`` is an unknown tag (``expand``) the
+        codemod cannot see through, and floating it past every known element put
+        ``<requirements>`` at the bottom of the tool. Keeping it where the author
+        placed it never produces a wrong-looking move, and is the safe floor
+        beneath the future faithful-resolution layer. See ``docs/decisions.md``
+        §53. Returns ``None`` when the element has any non-element child (Comment /
+        ProcessingInstruction) — see ``reorder_children`` — or when the order
+        already matches, so neither the detect predicate nor the mutator churns
+        an already-ordered element.
         """
         nodes = list(self._element)
         if any(not _is_element(node) for node in nodes):
             return None
         rank = {tag: index for index, tag in enumerate(order)}
-        sentinel = len(order)
-        reordered = sorted(nodes, key=lambda node: rank.get(str(node.tag), sentinel))
+        known_sorted = iter(
+            sorted(
+                (node for node in nodes if str(node.tag) in rank),
+                key=lambda node: rank[str(node.tag)],
+            )
+        )
+        # Walk the original positions: a slot that held a known element receives
+        # the next known element in canonical order; an unknown stays put.
+        reordered = [
+            next(known_sorted) if str(node.tag) in rank else node for node in nodes
+        ]
         if all(before is after for before, after in zip(nodes, reordered, strict=True)):
             return None
         return reordered
@@ -232,8 +247,10 @@ class Cursor:
     def reorder_children(self, order: Sequence[str], /) -> None:
         """Reorder this element's child *elements* to the canonical tag ``order``.
 
-        Children whose tag appears in ``order`` are placed in that order; tags
-        not in ``order`` keep their relative position, after the known ones.
+        Children whose tag appears in ``order`` are sorted into that order within
+        the slots they originally occupied; tags not in ``order`` are pinned to
+        their original position (not floated to the end — see
+        ``_plan_reorder_children`` and ``docs/decisions.md`` §53).
         When nothing would move — the order already matches, or a free-floating
         Comment / ProcessingInstruction is present (``children()`` hides those,
         and moving elements past one would silently re-associate it with the

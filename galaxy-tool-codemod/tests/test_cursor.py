@@ -364,13 +364,15 @@ def test_reorder_children_applies_canonical_order() -> None:
     ]
 
 
-def test_reorder_children_keeps_unknowns_stably_after_known() -> None:
-    """Tags absent from the order keep their relative position, after the known."""
+def test_reorder_children_pins_unknowns_and_sorts_known_around_them() -> None:
+    """Tags absent from the order are pinned to their original position; the known
+    elements sort into the slots around them (not floated to the end, §53)."""
     from lxml import etree
 
     root = etree.fromstring(b"<tool><zeta/><help/><alpha/><command/></tool>")
     Cursor(root).reorder_children(("command", "help"))
-    assert [child.tag for child in root] == ["command", "help", "zeta", "alpha"]
+    # zeta stays at index 0, alpha at index 2; command/help sort into slots 1, 3.
+    assert [child.tag for child in root] == ["zeta", "command", "alpha", "help"]
 
 
 def test_reorder_children_is_noop_when_already_ordered() -> None:
