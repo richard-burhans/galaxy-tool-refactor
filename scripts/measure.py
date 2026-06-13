@@ -7381,6 +7381,258 @@ def _run_version_token_sharing(args: argparse.Namespace) -> None:
         print(f"\nwrote {_display_path(out_path)} ({len(result.errors)} crash case(s))")
 
 
+# --- measurement: lint-skip-corpus ----------------------------------------------
+#
+# Sizes the planned `lint-skip` reconciliation feature
+# (~/.claude/plans/lint-skip-reconciliation.md). A Galaxy tool directory may
+# carry a `.lint_skip` sidecar: one planemo-linter class name per line, telling
+# planemo to skip that linter for the tool(s) in the directory. Authors add them
+# because planemo reports a linter error without saying which file/line is at
+# fault, so the whole linter gets suppressed and the suppression then lingers.
+#
+# This measure classifies every `.lint_skip` name-line, mirroring the shipped
+# `facade.reconcile_lint_skip` removability decision (the single source of the
+# completeness gate, registry `lint_skip.py`), so the sizing matches what
+# `lint-skip` actually removes. Two buckets are removable; three are kept:
+#
+#   - fixed-removable: completely covered, fired, and cleared after applying the
+#     covering fixes -> the `lint-skip` command fixes it and removes the line.
+#   - already-stale: completely covered and already clean -> removed, tool untouched.
+#   - coverage-partial: covered but only incidentally (a covering code is not in
+#     the faithful set, e.g. `ValidDatatypes` -> GTR010), clean now -> NOT removed
+#     (we cannot prove planemo passes). Kept silently by the command.
+#   - located: a covering code fires and the fix does not clear it -> kept.
+#   - out-of-coverage: the planemo name maps to no GTR code -> kept.
+#
+# auto-removable = fixed-removable + already-stale (the headline payoff). The
+# unit is one (`.lint_skip` file, planemo name) line, aggregated across every
+# `<tool>` in the directory: a line is removable only when it is safe for ALL of
+# them (the dir-wide safety rule). Comment (`#`) and blank lines are ignored.
+# Print-only; the Reproduced-by for the decision doc. Needs the corpus.
+
+_LINT_SKIP_BUCKETS = (
+    "fixed-removable",
+    "already-stale",
+    "coverage-partial",
+    "located",
+    "out-of-coverage",
+)
+
+
+@dataclass
+class _LintSkipCorpusResult:
+    skip_files: int
+    skip_files_with_tool: int
+    name_lines: int  # total (skip_file, name) lines classified
+    distinct_names: int
+    load_failures: int  # (skip_file, name) lines whose dir had no parseable tool
+    bucket_counts: Counter[str]  # bucket -> line count
+    by_name_bucket: dict[str, Counter[str]]  # planemo name -> bucket -> count
+    located_examples: list[str]  # "repo/path/tool.xml:LINE  GTRxxx  message"
+
+
+def _parse_lint_skip(path: Path) -> list[str]:
+    """Return the planemo names in a ``.lint_skip`` file (order preserved).
+
+    Blank lines and ``#`` comment lines are ignored; an inline trailing comment
+    is stripped, matching how planemo reads the file.
+    """
+    names: list[str] = []
+    for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if line:
+            names.append(line)
+    return names
+
+
+def _measure_lint_skip_corpus(*, corpus_root: Path) -> _LintSkipCorpusResult:
+    """Classify every corpus ``.lint_skip`` name-line into the four buckets."""
+    from galaxy_tool_refactor_registry.planemo import planemo_index
+    from galaxy_tool_refactor_registry.registry import all_handles
+    from galaxy_tool_source.binding import load_tool
+
+    index = planemo_index()
+    # planemo_index() spans every handle (including the non-selectable
+    # upgrade-only / runtime-gated codes), so resolve through all_handles(),
+    # not by_code() (which knows only the selectable registry).
+    handles = all_handles()
+    result = _LintSkipCorpusResult(
+        skip_files=0,
+        skip_files_with_tool=0,
+        name_lines=0,
+        distinct_names=0,
+        load_failures=0,
+        bucket_counts=Counter(),
+        by_name_bucket={},
+        located_examples=[],
+    )
+    distinct: set[str] = set()
+    # A read-only document cache per tool path: detect must not mutate, so the
+    # same loaded tree serves every name's detection; the fix path reloads.
+    for skip_path in sorted(corpus_root.rglob(".lint_skip")):
+        if not skip_path.is_file():
+            continue
+        result.skip_files += 1
+        names = _parse_lint_skip(skip_path)
+        tool_paths = [
+            child
+            for child in sorted(skip_path.parent.glob("*.xml"))
+            if _parse_tool_root(child) is not None
+        ]
+        ro_docs = _lint_skip_load_docs(tool_paths, load_tool)
+        if ro_docs:
+            result.skip_files_with_tool += 1
+        for name in names:
+            result.name_lines += 1
+            distinct.add(name)
+            covering = index.get(name.lower(), frozenset())
+            bucket = _classify_lint_skip_line(
+                name=name,
+                covering=covering,
+                tool_paths=tool_paths,
+                ro_docs=ro_docs,
+                handles=handles,
+                load_tool=load_tool,
+                result=result,
+            )
+            if bucket is None:
+                result.load_failures += 1
+                continue
+            result.bucket_counts[bucket] += 1
+            result.by_name_bucket.setdefault(name, Counter())[bucket] += 1
+    result.distinct_names = len(distinct)
+    return result
+
+
+def _lint_skip_load_docs(tool_paths, load_tool):  # type: ignore[no-untyped-def]
+    """Load each tool path read-only for detection; drop any that fail to load."""
+    docs = {}
+    for path in tool_paths:
+        try:
+            docs[path] = load_tool(path)
+        except Exception:  # noqa: BLE001 — a tool we cannot load cannot be classified
+            continue
+    return docs
+
+
+def _classify_lint_skip_line(
+    *,
+    name,
+    covering,
+    tool_paths,
+    ro_docs,
+    handles,
+    load_tool,
+    result,
+):  # type: ignore[no-untyped-def]
+    """Return the bucket for one (skip_file, name) line, or ``None`` if unclassifiable.
+
+    Mirrors the shipped ``facade.reconcile_lint_skip`` removability decision so
+    the measure and the ``lint-skip`` command can never disagree: a line is
+    removable (``fixed-removable`` / ``already-stale``) only when the planemo
+    name is **completely covered** (``lint_skip.is_completely_covered``) AND
+    clean on every tool after applying the covering fixes. The extra
+    ``coverage-partial`` (covered, clean, but only incidentally — e.g.
+    ``ValidDatatypes`` → GTR010) and ``located`` (fires, not clearable) buckets
+    are the kept-silently population, surfaced here only for sizing.
+
+    ``None`` means the name is covered but the directory has no parseable tool,
+    so we cannot say whether the suppression is still needed.
+    """
+    from galaxy_tool_refactor_registry.lint_skip import is_completely_covered
+
+    if not covering:
+        return "out-of-coverage"
+    if not ro_docs:
+        return None
+    fired_before = False
+    for path in tool_paths:
+        doc = ro_docs.get(path)
+        if doc is None:
+            continue
+        for code in covering:
+            findings = handles[code].detect(doc)
+            if findings:
+                fired_before = True
+            for violation in findings:
+                if len(result.located_examples) < 25:
+                    rel = _display_path(path)
+                    result.located_examples.append(
+                        f"{rel}:{violation.sourceline}  {violation.code}"
+                        f"  {violation.message}"
+                    )
+    cleared = all(
+        _lint_skip_fix_clears(path, covering, handles, load_tool)
+        for path in tool_paths
+        if ro_docs.get(path) is not None
+    )
+    complete = is_completely_covered(name)
+    if complete and cleared:
+        return "fixed-removable" if fired_before else "already-stale"
+    if not fired_before:
+        return "coverage-partial"
+    return "located"
+
+
+def _lint_skip_fix_clears(path, covering, handles, load_tool):  # type: ignore[no-untyped-def]
+    """Apply the fixable covering codes to a fresh copy; do all covering codes clear?"""
+    try:
+        doc = load_tool(path)
+    except Exception:  # noqa: BLE001 — unloadable on the fix pass: treat as not cleared
+        return False
+    for code in covering:
+        if handles[code].apply is not None:
+            handles[code].apply(doc)
+    return not any(handles[code].detect(doc) for code in covering)
+
+
+def _report_lint_skip_corpus(result: _LintSkipCorpusResult) -> None:
+    total = result.name_lines
+
+    def pct(n: int) -> str:
+        return f"{100 * n / total:.1f}%" if total else "0.0%"
+
+    print("\n=== lint-skip-corpus (.lint_skip reconciliation sizing) ===")
+    print(
+        f"{result.skip_files} .lint_skip file(s) "
+        f"({result.skip_files_with_tool} with a parseable tool in-dir); "
+        f"{result.name_lines} name-line(s), {result.distinct_names} distinct names"
+    )
+    if result.load_failures:
+        print(
+            f"  {result.load_failures} covered line(s) unclassifiable "
+            "(no parseable tool in the directory)"
+        )
+    auto = result.bucket_counts["fixed-removable"] + result.bucket_counts["already-stale"]
+    print(f"\nAUTO-REMOVABLE (fixed + stale): {auto} ({pct(auto)})")
+    for bucket in _LINT_SKIP_BUCKETS:
+        count = result.bucket_counts[bucket]
+        print(f"  {bucket:<16} {count:>5}  ({pct(count)})")
+
+    def top_in(bucket: str, k: int = 12) -> list[tuple[str, int]]:
+        rows = [
+            (name, counts[bucket])
+            for name, counts in result.by_name_bucket.items()
+            if counts.get(bucket)
+        ]
+        return sorted(rows, key=lambda r: (-r[1], r[0]))[:k]
+
+    for bucket in _LINT_SKIP_BUCKETS:
+        rows = top_in(bucket)
+        if rows:
+            print(f"\nTop names — {bucket}:")
+            for name, count in rows:
+                print(f"  {count:>4}  {name}")
+    if result.located_examples:
+        print("\nLocated-finding examples (the file:line planemo withheld):")
+        for line in result.located_examples[:15]:
+            print(f"  {line}")
+
+
+def _run_lint_skip_corpus(args: argparse.Namespace) -> None:
+    _report_lint_skip_corpus(_measure_lint_skip_corpus(corpus_root=args.corpus_root))
+
+
 # --- passthrough: corpus-check --------------------------------------------------
 #
 # corpus_check.py is the canonical (and slow) sweep step. Exposing it here as a
@@ -7457,6 +7709,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "help-rst-md-convert": _run_help_rst_md_convert,
     "macro-format-residual": _run_macro_format_residual,
     "macro-token-datatype-residual": _run_macro_token_residual,
+    "lint-skip-corpus": _run_lint_skip_corpus,
 }
 
 _PASSTHROUGH: dict[str, Callable[[argparse.Namespace, list[str]], int]] = {
