@@ -88,6 +88,11 @@ is the breaking-change channel.
   across the corpus this places 9,371 of 9,373 baselines.
 
 ### Fixed
+- **The formatter now ends output with a trailing newline** (fmt decisions
+  §D22; found running `format` for real tools-iuc PRs). `serializer.to_bytes`
+  appended none, so every formatted file lost its final `\n` while all
+  tools-iuc tool XML files end with one. Fixed in the single serialisation
+  chokepoint, so every output path gains it; idempotent.
 - **GTR013 no longer floats opaque `<tool>` children to the end** (codemod
   decisions §53; found running `format` on the tools-iuc vg suite). Children
   whose tag is absent from the IUC order — notably a bare `<expand macro="…"/>`,

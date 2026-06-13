@@ -21,9 +21,16 @@ def to_bytes(tree: etree._ElementTree) -> bytes:
     tool XML (they remove the declaration even when an author wrote one), and
     it is optional anyway — XML with no declaration or BOM defaults to UTF-8,
     which is what Galaxy tool XML is. See ``docs/decisions.md`` §D21.
+
+    The output ends with exactly one trailing newline: ``etree.tostring`` emits
+    none (the bytes stop at the root's closing ``>``), but every tools-iuc tool
+    XML ends with a ``\\n`` (the POSIX text-file convention), so canonical output
+    must too. Appending one ``\\n`` is idempotent — a re-parse drops the trailing
+    newline (it sits outside the root element), so re-serialising appends exactly
+    one again. See ``docs/decisions.md`` §D22.
     """
     result: bytes = etree.tostring(tree, encoding="utf-8", xml_declaration=False)
-    return result
+    return result + b"\n"
 
 
 def safe_set_text(element: etree._Element, value: str) -> None:

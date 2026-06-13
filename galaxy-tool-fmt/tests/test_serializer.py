@@ -37,3 +37,21 @@ def test_to_bytes_round_trips_without_a_declaration() -> None:
     root = etree.fromstring(out)
     assert root.tag == "tool"
     assert root.find("inputs") is not None
+
+
+def test_to_bytes_ends_with_exactly_one_trailing_newline() -> None:
+    """The serialised bytes end with a single ``\\n`` (POSIX text-file convention;
+    every tools-iuc tool XML ends with a newline). ``etree.tostring`` emits none."""
+    out = to_bytes(_tree(b"<tool id='t'/>"))
+    assert out.endswith(b">\n")
+    assert not out.endswith(b"\n\n")
+
+
+def test_to_bytes_trailing_newline_is_idempotent() -> None:
+    """Reparsing output (whose trailing ``\\n`` sits outside the root) and
+    re-serialising yields the same bytes — one newline, not two."""
+    once = to_bytes(_tree(b"<tool id='t'><inputs/></tool>"))
+    twice = to_bytes(etree.ElementTree(etree.fromstring(once)))
+    assert once == twice
+    assert once.endswith(b"\n")
+    assert not once.endswith(b"\n\n")
