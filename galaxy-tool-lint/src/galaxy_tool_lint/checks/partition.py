@@ -10,7 +10,7 @@ from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_refactor_rules.violation import Violation
 from galaxy_tool_source.cdata import cdata_wrappable, needs_cdata
 from galaxy_tool_source.command_text import unquoted_cheetah_vars
-from galaxy_tool_source.command_vars import input_param_info
+from galaxy_tool_source.command_vars import command_var_info
 from galaxy_tool_source.shell_oracle import quote_is_behavior_preserving
 
 from galaxy_tool_lint.rules import CheckRule
@@ -119,7 +119,7 @@ class SingleQuotedCheetah(CheckRule):
             return
         base_line = command.sourceline or 0
         xpath = str(document.tree.getpath(command))
-        kinds, structural = input_param_info(document.root)
+        kinds, structural = command_var_info(document.root)
         text = "".join(command.itertext())
         # GTR020.1 only rewrites a pure-text body; in a mixed-content <command> it fixes
         # nothing, so every unquoted var there is residual.
