@@ -2159,3 +2159,40 @@ upgrade-minimal-need` (`docs/upgrade_minimal_need_stats.md`).
   baseline, validity preserved, and a second run is a byte no-op. Policy
   lives in the registry facade (registry D22); the CLI flag surface is cli
   D17, the MCP surface mcp D5.
+
+## 51. GTR020.1 extends to output files (the IUC rule's full file scope)
+
+**Date:** 2026-06-13. Reproduced-by: `uv run --package galaxy-tool-codemod pytest
+galaxy-tool-codemod/tests/test_single_quote_command_vars.py` (the
+`test_quotes_output_data_files_not_collections` case) and `uv run python -m
+scripts.measure command-quoting-kinds`. Tier-1 substrate: source
+`docs/decisions.md` §16 (`command_var_info`).
+
+- **The gap.** The IUC quoting rule is verbatim "All Cheetah variables for text
+  parameters, input **and output files** must be single-quoted." GTR020.1 quoted
+  input dataset paths (`type="data"` → `safe`) but never looked at `<outputs>`,
+  so every bare `$output` reference fell through as `non_input` and went
+  unquoted — the corpus had ~5,697 such occurrences (`command-quoting-kinds`).
+- **The fix, and why it is sound.** GTR020.1 now resolves names via the tier-1
+  `command_var_info`, which adds each `<outputs>` direct-child `<data name=>` to
+  the `safe` set. An output `<data>` variable renders to the dataset file path
+  Galaxy assigns — the **same** single-token, Galaxy-controlled value domain that
+  already justifies the `type="data"` input `safe` class — and an output has no
+  "splat into several argv words" idiom (unlike a `text` param or a `multiple=`
+  input), so single-quoting it cannot fuse intended-separate words. The widening
+  rests on exactly the data-input soundness argument, not a new one. `<collection>`
+  outputs are excluded (a collection is not a single file path), and an input wins
+  on any name collision (`setdefault`), so a free-form `text` input that shares an
+  output's name stays unsafe.
+- **The partition stays exact.** The GTR020.2 advisory consumes the same
+  `command_var_info`, so output vars — now auto-fixed — drop out of the advisory
+  automatically. Text params remain the advisory residual: a free-form text value
+  may carry spaces the quoting would newly protect, so quoting it is *not*
+  behaviour-preserving and cannot join the default-`format` fixer. GTR020.1 thus
+  covers the input+output **file** half of the IUC rule; the text half is
+  necessarily advisory (GTR020.2).
+- **Default-`format` byte shift.** Like GTR020.1's original landing (§30) this
+  shifts default-`format` output for tools with bare output vars (now quoted).
+  Behaviour-preserving; idempotent (once wrapped the lexer skips it), verified by
+  the `corpus_check codemod …SingleQuoteCommandVars` idempotence + post-validity
+  sweep.
