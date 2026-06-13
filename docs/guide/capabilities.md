@@ -37,7 +37,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Repair near-miss typos so an invalid tool validates | GTR006 | ✅ Shipped | `default` ruleset |
 | Normalize Python-style booleans (`True`→`true`) to `xs:boolean` | GTR017 | ✅ Shipped | `default` ruleset |
 | Wrap pure-text `<command>` / `<help>` in CDATA | GTR018, GTR019 | ✅ Shipped | `default` ruleset |
-| Single-quote the *provably*-single-valued Cheetah `$var`s in `<command>` | GTR020.1 | ✅ Shipped | `default` ruleset |
+| Single-quote the *provably*-single-valued Cheetah `$var`s in `<command>` (input **and** output `<data>` files — the IUC rule's file scope — plus other single-token types) | GTR020.1 | ✅ Shipped | `default` ruleset; codemod §51 |
 | Repair deterministically-fixable invalid `<help>` reStructuredText (short title underlines, missing blank lines) behind a behaviour-preserving gate | GTR089.1 | ✅ Shipped | `default` ruleset; planemo-parity *fix* (`HelpInvalidRST`) |
 | Trim accidental whitespace from a `<requirement>` `version` (the `<tool>` `name` trim is the GTR035.2 advisory — display-contract, report-only) | GTR035.1 | ✅ Shipped | `default` ruleset; planemo-parity *fix* (`docs/examples/planemo_fixable_issues.md`) |
 | Replace a deprecated `<output type="data">` with `<data>` | GTR036 | ✅ Shipped | `default` ruleset; planemo-parity *fix* |

@@ -24,6 +24,13 @@ is the breaking-change channel.
   (`scripts.measure lint-skip-corpus`; `docs/lint_skip.md`).
 
 ### Changed
+- **GTR020.1 now single-quotes output `<data>` file variables** in `<command>`
+  (codemod decisions §51, tier-1 §16). An output dataset path is the same
+  single-token, Galaxy-controlled value as an input path, so quoting it is
+  behaviour-preserving — this closes the output-file half of the IUC rule ("text
+  parameters, input **and output files** must be single-quoted"); the text-param
+  half necessarily stays advisory (GTR020.2). A default-`format` byte shift for
+  tools with bare output vars (~5,697 corpus occurrences); idempotent.
 - **The formatter emits no XML declaration** (fmt decisions §D21; from the IUC
   review of featurecounts PR #8090). `serializer.to_bytes` now passes
   `xml_declaration=False`, so canonical output omits `<?xml ...?>` (optional by

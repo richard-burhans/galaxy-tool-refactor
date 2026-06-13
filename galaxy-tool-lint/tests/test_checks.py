@@ -992,6 +992,14 @@ def test_iuc020_2_residual_flags_only_non_provable_vars() -> None:
     )
 
 
+def test_iuc020_2_does_not_advise_output_files() -> None:
+    """An output <data> var is fixed by GTR020.1 (command_var_info), so the GTR020.2
+    advisory must stay silent on it — the partition shares one resolver."""
+    tool = _tool(command="<command><![CDATA[prog --in '$input' > $out]]></command>")
+    found = _iuc011(tool)
+    assert found == []  # $out is a provable output-file path, not a residual
+
+
 def test_iuc011_ignores_quoted_and_directive_vars() -> None:
     """Single/double-quoted vars and directive-line vars are not flagged."""
     # The default tool single-quotes its one var, so GTR020.2 stays silent.

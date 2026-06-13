@@ -6,9 +6,12 @@ positions. This codemod is the fixer for the subset that is provably so, via the
 shared tier-1 policy ``galaxy_tool_source.shell_oracle.quote_is_behavior_preserving``:
 
 - **value-domain** (always, no dependency): a reference whose rendered value can never
-  contain whitespace — the ``{safe, attr_safe, builtin_path}`` classes
-  (``command_vars``): a bare ``$param`` of a single-token type, a ``$param.ext`` / path
-  attribute, or a ``$__…__`` Galaxy path built-in;
+  contain whitespace — the ``{safe, attr_safe, builtin_path}`` classes over
+  ``command_var_info`` (inputs **and output ``<data>`` files**, since an output
+  dataset path is the same Galaxy-controlled single token as an input path, and the
+  IUC rule covers output files): a bare ``$param`` of a single-token type or a bare
+  ``$output`` data file, a ``$param.ext`` / path attribute, or a ``$__…__`` Galaxy
+  path built-in;
 - **shell-context narrowing** (when the optional ``galaxy-tool-source[shell-oracle]``
   extra
   is installed): the bashlex classifier additionally *narrows* away fd-dup targets
@@ -40,7 +43,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_source.command_text import UnquotedVar, unquoted_cheetah_vars
-from galaxy_tool_source.command_vars import input_param_info
+from galaxy_tool_source.command_vars import command_var_info
 from galaxy_tool_source.shell_oracle import quote_is_behavior_preserving
 
 from galaxy_tool_codemod.change import Change
@@ -112,7 +115,7 @@ class SingleQuoteCommandVars(CodemodCommand):
         body = command.text or ""
         if not body:
             return
-        kinds, structural = input_param_info(root)
+        kinds, structural = command_var_info(root)
         decide = (
             self._certifier.should_quote
             if self._certifier is not None

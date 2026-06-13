@@ -6,9 +6,41 @@ from lxml import etree
 
 from galaxy_tool_source.command_vars import (
     classify_var,
+    command_var_info,
     input_param_info,
     provably_quotable,
 )
+
+
+def test_command_var_info_folds_output_data_files_as_safe() -> None:
+    """Output ``<data>`` files join ``kinds`` as ``safe`` — a single-token Galaxy
+    path (the IUC rule covers output files); ``<collection>`` outputs are not files."""
+    root = etree.fromstring(
+        b"<tool>"
+        b'<inputs><param name="reads" type="data"/>'
+        b'<param name="title" type="text"/></inputs>'
+        b"<outputs>"
+        b'<data name="out"/>'
+        b'<collection name="out_coll" type="list"/>'
+        b"</outputs></tool>"
+    )
+    kinds, structural = command_var_info(root)
+    assert kinds["out"] == "safe"  # output <data> file -> provably single-token
+    assert "out_coll" not in kinds  # a collection is not a single output file
+    assert kinds["reads"] == "safe"  # inputs unchanged
+    assert kinds["title"] == "text"
+    assert provably_quotable("$out", kinds, structural) is True
+
+
+def test_command_var_info_input_wins_on_name_collision() -> None:
+    """If a name is both an input (unsafe) and an output, the input kind wins."""
+    root = etree.fromstring(
+        b"<tool>"
+        b'<inputs><param name="x" type="text"/></inputs>'
+        b'<outputs><data name="x"/></outputs></tool>'
+    )
+    kinds, _ = command_var_info(root)
+    assert kinds["x"] == "text"  # the unsafe input classification is kept
 
 
 def test_input_param_info_kinds_and_structural() -> None:

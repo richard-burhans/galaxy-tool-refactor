@@ -2202,6 +2202,211 @@ def _run_iuc011_fixability(args: argparse.Namespace) -> None:
     _report_iuc011_fixability(_measure_iuc011_fixability(corpus_root=args.corpus_root))
 
 
+# --- measurement: command-quoting-kinds -----------------------------------------
+#
+# GTR020.1 (SingleQuoteCommandVars) coverage by Galaxy parameter KIND, measured
+# against the IUC rule: "All Cheetah variables for text parameters, input and
+# output files must be single-quoted." GTR020.1 quotes the behaviour-preserving
+# subset (provably single-token values, the `quote_is_behavior_preserving` gate
+# over `command_var_info`), which now includes input files AND output `<data>`
+# files (an output dataset path is the same single-token Galaxy-controlled value;
+# tier-1 `docs/decisions.md` §16). This measure classifies, by kind:
+#
+#   1. What GTR020.1 auto-quotes, split by kind — the two IUC-scope file kinds
+#      (input-file, output-file) plus the behaviour-preserving extras outside the
+#      IUC scope it also quotes as safe no-ops (numeric / select / boolean /
+#      other single-token types / metadata attrs / Galaxy built-ins).
+#   2. The IUC-scope references it does NOT quote: bare `$text_param`. A text
+#      value may contain spaces the quoting would newly protect, so quoting it is
+#      NOT behaviour-preserving — GTR020.1 leaves it and GTR020.2 reports it
+#      advisory-only. (Output files used to be here too; §16 moved them into the
+#      provable set.)
+#
+# So the numbers show GTR020.1 now covers the input+output *file* half of the IUC
+# rule, with the text-param half remaining advisory by necessity. Print-only;
+# needs the corpus.
+
+
+@dataclass
+class _CommandQuotingKindsResult:
+    n_tools: int
+    n_quoted: int  # occurrences GTR020.1 auto-quotes today
+    quoted_by_kind: Counter[str]  # kind -> count, over the auto-quoted population
+    iuc_unquoted: Counter[str]  # bare text-param / output-file refs NOT quoted today
+
+
+def _command_input_types(root: etree._Element) -> dict[str, str]:
+    """Map each ``<inputs>`` ``<param>`` leaf name to its ``type`` (last wins).
+
+    Mirrors ``command_vars.input_param_info``'s recursive ``inputs.iter("param")``
+    walk (so nested conditional/section/repeat params are flattened by leaf name),
+    but keeps the raw ``type`` rather than collapsing to safe/text/multi.
+    """
+    inputs = root.find("inputs")
+    types: dict[str, str] = {}
+    if inputs is None:
+        return types
+    for param in inputs.iter("param"):
+        name = param.get("name")
+        if name:
+            types[name] = param.get("type", "")
+    return types
+
+
+def _command_output_names(root: etree._Element) -> set[str]:
+    """The ``<outputs>`` direct-child ``<data>``/``<collection>`` names."""
+    outputs = root.find("outputs")
+    if outputs is None:
+        return set()
+    return {
+        child.get("name")
+        for child in outputs
+        if child.tag in ("data", "collection") and child.get("name")
+    }
+
+
+def _command_var_kind(
+    var_name: str,
+    *,
+    input_types: dict[str, str],
+    output_names: set[str],
+) -> str:
+    """Classify one ``<command>`` reference by Galaxy parameter kind.
+
+    A reference with an attribute segment (``$x.ext``) is a metadata accessor,
+    not a file/text value, so it is ``"attr"`` regardless of the root's type.
+    """
+    bare = var_name.lstrip("$").strip("{}")
+    has_attr = "." in bare or "[" in bare
+    root = bare.replace("[", ".").split(".", 1)[0]
+    if has_attr:
+        return "attr"
+    if root.startswith("__"):
+        return "builtin"
+    if root in output_names:
+        return "output-file"
+    ptype = input_types.get(root)
+    if ptype is None:
+        return "non-input"
+    if ptype == "text":
+        return "text-param"
+    if ptype in ("data", "data_collection"):
+        return "input-file"
+    if ptype in ("integer", "float"):
+        return "numeric"
+    if ptype in ("select", "drill_down"):
+        return "select"
+    if ptype == "boolean":
+        return "boolean"
+    return "other-input-type"
+
+
+def _measure_command_quoting_kinds(
+    *, corpus_root: Path
+) -> _CommandQuotingKindsResult:
+    """Classify GTR020.1's quoted population (and the IUC-scope residual) by kind."""
+    from galaxy_tool_source.command_text import unquoted_cheetah_vars
+    from galaxy_tool_source.command_vars import command_var_info
+    from galaxy_tool_source.shell_oracle import quote_is_behavior_preserving
+
+    seen: set[str] = set()
+    n_tools = n_quoted = 0
+    quoted_by_kind: Counter[str] = Counter()
+    iuc_unquoted: Counter[str] = Counter()
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        command = root.find("command")
+        if command is None or len(command) > 0:  # skip missing / mixed-content
+            continue
+        text = "".join(command.itertext())
+        occurrences = unquoted_cheetah_vars(text)
+        if not occurrences:
+            continue
+        n_tools += 1
+        kinds, structural = command_var_info(root)
+        input_types = _command_input_types(root)
+        output_names = _command_output_names(root)
+        for occurrence in occurrences:
+            kind = _command_var_kind(
+                occurrence.name,
+                input_types=input_types,
+                output_names=output_names,
+            )
+            if quote_is_behavior_preserving(
+                text, occurrence=occurrence, kinds=kinds, structural=structural
+            ):
+                n_quoted += 1
+                quoted_by_kind[kind] += 1
+            elif kind in ("text-param", "output-file"):
+                # The IUC rule's intent, but not behaviour-preserving to auto-quote.
+                iuc_unquoted[kind] += 1
+    return _CommandQuotingKindsResult(
+        n_tools=n_tools,
+        n_quoted=n_quoted,
+        quoted_by_kind=quoted_by_kind,
+        iuc_unquoted=iuc_unquoted,
+    )
+
+
+_IUC_QUOTING_SCOPE = ("text-param", "input-file", "output-file")
+_QUOTING_KINDS = (
+    "input-file",
+    "text-param",
+    "output-file",
+    "numeric",
+    "select",
+    "boolean",
+    "other-input-type",
+    "attr",
+    "builtin",
+    "non-input",
+)
+
+
+def _report_command_quoting_kinds(result: _CommandQuotingKindsResult) -> None:
+    total = result.n_quoted
+
+    def pct(n: int) -> float:
+        return 100 * n / total if total else 0.0
+
+    print("\n=== command-quoting-kinds (GTR020.1 coverage vs the IUC text/input/output rule) ===")
+    print(
+        f"Pure-text <command> tools with >=1 unquoted var: {result.n_tools}; "
+        f"occurrences GTR020.1 auto-quotes: {total}"
+    )
+    print("\nWhat GTR020.1 quotes, by Galaxy parameter kind:")
+    for kind in _QUOTING_KINDS:
+        count = result.quoted_by_kind.get(kind, 0)
+        if count:
+            tag = "  [IUC scope]" if kind in _IUC_QUOTING_SCOPE else "  [safe no-op, outside IUC scope]"
+            print(f"  {kind:18} {count:7d}  ({pct(count):.1f}%){tag}")
+    files = sum(result.quoted_by_kind.get(k, 0) for k in ("input-file", "output-file"))
+    print(
+        f"\nIUC-scope file coverage (input + output files GTR020.1 now quotes): "
+        f"{files} ({pct(files):.1f}%)"
+    )
+    print(
+        "\nIUC-scope references GTR020.1 does NOT quote (not behaviour-preserving;"
+        "\nGTR020.2 reports them advisory-only):"
+    )
+    for kind in ("text-param", "output-file"):
+        print(f"  {kind:18} {result.iuc_unquoted.get(kind, 0):7d} occurrence(s)")
+
+
+def _run_command_quoting_kinds(args: argparse.Namespace) -> None:
+    _report_command_quoting_kinds(
+        _measure_command_quoting_kinds(corpus_root=args.corpus_root)
+    )
+
+
 # --- measurement: select-quoting-safety -----------------------------------------
 #
 # Sizes the GTR020.1 select/drill_down scope-narrowing (codemod decisions §30; tier-1
@@ -7710,6 +7915,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "macro-format-residual": _run_macro_format_residual,
     "macro-token-datatype-residual": _run_macro_token_residual,
     "lint-skip-corpus": _run_lint_skip_corpus,
+    "command-quoting-kinds": _run_command_quoting_kinds,
 }
 
 _PASSTHROUGH: dict[str, Callable[[argparse.Namespace, list[str]], int]] = {

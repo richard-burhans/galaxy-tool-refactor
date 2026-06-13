@@ -762,6 +762,19 @@ Three small, dependency-light modules analyse `<command>` / `<help>` body conten
   "safe" only when both are non-empty single tokens (`_boolean_values_are_single_tokens`).
   The ubiquitous `falsevalue=""` flag idiom is demoted to `text` — quoting the empty
   false case emits a stray `''` argument (2026-06-11 soundness fix; codemod §44).
+  `command_var_info` (2026-06-13) extends `input_param_info` with the tool's
+  **output files**: each `<outputs>` direct-child `<data name=>` joins `kinds` as
+  `safe`. An output `<data>` variable renders to the dataset file path Galaxy
+  assigns — the same single-token, Galaxy-controlled value domain that already
+  makes a `type="data"` *input* `safe`, and with no word-splitting idiom to break
+  — so single-quoting it is behaviour-preserving, and the IUC rule's scope is
+  verbatim "text parameters, input **and output files**". `<collection>` outputs
+  are excluded (not a single file path) and an input wins on a name collision
+  (`setdefault`). The GTR020.1 fixer and GTR020.2 advisory both moved to
+  `command_var_info`, so the partition stays exact (outputs now fixed, not
+  advised); text params remain the advisory residual (a free-form value may carry
+  spaces, so quoting is not provably a no-op). Sized by `scripts.measure
+  command-quoting-kinds`.
 - `cdata` — `cdata_wrappable` / `needs_cdata` / `is_cdata_wrapped`: predicates on an
   element deciding whether a pure-text body can be losslessly wrapped in one CDATA
   section (the GTR018/GTR019 substrate).

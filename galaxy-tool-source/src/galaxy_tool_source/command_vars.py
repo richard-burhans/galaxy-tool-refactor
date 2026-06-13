@@ -20,7 +20,8 @@ Heuristic: root-name resolution against ``<inputs>``, no full param-model walk.
 The provable set is ``{safe, attr_safe, builtin_path}``:
 
 - ``safe`` — a bare ``$param`` of an intrinsically single-token type (a number, a
-  Galaxy-controlled dataset path), a ``select`` / ``drill_down`` whose option set is
+  Galaxy-controlled dataset path — including an **output** ``<data>`` file's path, see
+  ``command_var_info``), a ``select`` / ``drill_down`` whose option set is
   statically known and every option ``value`` is a single shell token (an
   ``<option value="-b -h">`` multi-flag dropdown is *not* safe — quoting it would
   fuse the intended argv words into one token), or a ``boolean`` whose ``truevalue``
@@ -157,6 +158,30 @@ def input_param_info(root: etree._Element, /) -> tuple[dict[str, str], set[str]]
             structural_name = element.get("name")
             if structural_name:
                 structural.add(structural_name)
+    return kinds, structural
+
+
+def command_var_info(root: etree._Element, /) -> tuple[dict[str, str], set[str]]:
+    """``(name -> kind, structural)`` for every name a ``<command>`` can reference.
+
+    ``input_param_info`` plus the tool's **output files**: each ``<outputs>``
+    direct-child ``<data name=>`` joins ``kinds`` as ``"safe"``. An output ``<data>``
+    variable renders to the dataset file path Galaxy assigns — the same single-token,
+    Galaxy-controlled value domain that makes a ``type="data"`` *input* ``safe``, and
+    with no word-splitting idiom to break — so single-quoting it is
+    behaviour-preserving (the IUC rule explicitly covers output files,
+    ``docs/decisions.md`` §16). ``<collection>`` outputs are excluded: a collection is
+    not a single file path. On a name shared by an input and an output the input
+    classification wins (``setdefault``), so a free-form ``text`` input that happens to
+    share an output's name stays unsafe.
+    """
+    kinds, structural = input_param_info(root)
+    outputs = root.find("outputs")
+    if outputs is not None:
+        for data in outputs.findall("data"):
+            name = data.get("name")
+            if name:
+                kinds.setdefault(name, "safe")
     return kinds, structural
 
 

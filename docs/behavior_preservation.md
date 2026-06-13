@@ -68,7 +68,7 @@ holds on the strength of its tier-1 render-equivalence gate (below).
 | GTR017 | NormalizeBooleanValues | runtime | hold | `True`→`true` only where the lenient model already accepts it; validity-restore |
 | GTR018.1 | WrapCommandCdata | runtime | **REFUTED → FIXED** | body with `\r` → CDATA can't carry `&#13;` → CR lost, non-idempotent (PR #112) |
 | GTR019.1 | WrapHelpCdata | runtime | **REFUTED → FIXED** | same `\r`-through-CDATA bug (shared `cdata_wrappable` predicate) (PR #112) |
-| GTR020.1 | SingleQuoteCommandVars | runtime | **REFUTED → FIXED** | quoted multi-flag `select` values (PR #110); flag-idiom booleans `falsevalue=""` (2026-06-11, §44) |
+| GTR020.1 | SingleQuoteCommandVars | runtime | **REFUTED → FIXED** | quoted multi-flag `select` values (PR #110); flag-idiom booleans `falsevalue=""` (2026-06-11, §44); scope **extended** to output `<data>` files (2026-06-13, §51) — sound by the data-input value-domain argument (Galaxy-assigned single-token path, no splat idiom) |
 | GTR089.1 | RepairHelpRst | runtime (rendered help) | hold | repair kept only when the docutils doctree is unchanged modulo the removed error (strong gate); macro/markdown help skipped |
 
 \* GTR006 and GTR009 are cases where the adversarial refutation **overreached** — on
