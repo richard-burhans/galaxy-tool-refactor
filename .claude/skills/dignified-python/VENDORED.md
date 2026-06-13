@@ -1,55 +1,64 @@
 # Vendored: dignified-python
 
-This skill is copied verbatim from a third-party repository — it is not original
-to this repository.
+This skill is copied verbatim from a third-party repository; it is not original to
+this repository.
 
 | Field | Value |
 |---|---|
-| Vendored from | `dagster-io/erk`, directory `.agents/skills/dignified-python` |
-| Vendored-from URL | https://github.com/dagster-io/erk/tree/master/.agents/skills/dignified-python (now 404; see "Upstream relocated" below) |
-| Vendored commit | 2656c0e1a830f42cf7b9b6ed36f59a0ced7e3b97 |
-| Retrieved | 2026-05-22 |
-| Current canonical home | `dagster-io/skills`, directory `skills/dignified-python/skills/dignified-python` |
-| Current canonical URL | https://github.com/dagster-io/skills/tree/master/skills/dignified-python/skills/dignified-python |
+| Source | `dagster-io/skills`, directory `skills/dignified-python/skills/dignified-python` |
+| Source URL | https://github.com/dagster-io/skills/tree/master/skills/dignified-python/skills/dignified-python |
+| Commit | fa3d023d6700767d3950f94ebe8ea73b5abbd015 |
+| Retrieved | 2026-06-13 |
 | Author | Dagster Labs (dagster-io) |
 | License | See the `dagster-io/skills` repository for its license terms. |
+| Blog | https://dagster.io/blog/dignified-python-10-rules-to-improve-your-llm-agents |
 
-## Upstream relocated (checked 2026-06-13)
+## Updated 2026-06-13: re-vendored from the relocated upstream, softer stance adopted
 
-The original `dagster-io/erk` location now returns 404. dignified-python's
-canonical home is the dedicated **`dagster-io/skills`** repository
-(`skills/dignified-python/skills/dignified-python/`), described in Dagster's blog
-post "Dignified Python: 10 Rules to Improve Your LLM Agents"
-(https://dagster.io/blog/dignified-python-10-rules-to-improve-your-llm-agents).
+The skill's original home (`dagster-io/erk`, `.agents/skills/dignified-python`,
+commit `2656c0e`, retrieved 2026-05-22) now returns 404; the canonical home moved
+to the dedicated **`dagster-io/skills`** repository. This copy was **re-vendored
+from that new upstream** (commit `fa3d023`, 2026-06-13), replacing the earlier erk
+snapshot.
 
-The vendored copy here is **still the 2026-05-22 `dagster-io/erk` snapshot**
-(commit `2656c0e`); it has **not** been updated to the current `dagster-io/skills`
-version. That newer version **softens the core stance**: the "Cornerstone: LBYL
-Over EAFP / NEVER use exceptions for control flow" rule becomes "Default Stance:
-Prefer Explicit Preconditions" (LBYL for routine branching, but EAFP when the
-operation itself is the authoritative test or when translating failures at a
-boundary), the `.exists()`-before-`.resolve()` rule is relaxed (adds
-`resolve(strict=True)` as an accepted alternative), and `references/` is
-reorganized under `references/advanced/`. Adopting it is a deliberate
-governing-standard decision (this repo's `CLAUDE.md`, every package's
-`docs/decisions.md`, and the `/pre-pr-audit` skill all cite the stricter rule),
-so it is intentionally deferred, not silently re-vendored.
+The current version **softens the earlier strict stance**, and we adopted it
+deliberately:
+
+- The "Cornerstone: LBYL Over EAFP / NEVER use exceptions for control flow" rule
+  becomes "Default Stance: Prefer Explicit Preconditions": LBYL for routine
+  branching, but EAFP is acceptable when the operation itself is the authoritative
+  test or when translating failures at a boundary.
+- The `.exists()`-before-`.resolve()` rule is relaxed (adds `resolve(strict=True)`
+  as an accepted alternative).
+- `references/` is reorganized under `references/advanced/` (plus `checklists.md`
+  and `module-design.md`).
+
+**Doc reconciliation note.** This repo's `CLAUDE.md`, several packages'
+`docs/decisions.md`, and the `/pre-pr-audit` skill still describe the *stricter*
+rule ("LBYL over try/except; exceptions only at the CLI and third-party
+boundaries"). Those references now overstate the standard; reconciling their
+wording to the softer stance is follow-up work (flagged for the architecture
+audit that accompanied this update). No source code was changed by this
+re-vendor; existing code that follows the stricter rule still conforms (the softer
+rule is a superset of the stricter one).
 
 ## How it was vendored
 
 Copied with a sparse, blobless clone:
 
 ```sh
-git clone --depth 1 --filter=blob:none --sparse https://github.com/dagster-io/erk "$tmp"
-git -C "$tmp" sparse-checkout set .agents/skills/dignified-python
-cp -r "$tmp/.agents/skills/dignified-python" .claude/skills/
+git clone --depth 1 --filter=blob:none --sparse https://github.com/dagster-io/skills "$tmp"
+git -C "$tmp" sparse-checkout set skills/dignified-python/skills/dignified-python
+find .claude/skills/dignified-python -mindepth 1 -not -name VENDORED.md -delete
+cp -r "$tmp/skills/dignified-python/skills/dignified-python/." .claude/skills/dignified-python/
 ```
 
-The directory is reproduced verbatim; no files were modified.
+The directory is reproduced verbatim (except this `VENDORED.md`, which is our own
+provenance record and not part of the upstream skill).
 
 ## Role in this repository
 
 `dignified-python` is the **governing** coding standard for all hand-written
 Python in this repository. The xsdata-generated `src/galaxy_tool_source/models/`
-directory is exempt (it is generated code, not hand-written). On any conflict
-with the `optimized-python` reference skill, **dignified-python governs**.
+directory is exempt (it is generated code, not hand-written). On any conflict with
+the `optimized-python` reference skill, **dignified-python governs**.
