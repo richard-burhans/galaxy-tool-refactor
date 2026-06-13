@@ -1,32 +1,33 @@
-"""Codemod: single-quote behaviour-preserving Cheetah vars in <command> (GTR020).
+"""Codemod: single-quote <command> input/output FILE vars (GTR020.1).
 
-The IUC ``single-quote your Cheetah variables`` practice guards against shell
-word-splitting / injection, but quoting is only *behaviour-preserving* in some
-positions. This codemod is the fixer for the subset that is provably so, via the
-shared tier-1 policy ``galaxy_tool_source.shell_oracle.quote_is_behavior_preserving``:
+The IUC ``single-quote your Cheetah variables`` practice names exactly three kinds:
+"text parameters, input and output files". This codemod is the auto-fixer for the
+**file** half — the part that is both in the rule's scope and provably
+behaviour-preserving to quote (codemod ``docs/decisions.md`` §52):
 
-- **value-domain** (always, no dependency): a reference whose rendered value can never
-  contain whitespace — the ``{safe, attr_safe, builtin_path}`` classes over
-  ``command_var_info`` (inputs **and output ``<data>`` files**, since an output
-  dataset path is the same Galaxy-controlled single token as an input path, and the
-  IUC rule covers output files): a bare ``$param`` of a single-token type or a bare
-  ``$output`` data file, a ``$param.ext`` / path attribute, or a ``$__…__`` Galaxy
-  path built-in;
-- **shell-context narrowing** (when the optional ``galaxy-tool-source[shell-oracle]``
-  extra
-  is installed): the bashlex classifier additionally *narrows* away fd-dup targets
-  (``2>&$fd``, where quoting a numeric fd flips a duplication into a file redirect).
-  It does **not** widen — an earlier assignment-RHS widening was reverted as unsound
-  (Galaxy renders the Cheetah value as literal text, so ``VAR=$x`` splits; tier-1
-  ``docs/decisions.md`` §17). Without the extra the policy is exactly the value-domain
-  rule, so default ``format`` output is unchanged and license-clean.
+- **scope** (``command_var_info`` / ``io_file_names``): only an input/output FILE
+  reference — a bare ``$data_input`` (a single ``type="data"`` param) or a bare
+  ``$output`` (an ``<outputs>`` ``<data>``), including a structural drill
+  ``$cond.file``. An output dataset path is the same Galaxy-controlled single token
+  as an input path. Selects, numbers, booleans, metadata attrs (``$input.ext``),
+  ``multiple=`` splats, and Galaxy built-ins (``$__tool_directory__``) are **not**
+  quoted — quoting them is a safe no-op but outside the rule, and quoting some of
+  them (a multi-flag select, an "extra options" idiom) is exactly the
+  "too aggressive" inconsistency IUC reviewers flagged (tools-iuc PR #8090).
+- **provability** (the shared tier-1
+  ``galaxy_tool_source.shell_oracle.quote_is_behavior_preserving``, ANDed with the
+  file scope): the value-domain rule, plus the optional bashlex *narrowing* of
+  fd-dup targets (``2>&$fd``) when the ``galaxy-tool-source[shell-oracle]`` extra is
+  installed. It never widens (the assignment-RHS widening was reverted as unsound,
+  tier-1 ``docs/decisions.md`` §17).
 
-Free-form ``text`` params in a splitting position, ``multiple=`` splats, label attrs
-(``$input.name``), ``$on_string`` and ``#set``/loop vars in splitting positions are
-left untouched; the advisory ``GTR020.2`` check reports that residual (using the same
-shared policy, so the fix/advisory partition stays exact). The ``certifier`` constructor
-argument reserves the Phase-2 seam (a render-based ``EditCertifier`` override); it
-defaults to the static policy. See ``docs/decisions.md`` §30–31 and
+Text parameters in the rule's scope are *not* provably safe to quote (a free-form
+value can carry spaces; only 1.2% are validator-bounded, ``scripts.measure
+text-param-quotable``) and stay advisory-only via ``GTR020.2``; the safe non-file
+kinds (select/number/boolean/attr/built-in) are neither quoted nor advised (out of
+scope). The ``certifier`` constructor argument reserves the Phase-2 seam (a
+render-based ``EditCertifier`` override) and **replaces** the default file policy
+whole. See ``docs/decisions.md`` §30–31 / §51 / §52 and
 ``../docs/upgrade_research/cheetah_bashlex_boundary_oracle.md``.
 
 It rides the canonical/``format`` pipeline (``canonical.py``). The rewrite is a
@@ -43,7 +44,11 @@ from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_source.command_text import UnquotedVar, unquoted_cheetah_vars
-from galaxy_tool_source.command_vars import command_var_info
+from galaxy_tool_source.command_vars import (
+    command_var_info,
+    io_file_names,
+    is_io_file_ref,
+)
 from galaxy_tool_source.shell_oracle import quote_is_behavior_preserving
 
 from galaxy_tool_codemod.change import Change
@@ -116,16 +121,30 @@ class SingleQuoteCommandVars(CodemodCommand):
         if not body:
             return
         kinds, structural = command_var_info(root)
-        decide = (
-            self._certifier.should_quote
-            if self._certifier is not None
-            else quote_is_behavior_preserving
-        )
-        qualifying = [
-            occurrence
-            for occurrence in unquoted_cheetah_vars(body)
-            if decide(body, occurrence=occurrence, kinds=kinds, structural=structural)
-        ]
+        io_files = io_file_names(root)
+        occurrences = unquoted_cheetah_vars(body)
+        # Default policy: quote only input/output FILE references (the IUC rule's
+        # "input and output files") that are provably single-token (Galaxy paths).
+        # Selects, numbers, booleans, metadata attrs, and built-ins are left alone —
+        # quoting them is a safe no-op but outside the rule's scope (codemod docs
+        # §52). An injected certifier (the Phase-2 seam) replaces this policy whole.
+        if self._certifier is not None:
+            qualifying = [
+                occurrence
+                for occurrence in occurrences
+                if self._certifier.should_quote(
+                    body, occurrence=occurrence, kinds=kinds, structural=structural
+                )
+            ]
+        else:
+            qualifying = [
+                occurrence
+                for occurrence in occurrences
+                if is_io_file_ref(occurrence.name, io_files, structural)
+                and quote_is_behavior_preserving(
+                    body, occurrence=occurrence, kinds=kinds, structural=structural
+                )
+            ]
         if not qualifying:
             return
         yield Change(

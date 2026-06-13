@@ -44,7 +44,10 @@ def _module(command: bytes):
     return parse_module(_HEAD + _INPUTS + command + b"</tool>")
 
 
-def test_quotes_only_the_provable_classes() -> None:
+def test_quotes_only_input_output_files() -> None:
+    """Only input/output FILE refs are quoted (the IUC rule's scope). A built-in
+    path, a metadata attr (`$ds.ext`), a text param, and a multiple= input are
+    all left alone — quoting them is a safe no-op but outside the rule."""
     module = _module(
         b"<command><![CDATA["
         b"python $__tool_directory__/s.py $ds --ext $ds.ext "
@@ -55,9 +58,27 @@ def test_quotes_only_the_provable_classes() -> None:
     assert len(changes) == 1 and changes[0].code == "GTR020.1"
     SingleQuoteCommandVars().apply(module)
     assert _command_text(module.document.root) == (
-        "python '$__tool_directory__'/s.py '$ds' --ext '$ds.ext' "
+        "python $__tool_directory__/s.py '$ds' --ext $ds.ext "
         "--opts $opts --files $files --name $ds.name"
     )
+
+
+def test_does_not_quote_selects_numbers_or_booleans() -> None:
+    """Selects, numbers, and booleans are out of the IUC file scope -> left alone
+    (this is the 'too aggressive quoting' the rule restriction removes)."""
+    module = parse_module(
+        _HEAD
+        + b"<command><![CDATA[tool -s $mode -Q $qual --flag $flag]]></command>"
+        + b"<inputs>"
+        + b'<param name="mode" type="select"><option value="a">A</option>'
+        + b'<option value="b">B</option></param>'
+        + b'<param name="qual" type="integer" value="0"/>'
+        + b'<param name="flag" type="boolean" truevalue="--x" falsevalue="--y"/>'
+        + b"</inputs><outputs/></tool>"
+    )
+    assert list(SingleQuoteCommandVars().detect(module)) == []  # nothing to quote
+    SingleQuoteCommandVars().apply(module)
+    assert _command_text(module.document.root) == "tool -s $mode -Q $qual --flag $flag"
 
 
 def test_quotes_output_data_files_not_collections() -> None:
@@ -175,47 +196,6 @@ def test_does_not_quote_multiflag_select_value() -> None:
     before = etree.tostring(module.document.root)
     SingleQuoteCommandVars().apply(module)
     assert etree.tostring(module.document.root) == before
-
-
-def test_quotes_single_token_select_value() -> None:
-    # The provable subset is retained: a select whose every option value is a single
-    # shell token is still auto-quoted (this is what makes the scope-narrowing honest
-    # rather than a wholesale drop of select).
-    module = parse_module(
-        _HEAD + b"<inputs>"
-        b'<param name="fmt" type="select">'
-        b'<option value="-b">b</option><option value="-h">h</option></param>'
-        b"</inputs>"
-        b"<command><![CDATA[samtools view $fmt input.bam]]></command>"
-        b"</tool>"
-    )
-    SingleQuoteCommandVars().apply(module)
-    assert _command_text(module.document.root) == "samtools view '$fmt' input.bam"
-
-
-def test_does_not_quote_flag_idiom_booleans() -> None:
-    # Behavior-preservation regression (the iuc/featurecounts shape): a boolean's
-    # rendered value is its author-written truevalue/falsevalue, NOT an intrinsically
-    # single token. The ubiquitous `truevalue="--flag" falsevalue=""` idiom MUST NOT
-    # be quoted — quoting the empty false case emits a stray `''` argument, and a
-    # space-prefixed truevalue (" -C") keeps its leading space inside the quotes
-    # instead of word-splitting. XSD validity + idempotence are both preserved, so the
-    # corpus oracles miss it; this fixture is the regression guard.
-    module = parse_module(
-        _HEAD + b"<inputs>"
-        b'<param name="empty_false" type="boolean" truevalue="--flag" falsevalue=""/>'
-        b'<param name="space_true" type="boolean" truevalue=" -C" falsevalue=""/>'
-        b'<param name="yesno" type="boolean" truevalue="yes" falsevalue="no"/>'
-        b"</inputs>"
-        b"<command><![CDATA[prog $empty_false $space_true $yesno]]></command>"
-        b"</tool>"
-    )
-    SingleQuoteCommandVars().apply(module)
-    # only the both-single-token boolean (yes/no) is quoted; the flag-idiom two are not
-    assert (
-        _command_text(module.document.root)
-        == "prog $empty_false $space_true '$yesno'"
-    )
 
 
 def test_certifier_seam_overrides_default() -> None:
