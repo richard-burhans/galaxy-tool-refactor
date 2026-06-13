@@ -121,7 +121,7 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 | non-empty `<help>` | GTR028 | done |
 | non-empty `<description>` | GTR029 | done |
 | `<help>` wrapped in CDATA | GTR019.2 | done (now also fixable — GTR019.1) |
-| single-quoted Cheetah variables (#36) | GTR020.2 | **done** (read-only command lexer; the *provable* subset is auto-fixed by GTR020.1, which covers the rule's full file scope — input **and** output `<data>` files — plus other single-token types; the text-param half stays advisory; see below) |
+| single-quoted Cheetah variables (#36) | GTR020.2 | **done** (read-only command lexer; GTR020.1 auto-quotes the rule's **file** scope — input + output `<data>` files; the text-param half stays advisory, and other single-token kinds (selects/numbers/etc.) are deliberately left alone as out of the rule, codemod §52; see below) |
 | `&&` vs a lone `&` (#39) | GTR032 | **check** (shipped — D34; quote/redirect/pipe-aware, joining-class only) |
 | package `<requirement>`s pin a version | GTR033 | **done** (275 tools / 661 findings; check D7) |
 | unused input `<param>` (general lint, not IUC) | GTR034 | **done** (conservative reference scan; check D11) |

@@ -185,6 +185,53 @@ def command_var_info(root: etree._Element, /) -> tuple[dict[str, str], set[str]]
     return kinds, structural
 
 
+def io_file_names(root: etree._Element, /) -> set[str]:
+    """Names of the tool's input and output **file** params (the IUC quoting scope).
+
+    A single ``type="data"`` ``<input>`` and an ``<outputs>`` direct-child
+    ``<data>`` each render to one Galaxy-assigned dataset path — the "input and
+    output files" the IUC rule names. ``data_collection`` / ``multiple=`` inputs
+    (a deliberate splat) and ``<collection>`` outputs (not one path) are excluded.
+    """
+    names: set[str] = set()
+    inputs = root.find("inputs")
+    if inputs is not None:
+        for param in inputs.iter("param"):
+            name = param.get("name")
+            multiple = param.get("multiple") in ("true", "True", "1")
+            if name and param.get("type", "") == "data" and not multiple:
+                names.add(name)
+    outputs = root.find("outputs")
+    if outputs is not None:
+        for data in outputs.findall("data"):
+            name = data.get("name")
+            if name:
+                names.add(name)
+    return names
+
+
+def is_io_file_ref(var_name: str, io_files: set[str], structural: set[str], /) -> bool:
+    """Whether a bare ``$var`` reference resolves to an input/output file.
+
+    Mirrors ``classify_var``'s resolution: a bare ``$file`` or a structural
+    drill ``$cond.file`` (root is a conditional/section/repeat, leaf is the
+    file) qualifies; a metadata access ``$file.ext`` does not (it is the
+    extension string, not the file path). The IUC quoting scope (``docs/
+    decisions.md`` §16); the value is single-token by construction (a
+    Galaxy-controlled path), so quoting is behaviour-preserving.
+    """
+    ref = var_name.translate({ord("$"): None, ord("{"): None, ord("}"): None})
+    segments = re.split(r"[.\[]", ref)
+    root = segments[0]
+    attr_segments = [segment.rstrip("]") for segment in segments[1:]]
+    if root in structural:
+        leaf = attr_segments[-1] if attr_segments else root
+        return leaf in io_files
+    if attr_segments:
+        return False  # $file.ext etc. — metadata, not the file path
+    return root in io_files
+
+
 def classify_var(var_name: str, kinds: dict[str, str], structural: set[str], /) -> str:
     """Bucket one ``unquoted_cheetah_vars`` reference (e.g. ``"$input"``).
 

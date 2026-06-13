@@ -8,8 +8,38 @@ from galaxy_tool_source.command_vars import (
     classify_var,
     command_var_info,
     input_param_info,
+    io_file_names,
+    is_io_file_ref,
     provably_quotable,
 )
+
+
+def test_io_file_names_inputs_and_output_data_only() -> None:
+    root = etree.fromstring(
+        b"<tool>"
+        b'<inputs><param name="reads" type="data"/>'
+        b'<param name="many" type="data" multiple="true"/>'
+        b'<param name="coll" type="data_collection"/>'
+        b'<param name="thr" type="integer"/>'
+        b'<param name="mode" type="select"/>'
+        b'<conditional name="anno"><param name="ref" type="data"/></conditional>'
+        b"</inputs>"
+        b'<outputs><data name="out"/>'
+        b'<collection name="out_coll" type="list"/></outputs></tool>'
+    )
+    # single data inputs + output <data>; never multiple/collection/select/number.
+    assert io_file_names(root) == {"reads", "ref", "out"}
+
+
+def test_is_io_file_ref_resolution() -> None:
+    io_files = {"reads", "ref", "out"}
+    structural = {"anno"}
+    assert is_io_file_ref("$reads", io_files, structural)  # bare input file
+    assert is_io_file_ref("$out", io_files, structural)  # bare output file
+    assert is_io_file_ref("$anno.ref", io_files, structural)  # structural drill
+    assert not is_io_file_ref("$reads.ext", io_files, structural)  # metadata, not file
+    assert not is_io_file_ref("$thr", io_files, structural)  # a number, not a file
+    assert not is_io_file_ref("$__tool_directory__", io_files, structural)
 
 
 def test_command_var_info_folds_output_data_files_as_safe() -> None:

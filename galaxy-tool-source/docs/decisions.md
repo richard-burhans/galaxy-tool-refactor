@@ -774,7 +774,11 @@ Three small, dependency-light modules analyse `<command>` / `<help>` body conten
   `command_var_info`, so the partition stays exact (outputs now fixed, not
   advised); text params remain the advisory residual (a free-form value may carry
   spaces, so quoting is not provably a no-op). Sized by `scripts.measure
-  command-quoting-kinds`.
+  command-quoting-kinds`. `io_file_names` / `is_io_file_ref` (2026-06-13) then
+  isolate the **file** subset of the rule — single `type="data"` inputs +
+  `<outputs>` `<data>` — which is all GTR020.1 now quotes (codemod §52, from the
+  PR #8090 review); selects / numbers / booleans / attrs / built-ins, though
+  provably single-token, are out of the rule's scope and left unquoted.
 - `cdata` — `cdata_wrappable` / `needs_cdata` / `is_cdata_wrapped`: predicates on an
   element deciding whether a pure-text body can be losslessly wrapped in one CDATA
   section (the GTR018/GTR019 substrate).

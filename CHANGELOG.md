@@ -24,7 +24,16 @@ is the breaking-change channel.
   (`scripts.measure lint-skip-corpus`; `docs/lint_skip.md`).
 
 ### Changed
-- **GTR020.1 now single-quotes output `<data>` file variables** in `<command>`
+- **GTR020.1 quotes only input/output files now** (codemod decisions §52, tier-1
+  §16; from the IUC review of featurecounts PR #8090). The auto-fixer is narrowed
+  to the IUC rule's file scope — single `type="data"` inputs and `<data>` outputs
+  — and no longer quotes selects, numbers, booleans, metadata attrs, or Galaxy
+  built-ins. Those were safe no-ops to quote but outside the rule, and quoting
+  some (a multi-flag select, an "extra options" idiom) was the "too aggressive"
+  inconsistency reviewers flagged. A no-op-removal `format` byte shift (a tool's
+  behaviour is unchanged); the text-param half stays advisory (GTR020.2), and the
+  dropped kinds are now neither quoted nor flagged.
+- **GTR020.1 single-quotes output `<data>` file variables** in `<command>`
   (codemod decisions §51, tier-1 §16). An output dataset path is the same
   single-token, Galaxy-controlled value as an input path, so quoting it is
   behaviour-preserving — this closes the output-file half of the IUC rule ("text

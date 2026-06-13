@@ -2196,3 +2196,46 @@ scripts.measure command-quoting-kinds`. Tier-1 substrate: source
   Behaviour-preserving; idempotent (once wrapped the lexer skips it), verified by
   the `corpus_check codemod …SingleQuoteCommandVars` idempotence + post-validity
   sweep.
+
+## 52. GTR020.1 narrowed to the IUC rule's file scope (input/output files only)
+
+**Date:** 2026-06-13. Reproduced-by: `uv run --package galaxy-tool-codemod pytest
+galaxy-tool-codemod/tests/test_single_quote_command_vars.py` and `uv run python -m
+scripts.measure command-quoting-kinds`. Tier-1 substrate: source
+`docs/decisions.md` §16 (`io_file_names` / `is_io_file_ref`). Origin: the IUC
+review of featurecounts PR #8090.
+
+- **The maintainer signal.** The IUC quoting rule names exactly three kinds:
+  "text parameters, input and output files." On PR #8090 bgruening asked why the
+  formatter quoted one select (`mapping_quality`) but not another (`splitonly`),
+  and the author agreed the quoting was "too aggressive." GTR020.1 had been
+  quoting the whole *value-domain* provable set — input/output files **plus**
+  numbers, single-token selects/booleans, metadata attrs, and Galaxy built-ins —
+  which is a different axis from the rule's scope, and the select/number quoting
+  is the part reviewers found noisy and inconsistent.
+- **The narrowing.** GTR020.1 now quotes a `$var` only when it is an input/output
+  **file** reference (`is_io_file_ref`: a bare `$data_input` or `$output`
+  `<data>`, or a structural drill `$cond.file`) **and** provably single-token
+  (the unchanged `quote_is_behavior_preserving` gate, ANDed in). Selects, numbers,
+  booleans, metadata attrs (`$input.ext`), `multiple=` splats, and built-ins
+  (`$__tool_directory__`) are no longer auto-quoted. This is the file half of the
+  rule; the text half stays advisory (only 1.2% of text params are provably safe
+  to quote, `scripts.measure text-param-quotable`, so auto-quoting them is not
+  worth a regex-soundness analyzer — they stay GTR020.2).
+- **Still sound, and a no-op-removal not a behaviour change.** The dropped kinds
+  were *safe* to quote (single-token); we simply choose not to, to match the rule
+  and the reviewers. Not quoting them changes only `format` output bytes (fewer
+  quotes), never a tool's behaviour. The corpus sweep confirms idempotence +
+  post-validity.
+- **The partition gains a third bucket.** GTR020.2 (advisory) still flags the
+  *not-provably-safe* residual (text/multi/label) via the shared
+  `quote_is_behavior_preserving`; it is unchanged. The safe-but-out-of-scope kinds
+  (select/number/boolean/attr/built-in) are now in **neither** rule — neither
+  auto-quoted nor flagged, left alone as harmless no-ops. So the GTR020 partition
+  is: io-file-and-provable → GTR020.1 fix; in-scope-not-provable (text) → GTR020.2
+  advise; safe-non-file → neither (out of the IUC rule's scope).
+- **The certifier seam** (`certifier=`) replaces the default file policy whole
+  (the Phase-2 render-based override can still choose to quote anything).
+- **Default-`format` byte shift.** Removes the select/number/boolean/attr/built-in
+  quoting GTR020.1 had been adding (e.g. on featurecounts, `-s '$strand'` reverts
+  to `-s $strand`); the input/output file quoting (§51) stays. Behaviour-preserving.
