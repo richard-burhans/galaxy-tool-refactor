@@ -15,9 +15,9 @@ facade (`galaxy-tool-refactor-registry`).
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` *(this package)* |
 
 Rule orchestration lives in the registry facade; this package depends on it
-(plus fmt's `cli_support` engine and tier-1 parsing) and exposes ten commands
+(plus fmt's `cli_support` engine and tier-1 parsing) and exposes eleven commands
 (`format`, `upgrade`, `check`, `find-references`, `rename-param`, `rulesets`, `rules`,
-`normalize-macros`, `convert-help`, `tokenize-version`):
+`normalize-macros`, `convert-help`, `tokenize-version`, `lint-skip`):
 
 ```bash
 # Safe, idempotent: apply a ruleset's fixable rules + cosmetic formatting.
@@ -57,6 +57,12 @@ galaxy-tool-refactor rules
 # macro-library fix the per-tool `upgrade` can't reach). Rewrites files other than
 # the one named, so it is a separate command — never part of format/upgrade.
 galaxy-tool-refactor normalize-macros macros/            # --check to preview
+
+# Opt-in convenience: prune planemo .lint_skip suppressions we can prove are
+# resolved (apply the fixes, remove a line only when its linter is completely
+# covered and clean on every tool in the dir). Leaves what it can't prove
+# untouched and unmentioned. See docs/lint_skip.md.
+galaxy-tool-refactor lint-skip tools/                    # --check to preview
 ```
 
 `format`/`upgrade`/`check` share rule selection — `--ruleset NAME`
