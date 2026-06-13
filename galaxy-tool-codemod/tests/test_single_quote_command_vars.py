@@ -60,6 +60,24 @@ def test_quotes_only_the_provable_classes() -> None:
     )
 
 
+def test_quotes_output_data_files_not_collections() -> None:
+    """An output ``<data>`` var is a single Galaxy path -> quoted (the IUC rule covers
+    output files); a ``<collection>`` output is not a single file -> left alone."""
+    module = parse_module(
+        _HEAD
+        + b"<command><![CDATA[run $ds > $out --coll $out_coll]]></command>"
+        + b'<inputs><param name="ds" type="data"/></inputs>'
+        + b"<outputs>"
+        + b'<data name="out"/>'
+        + b'<collection name="out_coll" type="list"/>'
+        + b"</outputs></tool>"
+    )
+    SingleQuoteCommandVars().apply(module)
+    assert _command_text(module.document.root) == (
+        "run '$ds' > '$out' --coll $out_coll"
+    )
+
+
 def test_detect_does_not_mutate() -> None:
     module = _module(b"<command><![CDATA[run $ds]]></command>")
     before = etree.tostring(module.document.root)
