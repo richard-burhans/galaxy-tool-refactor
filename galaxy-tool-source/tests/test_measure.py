@@ -31,6 +31,7 @@ from scripts.measure import (
     _measure_command_language,
     _measure_command_quoting_kinds,
     _measure_element_cardinality,
+    _measure_expand_reorder_resolution,
     _measure_help_formats,
     _measure_help_rst_errors,
     _measure_help_rst_features,
@@ -210,6 +211,73 @@ def test_select_quoting_safety_empty_corpus(tmp_path: Path) -> None:
     assert result.n_params == 0
     assert result.n_referenced == 0
     assert result.n_tools_unsound_before == 0
+
+
+# --- expand-reorder-resolution ----------------------------------------------------
+
+
+@pytest.fixture()
+def expand_reorder_corpus(tmp_path: Path) -> Path:
+    """Synthetic corpus exercising GTR013 top-level <expand> resolution classes."""
+    repo = tmp_path / "owner" / "expand-repo"
+    repo.mkdir(parents=True)
+    # Resolvable + already in its IUC slot -> resolution agrees with pinning.
+    (repo / "ordered.xml").write_text(
+        '<tool id="t1">'
+        "<description>d</description>"
+        '<macros><xml name="reqs"><requirements>'
+        '<requirement type="package">x</requirement>'
+        "</requirements></xml></macros>"
+        '<expand macro="reqs"/>'
+        "<command>c</command></tool>",
+        encoding="utf-8",
+    )
+    # Resolvable but MISPLACED (expand before <macros>) -> only resolution moves it.
+    (repo / "misplaced.xml").write_text(
+        '<tool id="t2">'
+        "<description>d</description>"
+        '<expand macro="cit"/>'
+        '<macros><xml name="cit"><citations>'
+        '<citation type="doi">x</citation>'
+        "</citations></xml></macros>"
+        "<command>c</command></tool>",
+        encoding="utf-8",
+    )
+    # No top-level <expand> -> not counted in the expand population.
+    (repo / "no_expand.xml").write_text(
+        '<tool id="t3"><description>d</description><command>c</command></tool>',
+        encoding="utf-8",
+    )
+    # Unresolvable (macro expands to two top-level elements) -> pinned by BOTH,
+    # so it never differs even though it sits out of order.
+    (repo / "unresolvable.xml").write_text(
+        '<tool id="t4">'
+        "<description>d</description>"
+        '<expand macro="multi"/>'
+        '<macros><xml name="multi"><requirements/><stdio/></xml></macros>'
+        "<command>c</command></tool>",
+        encoding="utf-8",
+    )
+    (repo / "not_a_tool.xml").write_text("<data/>", encoding="utf-8")
+    return tmp_path
+
+
+def test_expand_reorder_resolution_classes(expand_reorder_corpus: Path) -> None:
+    result = _measure_expand_reorder_resolution(corpus_root=expand_reorder_corpus)
+    assert result.n_unique_tools == 4  # not_a_tool is filtered out
+    assert result.n_with_top_expand == 3  # ordered, misplaced, unresolvable
+    assert result.n_fully_resolvable == 2  # ordered + misplaced
+    assert result.n_partially_resolvable == 0
+    assert result.n_unresolvable == 1  # the two-element macro
+    # Only the misplaced-but-resolvable tool is laid out differently by resolution.
+    assert result.n_resolution_differs_from_pinning == 1
+
+
+def test_expand_reorder_resolution_empty_corpus(tmp_path: Path) -> None:
+    result = _measure_expand_reorder_resolution(corpus_root=tmp_path)
+    assert result.n_unique_tools == 0
+    assert result.n_with_top_expand == 0
+    assert result.n_resolution_differs_from_pinning == 0
 
 
 # --- help-formats ----------------------------------------------------------------

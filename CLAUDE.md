@@ -392,6 +392,15 @@ uv run python -m scripts.measure command-quoting-kinds
 # out-of-coverage (kept). Print-only; needs the corpus. Corpus: auto-removable
 # 149 / 640 lines (23.3%):
 uv run python -m scripts.measure lint-skip-corpus
+
+# GTR013 macro-`<expand>` placement: sizes whether the future faithful-resolution
+# layer earns its plumbing over the shipped pinning fix (codemod §53). Per tool
+# with a top-level `<expand>`, shallow-resolve the macro to its element tags, then
+# compare PINNING (every expand pinned) vs RESOLUTION (a single-known-IUC-tag
+# expand scored by its resolved tag) layouts. Decision number = tools the two
+# disagree on (an `<expand>` the author placed out of its IUC slot). Corpus:
+# 4,081/9,373 have a top-level <expand>, 452 differ. Print-only; needs the corpus:
+uv run python -m scripts.measure expand-reorder-resolution
 ```
 
 **Note:** invoke as `python -m scripts.X`, not `python scripts/X.py` — the

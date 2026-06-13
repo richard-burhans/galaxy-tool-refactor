@@ -46,16 +46,19 @@ model is **`xs:all`** (order-free), not `xs:sequence` — verified against
 is a pure convention this codemod normalises toward. The codemod's only real
 invariant is idempotence (proven over the corpus). It joins `CANONICAL_CODEMODS`
 so the app's `format` command applies it; the cosmetic formatter re-normalises
-the inter-element whitespace afterward. Combined-corpus sweep: of 8,607
-validatable tools, 4,640 (~54%) have out-of-order `<tool>` children;
+the inter-element whitespace afterward. Combined-corpus sweep: of 8,622
+validatable tools, 683 (~7.9%) have out-of-order known `<tool>` children;
 idempotence holds for all, 0 post-validate failures, 0 crashes (codemod
-decisions §17).
+decisions §17, §53; the count was 4,640 before §53 stopped floating opaque
+`<expand>` children to the end).
 
 **Canonical order** (IUC #52): `description, macros, edam_topics,
 edam_operations, xrefs, parallelism, requirements, code, stdio, version_command,
 command, environment_variables, configfiles, inputs, request_param_translation,
-outputs, tests, help, citations`. Tags outside this list keep their relative
-position after the known ones.
+outputs, tests, help, citations`. Tags outside this list (notably an opaque
+`<expand macro="…"/>`) are pinned to their original position, never floated to
+the end; the known elements sort into the slots around them (codemod decisions
+§53).
 
 **Comment safety.** A tool whose `<tool>` root has a free-floating comment is
 left untouched: `Cursor.children()` hides comment/PI nodes, so reordering

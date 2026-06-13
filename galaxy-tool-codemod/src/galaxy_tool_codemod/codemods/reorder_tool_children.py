@@ -3,11 +3,13 @@
 Implements IUC best-practice #52 (element order under ``<tool>``). The Galaxy
 schema's ``<tool>`` content model is ``xs:all`` (order-free), so reordering
 children never affects validity — the IUC order is a pure convention this
-codemod normalises toward. Tags outside the convention keep their relative
-position after the known ones; a tool whose children carry a free-floating
-comment is left untouched (see ``Cursor.reorder_children``). The codemod
-performs the structural move only; the cosmetic formatter re-normalises the
-inter-element whitespace afterward.
+codemod normalises toward. Tags outside the convention (notably an opaque
+``<expand macro="…"/>``, whose expanded tag the codemod cannot see) are pinned
+to their original position, never floated to the end (``docs/decisions.md``
+§53); a tool whose children carry a free-floating comment is left untouched
+(see ``Cursor.reorder_children``). The codemod performs the structural move
+only; the cosmetic formatter re-normalises the inter-element whitespace
+afterward.
 """
 
 from __future__ import annotations

@@ -93,6 +93,14 @@ is the breaking-change channel.
   appended none, so every formatted file lost its final `\n` while all
   tools-iuc tool XML files end with one. Fixed in the single serialisation
   chokepoint, so every output path gains it; idempotent.
+- **GTR013 no longer floats opaque `<tool>` children to the end** (codemod
+  decisions §53; found running `format` on the tools-iuc vg suite). Children
+  whose tag is absent from the IUC order — notably a bare `<expand macro="…"/>`,
+  whose expanded tag the codemod can't see — were sorted past every known
+  element to the bottom, dropping `<expand macro="requirements"/>` to the end of
+  the tool. They are now pinned to their original position while the known
+  elements still sort into the slots around them; idempotent, validity-safe
+  (`<tool>` is `xs:all`).
 
 ### Added
 - `UpgradeResult` fields `stopped_at`, `blocking_codes`, and

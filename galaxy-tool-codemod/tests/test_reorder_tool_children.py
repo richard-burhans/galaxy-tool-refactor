@@ -55,19 +55,52 @@ def test_already_ordered_tool_is_unchanged() -> None:
     ]
 
 
-def test_unknown_children_kept_stably_after_known() -> None:
-    """Tags outside the IUC order keep their relative position, after the known."""
+def test_unknown_children_pinned_known_sorted_around_them() -> None:
+    """Tags outside the IUC order keep their **original position**; the known
+    elements are sorted into the remaining slots around them (they are no longer
+    floated to the end). See ``docs/decisions.md`` §53."""
     xml = b"""<tool id="t" name="n" version="1" profile="24.0">
         <help/>
         <custom_thing/>
         <command/>
         <another_custom/>
     </tool>"""
+    # <custom_thing> stays at index 1, <another_custom> at index 3; the known
+    # command/help sort into slots 0 and 2 (command before help).
     assert _child_tags(xml) == [
         "command",
-        "help",
         "custom_thing",
+        "help",
         "another_custom",
+    ]
+
+
+def test_top_level_expand_is_pinned_not_floated_to_end() -> None:
+    """A bare ``<expand>`` is opaque — the codemod can't see it expands to
+    ``<requirements>`` / ``<citations>`` — so it must stay where the author placed
+    it rather than floating past every known element to the end (the vg-suite bug,
+    ``docs/decisions.md`` §53). An already-conventional layout is left untouched."""
+    xml = b"""<tool id="t" name="n" version="1" profile="24.0">
+        <description>d</description>
+        <macros><import>macros.xml</import></macros>
+        <expand macro="requirements"/>
+        <command>c</command>
+        <inputs/>
+        <outputs/>
+        <tests/>
+        <help>h</help>
+        <expand macro="citations"/>
+    </tool>"""
+    assert _child_tags(xml) == [
+        "description",
+        "macros",
+        "expand",
+        "command",
+        "inputs",
+        "outputs",
+        "tests",
+        "help",
+        "expand",
     ]
 
 
