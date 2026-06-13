@@ -1047,3 +1047,31 @@ galaxy-tool-fmt pytest galaxy-tool-fmt/tests/test_serializer.py`.
   the corpus `fmt` sweep; the regression fixtures pin idempotence, not the
   byte prefix, so they are unaffected. This is the second deliberate
   default-`format` byte shift after GTR020.1 (codemod §30).
+
+## D22 (2026-06-13) — The serialiser ends output with one trailing newline
+
+**Date:** 2026-06-13. Found running `format` for real tools-iuc PRs
+(featurecounts #8090, the vg suite): `etree.tostring` stops at the root's
+closing `>` with no trailing newline, so every formatted file lost its final
+`\n` ("\ No newline at end of file" in the diff) while all ~19,000 tools-iuc
+tool XML files end with one. A formatter that strips the POSIX text-file
+newline is wrong and reviewer-rejectable. Reproduced-by: `uv run --package
+galaxy-tool-fmt pytest galaxy-tool-fmt/tests/test_serializer.py`.
+
+- **The change.** `serializer.to_bytes` appends one `b"\n"` after
+  `etree.tostring(...)`. Like the D21 declaration drop, this is the single
+  serialisation chokepoint, so every output path (the fmt library, the registry
+  facade's `run` / `upgrade` / `convert_help` / `tokenize_version` /
+  `rename_param`, and both front-ends) gains the trailing newline in one place.
+- **Why it is safe.** The trailing newline sits outside the root element, so it
+  carries no document information and the tree is unchanged — a
+  serialisation-trivia choice, not a rule (no detect phase, nothing to select or
+  ignore), exactly like D21.
+- **Idempotent.** `to_bytes` appends exactly one `\n` unconditionally; a re-parse
+  drops the trailing newline (it is not part of the root), so re-serialising
+  appends exactly one again. `format`→`format` is stable, and a file that already
+  ends with `\n` is unchanged. A previously-canonical file that lacked the newline
+  is now reported by `--check` / drift as needing formatting, which is correct.
+- **Byte-shift.** This adds a final newline to the output of every tool whose
+  source lacked one. Idempotence holds (confirmed end-to-end); the regression
+  fixtures pin idempotence, not exact trailing bytes, so they are unaffected.
