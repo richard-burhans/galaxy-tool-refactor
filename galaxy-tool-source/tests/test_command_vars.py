@@ -13,8 +13,8 @@ from galaxy_tool_source.command_vars import (
 
 
 def test_command_var_info_folds_output_data_files_as_safe() -> None:
-    """Output ``<data>`` files join ``kinds`` as ``safe`` — a single-token Galaxy path
-    (the IUC rule covers output files); ``<collection>`` outputs are not single files."""
+    """Output ``<data>`` files join ``kinds`` as ``safe`` — a single-token Galaxy
+    path (the IUC rule covers output files); ``<collection>`` outputs are not files."""
     root = etree.fromstring(
         b"<tool>"
         b'<inputs><param name="reads" type="data"/>'
