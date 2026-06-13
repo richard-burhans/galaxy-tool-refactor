@@ -37,6 +37,7 @@ from scripts.measure import (
     _measure_help_rst_to_markdown,
     _measure_interpreter_buckets,
     _measure_iuc011_fixability,
+    _measure_lint_skip_corpus,
     _measure_macro_expansion_detection_gap,
     _measure_macro_fmt_idempotence,
     _measure_macro_profile_ownership,
@@ -59,6 +60,7 @@ from scripts.measure import (
     _measure_xsd_tightenings,
     _normalize_validation_error,
     _ParamTypesResult,
+    _parse_lint_skip,
     _render_behavior_block_page,
     _render_macro_stats_page,
     _render_minimal_need_page,
@@ -2135,3 +2137,80 @@ def test_help_rst_md_convert_verdict_classes(rst_md_convert_corpus: Path) -> Non
     assert result.n_bail == 1
     assert result.n_gate_fail == 1
     assert result.bail_classes == [("definition_list", 1)]
+
+
+# --- lint-skip-corpus -----------------------------------------------------------
+
+
+def _write_skip_tool(directory: Path, *, body: str) -> None:
+    """A minimal, loadable tool the lint-skip measure can classify."""
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "tool.xml").write_text(
+        '<tool id="t" name="T" version="1.0">'
+        "<command><![CDATA[echo hi]]></command>"
+        f"{body}"
+        "</tool>",
+        encoding="utf-8",
+    )
+
+
+def test_parse_lint_skip_strips_comments_and_blanks(tmp_path: Path) -> None:
+    skip = tmp_path / ".lint_skip"
+    skip.write_text(
+        "# a leading comment\n"
+        "TestsMissing\n"
+        "\n"
+        "CitationsMissing  # inline comment\n"
+        "   \n",
+        encoding="utf-8",
+    )
+    assert _parse_lint_skip(skip) == ["TestsMissing", "CitationsMissing"]
+
+
+def test_measure_lint_skip_corpus_classifies_buckets(tmp_path: Path) -> None:
+    corpus = tmp_path / "corpus"
+    # A tool MISSING tests and citations: TestsMissing + CitationsMissing both
+    # fire (detect-only -> located); TestsCaseValidation maps to no GTR code
+    # (not reimplemented) -> out-of-coverage.
+    bare = corpus / "owner" / "bare"
+    _write_skip_tool(bare, body="<inputs/><outputs/>")
+    (bare / ".lint_skip").write_text(
+        "# suppressions\nTestsMissing\nCitationsMissing\nTestsCaseValidation\n",
+        encoding="utf-8",
+    )
+    # A tool that SHIPS tests and citations: TestsMissing does not fire now, so
+    # the suppression is already stale (removable without touching the tool).
+    clean = corpus / "owner" / "clean"
+    _write_skip_tool(
+        clean,
+        body=(
+            "<inputs/><outputs/>"
+            "<tests><test><param name='x' value='1'/></test></tests>"
+            "<citations><citation type='doi'>10.1/x</citation></citations>"
+        ),
+    )
+    # TestsMissing -> already-stale (complete, clean); ValidDatatypes -> GTR010
+    # only (incidental), clean here -> coverage-partial (not provably removable).
+    (clean / ".lint_skip").write_text(
+        "TestsMissing\nValidDatatypes\n", encoding="utf-8"
+    )
+
+    result = _measure_lint_skip_corpus(corpus_root=corpus)
+
+    assert result.skip_files == 2
+    assert result.skip_files_with_tool == 2
+    assert result.name_lines == 5
+    assert result.bucket_counts["out-of-coverage"] == 1  # TestsCaseValidation
+    assert result.bucket_counts["located"] == 2  # bare: TestsMissing + CitationsMissing
+    assert result.bucket_counts["already-stale"] == 1  # clean: TestsMissing
+    assert result.bucket_counts["coverage-partial"] == 1  # clean: ValidDatatypes
+    # Every located finding is reported at file:line — the info planemo withheld.
+    assert result.located_examples
+    assert all(":" in line for line in result.located_examples)
+
+
+def test_measure_lint_skip_corpus_empty(tmp_path: Path) -> None:
+    result = _measure_lint_skip_corpus(corpus_root=tmp_path)
+    assert result.skip_files == 0
+    assert result.name_lines == 0
+    assert result.bucket_counts.total() == 0

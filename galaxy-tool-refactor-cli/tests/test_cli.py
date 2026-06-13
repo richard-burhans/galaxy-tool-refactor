@@ -1122,3 +1122,81 @@ def test_tokenize_version_macros_file_consensus(tmp_path: Path) -> None:
     for tool in (a, b):
         assert b"<import>macros.xml</import>" in tool.read_bytes()
         assert b'version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"' in tool.read_bytes()
+
+
+# --- lint-skip ------------------------------------------------------------------
+
+
+def _redundant_name_tool() -> bytes:
+    return (
+        b'<tool id="t" name="T" version="1.0">'
+        b"<command><![CDATA[echo x]]></command>"
+        b'<inputs><param argument="--foo" name="foo" type="text"/></inputs>'
+        b'<outputs><data name="o"/></outputs></tool>'
+    )
+
+
+def test_lint_skip_removes_a_fixed_line_and_repairs_the_tool(tmp_path: Path) -> None:
+    tool = _write(tmp_path / "tool.xml", _redundant_name_tool())
+    skip = _write(tmp_path / ".lint_skip", b"InputsNameRedundantArgument\n")
+    result = CliRunner().invoke(main, ["lint-skip", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert "removed from" in result.output
+    assert "InputsNameRedundantArgument" in result.output
+    assert b'name="foo"' not in tool.read_bytes()  # tool was repaired
+    assert not skip.exists()  # .lint_skip emptied -> deleted
+
+
+def test_lint_skip_keeps_unprovable_lines_silently(tmp_path: Path) -> None:
+    # No citations -> CitationsNoValid still fires (can't fix); TestsCaseValidation
+    # is uncovered. Neither is removable; the file is untouched and unmentioned.
+    _write(tmp_path / "tool.xml", _valid_tool(profile="24.1"))
+    skip = _write(
+        tmp_path / ".lint_skip", b"CitationsNoValid\nTestsCaseValidation\n"
+    )
+    result = CliRunner().invoke(main, ["lint-skip", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert "no .lint_skip suppressions could be provably removed" in result.output
+    assert skip.read_bytes() == b"CitationsNoValid\nTestsCaseValidation\n"
+
+
+def test_lint_skip_check_previews_without_writing(tmp_path: Path) -> None:
+    tool = _write(tmp_path / "tool.xml", _redundant_name_tool())
+    skip = _write(tmp_path / ".lint_skip", b"InputsNameRedundantArgument\n")
+    original = tool.read_bytes()
+    result = CliRunner().invoke(main, ["lint-skip", "--check", str(tmp_path)])
+    assert result.exit_code == 1  # would change -> non-zero (CI gate)
+    assert "would remove" in result.output
+    assert tool.read_bytes() == original  # tool untouched
+    assert skip.exists()  # .lint_skip untouched
+
+
+def test_lint_skip_preserves_comments_and_unremoved_lines(tmp_path: Path) -> None:
+    _write(tmp_path / "tool.xml", _redundant_name_tool())  # no citations
+    skip = _write(
+        tmp_path / ".lint_skip",
+        b"# keep me\nInputsNameRedundantArgument\nCitationsNoValid\n",
+    )
+    result = CliRunner().invoke(main, ["lint-skip", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    # Redundant-name line removed; the comment and still-firing line stay.
+    assert skip.read_text(encoding="utf-8") == "# keep me\nCitationsNoValid\n"
+
+
+def test_lint_skip_backup_keeps_originals(tmp_path: Path) -> None:
+    tool = _write(tmp_path / "tool.xml", _redundant_name_tool())
+    _write(tmp_path / ".lint_skip", b"InputsNameRedundantArgument\n")
+    original = tool.read_bytes()
+    result = CliRunner().invoke(main, ["lint-skip", "--backup", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "tool.xml.bak").read_bytes() == original
+    assert (
+        tmp_path / ".lint_skip.bak"
+    ).read_bytes() == b"InputsNameRedundantArgument\n"
+
+
+def test_lint_skip_noop_when_no_skip_file(tmp_path: Path) -> None:
+    _write(tmp_path / "tool.xml", _valid_tool(profile="24.1"))
+    result = CliRunner().invoke(main, ["lint-skip", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert "no .lint_skip suppressions could be provably removed" in result.output

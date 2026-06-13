@@ -11,6 +11,18 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+### Added
+- **`lint-skip` command** (cli §D19, registry D24): a convenience that cleans up
+  planemo `.lint_skip` sidecars. For each tool directory with a `.lint_skip` it
+  applies the toolchain's fixes and removes a suppression line **only when it can
+  prove the line is resolved** — the planemo linter must be completely covered
+  (every covering GTR code is a faithful check-tier port or a canonical codemod,
+  a *derived* set) and clean on every tool in the directory after the fix.
+  Anything it cannot fix, cannot prove, or does not cover is left untouched and
+  unmentioned (`check` reports the full picture). `--check` previews; `--backup`
+  keeps `.bak`s. Corpus sizing: 149 of 640 suppressions auto-removable
+  (`scripts.measure lint-skip-corpus`; `docs/lint_skip.md`).
+
 ### Changed
 - **The formatter emits no XML declaration** (fmt decisions §D21; from the IUC
   review of featurecounts PR #8090). `serializer.to_bytes` now passes

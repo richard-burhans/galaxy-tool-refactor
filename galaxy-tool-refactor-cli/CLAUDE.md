@@ -22,7 +22,7 @@ Rule orchestration lives in the tier-3.6 **registry facade**
 (`galaxy-tool-refactor-registry`); this package depends on it (plus fmt's
 `cli_support` engine and tier-1 parsing) and does CLI plumbing only — it no
 longer imports the codemod / check tiers directly. It exposes the
-`galaxy-tool-refactor` CLI with ten subcommands:
+`galaxy-tool-refactor` CLI with eleven subcommands:
 
 - `format` — apply a ruleset's fixable rules then cosmetic formatting. The default
   ruleset = `canonical_codemods()` (repair + attribute / element order + the
@@ -86,6 +86,14 @@ longer imports the codemod / check tiers directly. It exposes the
   expansion byte-identical. A multi-element style restructure (and `--macros-file` /
   `--adopt-suffix` variants), so never part of `format`/`upgrade` (cli §D13–§D15;
   codemod §43; registry D19–D20).
+- `lint-skip` — opt-in convenience: clean up planemo `.lint_skip` sidecars. For each
+  tool directory with a `.lint_skip`, apply the toolchain's fixes and delete a
+  suppression line only when it is **provably** resolved (the planemo linter is
+  completely covered — faithful check-tier port or canonical codemod, derived — and
+  clean on every tool in the directory after the fix). Leaves everything else
+  untouched and unmentioned (`check` is for the full picture); `--check` previews,
+  `--backup` keeps `.bak`s. Rewrites the tool XML + its `.lint_skip`, so never part
+  of `format`/`upgrade` (cli §D19; registry D24; `docs/lint_skip.md`).
 
 Macro handling is **cosmetic-only and bundle-free for `format`/`check`** (macro
 files are formatted/checked standalone as encountered — cosmetic formatting is safe

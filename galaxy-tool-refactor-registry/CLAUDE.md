@@ -85,7 +85,8 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
 - `apply.py` — `apply_selection` (phase-ordered apply).
 - `facade.py` — `run` / `upgrade` / `detect` / `find_references` / `rename_param`
   (the mutating sibling of `find_references`; deep-copies + serialises on success, see
-  `docs/decisions.md` D11) / `convert_help` / `tokenize_version` / `list_rulesets` / `list_rules`.
+  `docs/decisions.md` D11) / `convert_help` / `tokenize_version` / `reconcile_lint_skip` (prune
+  provable `.lint_skip` suppressions, D24) / `list_rulesets` / `list_rules`.
   `upgrade` is **minimal-bump by default** (D22): keep `profile=` when the
   repaired tool validates at its resolved baseline (an undeclared tool stays
   undeclared), else declare the minimum valid profile at or above it via
@@ -113,6 +114,10 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
   major public Galaxy server runs) + snapshot date + staleness probe; caps the
   no-explicit-target walk (D23). Drift-guarded against the committed
   `docs/galaxy_server_versions.json` by `tests/test_deployment.py`.
+- `lint_skip.py` — `.lint_skip` parsing (line-preserving) + the provable-removal
+  coverage gate `is_completely_covered` (derived: check-tier ports ∪ canonical
+  codemods), backing `facade.reconcile_lint_skip` and the `lint-skip` command
+  (D24).
 - `results.py` — the structured result + introspection dataclasses.
 - `errors.py` — `UnknownRuleCode` / `UnknownRuleset` / `UnknownProfile` /
   `UpgradeFlagError`.

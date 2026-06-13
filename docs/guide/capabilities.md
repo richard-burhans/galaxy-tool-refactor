@@ -44,6 +44,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Drop a `<param>` `name` that its `argument` already implies | GTR037 | ✅ Shipped | `default` ruleset; planemo-parity *fix* |
 | Convert an RST `<help>` to Markdown when provably render-equivalent (profile ≥ 24.2; repair-then-convert; opt-in `convert-help`, never `format`/`upgrade`) | GTR092 | ✅ Shipped | `convert-help` command; tier-1 `rst_markdown` gate; 73.4% of corpus RST helps convertible (`docs/upgrade_research/restructuredtext_codemods.md`) |
 | Factor a literal `version="<base>+galaxy<suffix>"` into `@TOOL_VERSION@`/`@VERSION_SUFFIX@` tokens (opt-in `tokenize-version`; inline, or in a created / merged / directory-shared `--macros-file` (expansion-equality gated), or the identity-changing `--adopt-suffix` (controlled-change gated); never `format`/`upgrade`) | GTR094 | ✅ Shipped | `tokenize-version` command; codemod §43, cli §D13–D15, registry D20; 76 inline + 284 `--adopt-suffix` candidates (`scripts.measure version-tokenization`) |
+| Prune planemo `.lint_skip` suppressions the toolchain can prove are resolved (opt-in `lint-skip`; apply the fixes, remove a line only when its linter is *completely covered* and clean on every tool in the directory; leaves the rest untouched and unmentioned) | — | ✅ Shipped | `lint-skip` command; cli §D19, registry D24; 149 of 640 corpus suppressions auto-removable (`scripts.measure lint-skip-corpus`; `docs/lint_skip.md`) |
 
 ### Upgrade (repair + profile placement, opt-in & semantic)
 
@@ -122,7 +123,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Capability | Status | Source |
 |---|---|---|
 | Code-addressable rule registry + rulesets (`cosmetic`/`default`/`iuc`/`strict`) + `--select`/`--ignore` | ✅ Shipped | `galaxy-tool-refactor-registry` |
-| CLI (ten commands): `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` / `convert-help` / `tokenize-version` | ✅ Shipped | `galaxy-tool-refactor` |
+| CLI (eleven commands): `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` / `convert-help` / `tokenize-version` / `lint-skip` | ✅ Shipped | `galaxy-tool-refactor` |
 | MCP server for agents (seven tools): `format_tool` / `upgrade_tool` / `check_tool` / `convert_help_tool` / `tokenize_version_tool` / `list_rulesets` / `list_rules` | ✅ Shipped | `galaxy-tool-refactor-mcp` (vision Goal 1) |
 | Front-door metapackage `galaxy-tool-refactor` (depends on the CLI, with an `[mcp]` extra for the server); the eight packages are lockstep-versioned with a tag-triggered Trusted-Publishing release. `pip install galaxy-tool-refactor` installs the CLI (the `[mcp]` extra adds the MCP server) | ✅ Shipped (live on PyPI) | `galaxy-tool-refactor-meta/`, `.github/workflows/release.yml` |
 | Corpus evidence base: 9,374 unique tools, standing measurements | ✅ Shipped | `docs/*_stats.md`, `scripts/measure.py` |

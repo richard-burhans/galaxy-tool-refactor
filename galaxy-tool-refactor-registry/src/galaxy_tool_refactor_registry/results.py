@@ -225,3 +225,45 @@ class RenameParamResult:
     renamed: int = 0
     reason: str | None = None
     formatted: bytes | None = None
+
+
+@dataclass(frozen=True)
+class LintSkipRemoval:
+    """One ``.lint_skip`` line the toolchain proved is no longer needed.
+
+    Attributes:
+        name: The planemo linter name whose suppression line was removed.
+        codes: The GTR codes that completely cover that linter.
+        fixed: ``True`` when a fix cleared the linter (it had been firing);
+            ``False`` when it was already clean (a stale suppression).
+    """
+
+    name: str
+    codes: tuple[str, ...]
+    fixed: bool
+
+
+@dataclass(frozen=True)
+class LintSkipResult:
+    """The outcome of ``reconcile_lint_skip`` over one ``.lint_skip`` directory.
+
+    Only provable removals are reported; suppressions the toolchain cannot fix,
+    cannot prove, or does not cover are left untouched and unmentioned (the
+    author suppressed them deliberately; ``check`` reports the full picture).
+
+    Attributes:
+        removed: The lines proven removable (fixed-and-clean or already-clean
+            under complete coverage).
+        kept_lines: The rewritten ``.lint_skip`` raw lines, in original order
+            with the removed name-lines dropped and every other line (comments,
+            blanks, names left alone) preserved verbatim.
+        file_emptied: Whether nothing but blank lines remains (the caller may
+            delete the ``.lint_skip`` file).
+        documents: Per input document, the serialised bytes when a persisted fix
+            changed it, else ``None`` (so the caller writes only what changed).
+    """
+
+    removed: tuple[LintSkipRemoval, ...] = ()
+    kept_lines: tuple[str, ...] = ()
+    file_emptied: bool = False
+    documents: tuple[bytes | None, ...] = ()
