@@ -59,6 +59,7 @@ from scripts.measure import (
     _measure_upgrade_behavior_blocks,
     _measure_upgrade_headroom,
     _measure_upgrade_minimal_need,
+    _measure_version_suffix_shape,
     _measure_version_tokenization,
     _measure_xsd_tightenings,
     _normalize_validation_error,
@@ -278,6 +279,79 @@ def test_expand_reorder_resolution_empty_corpus(tmp_path: Path) -> None:
     assert result.n_unique_tools == 0
     assert result.n_with_top_expand == 0
     assert result.n_resolution_differs_from_pinning == 0
+
+
+# --- version-suffix-shape ---------------------------------------------------------
+
+
+@pytest.fixture()
+def version_suffix_corpus(tmp_path: Path) -> Path:
+    """Synthetic corpus exercising every version-shape bucket + token provenance."""
+    repo = tmp_path / "owner" / "version-repo"
+    repo.mkdir(parents=True)
+    # Shared macros file defining both canonical tokens (imported by tool A).
+    (repo / "macros.xml").write_text(
+        "<macros>"
+        '<token name="@TOOL_VERSION@">1.23.0</token>'
+        '<token name="@VERSION_SUFFIX@">1</token>'
+        "</macros>",
+        encoding="utf-8",
+    )
+    # A: canonical two-token, both tokens IMPORTED from macros.xml.
+    (repo / "imported.xml").write_text(
+        '<tool id="a" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@">'
+        "<macros><import>macros.xml</import></macros></tool>",
+        encoding="utf-8",
+    )
+    # B: canonical two-token, both tokens defined INLINE.
+    (repo / "inline.xml").write_text(
+        '<tool id="b" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"><macros>'
+        '<token name="@TOOL_VERSION@">2.0</token>'
+        '<token name="@VERSION_SUFFIX@">0</token>'
+        "</macros></tool>",
+        encoding="utf-8",
+    )
+    # C: literal base + literal galaxy suffix.
+    (repo / "literal_galaxy.xml").write_text(
+        '<tool id="c" version="1.0+galaxy1"/>', encoding="utf-8"
+    )
+    # D: literal, no galaxy suffix.
+    (repo / "literal_plain.xml").write_text(
+        '<tool id="d" version="1.0"/>', encoding="utf-8"
+    )
+    # E: bare token, no suffix.
+    (repo / "bare_token.xml").write_text(
+        '<tool id="e" version="@TOOL_VERSION@"><macros>'
+        '<token name="@TOOL_VERSION@">3.0</token></macros></tool>',
+        encoding="utf-8",
+    )
+    return tmp_path
+
+
+def test_version_suffix_shape_classes_and_provenance(
+    version_suffix_corpus: Path,
+) -> None:
+    result = _measure_version_suffix_shape(corpus_root=version_suffix_corpus)
+    assert result.n_unique_tools == 5  # macros.xml is not a <tool>
+    assert result.n_with_version == 5
+    assert dict(result.shape_counts) == {
+        "two-token (@A@+galaxy@B@)": 2,
+        "literal base + galaxyN": 1,
+        "literal (no galaxy suffix)": 1,
+        "bare token (no suffix)": 1,
+    }
+    assert result.n_two_token_canonical == 2
+    assert dict(result.token_source_counts) == {
+        "both imported from macros file": 1,
+        "both inline in tool <macros>": 1,
+    }
+
+
+def test_version_suffix_shape_empty_corpus(tmp_path: Path) -> None:
+    result = _measure_version_suffix_shape(corpus_root=tmp_path)
+    assert result.n_unique_tools == 0
+    assert result.n_with_version == 0
+    assert result.shape_counts == []
 
 
 # --- help-formats ----------------------------------------------------------------

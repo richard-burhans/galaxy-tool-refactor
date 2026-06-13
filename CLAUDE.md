@@ -401,6 +401,15 @@ uv run python -m scripts.measure lint-skip-corpus
 # disagree on (an `<expand>` the author placed out of its IUC slot). Corpus:
 # 4,081/9,373 have a top-level <expand>, 452 differ. Print-only; needs the corpus:
 uv run python -m scripts.measure expand-reorder-resolution
+
+# version= attribute shape distribution + two-token provenance (backs
+# docs/iuc_conference_questions.md #1, the suite-wide version-suffix question).
+# Per tool with a version=, classify the shape, and for the
+# @TOOL_VERSION@+galaxy@VERSION_SUFFIX@ two-token form resolve whether both tokens
+# are imported from a macros file vs defined inline (tier-1 token_definitions).
+# Corpus: 2,248/8,903 two-token, 73.9% of those import both tokens. Print-only;
+# needs the corpus:
+uv run python -m scripts.measure version-suffix-shape
 ```
 
 **Note:** invoke as `python -m scripts.X`, not `python scripts/X.py` — the
