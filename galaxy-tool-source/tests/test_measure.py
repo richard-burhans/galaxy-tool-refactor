@@ -29,6 +29,7 @@ from scripts.measure import (
     _measure_collection_type_normalization,
     _measure_command_iuc_heuristics,
     _measure_command_language,
+    _measure_command_quoting_kinds,
     _measure_element_cardinality,
     _measure_help_formats,
     _measure_help_rst_errors,
@@ -2214,3 +2215,58 @@ def test_measure_lint_skip_corpus_empty(tmp_path: Path) -> None:
     assert result.skip_files == 0
     assert result.name_lines == 0
     assert result.bucket_counts.total() == 0
+
+
+# --- command-quoting-kinds ------------------------------------------------------
+
+
+def test_command_var_kind_classifies_by_param_kind() -> None:
+    from scripts.measure import _command_var_kind
+
+    inputs = {"reads": "data", "title": "text", "mode": "select", "n": "integer"}
+    outs = {"out"}
+
+    def kind(name: str) -> str:
+        return _command_var_kind(name, input_types=inputs, output_names=outs)
+
+    assert kind("$reads") == "input-file"
+    assert kind("$title") == "text-param"
+    assert kind("$out") == "output-file"
+    assert kind("$mode") == "select"
+    assert kind("$n") == "numeric"
+    assert kind("$reads.ext") == "attr"  # metadata accessor, not a file
+    assert kind("$__tool_directory__") == "builtin"
+    assert kind("$nosuch") == "non-input"
+
+
+def test_measure_command_quoting_kinds_splits_keep_vs_drop(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    (repo / "tool.xml").write_text(
+        "<tool>"
+        "<command><![CDATA[\n"
+        "mytool $reads $reads.ext --mode $mode --title $title "
+        "$__tool_directory__/x > $out\n"
+        "]]></command>"
+        "<inputs>"
+        '<param name="reads" type="data"/>'
+        '<param name="title" type="text"/>'
+        '<param name="mode" type="select">'
+        '<option value="a">A</option><option value="b">B</option></param>'
+        "</inputs>"
+        '<outputs><data name="out"/></outputs>'
+        "</tool>",
+        encoding="utf-8",
+    )
+    result = _measure_command_quoting_kinds(corpus_root=tmp_path)
+    assert result.n_tools == 1
+    # Auto-quoted today: the data input (KEEP), plus select / attr / builtin (DROP).
+    assert result.quoted_by_kind["input-file"] == 1
+    assert result.quoted_by_kind["select"] == 1
+    assert result.quoted_by_kind["attr"] == 1
+    assert result.quoted_by_kind["builtin"] == 1
+    assert "text-param" not in result.quoted_by_kind  # text is not quoted today
+    assert "output-file" not in result.quoted_by_kind  # outputs not quoted today
+    # IUC-scope references not auto-quoted (residual, GTR020.2 reports these):
+    assert result.iuc_unquoted["text-param"] == 1
+    assert result.iuc_unquoted["output-file"] == 1

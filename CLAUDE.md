@@ -368,6 +368,15 @@ uv run python -m scripts.measure macro-format-residual
 # Writes docs/macro_token_residual_stats.md (needs the corpus, so not run in CI):
 uv run python -m scripts.measure macro-token-datatype-residual
 
+# GTR020.1 quoting scope vs the IUC "text/input/output files must be quoted" rule:
+# classify the <command> vars GTR020.1 auto-quotes today by Galaxy param KIND
+# (input-file / numeric / select / boolean / attr / builtin), so a proposed
+# restriction to the IUC scope shows KEEP (input files) vs DROP (the safe no-op
+# quoting of non-file single-token vars), plus the text-param / output-file refs
+# the IUC rule wants but GTR020.1 can't behavior-preservingly quote (GTR020.2's
+# advisory residual). Print-only; needs the corpus:
+uv run python -m scripts.measure command-quoting-kinds
+
 # `.lint_skip` reconciliation sizing (the `lint-skip` command, cli D19 / registry
 # D24): classify every planemo `.lint_skip` name-line, mirroring the shipped
 # removability gate, into auto-removable (fixed-removable + already-stale),
