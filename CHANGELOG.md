@@ -87,6 +87,13 @@ is the breaking-change channel.
   definitions before gating (an unresolvable token fails closed, with a note);
   across the corpus this places 9,371 of 9,373 baselines.
 
+### Fixed
+- **The formatter now ends output with a trailing newline** (fmt decisions
+  §D22; found running `format` for real tools-iuc PRs). `serializer.to_bytes`
+  appended none, so every formatted file lost its final `\n` while all
+  tools-iuc tool XML files end with one. Fixed in the single serialisation
+  chokepoint, so every output path gains it; idempotent.
+
 ### Added
 - `UpgradeResult` fields `stopped_at`, `blocking_codes`, and
   `auto_fixed_codes` (also in the MCP `upgrade_tool` result), and the typed
