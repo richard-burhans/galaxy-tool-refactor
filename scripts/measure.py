@@ -2204,28 +2204,27 @@ def _run_iuc011_fixability(args: argparse.Namespace) -> None:
 
 # --- measurement: command-quoting-kinds -----------------------------------------
 #
-# Sizes the proposed restriction of GTR020.1 (SingleQuoteCommandVars) to the IUC
-# rule's literal scope: "All Cheetah variables for text parameters, input and
-# output files must be single-quoted." GTR020.1 today quotes a *different* axis —
-# the behaviour-preserving subset (provably single-token values, the value-domain
-# `quote_is_behavior_preserving` gate) — so it quotes more than the IUC scope in
-# some directions and less in others. This measure classifies, by Galaxy
-# parameter KIND, both populations:
+# GTR020.1 (SingleQuoteCommandVars) coverage by Galaxy parameter KIND, measured
+# against the IUC rule: "All Cheetah variables for text parameters, input and
+# output files must be single-quoted." GTR020.1 quotes the behaviour-preserving
+# subset (provably single-token values, the `quote_is_behavior_preserving` gate
+# over `command_var_info`), which now includes input files AND output `<data>`
+# files (an output dataset path is the same single-token Galaxy-controlled value;
+# tier-1 `docs/decisions.md` §16). This measure classifies, by kind:
 #
-#   1. What GTR020.1 auto-quotes TODAY, split by kind, so we can see what
-#      "restrict to {text param, input file, output file}" would KEEP (input
-#      files) vs DROP (numeric / select / boolean / other single-token types /
-#      metadata attrs / Galaxy built-ins — all safe no-ops today).
-#   2. The IUC-scope references it does NOT quote today: bare `$text_param` and
-#      bare `$output_file` occurrences. These are exactly the IUC rule's intent
-#      but are NOT behaviour-preserving to auto-quote (a text value may contain
-#      spaces the quoting would newly protect), which is why GTR020.1 leaves
-#      them and GTR020.2 reports them advisory-only.
+#   1. What GTR020.1 auto-quotes, split by kind — the two IUC-scope file kinds
+#      (input-file, output-file) plus the behaviour-preserving extras outside the
+#      IUC scope it also quotes as safe no-ops (numeric / select / boolean /
+#      other single-token types / metadata attrs / Galaxy built-ins).
+#   2. The IUC-scope references it does NOT quote: bare `$text_param`. A text
+#      value may contain spaces the quoting would newly protect, so quoting it is
+#      NOT behaviour-preserving — GTR020.1 leaves it and GTR020.2 reports it
+#      advisory-only. (Output files used to be here too; §16 moved them into the
+#      provable set.)
 #
-# So the headline question the numbers answer: restricting GTR020.1 to the IUC
-# scope is mostly a NARROWING (drop the safe non-file quoting), and the
-# text/output half cannot move into GTR020.1 without breaking its
-# behaviour-preservation contract. Print-only; needs the corpus.
+# So the numbers show GTR020.1 now covers the input+output *file* half of the IUC
+# rule, with the text-param half remaining advisory by necessity. Print-only;
+# needs the corpus.
 
 
 @dataclass
@@ -2307,7 +2306,7 @@ def _measure_command_quoting_kinds(
 ) -> _CommandQuotingKindsResult:
     """Classify GTR020.1's quoted population (and the IUC-scope residual) by kind."""
     from galaxy_tool_source.command_text import unquoted_cheetah_vars
-    from galaxy_tool_source.command_vars import input_param_info
+    from galaxy_tool_source.command_vars import command_var_info
     from galaxy_tool_source.shell_oracle import quote_is_behavior_preserving
 
     seen: set[str] = set()
@@ -2332,7 +2331,7 @@ def _measure_command_quoting_kinds(
         if not occurrences:
             continue
         n_tools += 1
-        kinds, structural = input_param_info(root)
+        kinds, structural = command_var_info(root)
         input_types = _command_input_types(root)
         output_names = _command_output_names(root)
         for occurrence in occurrences:
@@ -2378,29 +2377,25 @@ def _report_command_quoting_kinds(result: _CommandQuotingKindsResult) -> None:
     def pct(n: int) -> float:
         return 100 * n / total if total else 0.0
 
-    print("\n=== command-quoting-kinds (GTR020.1 scope vs the IUC text/input/output rule) ===")
+    print("\n=== command-quoting-kinds (GTR020.1 coverage vs the IUC text/input/output rule) ===")
     print(
         f"Pure-text <command> tools with >=1 unquoted var: {result.n_tools}; "
-        f"occurrences GTR020.1 auto-quotes today: {total}"
+        f"occurrences GTR020.1 auto-quotes: {total}"
     )
-    print("\nWhat GTR020.1 quotes TODAY, by Galaxy parameter kind:")
+    print("\nWhat GTR020.1 quotes, by Galaxy parameter kind:")
     for kind in _QUOTING_KINDS:
         count = result.quoted_by_kind.get(kind, 0)
         if count:
-            tag = "  [IUC scope]" if kind in _IUC_QUOTING_SCOPE else "  [DROP if restricted]"
+            tag = "  [IUC scope]" if kind in _IUC_QUOTING_SCOPE else "  [safe no-op, outside IUC scope]"
             print(f"  {kind:18} {count:7d}  ({pct(count):.1f}%){tag}")
-    keep = sum(result.quoted_by_kind.get(k, 0) for k in _IUC_QUOTING_SCOPE)
-    drop = total - keep
+    files = sum(result.quoted_by_kind.get(k, 0) for k in ("input-file", "output-file"))
     print(
-        f"\nRestricting GTR020.1 to {{text param, input file, output file}}:"
-        f"\n  KEEP (input files; the only IUC-scope kind it quotes today): "
-        f"{keep} ({pct(keep):.1f}%)"
-        f"\n  DROP (safe no-op quoting of non-file single-token vars): "
-        f"{drop} ({pct(drop):.1f}%)"
+        f"\nIUC-scope file coverage (input + output files GTR020.1 now quotes): "
+        f"{files} ({pct(files):.1f}%)"
     )
     print(
-        "\nIUC-scope references GTR020.1 does NOT quote today (not "
-        "behaviour-preserving;\nGTR020.2 reports them advisory-only):"
+        "\nIUC-scope references GTR020.1 does NOT quote (not behaviour-preserving;"
+        "\nGTR020.2 reports them advisory-only):"
     )
     for kind in ("text-param", "output-file"):
         print(f"  {kind:18} {result.iuc_unquoted.get(kind, 0):7d} occurrence(s)")

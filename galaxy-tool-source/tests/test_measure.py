@@ -2260,13 +2260,14 @@ def test_measure_command_quoting_kinds_splits_keep_vs_drop(tmp_path: Path) -> No
     )
     result = _measure_command_quoting_kinds(corpus_root=tmp_path)
     assert result.n_tools == 1
-    # Auto-quoted today: the data input (KEEP), plus select / attr / builtin (DROP).
+    # Auto-quoted: both IUC-scope files (input + output <data>), plus the
+    # behaviour-preserving extras outside the IUC scope (select / attr / builtin).
     assert result.quoted_by_kind["input-file"] == 1
+    assert result.quoted_by_kind["output-file"] == 1  # §16: outputs now quoted
     assert result.quoted_by_kind["select"] == 1
     assert result.quoted_by_kind["attr"] == 1
     assert result.quoted_by_kind["builtin"] == 1
-    assert "text-param" not in result.quoted_by_kind  # text is not quoted today
-    assert "output-file" not in result.quoted_by_kind  # outputs not quoted today
-    # IUC-scope references not auto-quoted (residual, GTR020.2 reports these):
+    assert "text-param" not in result.quoted_by_kind  # text is not behaviour-preserving
+    # IUC-scope reference still not auto-quoted (the text param; GTR020.2 reports it):
     assert result.iuc_unquoted["text-param"] == 1
-    assert result.iuc_unquoted["output-file"] == 1
+    assert "output-file" not in result.iuc_unquoted  # outputs are now covered
