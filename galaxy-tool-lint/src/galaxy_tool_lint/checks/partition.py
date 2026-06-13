@@ -89,18 +89,21 @@ class HelpCdata(CheckRule):
 class SingleQuotedCheetah(CheckRule):
     """GTR020.2 — single-quote Cheetah variables in ``<command>`` (advisory residual).
 
-    The advisory half of GTR020: the fixable sibling ``GTR020.1``
-    (``SingleQuoteCommandVars``) auto-quotes the behaviour-preserving occurrences, so
-    this reports one finding only per unquoted shell-line ``$var`` it *cannot* — a
-    free-form ``text`` param or ``multiple=`` splat in a word-splitting position, a
-    dataset-label attr, ``$on_string``, a ``#set``/loop var, or (when the
-    ``shell-oracle`` extra is present) an fd-dup target. The residual is computed with
-    the **same** shared tier-1 policy ``quote_is_behavior_preserving`` the fixer uses
-    (value-domain ``provably_quotable``, plus the bashlex fd-dup narrowing when the
-    extra is installed), so the fix/advisory split never drifts. A
-    mixed-content ``<command>`` (which GTR020.1 skips wholesale) reports all its
-    unquoted vars. Cheetah directive lines and already-quoted references are excluded
-    by the read-only ``command_text`` lexer.
+    The advisory half of GTR020: it reports one finding per unquoted shell-line
+    ``$var`` that is **not provably safe** to single-quote — a free-form ``text``
+    param or ``multiple=`` splat in a word-splitting position, a dataset-label attr,
+    ``$on_string``, a ``#set``/loop var, or (when the ``shell-oracle`` extra is
+    present) an fd-dup target — using the shared tier-1 ``quote_is_behavior_preserving``
+    predicate (value-domain ``provably_quotable``, plus the bashlex fd-dup narrowing).
+    Note the fixable sibling ``GTR020.1`` was narrowed (codemod ``docs/decisions.md``
+    §52) to auto-quote only the IUC rule's input/output **files**, a subset of the
+    provably-safe set; the other provably-safe kinds (selects, numbers, booleans,
+    metadata attrs, Galaxy built-ins) are therefore neither auto-quoted nor flagged
+    here — quoting them is a safe no-op but outside the rule, so they are left alone.
+    This check is unchanged by that narrowing: it still flags exactly the
+    not-provably-safe residual. A mixed-content ``<command>`` (which GTR020.1 skips
+    wholesale) reports all its unquoted vars. Cheetah directive lines and
+    already-quoted references are excluded by the read-only ``command_text`` lexer.
     """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
