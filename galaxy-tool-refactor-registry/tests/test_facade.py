@@ -1035,3 +1035,101 @@ def test_upgrade_default_ignores_the_deployment_ceiling() -> None:
     result = facade.upgrade(_CLEAN_LEGACY, codes=resolve_upgrade_codes())
     assert not [n for n in result.notes if "deployment ceiling" in n]
     assert result.stopped_at is None
+
+
+# --- reconcile_lint_skip --------------------------------------------------------
+
+_NO_CITATIONS = (
+    b'<tool id="t" name="T" version="1.0">'
+    b"<command><![CDATA[echo x]]></command><inputs/>"
+    b"<outputs><data name='o'/></outputs>"
+    b"</tool>"
+)
+_CLEAN_WITH_CITES = (
+    b'<tool id="t" name="T" version="1.0">'
+    b"<command><![CDATA[echo x]]></command><inputs/>"
+    b"<outputs><data name='o'/></outputs>"
+    b"<citations><citation type='doi'>10.1/x</citation></citations>"
+    b"</tool>"
+)
+
+
+def _doc(source: bytes):
+    from galaxy_tool_source.binding import load_tool
+
+    return load_tool(source)
+
+
+def _skip(*names: str):
+    from galaxy_tool_refactor_registry.lint_skip import parse_lint_skip
+
+    return parse_lint_skip("\n".join(names) + "\n")
+
+
+_REDUNDANT_NAME = (
+    b'<tool id="t" name="T" version="1.0">'
+    b"<command><![CDATA[echo x]]></command>"
+    b'<inputs><param argument="--foo" name="foo" type="text"/></inputs>'
+    b'<outputs><data name="o"/></outputs></tool>'
+)
+
+
+def test_reconcile_lint_skip_removes_a_fixed_line() -> None:
+    """InputsNameRedundantArgument: GTR037 drops the redundant name, clearing it."""
+    doc = _doc(_REDUNDANT_NAME)
+    result = facade.reconcile_lint_skip([doc], _skip("InputsNameRedundantArgument"))
+    assert [r.name for r in result.removed] == ["InputsNameRedundantArgument"]
+    assert result.removed[0].fixed is True
+    assert result.file_emptied is True
+    assert result.documents[0] is not None  # the tool XML was fixed
+    assert b'name="foo"' not in result.documents[0]  # redundant name dropped
+    assert b"<?xml" not in result.documents[0]
+
+
+def test_reconcile_lint_skip_removes_a_stale_line_without_touching_the_tool() -> None:
+    """CitationsNoValid on a tool that already has citations: stale, removed, no fix."""
+    doc = _doc(_CLEAN_WITH_CITES)
+    result = facade.reconcile_lint_skip([doc], _skip("CitationsNoValid"))
+    assert [r.name for r in result.removed] == ["CitationsNoValid"]
+    assert result.removed[0].fixed is False  # already clean
+    assert result.documents[0] is None  # tool left untouched
+    assert result.file_emptied is True
+
+
+def test_reconcile_lint_skip_keeps_a_still_firing_line_silently() -> None:
+    """CitationsNoValid on a tool with no citations still fires -> keep, no report."""
+    doc = _doc(_NO_CITATIONS)  # no <citations>
+    result = facade.reconcile_lint_skip([doc], _skip("CitationsNoValid"))
+    assert result.removed == ()
+    assert result.kept_lines == ("CitationsNoValid",)
+    assert result.file_emptied is False
+    assert result.documents[0] is None  # nothing earned a fix
+
+
+def test_reconcile_lint_skip_keeps_incompletely_covered_lines() -> None:
+    """ValidDatatypes (GTR010 only, incidental) is never removed, even if clean."""
+    doc = _doc(_CLEAN_WITH_CITES)
+    result = facade.reconcile_lint_skip([doc], _skip("ValidDatatypes"))
+    assert result.removed == ()
+    assert result.kept_lines == ("ValidDatatypes",)
+
+
+def test_reconcile_lint_skip_preserves_comments_and_unremoved_names() -> None:
+    """A removed line drops out; comments and kept names stay verbatim."""
+    doc = _doc(_CLEAN_WITH_CITES)  # citations present -> CitationsNoValid stale
+    lines = _skip("# author note", "CitationsNoValid", "TestsCaseValidation")
+    result = facade.reconcile_lint_skip([doc], lines)
+    assert [r.name for r in result.removed] == ["CitationsNoValid"]
+    # The comment and the uncovered TestsCaseValidation line are preserved.
+    assert result.kept_lines == ("# author note", "TestsCaseValidation")
+    assert result.file_emptied is False
+
+
+def test_reconcile_lint_skip_requires_all_dir_tools_clear() -> None:
+    """A line is removed only if clear on every tool the .lint_skip governs."""
+    has_cites = _doc(_CLEAN_WITH_CITES)
+    no_cites = _doc(_NO_CITATIONS)  # no citations -> CitationsNoValid still fires here
+    result = facade.reconcile_lint_skip(
+        [has_cites, no_cites], _skip("CitationsNoValid")
+    )
+    assert result.removed == ()  # one tool still trips it -> keep for the dir

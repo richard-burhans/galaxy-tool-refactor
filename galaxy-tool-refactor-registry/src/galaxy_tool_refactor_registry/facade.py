@@ -68,11 +68,17 @@ from galaxy_tool_refactor_registry.adapters import fmt_rule_by_code
 from galaxy_tool_refactor_registry.apply import apply_selection
 from galaxy_tool_refactor_registry.errors import UnknownProfile, UpgradeFlagError
 from galaxy_tool_refactor_registry.registry import all_handles, registry
+from galaxy_tool_refactor_registry.lint_skip import (
+    covering_codes,
+    is_completely_covered,
+)
 from galaxy_tool_refactor_registry.results import (
     ConvertHelpResult,
     DetectResult,
     FindReferencesResult,
     FormatResult,
+    LintSkipRemoval,
+    LintSkipResult,
     NewMacrosFile,
     ParamOccurrence,
     RenameParamResult,
@@ -89,7 +95,12 @@ from galaxy_tool_refactor_registry.version_token_share import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from galaxy_tool_refactor_rules.violation import Violation
+
+    from galaxy_tool_refactor_registry.handle import RuleHandle
+    from galaxy_tool_refactor_registry.lint_skip import LintSkipLine
 
 
 def _to_document(source: Source | ToolDocument, /) -> ToolDocument:
@@ -219,6 +230,112 @@ def rename_param(
         changed=True,
         renamed=outcome.renamed,
         formatted=formatted,
+    )
+
+
+def _lint_skip_apply(
+    document: ToolDocument,
+    fixable: list[str],
+    handles: dict[str, RuleHandle],
+) -> None:
+    """Apply *fixable* covering codes to *document* in place (in ``meta.order``)."""
+    for code in sorted(fixable, key=lambda c: handles[c].meta.order):
+        apply_fn = handles[code].apply
+        assert apply_fn is not None  # fixable => apply is non-None
+        apply_fn(document)
+
+
+def _lint_skip_clearable(
+    codes: list[str],
+    fixable: list[str],
+    documents: Sequence[ToolDocument],
+    handles: dict[str, RuleHandle],
+) -> bool:
+    """Whether applying *fixable* clears every covering code on every document.
+
+    Tested in isolation on a deep copy per document (``source_path`` preserved,
+    so macro-expanded detection stays faithful) — the real documents are mutated
+    only once a removal is earned.
+    """
+    for document in documents:
+        probe = ToolDocument(
+            copy.deepcopy(document.tree), source_path=document.source_path
+        )
+        _lint_skip_apply(probe, fixable, handles)
+        if any(handles[code].detect(probe) for code in codes):
+            return False
+    return True
+
+
+def reconcile_lint_skip(
+    documents: Sequence[ToolDocument],
+    lines: Sequence[LintSkipLine],
+    /,
+) -> LintSkipResult:
+    """Remove the ``.lint_skip`` lines the toolchain can prove are no longer needed.
+
+    *documents* are every ``<tool>`` the ``.lint_skip`` governs (its directory);
+    *lines* is the parsed file (``parse_lint_skip``). A suppression is removed
+    only when its planemo linter is **completely covered** (every covering GTR
+    code is a faithful check-tier port or a canonical codemod — ``lint_skip``
+    `docs/decisions.md` D24) **and** is clean on every tool after applying the
+    covering fixes. Everything else is left untouched and unreported: the author
+    suppressed it deliberately, and ``check`` reports the full picture.
+
+    Library-first: only the documents whose fix earned a removal are mutated in
+    place, and their serialised bytes are returned (``documents[i]`` is ``None``
+    when document *i* was left unchanged); the caller writes the changed tools
+    and the rewritten ``.lint_skip`` (``kept_lines``).
+    """
+    handles = all_handles()
+    names: list[str] = []
+    seen: set[str] = set()
+    for line in lines:
+        if line.name is not None and line.name not in seen:
+            seen.add(line.name)
+            names.append(line.name)
+
+    removed: list[LintSkipRemoval] = []
+    removable: set[str] = set()
+    for name in names:
+        if not is_completely_covered(name):
+            continue
+        codes = sorted(covering_codes(name))
+        fixable = [code for code in codes if handles[code].apply is not None]
+        fired_before = any(
+            handles[code].detect(doc) for doc in documents for code in codes
+        )
+        if not _lint_skip_clearable(codes, fixable, documents, handles):
+            continue
+        removable.add(name)
+        removed.append(
+            LintSkipRemoval(name=name, codes=tuple(codes), fixed=fired_before)
+        )
+
+    # Persist only the fixes that earned a removal (a stale-only run touches no
+    # tool). apply_selection runs the codemods and serialises through fmt.
+    persist = frozenset(
+        code
+        for name in removable
+        for code in covering_codes(name)
+        if handles[code].apply is not None
+    )
+    out: list[bytes | None] = []
+    for document in documents:
+        before = format_tool_document_subset(document, rule_classes=())
+        after = apply_selection(document, codes=persist) if persist else before
+        out.append(after if after != before else None)
+
+    kept = tuple(
+        line.raw
+        for line in lines
+        if not (line.name is not None and line.name in removable)
+    )
+    return LintSkipResult(
+        removed=tuple(removed),
+        kept_lines=kept,
+        file_emptied=not any(line.strip() for line in kept),
+        documents=tuple(out),
     )
 
 
