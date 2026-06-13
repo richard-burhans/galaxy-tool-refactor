@@ -2307,7 +2307,11 @@ def _measure_command_quoting_kinds(
 ) -> _CommandQuotingKindsResult:
     """Classify GTR020.1's quoted population (and the IUC-scope residual) by kind."""
     from galaxy_tool_source.command_text import unquoted_cheetah_vars
-    from galaxy_tool_source.command_vars import command_var_info
+    from galaxy_tool_source.command_vars import (
+        command_var_info,
+        io_file_names,
+        is_io_file_ref,
+    )
     from galaxy_tool_source.shell_oracle import quote_is_behavior_preserving
 
     seen: set[str] = set()
@@ -2333,6 +2337,7 @@ def _measure_command_quoting_kinds(
             continue
         n_tools += 1
         kinds, structural = command_var_info(root)
+        io_files = io_file_names(root)
         input_types = _command_input_types(root)
         output_names = _command_output_names(root)
         for occurrence in occurrences:
@@ -2341,13 +2346,19 @@ def _measure_command_quoting_kinds(
                 input_types=input_types,
                 output_names=output_names,
             )
-            if quote_is_behavior_preserving(
+            # GTR020.1 now quotes only input/output FILE refs (codemod §52): provably
+            # single-token AND an io-file ref.
+            quoted = is_io_file_ref(
+                occurrence.name, io_files, structural
+            ) and quote_is_behavior_preserving(
                 text, occurrence=occurrence, kinds=kinds, structural=structural
-            ):
+            )
+            if quoted:
                 n_quoted += 1
                 quoted_by_kind[kind] += 1
             elif kind in ("text-param", "output-file"):
-                # The IUC rule's intent, but not behaviour-preserving to auto-quote.
+                # The IUC rule's intent, but not auto-quoted (text: not provably safe;
+                # output: e.g. a <collection> output or an unresolved ref).
                 iuc_unquoted[kind] += 1
     return _CommandQuotingKindsResult(
         n_tools=n_tools,
