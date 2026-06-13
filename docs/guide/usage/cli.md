@@ -1,13 +1,15 @@
 # Using it from the command line
 
-> **TL;DR.** Install, then run one of ten commands on a tool file or a directory:
+> **TL;DR.** Install, then run one of eleven commands on a tool file or a directory:
 > `format` (fix), `upgrade` (repair; bump profile only when needed), `check` (report), `find-references`
 > (locate a param's Cheetah `$var` uses across a tool **and its imported macros**),
 > `rename-param` (rename a param everywhere — tool **and its imported macros** —
 > atomically), `rulesets`/`rules` (introspect), `normalize-macros` (opt-in macro-library
-> fix), `convert-help` (opt-in RST → Markdown help conversion, equivalence-gated).
-> `format`/`upgrade`/`rename-param`/`convert-help`/`tokenize-version` support `--check` (and
-> `format`/`upgrade` `--diff`) to preview without writing; all five mutating commands
+> fix), `convert-help` (opt-in RST → Markdown help conversion, equivalence-gated),
+> `tokenize-version` (opt-in version-token extraction), `lint-skip` (opt-in: prune
+> planemo `.lint_skip` suppressions we can prove are resolved).
+> `format`/`upgrade`/`rename-param`/`convert-help`/`tokenize-version`/`lint-skip` support `--check` (and
+> `format`/`upgrade` `--diff`) to preview without writing; all six mutating commands
 > take `--backup` (`<file>.bak` before overwrite).
 
 ## Install & run
@@ -28,7 +30,7 @@ uv sync
 uv run galaxy-tool-refactor --help
 ```
 
-The ten commands:
+The eleven commands:
 
 ```text
 check            Report where tools deviate from the selection, without changing them.
@@ -62,6 +64,11 @@ convert-help     Convert an RST <help> to Markdown (format="markdown") when prov
                  render-equivalent and the profile is >= 24.2 (run upgrade first below it);
                  anything unprovable is skipped with the reason (opt-in; never part of
                  format/upgrade — it swaps Galaxy's rendering engine).
+lint-skip        Clean up planemo .lint_skip sidecars: apply the toolchain's fixes and
+                 delete a suppression line only when it is provably resolved (the linter
+                 is completely covered AND clean on every tool in the directory after
+                 the fix). Leaves what it cannot prove untouched and unmentioned (opt-in;
+                 --check previews). See docs/lint_skip.md.
 ```
 
 ## Preview before you write

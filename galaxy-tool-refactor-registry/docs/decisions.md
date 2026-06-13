@@ -886,3 +886,54 @@ that even the flagship public servers run pre-releases.
   the actionable one, naming the blocking codes). The walk contract sweep
   (`corpus_check upgrade --mode modernize`) splits its success counter into
   `stopped-deployment` / `stopped-gate` accordingly.
+
+## D24 (2026-06-13): `lint-skip` — the provable-removal coverage gate
+
+Reproduced-by: `uv run --package galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_lint_skip.py
+galaxy-tool-refactor-registry/tests/test_facade.py -k lint_skip` and the corpus
+sizing `uv run python -m scripts.measure lint-skip-corpus`. Origin: a maintainer
+ask to clean up the planemo `.lint_skip` sidecars authors accumulate.
+
+- **The convenience, and its one promise.** `lint_skip.py` +
+  `facade.reconcile_lint_skip` back the `lint-skip` command (cli D19): apply the
+  fixes the toolchain has and delete a `.lint_skip` suppression line **only when
+  the toolchain can prove it is no longer needed**. Anything it cannot fix,
+  cannot prove, or does not cover is left untouched and unreported — the author
+  suppressed it deliberately, and `check` already reports the full picture. The
+  scope is a deliberate maintainer decision: a convenience that removes only what
+  it can stand behind, never an auditor that re-surfaces silenced complaints.
+- **"Prove" = complete coverage AND clean after fixing.** A planemo linter is
+  *completely covered* when every GTR code carrying its name is faithful to the
+  whole linter, so a clean detection implies planemo would pass. The faithful set
+  is **derived, not hand-curated** (`_complete_coverage_codes`): every detect-only
+  **check**-tier rule (the planemo-parity ports, each built and verified against
+  planemo) plus every **canonical codemod** (a targeted, behaviour-preserving fix
+  whose detector is exactly the linter's complaint — GTR013 element order, GTR037
+  redundant param name, GTR089.1 RST repair). Profile-upgrade and runtime-gated
+  codemods are excluded: they may cover a planemo name only *incidentally*. The
+  decisive corpus case is `ValidDatatypes` → GTR010, which normalises datatype
+  casing but does not validate against the datatype registry; GTR010 ∉ the
+  faithful set, so `ValidDatatypes` is never removed (its 32 corpus suppressions
+  land in the measure's `coverage-partial` bucket, kept).
+- **Dir-wide safety.** A `.lint_skip` governs every `<tool>` in its directory, so
+  a line is removable only when it is clean on *all* of them. `reconcile_lint_skip`
+  takes the directory's documents, decides removability per name on a deep copy
+  (`source_path` preserved so macro-expanded detection stays faithful), and only
+  *then* persists — applying the covering fixes to the real documents, returning
+  the changed ones' bytes (others come back `None`, so the caller writes only what
+  a fix actually touched). On vg this repairs `deconstruct.xml`'s RST, leaves
+  `convert.xml`/`view.xml` byte-identical, and removes `HelpInvalidRST` because it
+  is clean across all three; `CitationsNoValid` (detect-only, firing) is kept.
+- **Soundness asymmetry, stated honestly.** Unlike the upgrade behavior gate
+  (which guards runtime behaviour), the cost of an unsound removal here is only a
+  re-surfaced lint message — visible and recoverable, not a behaviour change. The
+  gate is nonetheless conservative because the feature's whole value is that its
+  removals can be trusted unattended. The faithful check-tier ports deliberately
+  skip macro-injected constructs (the parity-arc convention), so coverage is a
+  near-, not perfect, superset; the gate accepts that bounded conservatism, the
+  same the rest of the toolchain uses.
+- **Library-first, no IO.** The facade mutates the passed documents and returns
+  bytes + the rewritten `.lint_skip` lines + a `file_emptied` flag; the CLI does
+  the file IO (cli D19). The measure shares the same gate
+  (`is_completely_covered`), so the sizing and the command can never disagree.

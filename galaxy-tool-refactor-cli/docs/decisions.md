@@ -538,3 +538,31 @@ behaviour gate); the only way past the deployment ceiling is an explicit
 `--target-profile`, which prints an informational note when the requested
 target exceeds it. The help text names both ceilings so the flag surface
 stays self-describing.
+
+## D19 (2026-06-13): `lint-skip` — prune provable `.lint_skip` suppressions
+
+Reproduced-by: `uv run --package galaxy-tool-refactor-cli pytest
+galaxy-tool-refactor-cli/tests/test_cli.py -k lint_skip`. The provable-removal
+gate and the facade are registry D24.
+
+- **The command.** `galaxy-tool-refactor lint-skip PATHS [--check] [--backup]`:
+  for each tool directory under PATHS that carries a `.lint_skip`, load **every**
+  `<tool>` in the directory (the sidecar governs them all; a malformed tool bails
+  the whole directory — we cannot prove dir-wide safety), call
+  `facade.reconcile_lint_skip`, then write the repaired tools (only those a fix
+  changed) and the rewritten `.lint_skip` (deleted when nothing but blanks
+  remains), backing up originals under `--backup`. `--check` previews and exits
+  non-zero when anything would change (a CI gate, matching `format --check`).
+- **The tenth-plus command, deliberately separate.** Like `normalize-macros` and
+  `convert-help` it rewrites files other than the one named (the tool XML *and*
+  its sidecar), so it is never folded into `format`/`upgrade`. It is a
+  convenience: it reports only the lines it removes; suppressions it cannot fix,
+  prove, or cover are left untouched and unmentioned (registry D24). `check`
+  remains the command for "tell me everything", so `lint-skip` does not duplicate
+  that surface.
+- **All-tools-in-dir, write-only-what-changed.** Discovery finds directories via
+  the tools under PATHS but then globs *all* `<tool>` files in each, so running
+  `lint-skip tools/vg/view.xml` still reconciles against `convert.xml` /
+  `deconstruct.xml` too (a line is removable only when clear for the whole
+  directory). The facade returns per-document bytes; the command writes only the
+  documents a fix actually changed.

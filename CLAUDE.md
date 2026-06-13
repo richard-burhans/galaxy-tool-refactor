@@ -13,7 +13,7 @@ galaxy-tool-refactor/
 ├── galaxy-tool-fmt/      Tier 3 (formatting)
 ├── galaxy-tool-lint/    Tier 3.5 (advisory detect-only checks)
 ├── galaxy-tool-refactor-registry/ Tier 3.6 (unified rule registry + rulesets; library-first facade)
-├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + find-references + rename-param + rulesets/rules + normalize-macros + convert-help + tokenize-version)
+├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + find-references + rename-param + rulesets/rules + normalize-macros + convert-help + tokenize-version + lint-skip)
 ├── galaxy-tool-refactor-mcp/ Tier 4 (MCP server over the registry facade; thin FastMCP adapter)
 ├── galaxy-tool-refactor-meta/ Front-door metapackage (dist `galaxy-tool-refactor`; deps cli + `[mcp]` extra; no code)
 ├── scripts/                  Shared maintainer scripts (not installed)
@@ -367,6 +367,14 @@ uv run python -m scripts.measure macro-format-residual
 # heavyweight expansion-provenance layer is unjustified for datatypes (2a is complete).
 # Writes docs/macro_token_residual_stats.md (needs the corpus, so not run in CI):
 uv run python -m scripts.measure macro-token-datatype-residual
+
+# `.lint_skip` reconciliation sizing (the `lint-skip` command, cli D19 / registry
+# D24): classify every planemo `.lint_skip` name-line, mirroring the shipped
+# removability gate, into auto-removable (fixed-removable + already-stale),
+# coverage-partial (covered only incidentally, kept), located (fires, kept), and
+# out-of-coverage (kept). Print-only; needs the corpus. Corpus: auto-removable
+# 149 / 640 lines (23.3%):
+uv run python -m scripts.measure lint-skip-corpus
 ```
 
 **Note:** invoke as `python -m scripts.X`, not `python scripts/X.py` — the
@@ -409,7 +417,7 @@ Tiers, each independently installable:
 | 3 | **formatting** | `galaxy-tool-fmt` | Cosmetic rules (indent / blank line / empty-element shorthand) + the shared `cli_support` CLI engine. The only tier that serialises canonical output XML. |
 | 3.5 | **advisory checks** | `galaxy-tool-lint` | Detect-only IUC best-practice checks (`GTR` codes, `RuleMeta.detect_only`); read-only LBYL queries over tier 1 yielding `Violation`. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | Unified, code-addressable `RuleHandle` over all three families + named rulesets (`cosmetic`/`default`/`iuc`/`strict`) + `run`/`upgrade`/`detect`. **Library-first** (no click/exit; structured I/O; introspectable). Depends on 0.5/1/2/3/3.5; lower tiers don't depend on it. |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`, `convert-help`, `tokenize-version`. |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`, `convert-help`, `tokenize-version`, `lint-skip`. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the registry facade (a sibling of the CLI). A thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools: `format_tool`/`upgrade_tool`/`check_tool`/`convert_help_tool`/`tokenize_version_tool`/`list_rulesets`/`list_rules`. Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) remain future. |
 
 **Orchestration lives in the registry facade (tier 3.6); the CLI is a thin
@@ -490,6 +498,15 @@ commands:
   Not behaviour-preserving (the published version changes), so it is gated on the
   controlled-change gate (expansion differs solely in the version), inline only, and
   never in `format`/`upgrade` or MCP (cli §D15).
+- `galaxy-tool-refactor lint-skip PATHS` — opt-in convenience: clean up planemo
+  `.lint_skip` sidecars. For each tool directory with a `.lint_skip`, apply the
+  toolchain's fixes and delete a suppression line **only when it can prove the line
+  is resolved** — the planemo linter must be completely covered (every covering GTR
+  code is a faithful check-tier port or a canonical codemod; derived, not
+  hand-curated) and clean on every tool in the directory after the fix. Everything
+  else is left untouched and unmentioned (`check` reports the full picture). Rewrites
+  files other than the one named (the tool XML + its `.lint_skip`), so never part of
+  `format`/`upgrade` (cli §D19, registry D24; `docs/lint_skip.md`).
 
 Selection is shared across `format`/`upgrade`/`check`: `--ruleset NAME`
 (repeatable / comma-separated — the union of the named sets), `--select CODE…`,
