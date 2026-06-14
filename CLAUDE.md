@@ -109,17 +109,19 @@ never second-class.
 
 ```bash
 # Tier-1 invariants (parsing/validation): sweep validity vectors, retain crashes.
-uv run python -m scripts.corpus_check validate [--source github|toolshed|combined] [--limit N]
+# Parallel by default (--jobs N, cpu_count-2; byte-identical to serial); --jobs 1 / --limit = serial.
+uv run python -m scripts.corpus_check validate [--source github|toolshed|combined] [--limit N] [--jobs N]
 
-# Tier-3 invariants (cosmetic formatting): sweep format()→format() idempotence.
-uv run python -m scripts.corpus_check fmt [--source github|toolshed|combined] [--repo NAME] [--limit N]
+# Tier-3 invariants (cosmetic formatting): sweep format()→format() idempotence. Parallel (--jobs N).
+uv run python -m scripts.corpus_check fmt [--source github|toolshed|combined] [--repo NAME] [--limit N] [--jobs N]
 
 # Tier-2 invariants (one structural codemod at a time): sweep idempotence + post-codemod validity.
 uv run python -m scripts.corpus_check codemod <dotted.module>:<ClassName> [--repo NAME] [--limit N]
 
 # Per-rule isolation QA (every GTR rule alone, fmt + codemod): idempotence (+ post-validity
-# for codemods), retain failures, write docs/corpus_rule_stats.md.
-uv run python -m scripts.corpus_check rules [--source github|toolshed|combined] [--repo NAME] [--limit N]
+# for codemods), retain failures, write docs/corpus_rule_stats.md. Each isolated sweep is
+# parallel (--jobs N).
+uv run python -m scripts.corpus_check rules [--source github|toolshed|combined] [--repo NAME] [--limit N] [--jobs N]
 
 # Unified-detect violation counts (what `check` reports: canonical codemods + fmt + advisory
 # IUC): per-rule tools-flagged + total findings, write docs/corpus_check_stats.md. Parallel
