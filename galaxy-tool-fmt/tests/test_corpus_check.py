@@ -228,7 +228,7 @@ _FLAT_TOOL = (
 def test_check_rule_registry_spans_three_tiers() -> None:
     """The registry covers fmt + canonical codemods + advisory checks."""
     registry = corpus_check._check_rule_registry()
-    assert {"GTR001", "GTR003", "GTR004"} <= set(registry)  # fmt
+    assert {"GTR001", "GTR004"} <= set(registry)  # fmt (GTR003 parked, fmt §D4)
     assert {"GTR002", "GTR005", "GTR006", "GTR013"} <= set(registry)  # codemods
     # advisory checks: the flat ones + the partition .2 residual sub-rules.
     flat_advisory = {"GTR021", "GTR023", "GTR024", "GTR025", "GTR026", "GTR027",
