@@ -189,7 +189,7 @@ non-obvious choices, several of them recently revisited.
 as a reference. On conflict, dignified-python wins. Key applications in
 this repo:
 
-- LBYL over `try/except`. Exceptions only at the click error boundary
+- Prefer LBYL for routine branching. Exceptions at the click error boundary
   (chained `from e`) and where third-party APIs offer no LBYL form.
 - `pathlib.Path` with explicit `encoding="utf-8"` on every `read_text` /
   `write_text`.

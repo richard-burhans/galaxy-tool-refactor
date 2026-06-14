@@ -50,7 +50,7 @@ and the app's CLI consume.
 Hand-written code follows **dignified-python**, vendored at the workspace root
 `.claude/skills/dignified-python/`:
 
-- LBYL over `try/except`. Exceptions only at the CLI error boundary
+- Prefer LBYL for routine branching. Exceptions at the CLI error boundary
   (chained `from e`) and at third-party API boundaries with no LBYL form.
 - `pathlib.Path` with explicit `encoding="utf-8"` on text I/O.
 - Keyword-only arguments after the first.
