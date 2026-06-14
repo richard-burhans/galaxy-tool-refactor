@@ -51,10 +51,13 @@ longer imports the codemod / check tiers directly. It exposes the
   importer's target honors the same mode and flags; the
   inline-token case is GTR007's job.
 - `check` — report-only linter (mutates nothing) over the selected rules' detect
-  phases: `file:line  CODE  message` per finding. The default ruleset reports only
-  *fixable* GTR findings; `--ruleset strict` adds the *advisory* checks (marked
-  `(advisory)`). Fixable findings exit non-zero; advisory are informational unless
-  `--strict`. Macro files are checked for cosmetic (fixable) drift too.
+  phases: `file:line  CODE  message` per finding, then a deduplicated `References`
+  block mapping each fired code to its documentation URL (the overarching-goal
+  contract — every finding points to what to do; `docs/design_principles.md`). The
+  default ruleset reports only *fixable* GTR findings; `--ruleset strict` adds the
+  *advisory* checks (marked `(advisory)`). Fixable findings exit non-zero; advisory
+  are informational unless `--strict`. Macro files are checked for cosmetic
+  (fixable) drift too.
 - `find-references` — read-only query (mutates nothing, not a rule): print every
   Cheetah `$NAME` reference site (`file:line  [section]  $ref`) across a tool **and its
   imported macro files** (`galaxy_tool_source.cheetah_refs` + the bundle); see

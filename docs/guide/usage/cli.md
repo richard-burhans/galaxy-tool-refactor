@@ -144,10 +144,16 @@ tools/qualimap/qualimap_macros.xml:3   GTR001  Canonical 4-space indentation; no
 tools/qualimap/qualimap_macros.xml:16  GTR001  Canonical 4-space indentation; no tabs.
 …
 4 fixable finding(s) in 1 file(s).
+
+References (what each code means + how to fix):
+  GTR001  https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html
+  Run `galaxy-tool-refactor rules` for the full reference.
 ```
 
 `check` exits non-zero on any *fixable* finding; advisory findings are
-informational unless you add `--strict`.
+informational unless you add `--strict`. The closing **References** block points
+each fired code at its documentation, so any finding `check` cannot auto-fix still
+tells you where to read what to do.
 
 ## Choosing rules (shared across format / upgrade / check)
 

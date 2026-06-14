@@ -1,7 +1,10 @@
 # CLAUDE.md — galaxy-tool-refactor workspace
 
 > New here? Read [`ARCHITECTURE.md`](ARCHITECTURE.md) first — a map of the major
-> abstractions across the seven tiers and the cross-tier contracts between them.
+> abstractions across the seven tiers and the cross-tier contracts between them —
+> and [`docs/design_principles.md`](docs/design_principles.md) for the two
+> governing contracts (fix only what is provably behavior-preserving; every other
+> warning points to docs) and how each is CI-enforced.
 
 ## Layout
 
