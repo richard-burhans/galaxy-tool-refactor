@@ -7074,6 +7074,83 @@ def _run_blank_line_adoption(args: argparse.Namespace) -> None:
     _report_blank_line_adoption(_measure_blank_line_adoption(corpus_root=args.corpus_root))
 
 
+# --- measurement: attribute-wrapping --------------------------------------------
+#
+# D8 (fmt serializer policy) forces every element's attributes onto ONE line, which
+# is STRICTER than the IUC SHOULD: the IUC explicitly allows `label`/`help` to wrap
+# onto their own line "for large XML elements". This sizes how often authors use that
+# multi-line layout (which D8 collapses), to bring to the IUC conversation
+# (docs/iuc_conference_questions.md §5). lxml normalizes attribute layout, so this is
+# a SOURCE-text scan: CDATA + comments are stripped, then open tags spanning more than
+# one line are counted, and those carrying a `label=`/`help=` attribute are flagged as
+# the IUC-sanctioned wrap. Heuristic (regex, not a full parse: a literal `<`/`>` inside
+# an attribute value can mis-match). Print-only; needs the corpus.
+
+_CDATA_RE = re.compile(r"<!\[CDATA\[.*?\]\]>", re.DOTALL)
+_XML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+_OPEN_TAG_RE = re.compile(r"<[a-zA-Z][\w:.-]*\b[^<>]*?/?>", re.DOTALL)
+
+
+@dataclass
+class _AttributeWrappingResult:
+    """Author use of multi-line attribute layout (the layout D8 collapses)."""
+
+    n_tools: int  # unique parseable tools scanned
+    n_multiline_tag: int  # tools with >=1 open tag spanning multiple lines
+    n_labelhelp_wrapped: int  # tools with a label=/help= attr in a multi-line tag
+    total_multiline_tags: int  # total multi-line open tags across all tools
+
+
+def _measure_attribute_wrapping(*, corpus_root: Path) -> _AttributeWrappingResult:
+    """Size how often source tools wrap attributes across lines (label/help especially)."""
+    seen: set[str] = set()
+    result = _AttributeWrappingResult(0, 0, 0, 0)
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        if _parse_tool_root(path) is None:
+            continue  # same population as the other adoption measures (parseable tools)
+        text = path.read_bytes().decode("latin-1")  # byte-preserving for the ASCII scan
+        cleaned = _XML_COMMENT_RE.sub("", _CDATA_RE.sub("", text))
+        multiline = [
+            m.group(0) for m in _OPEN_TAG_RE.finditer(cleaned) if "\n" in m.group(0)
+        ]
+        result.n_tools += 1
+        if multiline:
+            result.n_multiline_tag += 1
+            result.total_multiline_tags += len(multiline)
+            if any("label=" in tag or "help=" in tag for tag in multiline):
+                result.n_labelhelp_wrapped += 1
+    return result
+
+
+def _report_attribute_wrapping(result: _AttributeWrappingResult) -> None:
+    print("\n=== attribute-wrapping ===")
+    tools = result.n_tools
+
+    def pct(n: int) -> str:
+        return f"{100 * n / tools:.1f}%" if tools else "0.0%"
+
+    print(f"Unique parseable tools: {tools}")
+    print(
+        f"  tools with a multi-line open tag (D8 collapses these): "
+        f"{result.n_multiline_tag} ({pct(result.n_multiline_tag)}); "
+        f"{result.total_multiline_tags} such tags total"
+    )
+    print(
+        f"  tools wrapping a label=/help= attribute (the IUC-sanctioned wrap): "
+        f"{result.n_labelhelp_wrapped} ({pct(result.n_labelhelp_wrapped)})"
+    )
+
+
+def _run_attribute_wrapping(args: argparse.Namespace) -> None:
+    _report_attribute_wrapping(_measure_attribute_wrapping(corpus_root=args.corpus_root))
+
+
 # --- reStructuredText <help> investigation (R1/R2/R3) ---------------------------
 #
 # Backs docs/upgrade_research/restructuredtext_codemods.md: feasibility of RST
@@ -8704,6 +8781,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "output-format-input": _run_output_format_input,
     "help-formats": _run_help_formats,
     "blank-line-adoption": _run_blank_line_adoption,
+    "attribute-wrapping": _run_attribute_wrapping,
     "help-rst-errors": _run_help_rst_errors,
     "help-rst-features": _run_help_rst_features,
     "help-rst-to-markdown": _run_help_rst_to_markdown,

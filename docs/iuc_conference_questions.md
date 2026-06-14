@@ -183,3 +183,53 @@ it.
 - If yes, every boundary, or only between "major" sections?
 - If no, confirm a formatter should preserve author vertical spacing rather than
   normalize it.
+
+## 5. Should attributes always be on one line, or may `label`/`help` wrap?
+
+**Context.** Our formatter puts every element's attributes on a single line. The IUC
+SHOULD is *stricter-than-us in one direction and looser in another*: it documents
+one-line attributes but explicitly **allows `label` and `help` to wrap onto their own
+line "for large XML elements."** Our canonical form has no exception, so we collapse
+that wrap. This is an editorial choice on our side with no citation for the *stricter*
+rule (the wrap is IUC-sanctioned; we override it).
+
+**The question.** Should the formatter honor the IUC exception and leave a wrapped
+`label`/`help` alone (or even normalize *toward* wrapping long ones), or is forcing
+one line the preferred house style?
+
+**Our provisional choice:** force one line (no exception), pending this answer.
+
+**Data to bring (the measure, run 2026-06-14).** `scripts.measure attribute-wrapping`
+scans the *source* of every unique corpus tool (CDATA/comments stripped) for open tags
+that span more than one line:
+
+```
+uv run python -m scripts.measure attribute-wrapping
+```
+
+- of 9,373 tools, **20.8% (1,945)** use a multi-line attribute layout that our
+  one-line rule would collapse (11,350 such tags);
+- **19.6% (1,833)** specifically wrap a `label`/`help` attribute — the exact layout
+  the IUC SHOULD permits.
+
+So this is **not** a fringe layout: about one tool in five uses the multi-line wrap,
+and almost all of that is the IUC-sanctioned `label`/`help` case. We are overriding a
+layout the standard explicitly allows, which is worth confirming before we keep doing it.
+
+## 6. Is empty-element shorthand normalization (`<foo></foo>` → `<foo/>`) wanted?
+
+**Context.** We collapse an empty-with-whitespace element to self-closing shorthand
+(GTR004). It is an editorial choice (no IUC citation), and near-universal in
+well-formatted XML (`black`/`prettier` do the equivalent), so it is low-controversy,
+but it is still our own convention.
+
+**The question.** Is normalizing toward `<foo/>` desired as a house style, or should a
+formatter leave the author's empty-element form alone?
+
+**Our provisional choice:** keep it (it is a safe, near-universal canonicalization),
+but flag that it is uncited.
+
+**Data to bring (the committed stats).** Per `docs/corpus_check_stats.md`, GTR004 flags
+**1,584 of 9,304 tools (17.0%)** — those carry at least one empty-with-whitespace
+element the rule would collapse (2,790 occurrences). So most tools are already in
+shorthand or have no such element; the change touches ~17%.
