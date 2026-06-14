@@ -37,7 +37,7 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR007 | — | ✓ | ✓ | upgrade | — | Set profile= to the newest profile the tool validates at (bump-up-only). |
 | GTR008 | — | ✓ | ✓ | upgrade | — | Upgrade a tool stuck at profile 19.01 toward 19.05 (name output `<data>`). |
 | GTR009 | — | ✓ | ✓ | upgrade | — | Upgrade a tool stuck at profile 24.0 toward 24.1 (hoist collection filters). |
-| GTR010 | ValidDatatypes | ✓ | ✓ | upgrade | — | Upgrade a tool stuck at profile 24.1 toward 24.2 (normalize format). |
+| GTR010 | — | ✓ | ✓ | upgrade | — | Upgrade a tool stuck at profile 24.1 toward 24.2 (normalize format). |
 | GTR011 | — | ✓ | ✓ | upgrade | — | Upgrade a tool stuck at profile 25.1 toward 26.0 (drop `<trackster_conf>`). |
 | GTR012 | — | ✓ | ✓ | upgrade | — | Iteratively upgrade a tool toward the latest profile. |
 | GTR013 | XMLOrder | ✓ | ✓ | codemod | default | Reorder `<tool>` child elements to the IUC convention. |
@@ -127,6 +127,8 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR095 | ToolIDMissing, ToolNameMissing, ToolVersionMissing | ✓ | ✗ | check | strict | Tool must declare a non-empty id, name, and version. |
 | GTR096 | — | ✓ | ✓ | upgrade | — | Fully-qualify a flat `<test>` parameter name to its unique nested parent|...|child input path (required at profile >= 24.2). |
 | GTR097 | — | ✓ | ✓ | upgrade | — | Declare the minimum profile at or above the baseline the tool validates at. |
+| GTR098 | ValidDatatypes | ✓ | ✗ | check | strict | format/ftype/ext should name a known Galaxy datatype. |
+| GTR099 | DatatypesCustomConf | ✓ | ✗ | check | strict | A tool should not ship a custom datatypes_conf.xml. |
 <!-- END GENERATED -->
 
 The remaining unmapped planemo linters (the ~80 correctness checks + the advisory-by-design
@@ -167,9 +169,9 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 117 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), **GTR077–079** (option-filter attributes/expression/references), **GTR080–084** (test assertions/compare/output-correspondence/discovered), **GTR085–088** (test param-in-inputs / expect-failure / expect-num-outputs / has-expectations), **GTR089** (help RST validity, docutils), 2026-06-06; **GTR090–091** (output structured_like/format_source reference integrity + data-param format), 2026-06-10; **GTR095** (id/name/version missing-or-empty — the tier-1-residual half of the trio: `version` is not XSD-required and `""` is XSD-valid), 2026-06-11 |
+| **HAVE** | 119 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), **GTR077–079** (option-filter attributes/expression/references), **GTR080–084** (test assertions/compare/output-correspondence/discovered), **GTR085–088** (test param-in-inputs / expect-failure / expect-num-outputs / has-expectations), **GTR089** (help RST validity, docutils), 2026-06-06; **GTR090–091** (output structured_like/format_source reference integrity + data-param format), 2026-06-10; **GTR095** (id/name/version missing-or-empty — the tier-1-residual half of the trio: `version` is not XSD-required and `""` is XSD-valid), 2026-06-11; **GTR098–099** (datatype-registry membership + custom `datatypes_conf.xml` — faithful ports over a vendored datatype snapshot, decisions D36), 2026-06-14 |
 | **FIX** (new, auto-fixable) | 0 | **complete** — GTR035/036/037 shipped; the rest of the original FIX candidates reclassified to advisory/detect on inspection (identity-changing or no mechanical equivalent) |
-| **DETECT** (new advisory) | 4 | correctness checks for the `check` tier (report-only). 55 GTR rules landed so far (GTR038–091 + GTR095) — the **entire `inputs.py` correctness surface**, **all mechanically-reimplementable `tests.py` checks**, and **help RST validity** (GTR089, via `docutils`), plus citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, container/filter/regex validity, output reference integrity, data-param format, and the id/name/version missing-or-empty trio (GTR095). **Remaining DETECT** all need external infra: `TestsAssertionValidation`/`TestsCaseValidation` (2, need Galaxy's pydantic models), `ValidDatatypes`/`DatatypesCustomConf` (2, datatype registry / filesystem) |
+| **DETECT** (new advisory) | 2 | correctness checks for the `check` tier (report-only). 57 GTR rules landed so far (GTR038–091 + GTR095 + GTR098–099) — the **entire `inputs.py` correctness surface**, **all mechanically-reimplementable `tests.py` checks**, **help RST validity** (GTR089, via `docutils`), and the **datatypes pair** (GTR098 registry membership over a vendored snapshot, GTR099 custom `datatypes_conf.xml`), plus citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, container/filter/regex validity, output reference integrity, data-param format, and the id/name/version missing-or-empty trio (GTR095). **Remaining DETECT** need external infra: `TestsAssertionValidation`/`TestsCaseValidation` (2, need Galaxy's pydantic models) |
 | **SKIP** (pass-state) | ~14 | `valid`/`info` reporters — nothing to build |
 | **n/a** (out of scope) | ~11 | CWL (9), filesystem (`required_files`), `ResourceRequirementExpression` |
 | **Total** | 146 | |
@@ -177,11 +179,13 @@ they're **SKIP**.
 > **Counts recomputed 2026-06-06** module-by-module after the `inputs.py` arc — the earlier
 > running `~`-totals for DETECT/SKIP/n/a had drifted; these now sum to 146.
 
-> **Alias-reconciled 2026-06-10.** The HAVE count is now *derivable from rule metadata*
-> and pinned by a registry test (`test_planemo_aliases.py`): HAVE = aliased canonical
-> linters (`RuleMeta.planemo_linters`) − `ValidDatatypes` (aliased on GTR010, the
-> case-normalizer, but membership validation remains DETECT) + `XSD` (covered by tier-1
-> `validate_tool`, deliberately alias-free). Eight under-declared aliases were added
+> **Alias-reconciled 2026-06-10 (updated 2026-06-14).** The HAVE count is now *derivable
+> from rule metadata* and pinned by a registry test (`test_planemo_aliases.py`): HAVE =
+> aliased canonical linters (`RuleMeta.planemo_linters`) + `XSD` (covered by tier-1
+> `validate_tool`, deliberately alias-free). There are no subtracted exceptions: as of
+> GTR098/GTR099 (2026-06-14), `ValidDatatypes` and `DatatypesCustomConf` are faithful
+> detect rules and so genuine aliased HAVE (the former `ValidDatatypes`-on-GTR010
+> near-alias was retired). Eight under-declared aliases were added
 > (GTR023 `ToolIDWhitespace`, GTR026 `StdIOAbsenceLegacy`, GTR038 `CitationsNoValid`,
 > GTR068 `…OrJson`, GTR074 ×4) and `BioToolsValid` was re-marked **HAVE\*** for
 > consistency with `EDAMTermsValid` (same GTR027 presence-check approximation), moving
@@ -246,8 +250,8 @@ pydantic models (`TestsAssertionValidation`, `TestsCaseValidation`), and datatyp
 
 | Linter | sev | tier | disp | note |
 |---|---|---|---|---|
-| ValidDatatypes | error | check | DETECT | `format`/`ext` is a real datatype; we *normalize case* in `upgrade` (GTR010) but don't validate membership. The name is still selectable — `--select ValidDatatypes` resolves to GTR010 (the closest rule we have) — but this row stays DETECT until a real registry-membership check exists |
-| DatatypesCustomConf | warn | check | DETECT (deferred) | needs the **filesystem** (a sibling `datatypes_conf.xml` on disk), not the parsed tree — out of the raw-tree check tier's reach, like `required_files.py` |
+| ValidDatatypes | error | check | **HAVE** | **GTR098** — `format`/`ftype`/`ext` must name a known datatype, validated against a vendored snapshot of Galaxy's built-in `datatypes_conf.xml.sample` merged with the tool's own custom conf; `auto`/`input` special-cased, macro-token values skipped (under-report) |
+| DatatypesCustomConf | warn | check | **HAVE** | **GTR099** — a sibling `datatypes_conf.xml` on disk (uses the tool's `source_path`; silent for a bytes-parsed document) |
 
 ## general.py (19)
 

@@ -16,6 +16,7 @@ from __future__ import annotations
 from functools import cache
 from typing import TYPE_CHECKING
 
+from galaxy_tool_lint.checks.datatypes import DatatypesCustomConf, ValidDatatypes
 from galaxy_tool_lint.checks.help import HelpRstResidual
 from galaxy_tool_lint.checks.inputs import (
     BooleanValuesDistinct,
@@ -186,6 +187,9 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         TestHasExpectations,
         # help
         HelpRstResidual,
+        # datatypes
+        ValidDatatypes,
+        DatatypesCustomConf,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 

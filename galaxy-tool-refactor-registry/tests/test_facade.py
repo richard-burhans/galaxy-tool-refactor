@@ -1132,11 +1132,11 @@ def test_reconcile_lint_skip_keeps_a_still_firing_line_silently() -> None:
 
 
 def test_reconcile_lint_skip_keeps_incompletely_covered_lines() -> None:
-    """ValidDatatypes (GTR010 only, incidental) is never removed, even if clean."""
+    """OutputsFormatInput (GTR015 only, incidental) is never removed, even if clean."""
     doc = _doc(_CLEAN_WITH_CITES)
-    result = facade.reconcile_lint_skip([doc], _skip("ValidDatatypes"))
+    result = facade.reconcile_lint_skip([doc], _skip("OutputsFormatInput"))
     assert result.removed == ()
-    assert result.kept_lines == ("ValidDatatypes",)
+    assert result.kept_lines == ("OutputsFormatInput",)
 
 
 def test_reconcile_lint_skip_preserves_comments_and_unremoved_names() -> None:

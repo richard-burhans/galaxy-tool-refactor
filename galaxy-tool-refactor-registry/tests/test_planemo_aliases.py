@@ -27,10 +27,10 @@ _PARITY_DOC = (
 # covered by tier-1 ``validate_tool``, which is not a selectable rule.
 _ALIAS_FREE_HAVE = frozenset({"XSD"})
 
-# Aliased linters the roadmap does NOT count as HAVE: ``--select ValidDatatypes``
-# resolves to GTR010 (the upgrade-tier case-normalizer, the closest rule we have),
-# but full datatype-registry membership validation remains unbuilt (DETECT).
-_ALIASED_NOT_HAVE = frozenset({"ValidDatatypes"})
+# Aliased linters the roadmap does NOT count as HAVE. Empty since GTR098/GTR099
+# (ValidDatatypes / DatatypesCustomConf) landed as faithful detect rules — both are
+# now genuine HAVE (galaxy-tool-lint checks/datatypes.py).
+_ALIASED_NOT_HAVE: frozenset[str] = frozenset()
 
 
 def _canonical_names() -> frozenset[str]:

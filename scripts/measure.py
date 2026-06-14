@@ -5435,6 +5435,165 @@ def _run_test_case_validation_truth(args: argparse.Namespace) -> None:
         print(f"\nwrote {_display_path(out_path)} ({len(result.retained)} retained)")
 
 
+# --- measurement: datatype-validation-truth -------------------------------------
+#
+# Parity oracle for the GTR098 (ValidDatatypes) + GTR099 (DatatypesCustomConf)
+# reimplementation (galaxy-tool-lint checks/datatypes.py, decisions D36). Runs
+# Galaxy's REAL linters (galaxy.tool_util.linters.datatypes) over every corpus
+# tool beside ours and asserts soundness: on MACRO-FREE tools (raw tree ==
+# expanded tree) ours must match Galaxy's verdict EXACTLY, and on macro tools
+# ours may only UNDER-report (Galaxy flags, ours silent because it skips @-token
+# / macro-injected formats) — never OVER-report (ours flags, Galaxy clean), which
+# would be a false positive and MUST be zero. The drift-guard test already pins
+# our vendored datatype set == Galaxy's; this proves the rule LOGIC matches too.
+# Needs galaxy-tool-util + the corpus; print-only, retains every over-report
+# (docs/corpus_data/datatype_validation_divergences.json). Backs
+# docs/galaxy_reimplementations.md.
+
+
+@dataclass
+class _DatatypeTruthResult:
+    """ValidDatatypes/DatatypesCustomConf parity of ours vs Galaxy's linters."""
+
+    n_tools: int  # unique (sha-deduped) tools Galaxy could load
+    n_load_error: int  # get_tool_source raised (skipped from the contract)
+    n_macro_free: int  # tools with no <macros>/<expand> (the exact-parity cohort)
+    # Per linter: (agree, ours_only[OVER-report, MUST be 0], galaxy_only[under-report])
+    vd_agree: int = 0
+    vd_over: int = 0  # ours flags, Galaxy clean — UNSOUND, must be 0
+    vd_under: int = 0  # Galaxy flags, ours silent — accepted (macro/expansion)
+    vd_over_macro_free: int = 0  # over-reports on macro-FREE tools (hard bug)
+    vd_under_macro_free: int = 0  # under-reports on macro-FREE tools (hard bug)
+    cc_agree: int = 0
+    cc_over: int = 0
+    cc_under: int = 0
+    over_examples: list[dict[str, str]] = field(default_factory=list)
+
+
+def _measure_datatype_validation_truth(*, corpus_root: Path) -> _DatatypeTruthResult:
+    """Compare GTR098/GTR099 against Galaxy's real datatype linters per tool."""
+    from galaxy.tool_util.lint import LintContext
+    from galaxy.tool_util.linters.datatypes import (
+        DatatypesCustomConf as GxCustomConf,
+    )
+    from galaxy.tool_util.linters.datatypes import (
+        ValidDatatypes as GxValidDatatypes,
+    )
+    from galaxy.tool_util.parser.factory import get_tool_source
+
+    from galaxy_tool_lint.checks.datatypes import DatatypesCustomConf, ValidDatatypes
+    from galaxy_tool_source.document import ToolDocument
+    from galaxy_tool_source.macros import has_macros
+
+    result = _DatatypeTruthResult(n_tools=0, n_load_error=0, n_macro_free=0)
+    seen_sha: set[str] = set()
+
+    def galaxy_flags(linter: object, path: Path) -> bool:
+        source = get_tool_source(str(path))
+        ctx = LintContext("all")
+        linter.lint(source, ctx)  # type: ignore[attr-defined]
+        return bool(ctx.error_messages) or bool(ctx.warn_messages)
+
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        sha = _sha256_of(path)
+        if sha in seen_sha:
+            continue
+        seen_sha.add(sha)
+        try:
+            gx_vd = galaxy_flags(GxValidDatatypes, path)
+            gx_cc = galaxy_flags(GxCustomConf, path)
+        except Exception:  # noqa: BLE001 — Galaxy can't load it; out of the contract
+            result.n_load_error += 1
+            continue
+        result.n_tools += 1
+        macro_free = not has_macros(root)
+        if macro_free:
+            result.n_macro_free += 1
+
+        document = ToolDocument(etree.ElementTree(root), source_path=path)
+        ours_vd = bool(list(ValidDatatypes().detect(document)))
+        ours_cc = bool(list(DatatypesCustomConf().detect(document)))
+
+        if ours_vd == gx_vd:
+            result.vd_agree += 1
+        elif ours_vd and not gx_vd:
+            result.vd_over += 1
+            if macro_free:
+                result.vd_over_macro_free += 1
+            result.over_examples.append(
+                {
+                    "path": str(path.relative_to(corpus_root)),
+                    "linter": "ValidDatatypes",
+                    "macro_free": str(macro_free),
+                }
+            )
+        else:
+            result.vd_under += 1
+            if macro_free:
+                result.vd_under_macro_free += 1
+
+        if ours_cc == gx_cc:
+            result.cc_agree += 1
+        elif ours_cc and not gx_cc:
+            result.cc_over += 1
+            result.over_examples.append(
+                {
+                    "path": str(path.relative_to(corpus_root)),
+                    "linter": "DatatypesCustomConf",
+                    "macro_free": str(macro_free),
+                }
+            )
+        else:
+            result.cc_under += 1
+    return result
+
+
+def _report_datatype_validation_truth(result: _DatatypeTruthResult) -> None:
+    print("\n=== datatype-validation-truth ===")
+    print(
+        f"Tools Galaxy could load (sha-deduped): {result.n_tools} "
+        f"(+{result.n_load_error} load-errored, skipped); "
+        f"{result.n_macro_free} macro-free (exact-parity cohort)"
+    )
+    print("ValidDatatypes (GTR098) vs Galaxy:")
+    print(f"  agree: {result.vd_agree}")
+    print(
+        f"  OVER-report (ours flags, Galaxy clean) [MUST BE 0]: {result.vd_over} "
+        f"(macro-free: {result.vd_over_macro_free})"
+    )
+    print(
+        f"  under-report (Galaxy flags, ours silent — macro/expansion): "
+        f"{result.vd_under} (macro-free, a hard bug if >0: {result.vd_under_macro_free})"
+    )
+    print("DatatypesCustomConf (GTR099) vs Galaxy:")
+    print(f"  agree: {result.cc_agree}")
+    print(f"  OVER-report [MUST BE 0]: {result.cc_over}")
+    print(f"  under-report: {result.cc_under}")
+    for example in result.over_examples[:20]:
+        print(f"    OVER {example['linter']} {example['path']} (macro_free={example['macro_free']})")
+
+
+def _run_datatype_validation_truth(args: argparse.Namespace) -> None:
+    logging.getLogger("galaxy").setLevel(logging.ERROR)
+    result = _measure_datatype_validation_truth(corpus_root=args.corpus_root)
+    _report_datatype_validation_truth(result)
+    if not args.all:
+        out_path = (
+            _repo_root()
+            / "docs"
+            / "corpus_data"
+            / "datatype_validation_divergences.json"
+        )
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(
+            json.dumps(result.over_examples, indent=2) + "\n", encoding="utf-8"
+        )
+        print(f"\nwrote {_display_path(out_path)} ({len(result.over_examples)} over-reports)")
+
+
 # --- measurement: element-cardinality -------------------------------------------
 #
 # How many <test>/<requirement>/<conditional>/<collection>/<output_collection>
@@ -8448,6 +8607,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "upgrade-behavior-blocks": _run_upgrade_behavior_blocks,
     "upgrade-minimal-need": _run_upgrade_minimal_need,
     "test-case-validation-truth": _run_test_case_validation_truth,
+    "datatype-validation-truth": _run_datatype_validation_truth,
     "test-param-qualification": _run_test_param_qualification,
     "element-cardinality": _run_element_cardinality,
     "command-language": _run_command_language,
