@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Pre-push QA gate for the galaxy-tool-refactor workspace.
 #
-# Runs the deterministic quality slice — ruff, mypy (strict, per package), and
-# pytest for all eight packages — and exits non-zero, naming the failing step,
-# if anything fails. A `git push` PreToolUse hook (.claude/settings.json) calls
-# this and blocks the push on failure, so code never leaves the machine with a
-# red gate. Run it manually any time:
+# Runs the deterministic quality slice — ruff, mypy (strict, per package, at the
+# 3.10 support floor), and pytest for all eight packages — and exits non-zero,
+# naming the failing step, if anything fails. A `git push` PreToolUse hook
+# (.claude/settings.json) calls this with QA_GATE_REQUIRE_CLEAN=1 and blocks the
+# push on failure (or on an uncommitted tracked tree), so code never leaves the
+# machine with a red gate or a validated-tree-that-differs-from-the-push. Run it
+# manually any time:
 #
 #   bash scripts/qa_gate.sh
 #
@@ -20,6 +22,19 @@ set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT" || { echo "QA gate: cannot cd to repo root" >&2; exit 1; }
+
+# Pre-push only (QA_GATE_REQUIRE_CLEAN=1, set by the .claude/settings.json hook):
+# the gate validates the WORKING TREE, but `git push` sends COMMITS, so an
+# uncommitted tracked change means we'd validate code that isn't being pushed
+# (the trap that let an uncommitted fix pass the hook yet ship broken to CI, #224).
+# Refuse the push until the tree is committed. Manual runs and CI do not set this,
+# so dev-with-uncommitted-changes is unaffected.
+if [[ "${QA_GATE_REQUIRE_CLEAN:-}" == "1" ]] && ! git diff --quiet HEAD 2>/dev/null; then
+    echo "QA gate: uncommitted tracked changes present." >&2
+    echo "  The gate validates the working tree, but 'git push' sends commits, so" >&2
+    echo "  they would differ. Commit (or stash) before pushing." >&2
+    exit 1
+fi
 
 CACHE_FILE="$REPO_ROOT/.git/qa-gate-green"
 
@@ -66,10 +81,14 @@ done
 ruff_targets+=(scripts)
 uv run ruff check "${ruff_targets[@]}" || fail "ruff"
 
-echo "QA gate: mypy (strict, per package)…"
+echo "QA gate: mypy (strict, per package, at the 3.10 support floor)…"
 for package in "${PACKAGES[@]}"; do
-    uv run mypy --config-file "$package/pyproject.toml" "$package/src" \
-        || fail "mypy ($package)"
+    # --python-version 3.10: the requires-python floor. mypy checks against 3.10's
+    # typeshed regardless of the local interpreter, catching version-floor breakage
+    # the local-interpreter run misses (e.g. a 3.11+-only API, or 3.10's stricter
+    # Traversable.joinpath single-arg signature — the gap that slipped #224 to CI).
+    uv run mypy --python-version 3.10 --config-file "$package/pyproject.toml" \
+        "$package/src" || fail "mypy ($package)"
 done
 
 echo "QA gate: pytest…"
