@@ -75,6 +75,39 @@ def test_unknown_children_pinned_known_sorted_around_them() -> None:
     ]
 
 
+def test_resolved_expand_is_placed_in_its_iuc_slot() -> None:
+    """With a facade-supplied expand_ranks map (child index -> resolved IUC tag), a
+    misplaced opaque <expand> is actively sorted into its slot (the resolution
+    layer, §53), instead of being pinned where the author left it."""
+    xml = b"""<tool id="t" name="n" version="1" profile="24.0">
+        <description>d</description>
+        <expand macro="bio_tools"/>
+        <macros><import>macros.xml</import></macros>
+        <command>c</command>
+    </tool>"""
+    module = parse_module(xml)
+    # child index 1 = <expand macro="bio_tools"> resolves to <xrefs> (IUC rank 4).
+    ReorderToolChildren(expand_ranks={1: "xrefs"}).apply(module)
+    tags = [str(c.tag) for c in module.document.root if isinstance(c.tag, str)]
+    # xrefs sorts after macros (rank 1), before command (rank 10).
+    assert tags == ["description", "macros", "expand", "command"]
+
+
+def test_expand_ranks_default_none_is_pinning() -> None:
+    """No expand_ranks (the standalone default) reproduces pure pinning: the
+    opaque <expand> stays where the author placed it."""
+    xml = b"""<tool id="t" name="n" version="1" profile="24.0">
+        <description>d</description>
+        <expand macro="bio_tools"/>
+        <macros><import>macros.xml</import></macros>
+        <command>c</command>
+    </tool>"""
+    module = parse_module(xml)
+    ReorderToolChildren().apply(module)
+    tags = [str(c.tag) for c in module.document.root if isinstance(c.tag, str)]
+    assert tags == ["description", "expand", "macros", "command"]
+
+
 def test_top_level_expand_is_pinned_not_floated_to_end() -> None:
     """A bare ``<expand>`` is opaque — the codemod can't see it expands to
     ``<requirements>`` / ``<citations>`` — so it must stay where the author placed

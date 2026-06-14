@@ -280,6 +280,50 @@ def expanded_detection_root(document: ToolDocument) -> etree._Element:
     return root
 
 
+def top_level_expand_tags(
+    document: ToolDocument, expand_element: etree._Element
+) -> list[str] | None:
+    """Faithfully resolve a top-level ``<expand>`` to the element tags it produces.
+
+    For the GTR013 element-order codemod's resolution layer: a bare
+    ``<expand macro="NAME"/>`` is opaque, so to know whether it belongs in (say)
+    the ``<requirements>`` slot we expand it through Galaxy's own macro expansion
+    and read what top-level element(s) it yields. Builds a minimal throwaway tool
+    carrying *document*'s own ``<macros>`` block (imports + inline definitions) plus
+    a copy of just this ``<expand>``, expands it (imports resolve against
+    ``document.source_path``'s directory), and returns the tags of the expanded
+    top-level element children (the ``<macros>`` block is stripped on expansion).
+
+    Returns ``None`` when resolution is not clean and provable: not an
+    ``<expand macro=…>``, no ``<macros>`` block to carry the definitions, an
+    expansion error, an imported macro with no source path to resolve against, an
+    empty result, or a surviving (unresolved) ``<expand>``. The caller treats
+    ``None`` (and any non-single-known-tag result) as "cannot place, leave pinned".
+    """
+    if str(expand_element.tag) != "expand" or expand_element.get("macro") is None:
+        return None
+    macros = next(
+        (child for child in document.root if str(child.tag) == "macros"), None
+    )
+    if macros is None:
+        return None
+    source_dir = document.source_path.parent if document.source_path else None
+    minimal = etree.Element("tool")
+    minimal.append(copy.deepcopy(macros))
+    minimal.append(copy.deepcopy(expand_element))
+    expanded, errors = expand_from_tree(minimal, source_dir=source_dir)
+    if expanded is None or errors:
+        return None
+    tags = [
+        str(child.tag)
+        for child in expanded.getroot()
+        if isinstance(child.tag, str) and str(child.tag) != "macros"
+    ]
+    if not tags or "expand" in tags:
+        return None
+    return tags
+
+
 def _import_targets(root: etree._Element) -> list[str]:
     """Return the macro-file paths a tool or macro-file element ``<import>``s.
 

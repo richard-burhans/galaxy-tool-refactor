@@ -937,3 +937,41 @@ ask to clean up the planemo `.lint_skip` sidecars authors accumulate.
   bytes + the rewritten `.lint_skip` lines + a `file_emptied` flag; the CLI does
   the file IO (cli D19). The measure shares the same gate
   (`is_completely_covered`), so the sizing and the command can never disagree.
+
+## D25 (2026-06-14) — GTR013 `<expand>` resolution: the facade builds the rank map
+
+**Date:** 2026-06-14. Reproduced-by: `uv run --package galaxy-tool-refactor-registry
+pytest galaxy-tool-refactor-registry/tests/test_facade.py` and `uv run --package
+galaxy-tool-codemod pytest galaxy-tool-codemod/tests/test_reorder_tool_children.py`.
+The faithful-resolution layer over the GTR013 pinning floor (codemod §53), sized at
+452 corpus tools (`scripts.measure expand-reorder-resolution`).
+
+- **The problem.** GTR013 (`ReorderToolChildren`) pins an opaque top-level
+  `<expand macro="…"/>` where the author left it, because a codemod is a pure tree
+  op and cannot see the tag the macro expands to. Placing it in its real IUC slot
+  needs **macro expansion**, which is tier-1 work — not something a tier-2 codemod
+  should do.
+- **The wiring (Option A).** The codemod gains an optional
+  `ReorderToolChildren(expand_ranks: dict[int, str])` (child index → resolved IUC
+  tag); default `None` = pure pinning, unchanged for any standalone caller (the
+  canonical pipeline, the corpus sweeps). The **facade** owns the resolution: the
+  GTR013 `codemod_handle` special-case builds the map via `gtr013_expand_ranks`,
+  which calls tier-1 `top_level_expand_tags` per top-level `<expand>` and records
+  only the ones that faithfully resolve to **exactly one** tag. The codemod stays a
+  pure tree op receiving a plain dict; the tier-1 macro work lives where
+  orchestration belongs (the facade composes tier-1 + tier-2).
+- **Why a per-rule special-case, not a framework-wide context.** Only GTR013 needs
+  document-derived macro context today; threading a `CodemodContext` through every
+  codemod's `apply` is speculative generality for one consumer. The special-case is
+  a *documented, intentional asymmetry* of the same kind already present
+  (the upgrade codemods override `apply`; `OPT_IN_COMMAND_BY_CODE`).
+- **The facade now legitimately does more than the bare pipeline.** The
+  `default`-ruleset == `canonical_codemods()` pin (`test_facade`) holds for any tool
+  without a resolvable-misplaced `<expand>` (resolution is a no-op there, including
+  the test sample); for the 452, the facade additionally places the `<expand>` —
+  a facade-only enhancement the bare codemod list cannot perform (no macro context).
+  This is the intended consequence of orchestration living in the facade, recorded
+  so the next audit reads it as intentional.
+- **No corpus-stat impact.** `corpus_check check`/`rules` run GTR013 standalone
+  (pinning), so its modified/detect counts are unchanged; the resolution is sized by
+  its own measure.

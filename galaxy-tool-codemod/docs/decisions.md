@@ -2286,3 +2286,12 @@ tools-iuc vg suite for an external PR.
   faithful-resolution layer is justified as a follow-up. Pinning ships first as
   the safe floor; the 452 stay correctly-placed-where-the-author-put-them until
   the resolver lands.
+- **Update (2026-06-14): the resolution layer has landed (registry D25).**
+  `ReorderToolChildren` gained an optional `expand_ranks` (child index → resolved
+  IUC tag); the default `None` keeps pure pinning for every standalone caller (the
+  canonical pipeline, the corpus sweeps), and the registry facade builds the map
+  from tier-1 faithful expansion (`top_level_expand_tags`) so an opaque `<expand>`
+  is placed in its real IUC slot when it resolves to exactly one known tag. The
+  facade thus does more than the bare pipeline for the 452 (a documented,
+  intentional asymmetry, registry D25); standalone `corpus_check` counts are
+  unchanged.

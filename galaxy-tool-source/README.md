@@ -62,7 +62,7 @@ from galaxy_tool_source.binding import load_tool, parse_tool, validate_tool, new
 from galaxy_tool_source.binding import load_macros
 from galaxy_tool_source.binding import ParseResult, ValidationResult, XmlError, ToolXmlSyntaxError
 from galaxy_tool_source.document import ToolDocument, MacroDocument
-from galaxy_tool_source.macros import MacroError, imported_macro_paths, token_definitions, TokenDefinition, expanded_detection_root
+from galaxy_tool_source.macros import MacroError, imported_macro_paths, token_definitions, TokenDefinition, expanded_detection_root, top_level_expand_tags
 from galaxy_tool_source.corrections import suggest_corrections, Correction
 from galaxy_tool_source.boolean_values import suggest_boolean_normalizations, normalize_boolean_token, BooleanNormalization
 from galaxy_tool_source.cheetah_refs import tool_cheetah_references, CheetahRef

@@ -13,7 +13,67 @@ from galaxy_tool_source.macros import (
     imported_macro_paths,
     strip_macros,
     token_definitions,
+    top_level_expand_tags,
 )
+
+
+def _top_expand(document: object) -> object:
+    """The first top-level ``<expand>`` child of *document*'s root."""
+    return next(c for c in document.root if str(c.tag) == "expand")  # type: ignore[attr-defined]
+
+
+def test_top_level_expand_tags_inline_single() -> None:
+    document = load_tool(
+        b'<tool id="t"><macros>'
+        b'<xml name="reqs"><requirements>'
+        b'<requirement type="package">x</requirement></requirements></xml>'
+        b'</macros><expand macro="reqs"/></tool>'
+    )
+    assert top_level_expand_tags(document, _top_expand(document)) == ["requirements"]
+
+
+def test_top_level_expand_tags_imported_single(tmp_path: Path) -> None:
+    (tmp_path / "macros.xml").write_text(
+        '<macros><xml name="reqs"><requirements>'
+        '<requirement type="package">x</requirement></requirements></xml></macros>',
+        encoding="utf-8",
+    )
+    (tmp_path / "tool.xml").write_text(
+        '<tool id="t"><macros><import>macros.xml</import></macros>'
+        '<expand macro="reqs"/></tool>',
+        encoding="utf-8",
+    )
+    document = load_tool(tmp_path / "tool.xml")
+    assert top_level_expand_tags(document, _top_expand(document)) == ["requirements"]
+
+
+def test_top_level_expand_tags_multi_element() -> None:
+    document = load_tool(
+        b'<tool id="t"><macros>'
+        b'<xml name="two"><requirements/><stdio/></xml>'
+        b'</macros><expand macro="two"/></tool>'
+    )
+    assert top_level_expand_tags(document, _top_expand(document)) == [
+        "requirements",
+        "stdio",
+    ]
+
+
+def test_top_level_expand_tags_unresolvable_import_returns_none() -> None:
+    # imported macro with no source_path: imports can't resolve -> None.
+    document = load_tool(
+        b'<tool id="t"><macros><import>macros.xml</import></macros>'
+        b'<expand macro="reqs"/></tool>'
+    )
+    assert top_level_expand_tags(document, _top_expand(document)) is None
+
+
+def test_top_level_expand_tags_unknown_macro_returns_none() -> None:
+    document = load_tool(
+        b'<tool id="t"><macros><xml name="reqs"><requirements/></xml></macros>'
+        b'<expand macro="nonexistent"/></tool>'
+    )
+    assert top_level_expand_tags(document, _top_expand(document)) is None
 
 
 def test_expanded_detection_root_no_macros_returns_raw_identity() -> None:
