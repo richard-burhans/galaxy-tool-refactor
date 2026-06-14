@@ -102,6 +102,72 @@ re-implementation below carries a parity oracle.
   unblocks must validate clean under Galaxy's real validator on the *qualified*
   tree, zero unsound verdicts).
 
+## Touchpoint 4: the datatype linters (`galaxy.tool_util.linters.datatypes`) — RE-IMPLEMENT
+
+- **Where it lives.** `ValidDatatypes` and `DatatypesCustomConf` in
+  `galaxy/tool_util/linters/datatypes.py`. `ValidDatatypes` checks `format`/`ftype`/`ext`
+  against the datatype extensions parsed from a `datatypes_conf.xml.sample` Galaxy
+  *bundles next to the linter* — it does **not** consult a live datatype registry.
+  `DatatypesCustomConf` is a filesystem check (a sibling `datatypes_conf.xml`).
+- **The re-implementation.** GTR098/GTR099 (galaxy-tool-lint `checks/datatypes.py`, lint
+  decisions D36). The membership set is a **vendored snapshot** of the bundled sample
+  (`data/datatypes_conf.xml.sample`), parsed with the same logic as Galaxy's
+  `_parse_datatypes`; the rule branches (`auto`/`input` special-casing, the profile ≤ 16.04
+  `input` free pass, comma-split, `<help>` skip) port Galaxy's exactly. No runtime
+  `galaxy-tool-util` dependency.
+- **Why re-implement, not depend.** Galaxy's linter only knows its *bundled* sample, so
+  matching that snapshot **is** faithful parity — a dependency would buy nothing. This is
+  the same vendored-snapshot pattern as the per-release XSDs and the deployment ceiling.
+- **The advantage.** Independence (no heavy dep for a membership check) and the snapshot is
+  shared corpus-wide via `@cache`. The accepted asymmetry: a datatype newer than the
+  snapshot would false-positive — the identical limitation Galaxy's own linter has against a
+  plugin-registered type.
+- **The parity oracle.** Two layers. (1) A **drift guard**
+  (`test_datatypes_registry.py::test_vendored_snapshot_matches_installed_galaxy_tool_util`)
+  pins our parsed set == the installed `galaxy-tool-util`'s, so a dep bump that moves the
+  sample fails CI naming the re-vendor (snapshot from `galaxy-tool-util` 26.0.0). (2)
+  `scripts.measure datatype-validation-truth` runs Galaxy's REAL linters over the corpus
+  beside ours: on **macro-free tools** ours matches Galaxy EXACTLY, on macro tools ours may
+  only under-report (it skips `@…@` / macro-injected formats), never over-report.
+- **Measured stakes.** 9,331 corpus tools (42 crash Galaxy's own parser, no verdict): GTR098
+  **0 over-reports** (zero false positives), **0 divergence on all 4,202 macro-free tools**
+  (exact parity), 49 under-reports all on macro tools; GTR099 perfect (9,331/9,331).
+- **Verdict:** re-implement. Galaxy's verdict defines correctness; the snapshot + oracle make
+  ours faithful with zero false positives, no dependency.
+
+## Touchpoint 5: the test-validation linters (`assertions.py` / `parameters.py`) — KEEP
+
+The two remaining planemo DETECT linters, `TestsAssertionValidation` and
+`TestsCaseValidation`, were assessed for reimplementation (the same exercise as
+Touchpoint 4). Verdict: **keep the dependency** — and the reason is architectural, not
+just size.
+
+- **`TestsAssertionValidation` → `tool_util_models/assertions.py` (~4,175 lines).** This
+  file is auto-generated, but **not by hand and not from the XSD** — Galaxy's bespoke
+  `tool_util/verify/codegen.py` introspects the hand-written Python assertion functions
+  (`verify/asserts/*.py`, whose signatures carry `Annotated[…, AssertionParameter(…)]`
+  metadata) and emits **both** the pydantic models **and** the XSD `<TestAssertion>` group
+  (`rewrite_galaxy_xsd`). So for assertions the **XSD is a derived projection of the Python
+  functions** — the *reverse* of our architecture, where the XSD is the source of truth and
+  we xsdata-codegen read-only models from it. The validation richness (the pydantic
+  `BeforeValidator`s, e.g. `check_bytes` / `check_center_of_mass`) lives in the Python
+  functions and is not expressible in the XSD, so our XSD-codegen cannot absorb it.
+- **`TestsCaseValidation` → `tool_util_models/parameters.py` (~2,591 lines).** This one is
+  **hand-written** — a semantic parameter-validation model (`requires_value`, conditional
+  descent, test-case state coercion) far richer than the XSD's structural layer. Again not
+  derivable from our source of truth.
+- **Why not reimplement.** Both encode validation *semantics* that sit above the XSD layer.
+  This is genuinely not "hand-rolled for lack of schema tooling our pipeline would provide"
+  (the question that prompted the investigation, 2026-06-14) — it is logic the XSD does not
+  carry. We already reimplement the sound *one-directional* slice of `TestsCaseValidation`
+  (`test_case_check.py`, the 24.2 behavior-gate checker, parity-oracled by
+  `scripts.measure test-case-validation-truth`); the full bidirectional linter stays a
+  `galaxy-tool-util` dependency.
+- **Upstream thread (future).** `codegen.py` is bespoke and self-describes its pydantic
+  generation as still maturing ("in the future it will also build Pydantic models for these
+  functions"). A possible contribute-back later — but the direction is function→schema, so
+  our specific schema→model (xsdata) pipeline does not transfer directly.
+
 ## Adding to this document
 
 When a new re-implementation lands (or a deliberate keep is decided), add a

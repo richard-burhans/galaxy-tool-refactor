@@ -229,6 +229,17 @@ uv run python -m scripts.measure upgrade-codes-applicability
 # Needs the corpus, not in CI:
 uv run python -m scripts.measure test-case-validation-truth
 
+# Parity oracle for the GTR098/GTR099 datatypes pair (galaxy-tool-lint checks/datatypes.py,
+# lint D36): runs Galaxy's REAL datatype linters (galaxy.tool_util.linters.datatypes
+# ValidDatatypes/DatatypesCustomConf) over the corpus beside ours and asserts soundness —
+# on MACRO-FREE tools (raw tree == expanded tree) ours matches Galaxy's verdict EXACTLY,
+# on macro tools ours may only UNDER-report (it skips @…@ / macro-injected formats), never
+# OVER-report (a false positive, which MUST be 0). Complements the drift guard (which pins
+# our vendored datatype set == the installed galaxy-tool-util's) by proving the rule LOGIC
+# matches. Retains every over-report to docs/corpus_data/datatype_validation_divergences.json.
+# Backs docs/galaxy_reimplementations.md. Needs galaxy-tool-util + corpus, not in CI:
+uv run python -m scripts.measure datatype-validation-truth
+
 # Size + prove sound the GTR096 fix (FixTestParamQualification, codemod §48): for
 # every tool the 24.2 checker blocks, apply the unique-leaf test-param qualification
 # and report how many become provably clean, then validate each QUALIFIED tree with
@@ -396,7 +407,7 @@ uv run python -m scripts.measure command-quoting-kinds
 # removability gate, into auto-removable (fixed-removable + already-stale),
 # coverage-partial (covered only incidentally, kept), located (fires, kept), and
 # out-of-coverage (kept). Print-only; needs the corpus. Corpus: auto-removable
-# 149 / 640 lines (23.3%):
+# 160 / 640 lines (25.0%):
 uv run python -m scripts.measure lint-skip-corpus
 
 # GTR013 macro-`<expand>` placement: sizes whether the future faithful-resolution

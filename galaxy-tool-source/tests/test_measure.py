@@ -31,6 +31,7 @@ from scripts.measure import (
     _measure_command_iuc_heuristics,
     _measure_command_language,
     _measure_command_quoting_kinds,
+    _measure_datatype_validation_truth,
     _measure_element_cardinality,
     _measure_expand_reorder_resolution,
     _measure_help_formats,
@@ -1127,6 +1128,42 @@ def test_measure_test_case_validation_truth_buckets(truth_corpus: Path) -> None:
     assert result.n_clean_galaxy_raised == 0
     assert result.unsound_examples == []
     assert result.raised_examples == []
+
+
+@pytest.fixture()
+def datatype_truth_corpus(tmp_path: Path) -> Path:
+    """A macro-free corpus exercising the datatype-validation-truth parity contract."""
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # Known datatypes: both Galaxy and ours pass -> agree clean.
+    (repo / "clean.xml").write_text(
+        '<tool id="c" name="C" version="1.0"><command>echo</command>'
+        '<inputs><param name="i" type="data" format="fasta"/></inputs>'
+        '<outputs><data name="o" format="txt"/></outputs></tool>',
+        encoding="utf-8",
+    )
+    # An unknown datatype: both Galaxy and ours flag -> agree flagged.
+    (repo / "unknown.xml").write_text(
+        '<tool id="u" name="U" version="1.0"><command>echo</command>'
+        '<inputs><param name="i" type="data" format="notarealdatatype"/></inputs>'
+        '<outputs><data name="o" format="txt"/></outputs></tool>',
+        encoding="utf-8",
+    )
+    return tmp_path
+
+
+def test_measure_datatype_validation_truth_parity(datatype_truth_corpus: Path) -> None:
+    result = _measure_datatype_validation_truth(corpus_root=datatype_truth_corpus)
+    assert result.n_tools == 2
+    assert result.n_macro_free == 2
+    # The soundness contract: never a false positive, exact parity on macro-free tools.
+    assert result.vd_over == 0
+    assert result.vd_over_macro_free == 0
+    assert result.vd_under_macro_free == 0
+    assert result.vd_agree == 2  # clean agrees clean, unknown agrees flagged
+    assert result.cc_over == 0
+    assert result.cc_agree == 2  # no sibling datatypes_conf.xml -> both silent
+    assert result.over_examples == []
 
 
 # --- test-param-qualification -----------------------------------------------------
@@ -2377,10 +2414,10 @@ def test_measure_lint_skip_corpus_classifies_buckets(tmp_path: Path) -> None:
             "<citations><citation type='doi'>10.1/x</citation></citations>"
         ),
     )
-    # TestsMissing -> already-stale (complete, clean); ValidDatatypes -> GTR010
+    # TestsMissing -> already-stale (complete, clean); OutputsFormatInput -> GTR015
     # only (incidental), clean here -> coverage-partial (not provably removable).
     (clean / ".lint_skip").write_text(
-        "TestsMissing\nValidDatatypes\n", encoding="utf-8"
+        "TestsMissing\nOutputsFormatInput\n", encoding="utf-8"
     )
 
     result = _measure_lint_skip_corpus(corpus_root=corpus)
@@ -2391,7 +2428,7 @@ def test_measure_lint_skip_corpus_classifies_buckets(tmp_path: Path) -> None:
     assert result.bucket_counts["out-of-coverage"] == 1  # TestsCaseValidation
     assert result.bucket_counts["located"] == 2  # bare: TestsMissing + CitationsMissing
     assert result.bucket_counts["already-stale"] == 1  # clean: TestsMissing
-    assert result.bucket_counts["coverage-partial"] == 1  # clean: ValidDatatypes
+    assert result.bucket_counts["coverage-partial"] == 1  # clean: OutputsFormatInput
     # Every located finding is reported at file:line — the info planemo withheld.
     assert result.located_examples
     assert all(":" in line for line in result.located_examples)

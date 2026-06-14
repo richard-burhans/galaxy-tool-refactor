@@ -18,9 +18,10 @@ both must hold:
   verified against planemo) or a **canonical codemod** (a targeted, behaviour-
   preserving fix whose detector is exactly the linter's complaint, e.g. GTR013
   element order, GTR037 redundant param name, GTR089.1 RST repair). A planemo
-  name covered only *incidentally* by a profile-upgrade codemod (e.g.
-  ``ValidDatatypes`` → GTR010, which normalises datatype casing but does not
-  validate against the datatype registry) is **not** completely covered, so its
+  name covered only *incidentally* by an upgrade-tier codemod (e.g.
+  ``OutputsFormatInput`` → GTR015, the runtime-gated ``format="input"`` →
+  ``format_source`` fix, which only reaches the single-top-level-data-input case
+  and so does not prove the linter passes) is **not** completely covered, so its
   suppression is never removed.
 - **Clean after fixing.** After applying the covering fixes, none of the covering
   rules detects on any tool the ``.lint_skip`` governs.

@@ -53,11 +53,15 @@ def test_check_tier_and_canonical_codes_are_complete() -> None:
     assert is_completely_covered("CitationsNoValid")
     assert is_completely_covered("HelpInvalidRST")
     assert is_completely_covered("XMLOrder")  # GTR013 canonical
+    # The datatypes pair landed as faithful check-tier ports (GTR098/GTR099).
+    assert is_completely_covered("ValidDatatypes")
+    assert is_completely_covered("DatatypesCustomConf")
 
 
 def test_incidental_upgrade_codemod_coverage_is_not_complete() -> None:
-    # ValidDatatypes is covered only by GTR010, a profile-upgrade codemod that
-    # normalises datatype casing but does not validate the datatype registry.
-    assert "GTR010" in covering_codes("ValidDatatypes")
-    assert "GTR010" not in _complete_coverage_codes()
-    assert not is_completely_covered("ValidDatatypes")
+    # OutputsFormatInput is covered only by GTR015, a runtime-gated upgrade codemod
+    # that reaches only the single-top-level-data-input case (so it does not prove
+    # the linter passes) — never provably removable.
+    assert "GTR015" in covering_codes("OutputsFormatInput")
+    assert "GTR015" not in _complete_coverage_codes()
+    assert not is_completely_covered("OutputsFormatInput")

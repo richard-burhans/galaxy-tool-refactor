@@ -1138,3 +1138,62 @@ DETECT 7 → **4**.
 uv run --package galaxy-tool-lint pytest galaxy-tool-lint/tests/ -k gtr095
 uv run python -m scripts.corpus_check check   # regenerates docs/corpus_check_stats.md
 ```
+
+## D36 (2026-06-14) — GTR098/GTR099: the datatypes pair, reimplemented over a vendored snapshot
+
+The two `galaxy.tool_util.linters.datatypes` linters were the parity roadmap's
+last datatype-blocked pair. Both are now faithful detect rules
+(`checks/datatypes.py`) carrying **no runtime `galaxy-tool-util` dependency**:
+
+- **GTR099 `DatatypesCustomConf`** — a sibling `datatypes_conf.xml` on disk is
+  discouraged. A filesystem question, answered with the tool's `source_path`
+  (silent for a bytes-parsed document, exactly as Galaxy returns early without
+  one). Trivial and exact.
+- **GTR098 `ValidDatatypes`** — `format`/`ftype`/`ext` must name a registered
+  datatype. The membership set is parsed from a **vendored snapshot** of Galaxy's
+  bundled `datatypes_conf.xml.sample` (`data/`), merged with the tool's own custom
+  conf when present. The rule logic is a faithful port of Galaxy's branches:
+  `auto`/`input` special-cased on `<param>`, the `input` free pass gated on
+  profile ≤ 16.04 (absent profile defaults to `16.01`, Galaxy's `parse_profile`
+  default), comma-split multi-format, `<help>` skipped.
+
+### Why vendor the sample instead of depending on the registry
+
+Planemo's `ValidDatatypes` validates against *its own bundled* sample — it does
+not consult a live datatype registry. So **matching that bundled sample is exactly
+faithful parity**; a dependency would buy nothing the snapshot doesn't. The
+snapshot is the same in-pattern vendored artifact as the per-release XSDs and the
+deployment ceiling. Accepted asymmetry: a datatype newer than our snapshot would
+false-positive — the identical limitation Galaxy's own linter has against a
+plugin-registered type. A drift guard
+(`test_datatypes_registry.py::test_vendored_snapshot_matches_installed_galaxy_tool_util`,
+`importorskip`) pins our parsed set == the installed `galaxy-tool-util`'s, so a dep
+bump that moves the sample fails CI naming the re-vendor. Snapshot taken from
+`galaxy-tool-util` 26.0.0.
+
+### Soundness — proven by construction *and* by a corpus parity oracle
+
+The set equality is pinned by the drift guard; the *rule logic* is proven by
+`scripts.measure datatype-validation-truth`, which runs Galaxy's REAL linters over
+the corpus beside ours and asserts: on **macro-free tools** (raw tree == expanded
+tree) ours matches Galaxy's verdict EXACTLY, and on macro tools ours may only
+under-report (it skips `@…@` / macro-injected formats, the accepted raw-tree
+boundary) — never over-report, which would be a false positive and must be zero.
+Over-report is impossible by construction (a literal `format` attribute is
+identical in the raw and expanded trees), and the oracle confirms it. The
+KEEP-vs-reimplement verdict + this oracle are recorded in
+`../docs/galaxy_reimplementations.md`.
+
+Roster 70 → **72**. The former `ValidDatatypes`-on-GTR010 near-alias (the
+case-normalizer) is retired; GTR098 now owns the alias. The only remaining planemo
+DETECT linters need Galaxy's pydantic models (`TestsAssertionValidation` /
+`TestsCaseValidation`). Parity Summary (metadata-derived): HAVE 117 → **119**,
+DETECT 4 → **2**.
+
+### Reproduced by
+
+```sh
+uv run --package galaxy-tool-lint pytest galaxy-tool-lint/tests/test_checks_datatypes.py galaxy-tool-lint/tests/test_datatypes_registry.py
+uv run python -m scripts.measure datatype-validation-truth   # parity oracle (needs galaxy-tool-util + corpus)
+uv run python -m scripts.corpus_check check                  # regenerates docs/corpus_check_stats.md
+```

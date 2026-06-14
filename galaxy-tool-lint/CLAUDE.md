@@ -55,9 +55,11 @@ embedded expressions, the full `inputs.py` correctness surface, `tests.py`, and
 `<help>` RST validity via the tier-1 `galaxy_tool_source.rst` predicate — `GTR089`, now
 split into the `GTR089.1` repair + `GTR089.2` residual partition, so docutils is a
 tier-1 dep, not declared here — plus output reference integrity and data-param
-format, `GTR090`–`GTR091`; the `GTR035.2` name-whitespace residual, D33; and the
+format, `GTR090`–`GTR091`; the `GTR035.2` name-whitespace residual, D33; the
 `GTR095` id/name/version missing-or-empty trio — the half tier-1 `validate` can't
-see, D35). The tier is now **70 checks total**. Each
+see, D35; and the `GTR098`/`GTR099` datatypes pair — `format`/`ftype`/`ext`
+registry membership over a vendored `datatypes_conf.xml.sample` snapshot + a custom
+`datatypes_conf.xml` on disk, D36). The tier is now **72 checks total**. Each
 wave check that a `<macro>` could spoof skips that tool via the tier-1 `has_macros`
 raw-tree guard (`detect()` reads the un-expanded tree). The authoritative
 planemo→GTR map is `../docs/planemo_linter_parity.md`; per-group rationale + corpus
