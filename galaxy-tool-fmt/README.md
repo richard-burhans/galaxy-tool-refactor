@@ -47,8 +47,8 @@ cosmetic-only CLI split is `docs/decisions.md` §D12.
 | Code | Summary | Source |
 |---|---|---|
 | GTR001 | Canonical 4-space indentation | IUC tool-XML style |
-| GTR003 | One blank line between top-level `<tool>` children | editorial |
 | GTR004 | Collapse whitespace-only leaves to `<foo/>` form | editorial |
+| GTR003 | One blank line between top-level `<tool>` children | editorial — **PARKED** pending IUC input (§D4) |
 
 D7 and D8 in `docs/decisions.md` cover two policies — always-double-
 quote attributes and one-line-per-element layout — that lxml's

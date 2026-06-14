@@ -52,7 +52,7 @@ holds on the strength of its tier-1 render-equivalence gate (below).
 |---|---|---|---|---|
 | GTR001 | fmt indent | runtime | **REFUTED → FIXED** | ws-only `.tail` in mixed content → rendered-text drift; guarded by the mixed-content + payload-subtree skip (fmt §D19) |
 | GTR002 | param attr order | runtime | hold | attribute reorder, no value/text touched |
-| GTR003 | blank-line trivia | runtime | hold | writes only None/ws tails of `<tool>` children |
+| GTR003 | blank-line trivia | runtime | hold | writes only None/ws tails of `<tool>` children (rule parked pending IUC input, fmt §D4 — verdict still holds) |
 | GTR004 | empty-element | runtime | **REFUTED → FIXED** | cleared ws-only `.text` on content-bearing leaves (`<configfile>`/`<command>`/`<token>`) (PR #113) |
 | GTR005 | tool attr order | runtime | hold | attribute reorder only |
 | GTR006 | FixTypos | validity-restore | **REFUTED*** | case-folds `format="RestructuredText"`→`restructuredtext` (*nuance: validity-restoration contract, see below) |

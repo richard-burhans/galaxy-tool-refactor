@@ -39,7 +39,7 @@ load-bearing rule:
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | `RuleMeta` descriptor, `Violation` diagnostic, the `Ruleset` catalog, `render_rule_reference_table`. Dependency-free; shared by every higher tier. |
 | 1 | **parsing & validation** | `galaxy-tool-source` | `ToolDocument` / `MacroDocument` (mutable lxml tree = source of truth), `load_tool` / `parse_tool` / `validate_tool`, `newest_valid_profile`, profile resolution, typed xsdata views. **No serializer.** |
 | 2 | **structure** | `galaxy-tool-codemod` | `CodemodCommand` visitor framework, `Cursor` mutation primitives, `Change` + `apply_changes`, the bundled codemods, `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` contracts. |
-| 3 | **formatting** | `galaxy-tool-fmt` | Cosmetic `Rule`s (indent / blank line / shorthand), the `Edit` union + `apply_edits`, `format_tool_document` + the net-diff `detect_tool_document`, the shared `cli_support` engine, the serializer. **The only tier that serialises canonical output XML.** |
+| 3 | **formatting** | `galaxy-tool-fmt` | Cosmetic `Rule`s (indent / shorthand; the blank-line rule GTR003 is parked, fmt §D4), the `Edit` union + `apply_edits`, `format_tool_document` + the net-diff `detect_tool_document`, the shared `cli_support` engine, the serializer. **The only tier that serialises canonical output XML.** |
 | 3.5 | **advisory checks** | `galaxy-tool-lint` | Detect-only IUC best-practice + planemo-parity checks (70; `CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | `RuleHandle` (uniform adapter over all three families), the unified registry, declarative rule-sets, ruff-style selection, and the **library-first** `run` / `upgrade` / `detect` facade. Composes 0.5/1/2/3/3.5. |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` / `convert-help` / `tokenize-version` / `lint-skip`. CLI plumbing only. |
@@ -326,10 +326,11 @@ and a throwaway temp-dir round-trip for macro expansion — neither is output.)
 
 - **`Rule`** — `rules.py` — stateless ABC carrying `meta: ClassVar[RuleMeta]`; its
   single method `edits(tree) -> Iterable[Edit]` *describes* mutations (it yields
-  `Edit`s; it does not itself touch the tree). The three active rules: `GTR001`
-  `CanonicalIndent` (`rule_indent.py`), `GTR003` `BlankLineBetweenSections`
-  (`rule_blank_line.py`, tool-only), `GTR004` `EmptyElementShorthand`
-  (`rule_empty_element.py`). *(GTR002/GTR005 — attribute order — moved to tier 2.)*
+  `Edit`s; it does not itself touch the tree). The two active rules: `GTR001`
+  `CanonicalIndent` (`rule_indent.py`) and `GTR004` `EmptyElementShorthand`
+  (`rule_empty_element.py`). *(GTR002/GTR005 — attribute order — moved to tier 2;
+  `GTR003` `BlankLineBetweenSections` is parked — in source but out of `all_rules()`
+  — pending IUC input, fmt §D4.)*
   GTR001 and GTR004 share the **schema-derived payload guard** (`payload.py` over
   tier-1 `schema_content`, fmt §D20): whitespace inside a text-bearing element is
   never rewritten, with two proof-carried exceptions (configfiles-context
@@ -345,8 +346,9 @@ and a throwaway temp-dir round-trip for macro expansion — neither is output.)
   `_subset` form is the per-rule seam the registry uses.
 - **`detect_tool_document` / `_subset` / `detect_macro_document`** — `detect.py` —
   the non-mutating lint phase. Because fmt rules are *unconditional* and can
-  overwrite each other (GTR001 and GTR003 both rewrite top-level-child tails), the
-  only faithful signal is the **net effect** of the whole pipeline: detect formats
+  overwrite each other (GTR001 rewrites every child tail; GTR003, when active,
+  re-set top-level-child tails — the ordering hazard that motivated `meta.order`),
+  the only faithful signal is the **net effect** of the whole pipeline: detect formats
   a throwaway deep copy, records the last rule to touch each node, and diffs
   against the original — one `Violation` per net-changed node, attributed to the
   owning rule. An already-canonical document reports nothing.
@@ -764,7 +766,7 @@ Each abstraction → its file → the decision record that justifies it.
 |---|---|---|---|
 | GTR001 | `CanonicalIndent` | `galaxy-tool-fmt/.../rule_indent.py` | fmt (cosmetic) |
 | GTR002 | `ReorderParamAttributes` | `galaxy-tool-codemod/.../reorder_param_attributes.py` | codemod (canonical) |
-| GTR003 | `BlankLineBetweenSections` | `galaxy-tool-fmt/.../rule_blank_line.py` | fmt (cosmetic, tool-only) |
+| GTR003 | `BlankLineBetweenSections` | `galaxy-tool-fmt/.../rule_blank_line.py` | fmt (cosmetic, tool-only) — **parked**, out of `all_rules()` (fmt §D4) |
 | GTR004 | `EmptyElementShorthand` | `galaxy-tool-fmt/.../rule_empty_element.py` | fmt (cosmetic) |
 | GTR005 | `ReorderToolAttributes` | `galaxy-tool-codemod/.../reorder_tool_attributes.py` | codemod (canonical) |
 | GTR006 | `FixTypos` | `galaxy-tool-codemod/.../fix_typos.py` | codemod (canonical, validation-driven) |

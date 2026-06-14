@@ -281,6 +281,12 @@ uv run python -m scripts.measure output-format-input
 # server-side, markdown renders client-side; both supported):
 uv run python -m scripts.measure help-formats
 
+# Blank-line adoption: do tool authors already put a blank line between top-level
+# <tool> sections in the SOURCE? Sizes the parked GTR003 convention for the IUC
+# conversation (docs/iuc_conference_questions.md §4). Corpus: only 13.3% of section
+# boundaries / 30% of tools use it. Print-only; needs the corpus:
+uv run python -m scripts.measure blank-line-adoption
+
 # reStructuredText <help> codemod feasibility (backs
 # docs/upgrade_research/restructuredtext_codemods.md; docutils-dependent, not in CI).
 # help-rst-errors buckets docutils validity errors + sizes the deterministically-fixable
@@ -450,7 +456,7 @@ Tiers, each independently installable:
 | 0.5 | **rule metadata** | `galaxy-tool-refactor-rules` | `RuleMeta` descriptor + `render_rule_reference_table`. Dependency-free; shared by tiers 2 & 3 so the GTR registry spans both. |
 | 1 | **parsing & validation** | `galaxy-tool-source` | `load_tool` / `parse_tool` / `validate_tool`, typed xsdata views. **No serializer.** |
 | 2 | **structure** | `galaxy-tool-codemod` | `CodemodCommand` visitor framework + bundled structural codemods (each carries a `RuleMeta` GTR code; see `catalog.coded_codemods()`) + `canonical_codemods()` contract. |
-| 3 | **formatting** | `galaxy-tool-fmt` | Cosmetic rules (indent / blank line / empty-element shorthand) + the shared `cli_support` CLI engine. The only tier that serialises canonical output XML. |
+| 3 | **formatting** | `galaxy-tool-fmt` | Cosmetic rules (indent / empty-element shorthand; the blank-line rule GTR003 is parked pending IUC input, fmt §D4) + the shared `cli_support` CLI engine. The only tier that serialises canonical output XML. |
 | 3.5 | **advisory checks** | `galaxy-tool-lint` | Detect-only IUC best-practice checks (`GTR` codes, `RuleMeta.detect_only`); read-only LBYL queries over tier 1 yielding `Violation`. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | Unified, code-addressable `RuleHandle` over all three families + named rulesets (`cosmetic`/`default`/`iuc`/`strict`) + `run`/`upgrade`/`detect`. **Library-first** (no click/exit; structured I/O; introspectable). Depends on 0.5/1/2/3/3.5; lower tiers don't depend on it. |
 | 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`, `convert-help`, `tokenize-version`, `lint-skip`. |

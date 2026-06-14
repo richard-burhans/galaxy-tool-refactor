@@ -26,8 +26,9 @@ style, attribute spacing, empty-element shorthand) entirely.
 It formats both **tool** files (`<tool>` root) and **macro-library** files
 (`<macros>` root). Each rule declares the document kinds it applies to via
 `RuleMeta.applies_to` (`format.rules_for_kind`): the generic XML rules (GTR001
-indent, GTR004 shorthand) run on both; the tool-only blank-line rule (GTR003)
-runs on tools only. `format_macro_document` is the `<macros>` counterpart to
+indent, GTR004 shorthand) run on both. (The tool-only blank-line rule GTR003 is
+**parked** — not in `all_rules()` — pending IUC input, §D4.)
+`format_macro_document` is the `<macros>` counterpart to
 `format_tool_document`; the CLI opts into macro files via `cli_support.run`'s
 `macro_transform` (see `docs/decisions.md` §D16, rules §D3).
 
