@@ -253,12 +253,14 @@ def test_check_detect_reports_fixable_and_advisory() -> None:
     assert any(code in registry and registry[code].detect_only for code in codes)
 
 
-def test_check_process_path_tallies_per_code(tmp_path: Path) -> None:
-    """One file rolls into the sweep's per-code and per-tool tallies."""
+def test_check_analyze_and_reduce_tally_per_code(tmp_path: Path) -> None:
+    """The worker + reducer roll one file into the per-code and per-tool tallies."""
     file = tmp_path / "tool.xml"
     file.write_bytes(_FLAT_TOOL)
     state = corpus_check._CheckSweepState(registry=corpus_check._check_rule_registry())
-    corpus_check._check_process_path(file, state=state)
+    result = corpus_check._check_analyze(file)
+    assert result is not None
+    corpus_check._check_reduce(state, result)
     assert state.tools == 1
     assert state.flagged_tools == 1
     assert state.fixable_flagged_tools == 1
@@ -269,9 +271,11 @@ def test_check_process_path_tallies_per_code(tmp_path: Path) -> None:
     assert state.registry["GTR006"].flagged == 0
 
 
-def test_check_process_path_skips_non_tool(tmp_path: Path) -> None:
+def test_check_analyze_marks_non_tool(tmp_path: Path) -> None:
     file = tmp_path / "macros.xml"
     file.write_bytes(b"<macros><token>x</token></macros>")
     state = corpus_check._CheckSweepState(registry=corpus_check._check_rule_registry())
-    corpus_check._check_process_path(file, state=state)
+    result = corpus_check._check_analyze(file)
+    assert result is not None and result.is_tool is False
+    corpus_check._check_reduce(state, result)
     assert state.tools == 0
