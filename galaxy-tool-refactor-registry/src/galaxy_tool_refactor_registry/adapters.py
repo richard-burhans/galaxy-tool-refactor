@@ -16,10 +16,12 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from galaxy_tool_codemod.catalog import coded_codemods
+from galaxy_tool_codemod.codemods.reorder_tool_children import ReorderToolChildren
 from galaxy_tool_codemod.module import Module
 from galaxy_tool_fmt.detect import detect_tool_document_subset
 from galaxy_tool_fmt.format import all_rules, format_tool_document_subset
 from galaxy_tool_lint.detect import all_checks
+from galaxy_tool_source.macros import top_level_expand_tags
 
 from galaxy_tool_refactor_registry.handle import RuleHandle
 
@@ -72,14 +74,51 @@ def advisory_checks() -> tuple[type[CheckRule], ...]:
     return all_checks()
 
 
+def gtr013_expand_ranks(document: ToolDocument) -> dict[int, str]:
+    """Resolve each top-level ``<expand>`` to the single IUC tag it produces.
+
+    The facade-side input to the GTR013 ``<expand>`` resolution layer (codemod
+    ``docs/decisions.md`` §53): for each top-level ``<expand>`` child, faithfully
+    expand it (tier-1 ``top_level_expand_tags``) and, when it yields exactly one
+    element tag, record ``{child index -> tag}`` so ``ReorderToolChildren`` can
+    place it in that tag's IUC slot. Anything that does not resolve to a single tag
+    (multi-element, unresolvable import, unknown macro) is omitted, so the codemod
+    pins it (the safe floor). Lives here, not in the codemod, because macro
+    expansion is tier-1 work the facade orchestrates — the codemod stays a pure
+    tree op that receives a plain index→tag map (registry decisions D25).
+    """
+    ranks: dict[int, str] = {}
+    for index, child in enumerate(document.root):
+        if not isinstance(child.tag, str) or child.tag != "expand":
+            continue
+        tags = top_level_expand_tags(document, child)
+        if tags is not None and len(tags) == 1:
+            ranks[index] = tags[0]
+    return ranks
+
+
 def codemod_handle(cls: type[CodemodCommand], /) -> RuleHandle:
-    """Wrap a codemod class as a ``RuleHandle`` (detect/apply via a ``Module``)."""
+    """Wrap a codemod class as a ``RuleHandle`` (detect/apply via a ``Module``).
+
+    ``ReorderToolChildren`` (GTR013) is the one codemod the facade gives more than
+    the bare tree: it is constructed with a per-document ``expand_ranks`` map
+    (``gtr013_expand_ranks``) so an opaque top-level ``<expand>`` is placed in its
+    resolved IUC slot rather than pinned. This is a documented, intentional
+    asymmetry — every other codemod is `cls()` (the canonical-pipeline contract);
+    only GTR013 needs the facade's tier-1 macro resolution (registry decisions D25).
+    """
+
+    def _instance(document: ToolDocument) -> CodemodCommand:
+        if cls is ReorderToolChildren:
+            return cls(expand_ranks=gtr013_expand_ranks(document))
+        return cls()
 
     def detect(document: ToolDocument) -> list[Violation]:
-        return [change.to_violation() for change in cls().detect(Module(document))]
+        changes = _instance(document).detect(Module(document))
+        return [change.to_violation() for change in changes]
 
     def apply(document: ToolDocument) -> None:
-        cls().apply(Module(document))
+        _instance(document).apply(Module(document))
 
     return RuleHandle(
         meta=cls.meta,

@@ -45,9 +45,20 @@ _IUC_ELEMENT_ORDER: tuple[str, ...] = (
     "citations",
 )
 
+_IUC_RANK: dict[str, int] = {tag: index for index, tag in enumerate(_IUC_ELEMENT_ORDER)}
+
 
 class ReorderToolChildren(CodemodCommand):
-    """Reorder the root ``<tool>`` element's children to the IUC convention."""
+    """Reorder the root ``<tool>`` element's children to the IUC convention.
+
+    By default an opaque top-level ``<expand>`` is **pinned** to its position
+    (§53), since the codemod cannot see the tag it expands to. When the registry
+    facade resolves an ``<expand>`` to the single IUC tag it produces, it passes
+    ``expand_ranks`` (child index → resolved IUC tag) so that ``<expand>`` is
+    actively placed in its slot rather than pinned (the resolution layer). The
+    canonical pipeline constructs this codemod with no arguments (pure pinning);
+    only the facade, which can run macro expansion, supplies the per-document map.
+    """
 
     meta: ClassVar[RuleMeta] = RuleMeta(
         code="GTR013",
@@ -59,12 +70,24 @@ class ReorderToolChildren(CodemodCommand):
         planemo_linters=frozenset({"XMLOrder"}),
     )
 
+    def __init__(self, *, expand_ranks: dict[int, str] | None = None) -> None:
+        """*expand_ranks* maps a top-level child index to the IUC tag it resolves
+        to (facade-supplied); absent => pure pinning (the standalone default)."""
+        self._expand_ranks = expand_ranks or {}
+
     def detect_Tool(self, cursor: Cursor) -> Iterable[Change]:
-        if cursor.would_reorder_children(_IUC_ELEMENT_ORDER):
+        override = {
+            index: _IUC_RANK[tag]
+            for index, tag in self._expand_ranks.items()
+            if tag in _IUC_RANK
+        }
+        if cursor.would_reorder_children(_IUC_ELEMENT_ORDER, rank_override=override):
             yield Change(
                 code=self.meta.code,
                 sourceline=cursor.sourceline,
                 xpath=cursor.xpath,
                 message="<tool> child elements are not in IUC convention order",
-                mutate=lambda: cursor.reorder_children(_IUC_ELEMENT_ORDER),
+                mutate=lambda: cursor.reorder_children(
+                    _IUC_ELEMENT_ORDER, rank_override=override
+                ),
             )

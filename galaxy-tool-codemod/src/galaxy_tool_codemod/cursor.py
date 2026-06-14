@@ -199,7 +199,10 @@ class Cursor:
         return Cursor(child)
 
     def _plan_reorder_children(
-        self, order: Sequence[str]
+        self,
+        order: Sequence[str],
+        *,
+        rank_override: dict[int, int] | None = None,
     ) -> list[etree._Element] | None:
         """Return the reordered child nodes, or ``None`` if nothing would move.
 
@@ -211,8 +214,18 @@ class Cursor:
         codemod cannot see through, and floating it past every known element put
         ``<requirements>`` at the bottom of the tool. Keeping it where the author
         placed it never produces a wrong-looking move, and is the safe floor
-        beneath the future faithful-resolution layer. See ``docs/decisions.md``
-        §53. Returns ``None`` when the element has any non-element child (Comment /
+        beneath the faithful-resolution layer. See ``docs/decisions.md`` §53.
+
+        ``rank_override`` maps a **child index** to the rank it should sort by,
+        overriding its tag-derived rank (or giving a rank to an otherwise-unknown
+        tag). This is the resolution-layer seam: the facade resolves an opaque
+        top-level ``<expand>`` to the IUC tag it expands to and passes that tag's
+        rank here, so the ``<expand>`` is actively placed in its slot rather than
+        pinned. An index absent from the override keeps its tag-derived rank (or
+        stays pinned if its tag is unknown). The codemod owns the mapping; this
+        primitive stays a pure index→rank tree operation.
+
+        Returns ``None`` when the element has any non-element child (Comment /
         ProcessingInstruction) — see ``reorder_children`` — or when the order
         already matches, so neither the detect predicate nor the mutator churns
         an already-ordered element.
@@ -221,36 +234,65 @@ class Cursor:
         if any(not _is_element(node) for node in nodes):
             return None
         rank = {tag: index for index, tag in enumerate(order)}
+        override = rank_override or {}
+        # Each node's effective rank: the index override wins, else the tag's rank,
+        # else None (unknown -> pinned).
+        ranks: list[int | None] = [
+            override.get(index, rank.get(str(node.tag)))
+            for index, node in enumerate(nodes)
+        ]
         known_sorted = iter(
-            sorted(
-                (node for node in nodes if str(node.tag) in rank),
-                key=lambda node: rank[str(node.tag)],
+            node
+            for _, node in sorted(
+                (
+                    (effective, node)
+                    for effective, node in zip(ranks, nodes, strict=True)
+                    if effective is not None
+                ),
+                key=lambda item: item[0],
             )
         )
-        # Walk the original positions: a slot that held a known element receives
-        # the next known element in canonical order; an unknown stays put.
+        # A slot with an effective rank receives the next ranked element in order;
+        # an unranked (None) slot stays put.
         reordered = [
-            next(known_sorted) if str(node.tag) in rank else node for node in nodes
+            next(known_sorted) if effective is not None else node
+            for effective, node in zip(ranks, nodes, strict=True)
         ]
         if all(before is after for before, after in zip(nodes, reordered, strict=True)):
             return None
         return reordered
 
-    def would_reorder_children(self, order: Sequence[str], /) -> bool:
+    def would_reorder_children(
+        self,
+        order: Sequence[str],
+        /,
+        *,
+        rank_override: dict[int, int] | None = None,
+    ) -> bool:
         """Whether ``reorder_children(order)`` would move any child element.
 
         The detect-phase predicate: it shares ``_plan_reorder_children`` with the
-        mutator, so a codemod reports a reorder exactly when applying one would.
+        mutator (forwarding ``rank_override``), so a codemod reports a reorder
+        exactly when applying one would.
         """
-        return self._plan_reorder_children(order) is not None
+        plan = self._plan_reorder_children(order, rank_override=rank_override)
+        return plan is not None
 
-    def reorder_children(self, order: Sequence[str], /) -> None:
+    def reorder_children(
+        self,
+        order: Sequence[str],
+        /,
+        *,
+        rank_override: dict[int, int] | None = None,
+    ) -> None:
         """Reorder this element's child *elements* to the canonical tag ``order``.
 
         Children whose tag appears in ``order`` are sorted into that order within
         the slots they originally occupied; tags not in ``order`` are pinned to
         their original position (not floated to the end — see
-        ``_plan_reorder_children`` and ``docs/decisions.md`` §53).
+        ``_plan_reorder_children`` and ``docs/decisions.md`` §53). ``rank_override``
+        (child index → rank) overrides a node's tag-derived rank — the
+        resolution-layer seam (see ``_plan_reorder_children``).
         When nothing would move — the order already matches, or a free-floating
         Comment / ProcessingInstruction is present (``children()`` hides those,
         and moving elements past one would silently re-associate it with the
@@ -259,7 +301,7 @@ class Cursor:
         re-appended; each element's ``tail`` travels with it, so inter-element
         whitespace is left for the cosmetic formatter to re-normalise.
         """
-        reordered = self._plan_reorder_children(order)
+        reordered = self._plan_reorder_children(order, rank_override=rank_override)
         if reordered is None:
             return
         for node in reordered:

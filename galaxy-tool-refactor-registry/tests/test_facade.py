@@ -35,6 +35,31 @@ def test_default_ruleset_is_byte_identical_to_today_format(sample_bytes: bytes) 
     assert out == _today_format(sample_bytes)
 
 
+def test_facade_resolves_and_places_opaque_top_level_expand() -> None:
+    """The facade resolves an opaque inline-macro ``<expand>`` to the IUC tag it
+    expands to and actively places it (the GTR013 resolution layer, §53), going
+    beyond the bare pinning pipeline. Here ``<expand macro="bt">`` resolves to
+    ``<xrefs>`` and so sorts after ``<macros>``, where the bare pipeline pins it
+    before ``<macros>``."""
+    source = (
+        b'<tool id="t" name="T" version="0.1" profile="24.1">'
+        b"<description>d</description>"
+        b'<expand macro="bt"/>'
+        b'<macros><xml name="bt"><xrefs>'
+        b'<xref type="bio.tools">x</xref></xrefs></xml></macros>'
+        b"<command><![CDATA[echo x]]></command>"
+        b"<inputs/><outputs/></tool>"
+    )
+    out = facade.run(source, codes=resolve_codes()).formatted
+    # Resolved + placed: <macros> now precedes the <expand> call.
+    assert out.index(b"<macros") < out.index(b'<expand macro="bt"')
+    # The facade does MORE than the bare pinning pipeline (which leaves it first).
+    assert out != _today_format(source)
+    assert _today_format(source).index(b'<expand macro="bt"') < _today_format(
+        source
+    ).index(b"<macros")
+
+
 def test_cosmetic_ruleset_skips_structural_reorder(sample_bytes: bytes) -> None:
     """cosmetic does not reorder <param> attributes; default does."""
     cosmetic_codes = resolve_codes(rulesets=["cosmetic"])

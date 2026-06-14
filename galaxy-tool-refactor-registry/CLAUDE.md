@@ -75,7 +75,11 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
 
 - `handle.py` — the `RuleHandle` adapter dataclass.
 - `adapters.py` — wrap each family (codemod / fmt / check) into a `RuleHandle`;
-  the family class enumerations.
+  the family class enumerations. Also `gtr013_expand_ranks` + the GTR013
+  `codemod_handle` special-case: the facade resolves an opaque top-level
+  `<expand>` (tier-1 `top_level_expand_tags`) and feeds `ReorderToolChildren` a
+  per-document `expand_ranks` map so it is placed in its IUC slot (the resolution
+  layer over the §53 pinning floor; the one documented per-rule asymmetry, D25).
 - `registry.py` — `@cache`d `code -> RuleHandle` index (duplicate-code guard);
   `registry` / `all_handles` / `by_code` / `known_codes` / `advisory_codes`.
 - `rulesets.py` — derives ruleset code sets from per-rule `RuleMeta.rulesets`
