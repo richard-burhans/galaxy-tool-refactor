@@ -22,7 +22,7 @@ is the breaking-change channel.
   a *derived* set) and clean on every tool in the directory after the fix.
   Anything it cannot fix, cannot prove, or does not cover is left untouched and
   unmentioned (`check` reports the full picture). `--check` previews; `--backup`
-  keeps `.bak`s. Corpus sizing: 149 of 640 suppressions auto-removable
+  keeps `.bak`s. Corpus sizing: 160 of 640 suppressions auto-removable
   (`scripts.measure lint-skip-corpus`; `docs/lint_skip.md`).
 - **GTR098 / GTR099 datatype checks** (galaxy-tool-lint, lint decisions D36):
   advisory `check`-tier ports of planemo's `ValidDatatypes` (GTR098 —
@@ -169,5 +169,6 @@ version, so the others jump from 0.0.1 to 0.2.0 to align.)
 - A corpus-completeness guard in `scripts/corpus_check.py` that refuses to
   regenerate stat pages from a partial corpus.
 
-[Unreleased]: https://github.com/richard-burhans/galaxy-tool-refactor/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/richard-burhans/galaxy-tool-refactor/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/richard-burhans/galaxy-tool-refactor/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/richard-burhans/galaxy-tool-refactor/releases/tag/v0.2.0

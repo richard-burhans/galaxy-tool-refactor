@@ -1,5 +1,59 @@
 # Architectural audit — galaxy-tool-refactor
 
+## Re-audit 2026-06-14 — post 0.3.0 release (PRs #220-#234), single delta pass
+
+**Audited commit:** `7511891` (main at audit time; the doc fixes below land on the
+audit branch). Delta since `fcc7bdc` is the **0.3.0 release surface** (≈50 non-lockfile
+files): the **GTR098/GTR099 datatypes pair** (#224 — faithful planemo ports over a
+vendored `datatypes_conf.xml.sample`, no runtime `galaxy-tool-util`), the **GTR013
+faithful `<expand>` resolution layer** over the pinning floor (#222 — tier-1
+`top_level_expand_tags` → facade `gtr013_expand_ranks` → codemod `expand_ranks`
+constructor arg), **GTR003 parked** (#225), **corpus_check parallelization** of all four
+sweeps (#227/#228/#231 — multiprocessing map-reduce + `--jobs`), the **conventions
+follow-up** (#229), **process hardening** (#230 — mypy at the 3.10 floor + require-clean
+push), the **LBYL wording reconciliation** (#223), the **0.3.0 release** (#232), and the
+**`docs/blog/`** source tree + second post (#226/#233/#234).
+
+**Verdict — healthy; zero High, zero boundary violations.** A single deep delta pass
+(weighted to the changed surface) plus the full-suite guard/doc sweeps, corroborated by
+two read-only `Explore` scouts whose claims were re-verified in source. Both new feature
+surfaces are tier-clean: GTR013's three-layer resolver flows tier-1 → tier-3.6 →
+tier-2-constructor-arg (no inversion; pure pinning remains the standalone default), and
+the datatypes pair is self-contained in tier-3.5 (vendored snapshot via
+`importlib.resources`; `galaxy-tool-util` is a test-only drift oracle, not a runtime
+dep). All machine-checked guards are green in `qa_gate.sh`. Findings are doc-freshness
+only.
+
+### Findings
+
+- **[fixed] (Low) `ARCHITECTURE.md:43` CheckRule count stale (70 → 72).** The datatypes
+  pair (#224) added GTR098/GTR099; the tier-3.5 row still read "70". Source: 72
+  `class …(CheckRule)` subclasses in `galaxy-tool-lint/src/.../checks/`.
+- **[fixed] (Low) `CLAUDE.md` command count stale ("ten" → "eleven").** The CLI registers
+  11 `@main.command`s; the prose groups `rulesets`/`rules` into one bullet and
+  undercounted. `docs/guide/usage/cli.md` already said 11.
+- **[fixed] (Low) lint-skip auto-removable count lagged the #224 re-measure (149 → 160).**
+  #224 re-ran `scripts.measure lint-skip-corpus` after tools-iuc joined the corpus and
+  updated `CLAUDE.md` to 160/640 (25.0%), but `CHANGELOG.md:25` and
+  `docs/guide/capabilities.md:48` still said 149. Re-ran the measure to confirm **160
+  (25.0%)**; reconciled both (a measured value propagated, never hand-picked).
+- **[fixed] (Low) `scripts/measure.py` `expand-reorder-resolution` blurb called the
+  resolver "future".** It shipped in #222; per the generator-blurb timeless-facts
+  convention, reworded to "the gap … closes over the pinning floor (both shipped)".
+- **[fixed] (Low) `CHANGELOG.md` compare-links not bumped at the 0.3.0 release.** The
+  footer still pointed `[Unreleased]` at `v0.2.0...HEAD` with no `[0.3.0]` entry; added
+  the `[0.3.0]` compare link and repointed `[Unreleased]` to `v0.3.0...HEAD`.
+- **[accepted] (resolved) #220's LBYL `[proposal]` is closed by #223.** The
+  softened-stance re-wording flagged in the 2026-06-13 record was applied in #223;
+  `CLAUDE.md` now reads "prefer LBYL for routine branching … and where the operation
+  itself is the authoritative test (dignified-python's softened stance)". Recorded so it
+  isn't re-litigated.
+- **[accepted] (Low) galaxyls-binding docs cite `galaxy-tool-source` 0.2.0.**
+  `docs/guide/leverage.md` + `capabilities.md` say the version-tokenization Code Action
+  is "validated against the published 0.2.0". Accurate: that external binding pins
+  `==0.2.0`, its upstream PR is user-held, and the pin bump is a galaxyls-side decision,
+  not repo drift. Recorded so it isn't re-flagged until the binding is re-pinned.
+
 ## Re-audit 2026-06-13 — post behavior-preserving-upgrade arc + lint-skip + GTR020/GTR013 fixes + dignified-python re-vendor (PRs #195-#219), single pass
 
 **Audited commit:** `fcc7bdc`. Delta since `2df9e4d` is **enormous** (138 files,

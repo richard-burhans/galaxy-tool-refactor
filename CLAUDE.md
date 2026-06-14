@@ -492,7 +492,7 @@ Tiers, each independently installable:
 front-end.** Each lower tier is consumable standalone; the facade composes them
 into one code-addressable rule set with rulesets and a library-first
 `run`/`upgrade`/`detect` API. The CLI (`galaxy-tool-refactor-cli`) depends on the
-facade (plus fmt's `cli_support` engine and tier-1 parsing) and owns ten
+facade (plus fmt's `cli_support` engine and tier-1 parsing) and owns eleven
 commands:
 
 - `galaxy-tool-refactor format` — apply a ruleset's fixable rules (the default
