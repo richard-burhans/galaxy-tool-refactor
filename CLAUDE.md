@@ -122,8 +122,9 @@ uv run python -m scripts.corpus_check codemod <dotted.module>:<ClassName> [--rep
 uv run python -m scripts.corpus_check rules [--source github|toolshed|combined] [--repo NAME] [--limit N]
 
 # Unified-detect violation counts (what `check` reports: canonical codemods + fmt + advisory
-# IUC): per-rule tools-flagged + total findings, write docs/corpus_check_stats.md.
-uv run python -m scripts.corpus_check check [--source github|toolshed|combined] [--repo NAME] [--limit N]
+# IUC): per-rule tools-flagged + total findings, write docs/corpus_check_stats.md. Parallel
+# by default (--jobs N, cpu_count-2; ~12x, byte-identical to serial); --jobs 1 / --limit = serial.
+uv run python -m scripts.corpus_check check [--source github|toolshed|combined] [--repo NAME] [--limit N] [--jobs N]
 
 # Upgrade-contract sweep: run the shipped `upgrade` over every tool in one or both
 # modes and assert each mode's contract — minimal (the DEFAULT: fail-closed,

@@ -61,15 +61,17 @@ skipped with a warning.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
+import multiprocessing
 import re
 import shutil
 import subprocess
 import sys
 import traceback
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import date
 from functools import cache
@@ -3150,73 +3152,151 @@ def _check_detect(document: ToolDocument) -> list[Violation]:
     return violations
 
 
-def _check_process_path(path: Path, *, state: _CheckSweepState) -> None:
-    """Run the unified detect on one file and roll the findings into ``state``."""
+@dataclass
+class _CheckToolResult:
+    """One tool's check-sweep outcome — picklable, returned by the pool worker.
+
+    Carries the dedup ``sha`` (computed once from the bytes the worker already
+    read), whether the file is a ``<tool>``, whether detect crashed, and the
+    per-code finding counts. Classification (fixable/advisory) is deferred to the
+    reducer, which holds the rule registry.
+    """
+
+    sha: str
+    is_tool: bool
+    crashed: bool
+    code_totals: dict[str, int]
+
+
+def _check_analyze(path: Path) -> _CheckToolResult | None:
+    """Pure per-tool worker for the check sweep: no shared state, picklable result.
+
+    Mirrors the old ``_check_process_path`` body but returns a result instead of
+    mutating a ``state`` object, so it can run in a process pool. Computes the sha
+    from the bytes it reads (the dedup key), avoiding a second file read.
+    """
     if not path.is_file():
-        return
+        return None
     try:
         raw = path.read_bytes()
     except OSError:
-        return
+        return None
+    sha = hashlib.sha256(raw).hexdigest()
     if not is_tool_root(raw):
-        return
+        return _CheckToolResult(sha, is_tool=False, crashed=False, code_totals={})
     try:
         document = load_tool(raw)
     except ToolXmlSyntaxError:
-        return
+        return _CheckToolResult(sha, is_tool=False, crashed=False, code_totals={})
     if document.root.tag != "tool":
-        return
-    state.tools += 1
+        return _CheckToolResult(sha, is_tool=False, crashed=False, code_totals={})
     try:
         violations = _check_detect(document)
     except Exception:  # noqa: BLE001 — diagnostic sweep: a crash is a finding
-        state.crashed += 1
         logger.warning("CRASH on %s\n%s", path, traceback.format_exc())
+        return _CheckToolResult(sha, is_tool=True, crashed=True, code_totals={})
+    totals: Counter[str] = Counter(violation.code for violation in violations)
+    return _CheckToolResult(
+        sha, is_tool=True, crashed=False, code_totals=dict(totals)
+    )
+
+
+def _check_reduce(state: _CheckSweepState, result: _CheckToolResult) -> None:
+    """Fold one worker result into the sweep ``state`` (the reduce step).
+
+    Order-independent (counts are sums), so it is correct regardless of the
+    pool's completion order; the caller handles sha dedup.
+    """
+    if not result.is_tool:
         return
-    if not violations:
+    state.tools += 1
+    if result.crashed:
+        state.crashed += 1
+        return
+    if not result.code_totals:
         return
     state.flagged_tools += 1
-    codes_here: set[str] = set()
     has_fixable = has_advisory = False
-    for violation in violations:
-        stat = state.registry.get(violation.code)
+    for code, count in result.code_totals.items():
+        stat = state.registry.get(code)
         if stat is None:
             continue  # a code outside the registry should not occur
-        stat.total += 1
-        codes_here.add(violation.code)
+        stat.total += count
+        stat.flagged += 1
         if stat.detect_only:
             has_advisory = True
         else:
             has_fixable = True
-    for code in codes_here:
-        state.registry[code].flagged += 1
     if has_fixable:
         state.fixable_flagged_tools += 1
     if has_advisory:
         state.advisory_flagged_tools += 1
 
 
-def _check_sweep(
-    *, sources: tuple[str, ...], repo_filter: str | None, limit: int
-) -> _CheckSweepState:
-    """Sweep the corpus through the unified detect, tallying per-code findings."""
-    state = _CheckSweepState(registry=_check_rule_registry())
-    seen_sha: set[str] = set()
+def _default_jobs() -> int:
+    """Default worker count for a parallel sweep: leave two cores free."""
+    return max(1, (multiprocessing.cpu_count() or 1) - 2)
+
+
+def _sweep_paths(
+    sources: tuple[str, ...], repo_filter: str | None
+) -> list[Path]:
+    """Every tool-xml path across the selected sources, in deterministic order."""
+    paths: list[Path] = []
     for _source_label, _display_name, repo_dir, _version in _iter_sources(
         sources, repo_filter=repo_filter
     ):
-        for path in sorted(_iter_tool_xmls(repo_dir)):
-            if limit and state.tools >= limit:
+        paths.extend(sorted(_iter_tool_xmls(repo_dir)))
+    return paths
+
+
+def _parallel_map(
+    items: list[Path],
+    worker: "Callable[[Path], _CheckToolResult | None]",
+    *,
+    jobs: int,
+) -> list["_CheckToolResult | None"]:
+    """Map *worker* over *items* across *jobs* processes (``imap_unordered``).
+
+    Returns results in completion order; callers must be order-independent (the
+    sweeps accumulate counts and dedup by sha, both order-free). ``jobs <= 1``
+    runs serially in-process (the exact-fallback / debug path).
+    """
+    if jobs <= 1:
+        return [worker(item) for item in items]
+    chunksize = max(1, len(items) // (jobs * 16))
+    with multiprocessing.Pool(processes=jobs) as pool:
+        return list(pool.imap_unordered(worker, items, chunksize=chunksize))
+
+
+def _check_sweep(
+    *, sources: tuple[str, ...], repo_filter: str | None, limit: int, jobs: int
+) -> _CheckSweepState:
+    """Sweep the corpus through the unified detect, tallying per-code findings.
+
+    Parallel by default (``jobs`` workers): each tool is analyzed independently by
+    ``_check_analyze`` and the picklable results are reduced into ``state`` with sha
+    dedup. A ``--limit`` (partial/debug) run stays serial so the limit semantics
+    (stop after N tools) are exact.
+    """
+    state = _CheckSweepState(registry=_check_rule_registry())
+    seen_sha: set[str] = set()
+    paths = _sweep_paths(sources, repo_filter)
+    if limit:
+        for path in paths:
+            if state.tools >= limit:
                 break
-            if not path.is_file():
+            result = _check_analyze(path)
+            if result is None or result.sha in seen_sha:
                 continue
-            sha = _sha256_of(path)
-            if sha in seen_sha:
-                continue
-            seen_sha.add(sha)
-            _check_process_path(path, state=state)
-        if limit and state.tools >= limit:
-            break
+            seen_sha.add(result.sha)
+            _check_reduce(state, result)
+        return state
+    for result in _parallel_map(paths, _check_analyze, jobs=jobs):
+        if result is None or result.sha in seen_sha:
+            continue
+        seen_sha.add(result.sha)
+        _check_reduce(state, result)
     return state
 
 
@@ -3353,6 +3433,16 @@ def _check_main(argv: list[str]) -> int:
         action="store_true",
         help="do not (re)write docs/corpus_check_stats.md",
     )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=_default_jobs(),
+        metavar="N",
+        help=(
+            "parallel worker processes for the full sweep (default: %(default)s, "
+            "cpu_count - 2). --jobs 1 runs serially. A --limit run is always serial."
+        ),
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -3381,7 +3471,9 @@ def _check_main(argv: list[str]) -> int:
     ):
         return 1
 
-    state = _check_sweep(sources=sources, repo_filter=args.repo, limit=args.limit)
+    state = _check_sweep(
+        sources=sources, repo_filter=args.repo, limit=args.limit, jobs=args.jobs
+    )
     logger.info(
         "check sweep: %d tools; %d flagged (%d fixable, %d advisory); %d crashed",
         state.tools, state.flagged_tools, state.fixable_flagged_tools,
