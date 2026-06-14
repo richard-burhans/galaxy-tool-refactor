@@ -74,8 +74,9 @@ from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import date
-from functools import cache
+from functools import cache, partial
 from pathlib import Path
+from typing import Any
 
 from lxml import etree
 from packaging.version import Version
@@ -751,30 +752,81 @@ def _known_signatures(*, regressions_dir: Path) -> set[str]:
     return known
 
 
-def _validate_process_path(
-    path: Path,
+@dataclass
+class _ValidateToolResult:
+    """One tool's validate-sweep outcome — picklable, returned by the pool worker.
+
+    The worker exercises EVERY tool (including cross-source duplicates); the reducer
+    decides first-vs-duplicate by sha. A duplicate's freshly-computed stats equal the
+    first occurrence's cached stats (identical bytes), so the row is identical either
+    way — and ordered ``imap`` preserves row order, keeping the JSON byte-identical.
+    """
+
+    sha: str
+    source_label: str
+    display_name: str
+    version: str
+    path: str
+    repo_dir: str
+    status: str
+    detail: str
+    signature: str
+    stats: ToolStats | None
+
+
+def _validate_analyze(
+    item: tuple[str, str, Path, str, Path],
     *,
-    source_label: str,
-    display_name: str,
-    repo_dir: Path,
-    version: str,
-    state: _ValidateSweepState,
     combined: bool,
     collect_stats: bool,
     need_sha: bool,
-) -> bool:
-    """Sweep one XML file and update ``state``; return ``True`` if it counts."""
+) -> _ValidateToolResult | None:
+    """Pure per-tool worker for the validate sweep (picklable result)."""
+    source_label, display_name, repo_dir, version, path = item
     if not path.is_file():
-        return False
+        return None
     sha = _sha256_of(path) if need_sha else ""
+    status, detail, signature, stats = _validate_exercise(
+        path, collect_stats=collect_stats
+    )
+    return _ValidateToolResult(
+        sha=sha,
+        source_label=source_label,
+        display_name=display_name,
+        version=version,
+        path=str(path),
+        repo_dir=str(repo_dir),
+        status=status,
+        detail=detail,
+        signature=signature,
+        stats=stats,
+    )
+
+
+def _validate_reduce(
+    state: _ValidateSweepState, result: _ValidateToolResult, *, combined: bool
+) -> bool:
+    """Fold one validate worker result into ``state``; ``True`` if it counts as a tool.
+
+    Mirrors the old ``_validate_process_path`` exactly. A duplicate sha appends a row
+    from the result's own stats (== the first occurrence's, identical bytes).
+    """
+    sha = result.sha
+    path = Path(result.path)
+    repo_dir = Path(result.repo_dir)
     if combined and sha in state.seen_hashes:
-        state.source_duplicate_counts[source_label] += 1
+        state.source_duplicate_counts[result.source_label] += 1
+        # Reuse the FIRST occurrence's CACHED stats, not the duplicate's own: two
+        # tools with identical tool-bytes can import different macros.xml, so the
+        # expanded profile can differ. The serial sweep dedups by tool-sha and reuses
+        # the first's stats, so we must too for byte-identical rows. The ordered imap
+        # guarantees the first occurrence was reduced (and cached) before any dupe.
         cached = state.sha_to_stats.get(sha)
         if cached is not None:
             state.rows.append(
                 _make_row(
-                    display_name=display_name,
-                    version=version,
+                    display_name=result.display_name,
+                    version=result.version,
                     path=path,
                     repo_dir=repo_dir,
                     sha=sha,
@@ -784,13 +836,11 @@ def _validate_process_path(
         return False
     if combined:
         state.seen_hashes.add(sha)
-    status, detail, signature, stats = _validate_exercise(
-        path, collect_stats=collect_stats
-    )
-    if status == "skip":
+    if result.status == "skip":
         return False
-    state.source_unique_counts[source_label] += 1
-    if stats is not None:
+    state.source_unique_counts[result.source_label] += 1
+    if result.stats is not None:
+        stats = result.stats
         state.declared_raw_counts[stats.profile_raw] += 1
         state.declared_expanded_counts[stats.profile_expanded] += 1
         state.newest_valid_counts[stats.newest_valid] += 1
@@ -805,35 +855,37 @@ def _validate_process_path(
             state.sha_to_stats[sha] = stats
         state.rows.append(
             _make_row(
-                display_name=display_name,
-                version=version,
+                display_name=result.display_name,
+                version=result.version,
                 path=path,
                 repo_dir=repo_dir,
                 sha=sha,
                 stats=stats,
             )
         )
-    if status == "ok":
+    if result.status == "ok":
         return True
-    state.signatures[signature] += 1
-    if signature in state.retained_signatures:
+    state.signatures[result.signature] += 1
+    if result.signature in state.retained_signatures:
         return True
-    state.retained_signatures.add(signature)
+    state.retained_signatures.add(result.signature)
     dest = _retain(
         path,
-        display_name.replace("/", "__"),
+        result.display_name.replace("/", "__"),
         regressions_dir=_VALIDATE_REGRESSIONS,
     )
     relative = path.relative_to(repo_dir)
-    state.retained.append((dest.name, display_name, relative, version, signature))
+    state.retained.append(
+        (dest.name, result.display_name, relative, result.version, result.signature)
+    )
     logger.warning(
         "%s [%s] %s\n  %s\n  retained -> %s\n  %s",
-        status.upper(),
-        display_name,
-        signature,
+        result.status.upper(),
+        result.display_name,
+        result.signature,
         relative,
         dest,
-        detail.strip().replace("\n", "\n  "),
+        result.detail.strip().replace("\n", "\n  "),
     )
     return True
 
@@ -1386,6 +1438,16 @@ def _validate_main(argv: list[str]) -> int:
         action="store_true",
         help="also include a raw (pre-macro-expansion) profile distribution",
     )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=_default_jobs(),
+        metavar="N",
+        help=(
+            "parallel worker processes for the full sweep (default: %(default)s, "
+            "cpu_count - 2). --jobs 1 / --limit run serially."
+        ),
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -1415,37 +1477,52 @@ def _validate_main(argv: list[str]) -> int:
     if collect_stats and _toolshed_corpus_incomplete(sources_to_walk):
         return 1
     tools = 0
-    repo_tool_counts: list[tuple[str, str, int]] = []
     state = _ValidateSweepState(
         retained_signatures=_known_signatures(regressions_dir=_VALIDATE_REGRESSIONS)
     )
     need_sha = combined or collect_stats
-    for source_label, display_name, repo_dir, version in _iter_sources(
+    # Every repo (even a zero-tool one) appears so per-source repo counts match serial.
+    repo_counts: dict[tuple[str, str], int] = {}
+    for _source_label, display_name, _repo_dir, version in _iter_sources(
         sources_to_walk, repo_filter=args.repo
     ):
-        repo_tool_count = 0
-        for path in sorted(_iter_tool_xmls(repo_dir)):
-            if args.limit and tools >= args.limit:
+        repo_counts.setdefault((display_name, version), 0)
+    items = [
+        (source_label, display_name, repo_dir, version, path)
+        for source_label, display_name, repo_dir, version in _iter_sources(
+            sources_to_walk, repo_filter=args.repo
+        )
+        for path in sorted(_iter_tool_xmls(repo_dir))
+    ]
+    worker = partial(
+        _validate_analyze,
+        combined=combined,
+        collect_stats=collect_stats,
+        need_sha=need_sha,
+    )
+
+    def _accumulate(result: _ValidateToolResult | None) -> None:
+        nonlocal tools
+        # Dedup is inside _validate_reduce (state.seen_hashes); dupes return False.
+        if result is None or not _validate_reduce(state, result, combined=combined):
+            return
+        tools += 1
+        repo_counts[(result.display_name, result.version)] += 1
+        if tools % 500 == 0:
+            logger.info("... %d tools", tools)
+
+    if args.limit:  # partial/debug: serial, exact stop-after-N semantics
+        for item in items:
+            if tools >= args.limit:
                 break
-            if not _validate_process_path(
-                path,
-                source_label=source_label,
-                display_name=display_name,
-                repo_dir=repo_dir,
-                version=version,
-                state=state,
-                combined=combined,
-                collect_stats=collect_stats,
-                need_sha=need_sha,
-            ):
-                continue
-            tools += 1
-            repo_tool_count += 1
-            if tools % 500 == 0:
-                logger.info("... %d tools", tools)
-        repo_tool_counts.append((display_name, version, repo_tool_count))
-        if args.limit and tools >= args.limit:
-            break
+            _accumulate(worker(item))
+    else:
+        for result in _parallel_map(items, worker, jobs=args.jobs):
+            _accumulate(result)
+    repo_tool_counts: list[tuple[str, str, int]] = [
+        (display_name, version, count)
+        for (display_name, version), count in repo_counts.items()
+    ]
 
     logger.info("swept %d tools", tools)
     for sig, count in state.signatures.most_common():
@@ -1684,58 +1761,96 @@ def _fmt_record_rule_stats(state: _FmtSweepState, outcome: _FormatOutcome) -> No
         state.pass2_edits_per_rule[rule_code] += count
 
 
-def _fmt_process_path(
-    path: Path,
-    *,
-    display_name: str,
-    repo_dir: Path,
-    version: str,
-    profile: str | None,
-    state: _FmtSweepState,
-) -> bool:
-    """Sweep one XML file and update ``state``; return ``True`` if it counted as a tool."""
+@dataclass
+class _FmtToolResult:
+    """One file's fmt-sweep outcome — picklable, returned by the pool worker.
+
+    Carries everything the (serial, single-writer) reducer needs to roll the result
+    into the sweep state and, on a failure, write the retained fixture. The expensive
+    format-twice analysis runs in the worker; the rare fixture file write does not.
+    """
+
+    sha: str
+    status: str
+    signature: str
+    detail: str
+    outcome: _FormatOutcome | None
+    relative: str
+    display_name: str
+    version: str
+    path: str
+
+
+def _fmt_analyze(
+    item: tuple[str, Path, str, Path], *, profile: str | None
+) -> _FmtToolResult | None:
+    """Pure per-tool worker for the fmt sweep: no shared state, picklable result."""
+    display_name, repo_dir, version, path = item
     if not path.is_file():
-        return False
+        return None
     status, signature, detail, outcome = _fmt_exercise(path, profile=profile)
-    if status == "skip-unparseable":
+    return _FmtToolResult(
+        sha=_sha256_of(path),
+        status=status,
+        signature=signature,
+        detail=detail,
+        outcome=outcome,
+        relative=str(path.relative_to(repo_dir)),
+        display_name=display_name,
+        version=version,
+        path=str(path),
+    )
+
+
+def _fmt_reduce(
+    state: _FmtSweepState, result: _FmtToolResult, *, regressions_dir: Path
+) -> bool:
+    """Fold one worker result into ``state``; return ``True`` if it counted as a tool.
+
+    Order-independent for the counters; retention dedups by (display_name, relative)
+    and the caller feeds results in serial order, so the retained list matches serial.
+    """
+    if result.status == "skip-unparseable":
         state.unparseable += 1
         return False
-    if status == "skip-non-tool":
+    if result.status == "skip-non-tool":
         state.non_tool += 1
         return False
     state.parsed += 1
-    if status == "skip-no-validate":
+    if result.status == "skip-no-validate":
         return False
     state.validated += 1
-    if outcome is not None:
+    if result.outcome is not None:
         state.formatted_ok += 1
-        _fmt_record_rule_stats(state, outcome)
-    if status == "ok":
+        _fmt_record_rule_stats(state, result.outcome)
+    if result.status == "ok":
         state.idempotent += 1
         return True
-    if status == "non-idempotent":
+    if result.status == "non-idempotent":
         state.non_idempotent += 1
-    elif status == "crash":
+    elif result.status == "crash":
         state.crashed += 1
-    state.signatures[signature] += 1
-    relative = path.relative_to(repo_dir)
-    if (display_name, str(relative)) in state.known_fixture_paths:
+    state.signatures[result.signature] += 1
+    relative = Path(result.relative)
+    if (result.display_name, result.relative) in state.known_fixture_paths:
         return True
-    state.known_fixture_paths.add((display_name, str(relative)))
+    state.known_fixture_paths.add((result.display_name, result.relative))
     dest = _retain(
-        path,
-        display_name.replace("/", "__"),
-        regressions_dir=_FMT_REGRESSIONS,
+        Path(result.path),
+        result.display_name.replace("/", "__"),
+        regressions_dir=regressions_dir,
     )
-    state.retained.append((dest.name, display_name, relative, version, signature))
+    state.retained.append(
+        (dest.name, result.display_name, relative, result.version, result.signature)
+    )
     logger.warning(
         "%s [%s] %s\n  %s\n  retained -> %s\n  %s",
-        status.upper(),
-        display_name,
-        signature,
+        result.status.upper(),
+        result.display_name,
+        result.signature,
         relative,
         dest,
-        detail.strip().replace("\n", "\n  "),
+        result.detail.strip().replace("\n", "\n  "),
     )
     return True
 
@@ -1978,6 +2093,16 @@ def _fmt_main(argv: list[str]) -> int:
             "validates under ANY vendored profile (fmt decisions §D9)"
         ),
     )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=_default_jobs(),
+        metavar="N",
+        help=(
+            "parallel worker processes for the full sweep (default: %(default)s, "
+            "cpu_count - 2). --jobs 1 / --limit run serially."
+        ),
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -2007,40 +2132,44 @@ def _fmt_main(argv: list[str]) -> int:
     state = _FmtSweepState(
         known_fixture_paths=_fmt_known_fixture_paths(regressions_dir=_FMT_REGRESSIONS)
     )
-    repo_tool_counts: list[tuple[str, str, int]] = []
     tools = 0
+    # Every repo (even a zero-tool one) must appear so the per-source rollup repo
+    # counts match the serial sweep; insertion order = _iter_sources order.
+    repo_counts: dict[tuple[str, str], int] = {}
+    for _source_label, display_name, _repo_dir, version in _iter_sources(
+        sources, repo_filter=args.repo
+    ):
+        repo_counts.setdefault((display_name, version), 0)
     # Dedup identical tools by content hash so a tool present in both sources
     # (the corpus is ~46% cross-source duplicates) is swept and counted once.
     seen_sha: set[str] = set()
-    for _source_label, display_name, repo_dir, version in _iter_sources(
-        sources, repo_filter=args.repo
-    ):
-        repo_tool_count = 0
-        for path in sorted(_iter_tool_xmls(repo_dir)):
-            if args.limit and tools >= args.limit:
+    items = _sweep_items(sources, repo_filter=args.repo)
+    worker = partial(_fmt_analyze, profile=args.profile)
+
+    def _accumulate(result: _FmtToolResult | None) -> None:
+        nonlocal tools
+        if result is None or result.sha in seen_sha:
+            return
+        seen_sha.add(result.sha)
+        if not _fmt_reduce(state, result, regressions_dir=_FMT_REGRESSIONS):
+            return
+        tools += 1
+        repo_counts[(result.display_name, result.version)] += 1
+        if tools % 500 == 0:
+            logger.info("... %d tools", tools)
+
+    if args.limit:  # partial/debug: serial, exact stop-after-N semantics
+        for item in items:
+            if tools >= args.limit:
                 break
-            if not path.is_file():
-                continue
-            sha = _sha256_of(path)
-            if sha in seen_sha:
-                continue
-            seen_sha.add(sha)
-            if not _fmt_process_path(
-                path,
-                display_name=display_name,
-                repo_dir=repo_dir,
-                version=version,
-                profile=args.profile,
-                state=state,
-            ):
-                continue
-            tools += 1
-            repo_tool_count += 1
-            if tools % 500 == 0:
-                logger.info("... %d tools", tools)
-        repo_tool_counts.append((display_name, version, repo_tool_count))
-        if args.limit and tools >= args.limit:
-            break
+            _accumulate(worker(item))
+    else:
+        for result in _parallel_map(items, worker, jobs=args.jobs):
+            _accumulate(result)
+    repo_tool_counts: list[tuple[str, str, int]] = [
+        (display_name, version, count)
+        for (display_name, version), count in repo_counts.items()
+    ]
 
     logger.info(
         "swept %d tools; %d validated@%s; %d idempotent; %d non-idempotent; %d crashed",
@@ -2394,6 +2523,94 @@ def _codemod_process_path(
     return True
 
 
+@dataclass
+class _CodemodToolResult:
+    """One tool's isolated-codemod outcome — picklable, for the parallel rules sweep."""
+
+    sha: str
+    outcome: _CodemodOutcome
+    relative: str
+    display_name: str
+    version: str
+    path: str
+
+
+def _codemod_analyze(
+    item: tuple[str, Path, str, Path], *, codemod_cls: type[CodemodCommand]
+) -> _CodemodToolResult | None:
+    """Pure per-tool worker for an isolated-codemod sweep (picklable result)."""
+    display_name, repo_dir, version, path = item
+    if not path.is_file():
+        return None
+    outcome = _codemod_exercise(path, codemod_cls())
+    return _CodemodToolResult(
+        sha=_sha256_of(path),
+        outcome=outcome,
+        relative=str(path.relative_to(repo_dir)),
+        display_name=display_name,
+        version=version,
+        path=str(path),
+    )
+
+
+def _codemod_reduce(
+    state: _CodemodSweepState, result: _CodemodToolResult, *, regressions_dir: Path
+) -> None:
+    """Fold one isolated-codemod worker result into ``state`` (mirrors process_path)."""
+    outcome = result.outcome
+    status = outcome.status
+    if status == "ineligible-unparseable":
+        state.ineligible_unparseable += 1
+        return
+    if status == "ineligible-non-tool":
+        state.ineligible_non_tool += 1
+        return
+    if status == "ineligible-no-valid":
+        state.ineligible_no_valid += 1
+        return
+    state.eligible += 1
+    if outcome.modified:
+        state.modified += 1
+    if outcome.profile is not None:
+        state.final_profiles[outcome.profile] += 1
+    for from_version in outcome.upgrade_steps:
+        state.upgrade_steps[from_version] += 1
+    if status in {"ok", "post-validate-failed", "no-repair"}:
+        state.idempotent += 1
+    elif status == "non-idempotent":
+        state.non_idempotent += 1
+    elif status == "crash":
+        state.crashed += 1
+    if status == "post-validate-failed":
+        state.post_validate_failed += 1
+    if status == "no-repair":
+        state.no_repair += 1
+    if status in {"ok", "no-repair"}:
+        return
+    relative = Path(result.relative)
+    if (result.display_name, result.relative) in state.known_fixture_paths:
+        return
+    state.signatures[outcome.signature] += 1
+    state.known_fixture_paths.add((result.display_name, result.relative))
+    dest = _retain(
+        Path(result.path),
+        result.display_name.replace("/", "__"),
+        regressions_dir=regressions_dir,
+    )
+    state.retained.append(
+        (dest.name, result.display_name, relative, result.version, outcome.signature)
+    )
+    logger.warning(
+        "%s [%s] %s\n  %s\n  retained -> %s\n  %s",
+        status.upper(),
+        result.display_name,
+        outcome.signature,
+        relative,
+        dest,
+        outcome.detail.strip().replace("\n", "\n  "),
+    )
+
+
 def _codemod_main(argv: list[str]) -> int:
     """Sweep one codemod across the corpus and retain regression fixtures."""
     parser = argparse.ArgumentParser(
@@ -2640,46 +2857,78 @@ def _fmt_rule_exercise(
         return "crash", _signature(exc), traceback.format_exc(), 0
 
 
-def _fmt_rule_process_path(
-    path: Path,
-    *,
-    display_name: str,
-    repo_dir: Path,
-    version: str,
-    profile: str | None,
-    rule_cls: type[Rule],
-    sweep: _FmtRuleSweep,
-) -> None:
-    """Sweep one file through one isolated fmt rule and update ``sweep``."""
+@dataclass
+class _FmtRuleToolResult:
+    """One tool's isolated-fmt-rule outcome — picklable, for the parallel rules sweep."""
+
+    sha: str
+    status: str
+    signature: str
+    edits: int
+    relative: str
+    display_name: str
+    version: str
+    path: str
+
+
+def _fmt_rule_analyze(
+    item: tuple[str, Path, str, Path], *, rule_cls: type[Rule], profile: str | None
+) -> _FmtRuleToolResult | None:
+    """Pure per-tool worker for an isolated-fmt-rule sweep (picklable result)."""
+    display_name, repo_dir, version, path = item
     if not path.is_file():
-        return
-    status, signature, detail, edits = _fmt_rule_exercise(
+        return None
+    status, signature, _detail, edits = _fmt_rule_exercise(
         path, rule_cls, profile=profile
     )
-    if status in {"skip-unparseable", "skip-non-tool", "skip-no-validate"}:
+    return _FmtRuleToolResult(
+        sha=_sha256_of(path),
+        status=status,
+        signature=signature,
+        edits=edits,
+        relative=str(path.relative_to(repo_dir)),
+        display_name=display_name,
+        version=version,
+        path=str(path),
+    )
+
+
+def _fmt_rule_reduce(
+    sweep: _FmtRuleSweep, result: _FmtRuleToolResult, *, regressions_dir: Path
+) -> None:
+    """Fold one isolated-fmt-rule worker result into ``sweep`` (mirrors process_path)."""
+    if result.status in {"skip-unparseable", "skip-non-tool", "skip-no-validate"}:
         return
     sweep.validated += 1
-    if edits:
+    if result.edits:
         sweep.touched += 1
-        sweep.edits += edits
-    if status == "ok":
+        sweep.edits += result.edits
+    if result.status == "ok":
         return
-    if status == "non-idempotent":
+    if result.status == "non-idempotent":
         sweep.non_idempotent += 1
-    elif status == "crash":
+    elif result.status == "crash":
         sweep.crashed += 1
-    relative = path.relative_to(repo_dir)
-    if (display_name, str(relative)) in sweep.known_fixture_paths:
+    relative = Path(result.relative)
+    if (result.display_name, result.relative) in sweep.known_fixture_paths:
         return
-    sweep.signatures[signature] += 1
-    sweep.known_fixture_paths.add((display_name, str(relative)))
+    sweep.signatures[result.signature] += 1
+    sweep.known_fixture_paths.add((result.display_name, result.relative))
     dest = _retain(
-        path, display_name.replace("/", "__"), regressions_dir=_FMT_REGRESSIONS
+        Path(result.path),
+        result.display_name.replace("/", "__"),
+        regressions_dir=regressions_dir,
     )
-    sweep.retained.append((dest.name, display_name, relative, version, signature))
+    sweep.retained.append(
+        (dest.name, result.display_name, relative, result.version, result.signature)
+    )
     logger.warning(
-        "%s [%s] %s\n  %s\n  retained -> %s", status.upper(), display_name, signature,
-        relative, dest,
+        "%s [%s] %s\n  %s\n  retained -> %s",
+        result.status.upper(),
+        result.display_name,
+        result.signature,
+        relative,
+        dest,
     )
 
 
@@ -2690,36 +2939,31 @@ def _sweep_fmt_rule(
     repo_filter: str | None,
     limit: int,
     profile: str | None,
+    jobs: int,
 ) -> _FmtRuleSweep:
-    """Sweep the corpus through one isolated fmt rule."""
+    """Sweep the corpus through one isolated fmt rule (parallel by default)."""
     sweep = _FmtRuleSweep(
         code=rule_cls.meta.code,
         known_fixture_paths=_fmt_known_fixture_paths(regressions_dir=_FMT_REGRESSIONS),
     )
     seen_sha: set[str] = set()
-    for _source_label, display_name, repo_dir, version in _iter_sources(
-        sources, repo_filter=repo_filter
-    ):
-        for path in sorted(_iter_tool_xmls(repo_dir)):
-            if limit and sweep.validated >= limit:
+    items = _sweep_items(sources, repo_filter=repo_filter)
+    worker = partial(_fmt_rule_analyze, rule_cls=rule_cls, profile=profile)
+
+    def _accumulate(result: _FmtRuleToolResult | None) -> None:
+        if result is None or result.sha in seen_sha:
+            return
+        seen_sha.add(result.sha)
+        _fmt_rule_reduce(sweep, result, regressions_dir=_FMT_REGRESSIONS)
+
+    if limit:  # partial/debug: serial, exact stop-after-N-validated semantics
+        for item in items:
+            if sweep.validated >= limit:
                 break
-            if not path.is_file():
-                continue
-            sha = _sha256_of(path)
-            if sha in seen_sha:
-                continue
-            seen_sha.add(sha)
-            _fmt_rule_process_path(
-                path,
-                display_name=display_name,
-                repo_dir=repo_dir,
-                version=version,
-                profile=profile,
-                rule_cls=rule_cls,
-                sweep=sweep,
-            )
-        if limit and sweep.validated >= limit:
-            break
+            _accumulate(worker(item))
+    else:
+        for result in _parallel_map(items, worker, jobs=jobs):
+            _accumulate(result)
     return sweep
 
 
@@ -2729,37 +2973,32 @@ def _sweep_codemod_isolated(
     sources: tuple[str, ...],
     repo_filter: str | None,
     limit: int,
+    jobs: int,
 ) -> _CodemodSweepState:
-    """Sweep the corpus through one isolated codemod (reuses the codemod exercise)."""
-    codemod = codemod_cls()
+    """Sweep the corpus through one isolated codemod (parallel by default)."""
     state = _CodemodSweepState(
         known_fixture_paths=_fmt_known_fixture_paths(
             regressions_dir=_CODEMOD_REGRESSIONS
         )
     )
     seen_sha: set[str] = set()
-    for _source_label, display_name, repo_dir, version in _iter_sources(
-        sources, repo_filter=repo_filter
-    ):
-        for path in sorted(_iter_tool_xmls(repo_dir)):
-            if limit and state.eligible >= limit:
+    items = _sweep_items(sources, repo_filter=repo_filter)
+    worker = partial(_codemod_analyze, codemod_cls=codemod_cls)
+
+    def _accumulate(result: _CodemodToolResult | None) -> None:
+        if result is None or result.sha in seen_sha:
+            return
+        seen_sha.add(result.sha)
+        _codemod_reduce(state, result, regressions_dir=_CODEMOD_REGRESSIONS)
+
+    if limit:  # partial/debug: serial, exact stop-after-N-eligible semantics
+        for item in items:
+            if state.eligible >= limit:
                 break
-            if not path.is_file():
-                continue
-            sha = _sha256_of(path)
-            if sha in seen_sha:
-                continue
-            seen_sha.add(sha)
-            _codemod_process_path(
-                path,
-                display_name=display_name,
-                repo_dir=repo_dir,
-                version=version,
-                codemod=codemod,
-                state=state,
-            )
-        if limit and state.eligible >= limit:
-            break
+            _accumulate(worker(item))
+    else:
+        for result in _parallel_map(items, worker, jobs=jobs):
+            _accumulate(result)
     return state
 
 
@@ -2965,6 +3204,16 @@ def _rules_main(argv: list[str]) -> int:
         action="store_true",
         help="do not (re)write docs/corpus_rule_stats.md",
     )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=_default_jobs(),
+        metavar="N",
+        help=(
+            "parallel worker processes per isolated rule/codemod sweep (default: "
+            "%(default)s, cpu_count - 2). --jobs 1 / --limit run serially."
+        ),
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -3002,6 +3251,7 @@ def _rules_main(argv: list[str]) -> int:
             repo_filter=args.repo,
             limit=args.limit,
             profile=args.profile,
+            jobs=args.jobs,
         )
         logger.info(
             "  %s: %d validated, %d touched, %d edits, %d non-idempotent, %d crashed",
@@ -3026,7 +3276,11 @@ def _rules_main(argv: list[str]) -> int:
         name = codemod_cls.__name__
         logger.info("isolating codemod %s (%s) ...", codemod_cls.meta.code, name)
         state = _sweep_codemod_isolated(
-            codemod_cls, sources=sources, repo_filter=args.repo, limit=args.limit
+            codemod_cls,
+            sources=sources,
+            repo_filter=args.repo,
+            limit=args.limit,
+            jobs=args.jobs,
         )
         logger.info(
             "  %s: %d eligible, %d modified, %d non-idempotent, "
@@ -3250,23 +3504,41 @@ def _sweep_paths(
     return paths
 
 
+def _sweep_items(
+    sources: tuple[str, ...], repo_filter: str | None
+) -> list[tuple[str, Path, str, Path]]:
+    """Every ``(display_name, repo_dir, version, path)`` work item, in order.
+
+    The richer counterpart to ``_sweep_paths`` for sweeps whose per-tool work needs
+    the repo/version context (rows, per-repo counts, retention provenance).
+    """
+    items: list[tuple[str, Path, str, Path]] = []
+    for _source_label, display_name, repo_dir, version in _iter_sources(
+        sources, repo_filter=repo_filter
+    ):
+        for path in sorted(_iter_tool_xmls(repo_dir)):
+            items.append((display_name, repo_dir, version, path))
+    return items
+
+
 def _parallel_map(
-    items: list[Path],
-    worker: "Callable[[Path], _CheckToolResult | None]",
+    items: "list[Any]",
+    worker: "Callable[[Any], Any]",
     *,
     jobs: int,
-) -> list["_CheckToolResult | None"]:
-    """Map *worker* over *items* across *jobs* processes (``imap_unordered``).
+) -> "list[Any]":
+    """Map *worker* over *items* across *jobs* processes, **preserving input order**.
 
-    Returns results in completion order; callers must be order-independent (the
-    sweeps accumulate counts and dedup by sha, both order-free). ``jobs <= 1``
-    runs serially in-process (the exact-fallback / debug path).
+    Uses ``imap`` (ordered), so results come back in *items* order, i.e. the serial
+    iteration order. Callers can therefore dedup first-occurrence, append rows, and
+    retain fixtures exactly as the serial sweep did, giving byte-identical output.
+    ``jobs <= 1`` runs serially in-process (the exact-fallback / debug path).
     """
     if jobs <= 1:
         return [worker(item) for item in items]
     chunksize = max(1, len(items) // (jobs * 16))
     with multiprocessing.Pool(processes=jobs) as pool:
-        return list(pool.imap_unordered(worker, items, chunksize=chunksize))
+        return list(pool.imap(worker, items, chunksize=chunksize))
 
 
 def _check_sweep(
