@@ -36,6 +36,7 @@ class ReorderToolAttributes(CodemodCommand):
             " prefix."
         ),
         since="0.0.1",
+        cite="https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html",
         order=70,
         rulesets=frozenset({"default", "iuc", "strict"}),
     )

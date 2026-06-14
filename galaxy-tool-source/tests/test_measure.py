@@ -23,6 +23,7 @@ from scripts.measure import (
     _cross_source_key_matches,
     _ExpansionGapResult,
     _facts_from_macro_container,
+    _measure_attribute_wrapping,
     _measure_blank_line_adoption,
     _measure_cheetah_cdm_bails,
     _measure_cheetah_cdm_coverage,
@@ -459,6 +460,43 @@ def test_blank_line_adoption_empty_corpus(tmp_path: Path) -> None:
     assert result.n_tools == 0
     assert result.total_boundaries == 0
     assert result.boundaries_with_blank == 0
+
+
+def test_attribute_wrapping_counts_multiline_tags(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # A param whose label wraps onto its own line (the IUC-sanctioned multi-line wrap).
+    (repo / "wrapped.xml").write_text(
+        "<tool id='a' name='A' version='1'><inputs>\n"
+        "<param name='p' type='text'\n"
+        "       label='a long label' />\n"
+        "</inputs></tool>",
+        encoding="utf-8",
+    )
+    # Everything on one line: no multi-line tag.
+    (repo / "tight.xml").write_text(
+        "<tool id='b' name='B' version='1'>"
+        "<inputs><param name='p' type='text' label='x'/></inputs></tool>",
+        encoding="utf-8",
+    )
+    # A multi-line CDATA must NOT be counted as a multi-line tag (it is stripped).
+    (repo / "cdata.xml").write_text(
+        "<tool id='c' name='C' version='1'><command><![CDATA[\n"
+        "echo hi\n"
+        "]]></command></tool>",
+        encoding="utf-8",
+    )
+    result = _measure_attribute_wrapping(corpus_root=repo)
+    assert result.n_tools == 3
+    assert result.n_multiline_tag == 1  # only wrapped.xml
+    assert result.n_labelhelp_wrapped == 1  # the wrapped <param> carries label=
+    assert result.total_multiline_tags == 1
+
+
+def test_attribute_wrapping_empty_corpus(tmp_path: Path) -> None:
+    result = _measure_attribute_wrapping(corpus_root=tmp_path)
+    assert result.n_tools == 0
+    assert result.n_multiline_tag == 0
 
 
 # --- cross-source match-key sanity check (§10.11 / §6) ---------------------------

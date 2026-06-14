@@ -301,6 +301,13 @@ uv run python -m scripts.measure help-formats
 # boundaries / 30% of tools use it. Print-only; needs the corpus:
 uv run python -m scripts.measure blank-line-adoption
 
+# Attribute-wrapping adoption: how often do tools wrap attributes across lines in the
+# SOURCE (the multi-line layout our one-line serializer policy D8 collapses, which the
+# IUC SHOULD allows for label/help)? Source-text scan (CDATA/comments stripped); backs
+# iuc_conference_questions.md §5. Corpus: 20.8% of tools use a multi-line tag, 19.6%
+# wrap label/help. Print-only; needs the corpus:
+uv run python -m scripts.measure attribute-wrapping
+
 # reStructuredText <help> codemod feasibility (backs
 # docs/upgrade_research/restructuredtext_codemods.md; docutils-dependent, not in CI).
 # help-rst-errors buckets docutils validity errors + sizes the deterministically-fixable
