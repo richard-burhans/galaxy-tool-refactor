@@ -23,6 +23,7 @@ from scripts.measure import (
     _cross_source_key_matches,
     _ExpansionGapResult,
     _facts_from_macro_container,
+    _measure_blank_line_adoption,
     _measure_cheetah_cdm_bails,
     _measure_cheetah_cdm_coverage,
     _measure_cheetah_command_complexity,
@@ -416,6 +417,48 @@ def test_help_formats_empty_corpus(tmp_path: Path) -> None:
     assert result.n_help_implicit_rst == 0
     assert result.explicit_format_buckets == []
     assert result.markdown_example_ids == []
+
+
+def test_blank_line_adoption_counts_source_boundaries(tmp_path: Path) -> None:
+    repo = tmp_path / "owner" / "repo"
+    repo.mkdir(parents=True)
+    # Blank line between every top-level section (2 boundaries, both blank).
+    (repo / "spaced.xml").write_text(
+        "<tool id='a' name='A' version='1'>\n"
+        "    <description>D</description>\n\n"
+        "    <command>c</command>\n\n"
+        "    <help>h</help>\n"
+        "</tool>",
+        encoding="utf-8",
+    )
+    # No blank line anywhere (2 boundaries, neither blank).
+    (repo / "tight.xml").write_text(
+        "<tool id='b' name='B' version='1'>\n"
+        "    <description>D</description>\n"
+        "    <command>c</command>\n"
+        "    <help>h</help>\n"
+        "</tool>",
+        encoding="utf-8",
+    )
+    # A single top-level child: no boundary, excluded from the population.
+    (repo / "one.xml").write_text(
+        "<tool id='c' name='C' version='1'><command>c</command></tool>",
+        encoding="utf-8",
+    )
+    result = _measure_blank_line_adoption(corpus_root=repo)
+    assert result.n_tools == 2  # one.xml has no boundary
+    assert result.total_boundaries == 4
+    assert result.boundaries_with_blank == 2
+    assert result.n_all_blank == 1  # spaced.xml
+    assert result.n_no_blank == 1  # tight.xml
+    assert result.n_some_blank == 0
+
+
+def test_blank_line_adoption_empty_corpus(tmp_path: Path) -> None:
+    result = _measure_blank_line_adoption(corpus_root=tmp_path)
+    assert result.n_tools == 0
+    assert result.total_boundaries == 0
+    assert result.boundaries_with_blank == 0
 
 
 # --- cross-source match-key sanity check (§10.11 / §6) ---------------------------

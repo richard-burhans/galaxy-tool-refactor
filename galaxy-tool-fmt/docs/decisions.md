@@ -230,6 +230,25 @@ first; it failed in red on bare `format_tool_document` output, then
 again after the rule module existed (registry-order bug, revealed by
 the test); passed after the `order` field was added.
 
+### Update 2026-06-14 — GTR003 PARKED pending IUC input
+
+GTR003 is **suspended**: removed from `format.all_rules()`, so `format` no longer
+emits the blank line and the rule is gone from the registry / `cosmetic` / `default`
+rulesets. It stays in source (`rule_blank_line.py`, still unit-tested in isolation,
+`docs/proofs/GTR003.md` removed as the rule is no longer applied) for a one-line
+re-enable.
+
+Why: the convention has **no external (IUC) citation** — it is our own `PLAN.md`
+editorial choice — and a corpus sweep (`scripts.measure blank-line-adoption`) shows
+it is not a community norm: only **13.3%** of top-level section boundaries already
+carry a blank line, and **70%** of tools use it at no boundary. So we should not
+impose it on every formatted tool ahead of a decision. The open question (per-tool
+vs house style) is `../../docs/iuc_conference_questions.md` §4; re-enable (or delete,
+stamping `until`) once IUC answers.
+
+The `order` field added here for GTR003 remains — GTR002 still uses it, and any
+future ordered rule will.
+
 ---
 
 ## D5 (2026-05-27) — GTR004: empty-element shorthand

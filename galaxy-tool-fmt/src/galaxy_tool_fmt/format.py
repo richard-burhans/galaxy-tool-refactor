@@ -15,7 +15,6 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 from galaxy_tool_fmt.edits import apply_edits
-from galaxy_tool_fmt.rule_blank_line import BlankLineBetweenSections
 from galaxy_tool_fmt.rule_empty_element import EmptyElementShorthand
 from galaxy_tool_fmt.rule_indent import CanonicalIndent
 from galaxy_tool_fmt.rules import Rule
@@ -28,9 +27,18 @@ if TYPE_CHECKING:
 
 @cache
 def all_rules() -> tuple[type[Rule], ...]:
-    """Return the active cosmetic formatter rules sorted by application order."""
+    """Return the active cosmetic formatter rules sorted by application order.
+
+    GTR003 (``BlankLineBetweenSections``) is **parked** pending IUC input on whether
+    the blank-line-between-top-level-sections convention is wanted (it has no external
+    citation, and a corpus sweep found only 13.3% of section boundaries / 30% of tools
+    already use it: ``scripts.measure blank-line-adoption``). The rule stays in source
+    (``rule_blank_line.py``, still unit-tested) for a one-line re-enable; leaving it out
+    of ``all_rules()`` ceases emission everywhere (the standalone CLI and the registry
+    both build from this list). See ``docs/decisions.md`` §D4 and
+    ``../../docs/iuc_conference_questions.md`` §4.
+    """
     rule_classes: list[type[Rule]] = [
-        BlankLineBetweenSections,
         CanonicalIndent,
         EmptyElementShorthand,
     ]

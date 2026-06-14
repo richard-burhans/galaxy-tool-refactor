@@ -123,4 +123,63 @@ reordering. Confirm upstream so the codemod's default is unambiguously endorsed
 (or downgrade it to advisory if the community prefers not to churn attribute
 order on existing tools).
 
+**Data to bring (the churn, from the committed corpus stats).** GTR002
+(`ReorderParamAttributes`) over the combined corpus
+(`docs/corpus_check_stats.md` / `docs/corpus_rule_stats.md`):
+
+- **6,639 of 9,302 tools (71.4%)** have at least one `<param>` whose attribute
+  order differs from the documented convention (37,462 attribute-reorder findings
+  total); the per-rule sweep modifies **6,087 of 8,622** validatable tools.
+
+So only ~29% of tools already match the documented order, and enforcing it touches
+~71% — a lot of diff churn on existing tools. That is exactly the tension to
+settle: the written standard prescribes an order almost no existing tool fully
+follows, so is enforcement wanted, or is the documented order aspirational?
+
 **Note to self:** do not relitigate this in the #8090 thread; raise it in person.
+
+## 4. Is the blank line between top-level `<tool>` sections actually wanted?
+
+**Context.** Our formatter inserts one blank line between consecutive top-level
+children of `<tool>` (`<description>`, `<requirements>`, `<command>`, `<inputs>`,
+…) for readability — GTR003 (`BlankLineBetweenSections`). Unlike the indentation /
+empty-element rules, **this one has no external citation** (`cite=None`): it came
+from our own `PLAN.md` editorial guideline ("one blank between sibling top-level
+sections, no blank inside dense leaf sequences"), not from the IUC standard. A
+reviewer never asked for it, and it changes the serialized bytes of essentially
+every tool we format.
+
+**The question.** Does IUC want a blank line between top-level sections as a
+house convention (worth a formatter enforcing it), or is vertical spacing an
+author's call that a formatter should leave alone?
+
+**Our provisional choice (2026-06-14):** **stop emitting it** — GTR003 is parked
+(removed from `all_rules()`, kept in source for a one-line re-enable, fmt
+`docs/decisions.md` §D4) pending this answer. We would rather not impose an
+uncited convention on every tool; if IUC wants it, re-enabling is trivial.
+
+**Data to bring (the measure, run 2026-06-14).** `scripts.measure
+blank-line-adoption` scans the *source* whitespace between top-level sections of
+every unique corpus tool (a boundary "has a blank line" when its gap holds a blank
+line in the author's file — independent of our formatter):
+
+```
+uv run python -m scripts.measure blank-line-adoption
+```
+
+- **9,371** tools have at least one top-level section boundary;
+- only **13.3%** of all section boundaries (9,798 / 73,504) already carry a blank
+  line;
+- **70.0%** of tools use a blank line at **no** boundary; 25.6% at some; only
+  **4.4%** at every boundary.
+
+So the convention is **not** a community norm — the large majority of authors do
+not use it. That is the core evidence for parking it: we should not be the only
+thing inserting a separator 70% of authors leave out, with no IUC citation behind
+it.
+
+**Specific things to ask:**
+- Do you want a blank line between top-level sections as a house style?
+- If yes, every boundary, or only between "major" sections?
+- If no, confirm a formatter should preserve author vertical spacing rather than
+  normalize it.

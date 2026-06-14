@@ -21,7 +21,7 @@ tiers; see each tier's `docs/decisions.md` for per-rule rationale.
 | IUC practice | Rule | Where |
 |---|---|---|
 | 4-space indentation | GTR001 | fmt `rule_indent` |
-| Blank line between `<tool>` children | GTR003 | fmt `rule_blank_line` |
+| Blank line between `<tool>` children | GTR003 | fmt `rule_blank_line` — **PARKED** pending IUC input (no external citation; 13.3% corpus adoption), `docs/iuc_conference_questions.md` §4 |
 | Empty elements use self-closing shorthand | GTR004 | fmt `rule_empty_element` |
 | Attribute values double-quoted | — | fmt serializer (decision D7) |
 | Attributes on one line | — | fmt serializer (decision D8) |

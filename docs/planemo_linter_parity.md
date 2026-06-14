@@ -30,7 +30,6 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 |---|---|:--:|:--:|---|---|---|
 | GTR001 | — | ✓ | ✓ | fmt | cosmetic | Canonical 4-space indentation; no tabs. |
 | GTR002 | — | ✓ | ✓ | codemod | default | Reorder every `<param>` element's attributes to the IUC convention. |
-| GTR003 | — | ✓ | ✓ | fmt | cosmetic | One blank line between top-level children of `<tool>`. |
 | GTR004 | — | ✓ | ✓ | fmt | cosmetic | Collapse empty-with-whitespace leaves to `<foo/>` form. |
 | GTR005 | — | ✓ | ✓ | codemod | default | Reorder the root `<tool>` element's attributes to the documented prefix. |
 | GTR006 | — | ✓ | ✓ | codemod | default | Repair near-miss spelling typos so a globally-invalid tool validates. |

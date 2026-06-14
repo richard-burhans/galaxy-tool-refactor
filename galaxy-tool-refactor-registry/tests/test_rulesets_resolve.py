@@ -18,8 +18,10 @@ from galaxy_tool_refactor_registry.rulesets import ruleset_codes
 # exactly. Behaviour-preserving fixers join this set as they ship (e.g. GTR089.1, which
 # repairs deterministically-fixable invalid <help> RST), so `format` output evolves with
 # the canonical pipeline — the facade-vs-pipeline regression pin still holds.
+# GTR003 (blank line) is parked pending IUC input (fmt §D4), so it is no longer in
+# any ruleset.
 _TODAY_DEFAULT = frozenset({
-    "GTR001", "GTR002", "GTR003", "GTR004", "GTR005", "GTR006", "GTR013",
+    "GTR001", "GTR002", "GTR004", "GTR005", "GTR006", "GTR013",
     "GTR017", "GTR018.1", "GTR019.1", "GTR020.1", "GTR035.1", "GTR036", "GTR037",
     "GTR089.1",
 })
@@ -31,7 +33,7 @@ def test_default_ruleset_is_default() -> None:
 
 def test_ruleset_contents_preserve_todays_behavior() -> None:
     sets = ruleset_codes()
-    assert sets["cosmetic"] == {"GTR001", "GTR003", "GTR004"}
+    assert sets["cosmetic"] == {"GTR001", "GTR004"}  # GTR003 parked (fmt §D4)
     # `default` reproduces the historical default `format` set; `iuc` mirrors it
     # for now (placeholder membership, reassigned per-rule later).
     assert sets["default"] == _TODAY_DEFAULT
@@ -66,7 +68,7 @@ def test_resolve_unions_multiple_rulesets() -> None:
 
 def test_select_replaces_ruleset_then_ignore_subtracts() -> None:
     # --select replaces the ruleset base (ruff-style), --ignore then subtracts.
-    assert resolve_codes(select=["GTR001", "GTR003"], ignore=["GTR003"]) == {"GTR001"}
+    assert resolve_codes(select=["GTR001", "GTR004"], ignore=["GTR004"]) == {"GTR001"}
     # Explicit rulesets are overridden by --select.
     assert resolve_codes(rulesets=["strict"], select=["GTR001"]) == {"GTR001"}
 
@@ -106,8 +108,8 @@ def test_upgrade_pipeline_code_raises_with_an_upgrade_hint() -> None:
 
 
 def test_upgrade_base_is_fixtypos_plus_cosmetic() -> None:
-    assert upgrade_base_codes() == {"GTR006", "GTR001", "GTR003", "GTR004"}
+    assert upgrade_base_codes() == {"GTR006", "GTR001", "GTR004"}  # GTR003 parked
 
 
 def test_resolve_upgrade_ignore_drops_fixtypos() -> None:
-    assert resolve_upgrade_codes(ignore=["GTR006"]) == {"GTR001", "GTR003", "GTR004"}
+    assert resolve_upgrade_codes(ignore=["GTR006"]) == {"GTR001", "GTR004"}

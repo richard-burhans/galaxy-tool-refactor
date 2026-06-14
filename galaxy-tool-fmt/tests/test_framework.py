@@ -10,7 +10,6 @@ from lxml import etree
 
 from galaxy_tool_fmt.edits import NoOp, apply_edits
 from galaxy_tool_fmt.format import all_rules, format_tool_document
-from galaxy_tool_fmt.rule_blank_line import BlankLineBetweenSections
 from galaxy_tool_fmt.rule_empty_element import EmptyElementShorthand
 from galaxy_tool_fmt.rule_indent import CanonicalIndent
 from galaxy_tool_fmt.rules import Rule
@@ -21,8 +20,8 @@ _TINY_TOOL = b"""<?xml version='1.0' encoding='UTF-8'?>
 </tool>
 """
 
+# GTR003 (BlankLineBetweenSections) is parked — not in all_rules() (fmt §D4).
 _EXPECTED_RULES: frozenset[type[Rule]] = frozenset({
-    BlankLineBetweenSections,
     EmptyElementShorthand,
     CanonicalIndent,
 })

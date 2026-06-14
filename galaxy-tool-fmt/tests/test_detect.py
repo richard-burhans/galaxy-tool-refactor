@@ -38,14 +38,18 @@ def test_canonical_document_reports_no_violations(
     assert detect_tool_document(make_doc(canonical_bytes)) == []
 
 
-def test_flat_document_reports_indent_and_blank_line_violations(
+def test_flat_document_reports_indent_violations(
     make_doc: Callable[[bytes], ToolDocument],
 ) -> None:
-    """A flat, unformatted document flags GTR001 (indent) and GTR003 (blank line)."""
+    """A flat, unformatted document flags GTR001 (indent).
+
+    (GTR003 blank-line is parked pending IUC input — fmt §D4 — so it is no longer
+    detected; only GTR001/GTR004 remain.)
+    """
     violations = detect_tool_document(make_doc(_FLAT))
     codes = {violation.code for violation in violations}
     assert "GTR001" in codes
-    assert "GTR003" in codes
+    assert "GTR003" not in codes
     # Every violation is located on the source tree.
     assert all(violation.xpath.startswith("/tool") for violation in violations)
     assert all(violation.sourceline >= 1 for violation in violations)
@@ -82,10 +86,6 @@ def test_violation_message_is_the_owning_rules_summary(
     violations = detect_tool_document(make_doc(_FLAT))
     by_code = {violation.code: violation for violation in violations}
     assert by_code["GTR001"].message == "Canonical 4-space indentation; no tabs."
-    assert (
-        by_code["GTR003"].message
-        == "One blank line between top-level children of <tool>."
-    )
 
 
 def test_canonical_document_with_comment_reports_no_violations(
@@ -93,19 +93,9 @@ def test_canonical_document_with_comment_reports_no_violations(
 ) -> None:
     """Comments must not false-positive on a canonical doc.
 
-    GTR001/GTR003 rewrite a comment's *tail*, so a comment-bearing canonical
-    document must still report zero violations (regression guard: detect once
-    missed comment tails, disagreeing with format on bimib/cobraxy).
+    GTR001 rewrites a comment's *tail*, so a comment-bearing canonical document
+    must still report zero violations (regression guard: detect once missed
+    comment tails, disagreeing with format on bimib/cobraxy).
     """
     canonical_bytes = format_tool_document(make_doc(_WITH_COMMENT))
     assert detect_tool_document(make_doc(canonical_bytes)) == []
-
-
-def test_detects_missing_blank_line_on_top_level_comment(
-    make_doc: Callable[[bytes], ToolDocument],
-) -> None:
-    """A top-level comment lacking the blank line after it is flagged (GTR003)."""
-    violations = detect_tool_document(make_doc(_WITH_COMMENT))
-    comment_violations = [v for v in violations if "comment()" in v.xpath]
-    assert comment_violations
-    assert all(violation.code == "GTR003" for violation in comment_violations)

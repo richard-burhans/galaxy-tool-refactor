@@ -153,7 +153,7 @@ informational unless you add `--strict`.
 
 ```sh
 galaxy-tool-refactor check  --ruleset strict  tools/      # +advisory checks
-galaxy-tool-refactor format --select GTR001,GTR003 tool.xml  # only these rules
+galaxy-tool-refactor format --select GTR001,GTR004 tool.xml  # only these rules
 galaxy-tool-refactor format --ignore GTR006   tool.xml      # everything-but typo repair
 ```
 

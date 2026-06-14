@@ -31,7 +31,8 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 
 | Capability | Code | Status | Source |
 |---|---|---|---|
-| Canonical indentation / blank-line / empty-element formatting | GTR001, GTR003, GTR004 | ✅ Shipped | `cosmetic` ruleset |
+| Canonical indentation / empty-element formatting | GTR001, GTR004 | ✅ Shipped | `cosmetic` ruleset |
+| Blank line between top-level `<tool>` sections | GTR003 | ⏸️ Parked | suspended pending IUC input (no external citation; only 13.3% of corpus boundaries use it) — fmt §D4, `docs/iuc_conference_questions.md` §4 |
 | Reorder `<param>` / root `<tool>` attributes to IUC convention | GTR002, GTR005 | ✅ Shipped | `default` ruleset |
 | Reorder `<tool>` child elements to IUC convention | GTR013 | ✅ Shipped | `default` ruleset |
 | Repair near-miss typos so an invalid tool validates | GTR006 | ✅ Shipped | `default` ruleset |

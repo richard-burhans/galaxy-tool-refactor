@@ -6991,6 +6991,89 @@ def _run_help_formats(args: argparse.Namespace) -> None:
     _report_help_formats(_measure_help_formats(corpus_root=args.corpus_root))
 
 
+# --- measurement: blank-line-adoption -------------------------------------------
+#
+# Do tool authors already put a blank line between the top-level sections of
+# <tool>? GTR003 (fmt rule_blank_line) inserts one, but the convention has no
+# external (IUC) citation, so this sizes its real-world adoption to bring to the
+# IUC conversation (docs/iuc_conference_questions.md). For each unique tool it
+# inspects the SOURCE whitespace between consecutive top-level element children
+# (a boundary "has a blank line" when the gap holds >=2 newlines) — author intent,
+# independent of our formatter. Reports boundary-level adoption (what fraction of
+# section boundaries already carry a blank line) and per-tool consistency
+# (all/some/no boundaries). Print-only; needs the corpus.
+
+
+@dataclass
+class _BlankLineAdoptionResult:
+    """Author adoption of the blank-line-between-top-level-sections convention."""
+
+    n_tools: int  # unique tools with >=1 top-level section boundary
+    total_boundaries: int  # consecutive top-level element-child pairs
+    boundaries_with_blank: int  # boundaries whose source gap holds a blank line
+    n_all_blank: int  # tools where EVERY boundary has a blank line
+    n_some_blank: int  # tools with a blank line at some (not all) boundaries
+    n_no_blank: int  # tools with no blank line at any boundary
+
+
+def _measure_blank_line_adoption(*, corpus_root: Path) -> _BlankLineAdoptionResult:
+    """Size how often top-level <tool> sections already carry a blank line."""
+    seen: set[str] = set()
+    result = _BlankLineAdoptionResult(0, 0, 0, 0, 0, 0)
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        # Top-level element children (skip comments/PIs, whose tag is callable).
+        children = [child for child in root if isinstance(child.tag, str)]
+        if len(children) < 2:
+            continue  # no section boundary to judge
+        result.n_tools += 1
+        boundaries = len(children) - 1
+        # The gap after each non-last section: a blank line == >=2 newlines in the
+        # tail. (A rare intervening comment makes this the gap up to the comment;
+        # accepted imprecision for an adoption heuristic.)
+        with_blank = sum(
+            1 for child in children[:-1] if (child.tail or "").count("\n") >= 2
+        )
+        result.total_boundaries += boundaries
+        result.boundaries_with_blank += with_blank
+        if with_blank == boundaries:
+            result.n_all_blank += 1
+        elif with_blank == 0:
+            result.n_no_blank += 1
+        else:
+            result.n_some_blank += 1
+    return result
+
+
+def _report_blank_line_adoption(result: _BlankLineAdoptionResult) -> None:
+    print("\n=== blank-line-adoption ===")
+    tools = result.n_tools
+
+    def pct(n: int, d: int) -> str:
+        return f"{100 * n / d:.1f}%" if d else "0.0%"
+
+    print(f"Unique tools with >=1 top-level section boundary: {tools}")
+    print(
+        f"Section boundaries with a blank line: {result.boundaries_with_blank} / "
+        f"{result.total_boundaries} ({pct(result.boundaries_with_blank, result.total_boundaries)})"
+    )
+    print(f"  tools blank at EVERY boundary: {result.n_all_blank} ({pct(result.n_all_blank, tools)})")
+    print(f"  tools blank at SOME boundary:  {result.n_some_blank} ({pct(result.n_some_blank, tools)})")
+    print(f"  tools blank at NO boundary:    {result.n_no_blank} ({pct(result.n_no_blank, tools)})")
+
+
+def _run_blank_line_adoption(args: argparse.Namespace) -> None:
+    _report_blank_line_adoption(_measure_blank_line_adoption(corpus_root=args.corpus_root))
+
+
 # --- reStructuredText <help> investigation (R1/R2/R3) ---------------------------
 #
 # Backs docs/upgrade_research/restructuredtext_codemods.md: feasibility of RST
@@ -8620,6 +8703,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "interpreter-bucket-split": _run_interpreter_buckets,
     "output-format-input": _run_output_format_input,
     "help-formats": _run_help_formats,
+    "blank-line-adoption": _run_blank_line_adoption,
     "help-rst-errors": _run_help_rst_errors,
     "help-rst-features": _run_help_rst_features,
     "help-rst-to-markdown": _run_help_rst_to_markdown,
