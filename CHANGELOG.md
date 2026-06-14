@@ -11,6 +11,8 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-06-14
+
 ### Added
 - **`lint-skip` command** (cli §D19, registry D24): a convenience that cleans up
   planemo `.lint_skip` sidecars. For each tool directory with a `.lint_skip` it
@@ -22,8 +24,24 @@ is the breaking-change channel.
   unmentioned (`check` reports the full picture). `--check` previews; `--backup`
   keeps `.bak`s. Corpus sizing: 149 of 640 suppressions auto-removable
   (`scripts.measure lint-skip-corpus`; `docs/lint_skip.md`).
+- **GTR098 / GTR099 datatype checks** (galaxy-tool-lint, lint decisions D36):
+  advisory `check`-tier ports of planemo's `ValidDatatypes` (GTR098 —
+  `format`/`ftype`/`ext` must name a known Galaxy datatype) and
+  `DatatypesCustomConf` (GTR099 — a tool should not ship a custom
+  `datatypes_conf.xml`). GTR098 validates against a vendored snapshot of Galaxy's
+  bundled `datatypes_conf.xml.sample` (no runtime `galaxy-tool-util` dependency),
+  drift-guarded against the installed package and proven sound by a corpus parity
+  oracle (`scripts.measure datatype-validation-truth`: 0 false positives over
+  9,331 tools). In the `strict` ruleset.
 
 ### Changed
+- **GTR003 (blank line between top-level sections) is parked** (fmt decisions §D4):
+  the formatter no longer inserts a blank line between top-level `<tool>` children.
+  The convention has no external (IUC) citation and a corpus sweep found only 13.3%
+  of section boundaries (30% of tools) already use it, so it is suspended pending
+  IUC input (`docs/iuc_conference_questions.md` §4). A `format` byte change: tools
+  that had the blank line lose it; the rule remains in source for a one-line
+  re-enable.
 - **GTR020.1 quotes only input/output files now** (codemod decisions §52, tier-1
   §16; from the IUC review of featurecounts PR #8090). The auto-fixer is narrowed
   to the IUC rule's file scope — single `type="data"` inputs and `<data>` outputs
