@@ -20,8 +20,9 @@ tone, no em-dash, Oxford comma.
   runnable source of truth (CI, git hooks, Makefile, and agent skills all call the same
   scripts), executable conventions, and dual on-ramps.
 - [`2026-06-14-what-galaxy-tool-refactor-does-for-your-tools/`](2026-06-14-what-galaxy-tool-refactor-does-for-your-tools/index.md)
-  — **draft.** For IUC maintainers and tool authors, now that `pip install
-  galaxy-tool-refactor` works: what the tool does for your tools (format,
-  behavior-preserving upgrade, the Planemo-parity checks, the opt-in commands), why it
-  is safe to run, and the open conventions questions we are bringing to GCC. Builds on
-  the first post; publish before GCC.
+  — **submitted** ([galaxy-hub#4058](https://github.com/galaxyproject/galaxy-hub/pull/4058)).
+  For IUC maintainers and tool authors, now that `pip install galaxy-tool-refactor`
+  works: what the tool does for your tools (format, behavior-preserving upgrade, the
+  Planemo-parity checks, the opt-in commands), why it is safe to run, and the open
+  conventions questions we are bringing to GCC. Builds on the first post; published
+  before GCC.
