@@ -8408,8 +8408,8 @@ def _run_lint_skip_corpus(args: argparse.Namespace) -> None:
 
 # --- measurement: expand-reorder-resolution -------------------------------------
 #
-# Sizes whether GTR013's future faithful-resolution layer earns its plumbing over
-# the shipped pinning fix (codemod decisions §53). For every tool with a top-level
+# Sizes the gap GTR013's faithful-resolution layer closes over the pinning floor
+# (both shipped; codemod decisions §53). For every tool with a top-level
 # <expand>, resolve the macro to the element tags it produces (shallow: the
 # element children of the tool's inline + imported <xml name=>/<macro name=>
 # definitions; nested expand/yield or a non-IUC tag => unresolvable), then compare
