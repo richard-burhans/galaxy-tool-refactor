@@ -1516,7 +1516,46 @@ def _validate_main(argv: list[str]) -> int:
             if tools >= args.limit:
                 break
             _accumulate(worker(item))
-    else:
+    elif combined:
+        # sha-dedup pre-pass: the combined corpus is ~46% cross-source duplicates, and
+        # a duplicate's row reuses the FIRST occurrence's cached stats (not its own —
+        # _validate_reduce). So hash each existing file once (cheap), exercise ONLY the
+        # first-occurrence tools in parallel (the expensive part), and reduce ALL items
+        # in source order: a first occurrence (sha not yet in state.seen_hashes) gets
+        # its exercised result; a duplicate gets a light placeholder whose stats the
+        # reducer's dupe branch ignores in favour of the cache. Byte-identical to
+        # exercising every tool, at ~half the macro-expansion work.
+        hashed = [(item, _sha256_of(item[4])) for item in items if item[4].is_file()]
+        seen_pre: set[str] = set()
+        unique_items = []
+        for item, sha in hashed:
+            if sha not in seen_pre:
+                seen_pre.add(sha)
+                unique_items.append(item)
+        by_sha: dict[str, _ValidateToolResult] = {}
+        for result in _parallel_map(unique_items, worker, jobs=args.jobs):
+            if result is not None:
+                by_sha[result.sha] = result
+        for item, sha in hashed:
+            source_label, display_name, repo_dir, version, path = item
+            if sha in state.seen_hashes:  # duplicate: reducer reuses the first's cache
+                _accumulate(
+                    _ValidateToolResult(
+                        sha=sha,
+                        source_label=source_label,
+                        display_name=display_name,
+                        version=version,
+                        path=str(path),
+                        repo_dir=str(repo_dir),
+                        status="",
+                        detail="",
+                        signature="",
+                        stats=None,
+                    )
+                )
+            else:  # first occurrence: its exercised result (None if it was non-file)
+                _accumulate(by_sha.get(sha))
+    else:  # single source, no cross-source dedup: exercise every tool
         for result in _parallel_map(items, worker, jobs=args.jobs):
             _accumulate(result)
     repo_tool_counts: list[tuple[str, str, int]] = [
