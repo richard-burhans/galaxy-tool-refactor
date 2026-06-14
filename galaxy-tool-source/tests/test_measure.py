@@ -2433,8 +2433,9 @@ def test_parse_lint_skip_strips_comments_and_blanks(tmp_path: Path) -> None:
 def test_measure_lint_skip_corpus_classifies_buckets(tmp_path: Path) -> None:
     corpus = tmp_path / "corpus"
     # A tool MISSING tests and citations: TestsMissing + CitationsMissing both
-    # fire (detect-only -> located); TestsCaseValidation maps to no GTR code
-    # (not reimplemented) -> out-of-coverage.
+    # fire (detect-only -> located); TestsCaseValidation maps to GTR101 (the opt-in
+    # binding), but GTR101 is excluded from the complete-coverage set, so it is
+    # covered only incidentally and stays kept -> coverage-partial.
     bare = corpus / "owner" / "bare"
     _write_skip_tool(bare, body="<inputs/><outputs/>")
     (bare / ".lint_skip").write_text(
@@ -2463,10 +2464,12 @@ def test_measure_lint_skip_corpus_classifies_buckets(tmp_path: Path) -> None:
     assert result.skip_files == 2
     assert result.skip_files_with_tool == 2
     assert result.name_lines == 5
-    assert result.bucket_counts["out-of-coverage"] == 1  # TestsCaseValidation
+    # GTR101 now covers TestsCaseValidation, so nothing is fully out of coverage.
+    assert result.bucket_counts["out-of-coverage"] == 0
     assert result.bucket_counts["located"] == 2  # bare: TestsMissing + CitationsMissing
     assert result.bucket_counts["already-stale"] == 1  # clean: TestsMissing
-    assert result.bucket_counts["coverage-partial"] == 1  # clean: OutputsFormatInput
+    # bare: TestsCaseValidation (GTR101, excluded) + clean: OutputsFormatInput (GTR015)
+    assert result.bucket_counts["coverage-partial"] == 2
     # Every located finding is reported at file:line — the info planemo withheld.
     assert result.located_examples
     assert all(":" in line for line in result.located_examples)

@@ -128,6 +128,11 @@ uv run --package galaxy-tool-fmt pytest \
 
 ## D3 (2026-06-02) — GTR032 (`&&`-vs-lone-`&`) stays deferred: the anti-pattern is ~absent
 
+> **Superseded by [D34](#d34-2026-06-10--gtr032-graduates-the-lone--joining-detector-d3s-revisit-condition-met).**
+> GTR032's revisit condition (a precise lone-`&` lexer) was met and it now ships as a
+> real detector. The "reserved no-op placeholder" framing below is the 2026-06-02 state,
+> kept for the record.
+
 ### Decision
 
 `GTR032` (`CommandAndJoining` — "join shell commands with `&&`, not a lone `&`")
@@ -236,7 +241,8 @@ GTR020 codemod can share it), does a single character scan that:
 This is the **detection-only slice of the codemod tier's deferred M5** Cheetah/
 shell lexer (`../../galaxy-tool-codemod/PLAN.md`): because it classifies and
 never rewrites, it needs none of M4 / the mutation cursors / macro provenance.
-`GTR032` stays a no-op (D3); the M5 mutation subsystem stays deferred.
+`GTR032` shipped as a real detector once a precise lexer existed (D34, superseding
+the D3 no-op); the M5 mutation subsystem stays deferred.
 
 ### Reporting shape
 
@@ -1196,4 +1202,46 @@ DETECT 4 → **2**.
 uv run --package galaxy-tool-lint pytest galaxy-tool-lint/tests/test_checks_datatypes.py galaxy-tool-lint/tests/test_datatypes_registry.py
 uv run python -m scripts.measure datatype-validation-truth   # parity oracle (needs galaxy-tool-util + corpus)
 uv run python -m scripts.corpus_check check                  # regenerates docs/corpus_check_stats.md
+```
+
+## D37 (2026-06-14) — GTR100/GTR101: bind Galaxy's test-validation linters (opt-in extra)
+
+### Decision
+
+The last two planemo DETECT linters, `TestsAssertionValidation` and
+`TestsCaseValidation`, ship as `GTR100`/`GTR101` — but as an **opt-in binding to
+Galaxy's own linters, not a reimplementation.** `checks/test_validation.py` lazily
+imports `galaxy.tool_util`, builds a `ToolSource` from the document's `source_path`
+(`get_tool_source`), runs the real Galaxy `Linter` into a `LintContext`, and maps its
+messages to `Violation`s. Gated twice: the `[test-validation]` optional extra
+(`galaxy-tool-util`) must be importable, and the document must have a source path
+(macros resolve from the tool's directory, so an in-memory tree is skipped — mirroring
+`DatatypesCustomConf`). Without either, the rules yield nothing.
+
+### Why bind, not reimplement
+
+Their validation logic is Galaxy's evolving pydantic stack (`tool_util_models`), which
+sits *above* the XSD layer — Galaxy generates its XSD *from* those models, the reverse
+of our schema-as-source-of-truth pipeline, so it is not soundly portable (reimplementing
+would drift per release). Binding runs planemo's own check, so parity is exact by
+construction and there is no drift. The cost is the project's second runtime Galaxy
+touchpoint after macro expansion — contained because it is opt-in. Full rationale:
+`../docs/galaxy_reimplementations.md` Touchpoint 5.
+
+### Soundness note — excluded from the `.lint_skip` removal gate
+
+The two count toward planemo parity (HAVE) and are selectable by planemo name, but are
+excluded from the provable-suppression-removal gate
+(`galaxy_tool_refactor_registry.lint_skip._EXTRA_GATED_CHECK_CODES`, registry D24): a
+clean result can mean "the extra is absent", not "the tool is valid", so a clean
+GTR100/GTR101 must not authorize removing a `.lint_skip` line.
+
+Parity Summary (metadata-derived): HAVE 119 → **121**, DETECT 2 → **0** (the advisory
+surface is complete).
+
+### Reproduced by
+
+```sh
+uv run --package galaxy-tool-lint pytest galaxy-tool-lint/tests/test_checks_test_validation.py
+uv run --package galaxy-tool-refactor-registry pytest galaxy-tool-refactor-registry/tests/test_planemo_aliases.py galaxy-tool-refactor-registry/tests/test_lint_skip.py
 ```

@@ -18,6 +18,13 @@ dependencies = [
     "packaging>=23",
 ]
 
+[project.optional-dependencies]
+# GTR100/GTR101 bind Galaxy's own test-validation linters (assertion + test-case
+# models) rather than reimplement their evolving pydantic logic. Opt-in: without
+# this extra the two rules yield nothing. See galaxy_tool_lint/checks/test_validation.py
+# and docs/galaxy_reimplementations.md Touchpoint 5.
+test-validation = ["galaxy-tool-util>=25.1"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -46,6 +53,12 @@ strict = true
 [[tool.mypy.overrides]]
 # lxml ships no (usable) type information.
 module = ["lxml.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# galaxy-tool-util (the opt-in [test-validation] extra) ships no type information
+# and is imported lazily inside checks/test_validation.py.
+module = ["galaxy.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

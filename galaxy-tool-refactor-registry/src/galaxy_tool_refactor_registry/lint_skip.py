@@ -83,6 +83,16 @@ def lint_skip_path(tool_path: Path, /) -> Path:
     return tool_path.parent / _LINT_SKIP_FILENAME
 
 
+# Check-tier rules whose clean state does NOT prove the planemo linter passes,
+# because they only evaluate when an optional extra is installed (and yield nothing
+# otherwise). GTR100/GTR101 bind Galaxy's own test-validation linters behind the
+# galaxy-tool-lint ``[test-validation]`` extra (checks/test_validation.py), so "our
+# rule is clean" can mean "the extra is absent", not "the tool is valid".
+# They stay selectable and count toward planemo parity, but must not gate suppression
+# removal. (Registry ``docs/decisions.md`` D24.)
+_EXTRA_GATED_CHECK_CODES = frozenset({"GTR100", "GTR101"})
+
+
 @cache
 def _complete_coverage_codes() -> frozenset[str]:
     """GTR codes whose clean state faithfully implies the planemo linter passes.
@@ -90,11 +100,14 @@ def _complete_coverage_codes() -> frozenset[str]:
     Derived (registry ``docs/decisions.md`` D24): every detect-only check-tier
     rule (faithful planemo ports) plus every canonical codemod (targeted fixes).
     Profile-upgrade and runtime-gated codemods are excluded — they may cover a
-    planemo name only incidentally.
+    planemo name only incidentally — as are the opt-in-extra-gated bindings
+    (``_EXTRA_GATED_CHECK_CODES``), whose clean state is conditional on the extra.
     """
     canonical = {codemod.meta.code for codemod in canonical_codemods()}
     checks = {
-        code for code, handle in all_handles().items() if handle.family == "check"
+        code
+        for code, handle in all_handles().items()
+        if handle.family == "check" and code not in _EXTRA_GATED_CHECK_CODES
     }
     return frozenset(canonical | checks)
 

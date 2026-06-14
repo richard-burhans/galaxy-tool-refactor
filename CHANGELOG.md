@@ -23,6 +23,22 @@ is the breaking-change channel.
   generalizing the `upgrade` → `profile_boundaries.md` pattern to `check`.
 - **`rules` now prints each rule's `doc:<cite>`**, surfacing the documentation
   pointer that previously lived only in metadata.
+- **GTR100 / GTR101 — test-validation bindings** (galaxy-tool-lint, lint decisions
+  D37): the last two planemo `tests.py` linters (`TestsAssertionValidation`,
+  `TestsCaseValidation`) are surfaced as an **opt-in binding** to Galaxy's own linters
+  rather than a reimplementation — their pydantic validation models sit above the XSD
+  and are not soundly portable (Galaxy generates its XSD *from* them; reimplementation
+  ledger Touchpoint 5). When the opt-in `[test-validation]` extra (`galaxy-tool-util`)
+  is installed and the document has a source path, the rules run Galaxy's real linter
+  and surface its messages; otherwise they yield nothing. In the `strict` ruleset, and
+  excluded from the `.lint_skip` removal gate (a clean result can mean the extra is
+  absent). This completes the planemo advisory surface: parity HAVE 119 → **121**,
+  DETECT → **0**.
+
+### Changed
+- **GTR032's D3 deferral note is marked superseded by D34** (galaxy-tool-lint
+  decisions): GTR032 shipped as a real detector once a precise lexer existed; the stale
+  "reserved no-op placeholder" present-tense claims are corrected.
 
 ## [0.3.0] — 2026-06-14
 
