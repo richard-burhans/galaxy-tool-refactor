@@ -56,11 +56,12 @@ def _parse_datatypes(data: bytes, /) -> frozenset[str]:
 @cache
 def builtin_datatypes() -> frozenset[str]:
     """Galaxy's built-in datatype extensions, from the vendored sample (cached)."""
+    # Single-component joinpath chained via ``/`` so it type-checks on Python 3.10,
+    # whose importlib.resources Traversable.joinpath takes only one argument
+    # (multi-arg joinpath is 3.11+). See galaxy-tool-lint mypy CI on 3.10.
     data = (
-        resources.files("galaxy_tool_lint")
-        .joinpath("data", "datatypes_conf.xml.sample")
-        .read_bytes()
-    )
+        resources.files("galaxy_tool_lint") / "data" / "datatypes_conf.xml.sample"
+    ).read_bytes()
     return _parse_datatypes(data)
 
 
