@@ -51,7 +51,7 @@ audit whose record predates the branch.
 dignified-python is the tiebreaker; optimized-python is secondary (both vendored at
 `.claude/skills/`). Check, per changed file:
 
-- **LBYL over `try/except`** — exceptions only at the CLI error boundary (chained
+- **Prefer LBYL for routine branching** — exceptions at the CLI error boundary (chained
   `from e`) and third-party API boundaries with no LBYL form.
 - **`pathlib.Path` + explicit `encoding="utf-8"`** on all text I/O.
 - **Keyword-only arguments after the first** (`*` in the signature).

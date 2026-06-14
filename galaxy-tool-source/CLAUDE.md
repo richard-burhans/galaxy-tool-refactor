@@ -74,7 +74,7 @@ testing-derived data, see `docs/decisions.md`.
 ## Coding standards
 
 Hand-written code follows **dignified-python**, vendored at the workspace root
-`.claude/skills/dignified-python/`: LBYL over `try/except`; exceptions only at
+`.claude/skills/dignified-python/`: prefer LBYL for routine branching, with exceptions at
 the click error boundary (chained `from e`); `pathlib` with explicit
 `encoding` for text I/O; no import-time side effects (`@cache` for module
 state); absolute imports, no re-exports, no `__all__`; keyword-only arguments

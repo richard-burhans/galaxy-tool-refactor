@@ -432,8 +432,9 @@ All hand-written code follows **dignified-python** (governs), with
 `.claude/skills/dignified-python/` and `.claude/skills/optimized-python/`.
 
 Key rules:
-- LBYL over `try/except`; exceptions only at CLI error boundary (chained `from e`)
-  and at third-party API boundaries where no LBYL alternative exists.
+- Prefer LBYL for routine branching; use exceptions at the CLI error boundary
+  (chained `from e`), at third-party API boundaries, and where the operation
+  itself is the authoritative test (dignified-python's softened stance).
 - `pathlib.Path` with explicit `encoding="utf-8"` on all text I/O.
 - Keyword-only arguments after the first.
 - Absolute imports, no re-exports, no `__all__`.

@@ -92,8 +92,8 @@ a handler.
 
 ### Coding standards
 
-Hand-written code follows **dignified-python** (vendored as a skill — step 2): LBYL over
-`try/except`; exceptions only at the click error boundary (chained `from e`); `pathlib` with
+Hand-written code follows **dignified-python** (vendored as a skill — step 2): prefer LBYL for routine branching;
+exceptions at the click error boundary (chained `from e`); `pathlib` with
 explicit `encoding` for text I/O; no import-time side effects (`@cache` for module state);
 absolute imports, **no re-exports, no `__all__`**; keyword-only args after the first.
 minimaxir's **optimized-python** is also installed as a reference skill — on any conflict

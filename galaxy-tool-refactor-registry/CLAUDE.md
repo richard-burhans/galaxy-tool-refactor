@@ -54,7 +54,7 @@ the CLI and the MCP server (`galaxy-tool-refactor-mcp`) sit on top of it.
 ## Coding standards
 
 Hand-written code follows **dignified-python** (vendored at the workspace root
-`.claude/skills/dignified-python/`): LBYL over try/except (the facade has no
+`.claude/skills/dignified-python/`): prefer LBYL for routine branching (the facade has no
 exception handling — it raises typed `UnknownRuleCode`/`UnknownRuleset` from
 `errors.py`, which the CLI catches at its boundary); `pathlib` with explicit
 `encoding` for text I/O; keyword-only args after the first; absolute imports, no

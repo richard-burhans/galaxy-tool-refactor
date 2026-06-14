@@ -120,7 +120,7 @@ selection); `galaxy-tool-refactor-registry/docs/decisions.md` D1–D4;
 ## Coding standards
 
 Hand-written code follows **dignified-python** (vendored at the workspace root
-`.claude/skills/dignified-python/`): LBYL over try/except; exceptions only at
+`.claude/skills/dignified-python/`): prefer LBYL for routine branching; exceptions at
 the CLI error boundary; `pathlib.Path` with explicit `encoding="utf-8"`;
 keyword-only args after the first; absolute imports, no re-exports, no
 `__all__`; no import-time side effects. `optimized-python` is a secondary

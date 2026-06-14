@@ -47,7 +47,7 @@ and `mcp` (FastMCP). The lower tiers do **not** depend on it.
 ## Coding standards
 
 Hand-written code follows **dignified-python** (vendored at the workspace root
-`.claude/skills/dignified-python/`): LBYL over try/except (exceptions only at the
+`.claude/skills/dignified-python/`): prefer LBYL for routine branching (exceptions at the
 MCP error boundary in `server.py`, chained `from e`); keyword-only args after the
 first; absolute imports, no re-exports, no `__all__`; no import-time side effects.
 `optimized-python` is a secondary reference; dignified-python governs on conflict.

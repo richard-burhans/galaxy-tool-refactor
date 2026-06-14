@@ -45,8 +45,8 @@ cached per working-tree state; `QA_GATE_FORCE=1` re-runs.
 Hand-written code follows **dignified-python** (governs), with **optimized-python**
 as a secondary reference (both vendored under `.claude/skills/`). The essentials:
 
-- LBYL over `try/except`; exceptions only at a CLI error boundary or a third-party
-  API boundary with no LBYL alternative.
+- Prefer LBYL for routine branching; use exceptions at a CLI error boundary, a
+  third-party API boundary, or where the operation itself is the authoritative test.
 - `pathlib.Path` with explicit `encoding="utf-8"` on all text I/O.
 - Keyword-only arguments after the first; absolute imports; no re-exports, no `__all__`.
 - No import-time side effects (`@cache` for module state).

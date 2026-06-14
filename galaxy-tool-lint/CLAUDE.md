@@ -68,7 +68,7 @@ partition-residual + unused-param decisions.
 ## Coding standards
 
 Hand-written code follows **dignified-python** (vendored at the workspace root
-`.claude/skills/dignified-python/`): LBYL over try/except; `pathlib` with
+`.claude/skills/dignified-python/`): prefer LBYL for routine branching; `pathlib` with
 explicit `encoding`; keyword-only args after the first; absolute imports, no
 re-exports, no `__all__`; no import-time side effects (`@cache` for module
 state). `optimized-python` is a secondary reference; **dignified-python governs
