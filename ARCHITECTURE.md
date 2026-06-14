@@ -294,7 +294,12 @@ will change.
   mechanism; the **mode policy lives in the tier-3.6 facade**: the default is the
   minimal bump (`UpgradeToValid(floor=…)`, GTR097, codemod §50 — keep `profile=`
   when the repaired tool validates at its baseline, else the minimum valid
-  profile), and `modernize` passes the ceiling into `UpgradeToLatest(ceiling=…)`.
+  profile), and `modernize` passes the ceiling into `UpgradeToLatest(ceiling=…)`,
+  capped at the **lower** of the behaviour ceiling and the **deployment ceiling**
+  (`deployment.py`, the newest profile every major public Galaxy server runs,
+  vendored + drift-guarded against `docs/galaxy_server_versions.json`; registry
+  D23). A `--target-profile` may exceed the deployment ceiling;
+  `--allow-behavior-change` lifts the behaviour gate only.
   `boundaries.py` renders the per-boundary user
   reference (`docs/profile_boundaries.md`, generated + freshness-tested); the
   soundness arguments are `docs/proofs/GTR097.md` and

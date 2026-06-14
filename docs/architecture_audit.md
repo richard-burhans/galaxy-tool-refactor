@@ -1,6 +1,73 @@
 # Architectural audit — galaxy-tool-refactor
 
-## Re-audit 2026-06-11 — post version-tokenization arc + publishing + renames (PRs #160-#194), with escalation
+## Re-audit 2026-06-13 — post behavior-preserving-upgrade arc + lint-skip + GTR020/GTR013 fixes + dignified-python re-vendor (PRs #195-#219), single pass
+
+**Audited commit:** `fcc7bdc`. Delta since `2df9e4d` is **enormous** (138 files,
++12,908/-869): the whole **behavior-preserving upgrade arc** (#200-#208 — the
+behavior gate, `UpgradeToValid`/GTR097 minimal-bump default, the deployment
+ceiling, `poll_galaxy_servers.py`, the 24.2 test-case checker + `FixTestParamQualification`
+GTR096), **lint-skip reconciliation** (#210, `lint_skip.py` + `reconcile_lint_skip`),
+the **GTR020.1 file-scope** narrowing (#211/#213, tier-1 `io_file_names`/`is_io_file_ref`)
+and the GTR020.1 boolean-quoting fix (#198), **no-XML-declaration** (#209) +
+**trailing-newline** (#214) serializer fixes, **GTR013 `<expand>` pinning** (#215),
+a wave of new `measure.py` slugs + the `corpus_check upgrade` subcommand, the
+`--version` flag (#197), the AI-contribution policy doc (#196), and the
+**dignified-python re-vendor** to the relocated, *softened* upstream (#217/#219).
+
+**Verdict — healthy; zero High, zero boundary violations, the arc was absorbed
+cleanly.** This was a **single deep pass** (the user asked to "start" the audit,
+not to escalate), weighted to the changed surface plus the full-suite guard/doc
+sweeps. All machine-checked guards are **green** in `qa_gate.sh` (decision-citation,
+stat-artifact-coverage, research-note-citation, lockstep-version, ruleset-membership,
+partition). Boundary integrity is clean: the new tier-3.6 modules import only
+lower/same tiers (`deployment.py` = stdlib only; `lint_skip.py` = tier-2
+`canonical_codemods` + same-tier registry; `errors.py` = none), and tier-1
+`command_vars.py` (the GTR020 substrate) pulls in no higher tier. ARCHITECTURE.md
+already reflected the minimal-bump default, the behavior gate, and
+`reconcile_lint_skip` — the deep read corrected an unreliable batch-grep that had
+falsely reported them missing (per the skill: verify in source, never trust a
+summary, including one's own grep). The findings are doc-freshness only.
+
+### Findings
+
+- **[fixed] (Medium) ARCHITECTURE.md omitted the deployment ceiling.** The
+  `modernize` walk is capped at the *lower* of the behaviour ceiling and the
+  **deployment ceiling** (#208, `deployment.py`, registry D23), but the upgrade
+  section described only `behavior_ceiling`. Added the deployment-ceiling cap +
+  the `--target-profile` / `--allow-behavior-change` interactions to the behavior-gate
+  bullet. (Zero matches for `deployment`/`25.1` before the fix.)
+- **[proposal] (Medium) LBYL wording across `CLAUDE.md` ×9 + the `/pre-pr-audit`
+  skill now overstates the *softened* dignified-python standard.** #219 re-vendored
+  the standard from `dagster-io/skills`, which relaxed "Cornerstone: LBYL Over EAFP
+  / NEVER use exceptions for control flow" to "Default Stance: Prefer Explicit
+  Preconditions" (EAFP acceptable when the operation itself is the authoritative
+  test or at a boundary). The repo's standards summaries still say "LBYL over
+  try/except; exceptions only at the CLI + third-party boundaries." Not a hazard
+  (strict-conforming code still conforms; the softer rule is a superset), and the
+  exact re-wording is a standards-*voice* decision, so left as a proposal rather
+  than re-worded unilaterally while flagged. Recommended phrasing: keep "prefer
+  LBYL for routine branching" and extend the exceptions clause with "...and where
+  the operation itself is the authoritative test." Already recorded in the skill's
+  `VENDORED.md`.
+- **[accepted] (Low) CLAUDE.md's measure list is curated, not exhaustive.** 16 of
+  57 registered `measure.py` slugs are absent from the `Corpus scripts` list:
+  `corpus-check` (the passthrough, documented under the `corpus_check` section, a
+  known false-positive trap) + 15 *older* exploratory measures (`tool-id-vs-path`,
+  `macro-usage`, `param-types`, `validity-distribution`, ...) that predate this
+  delta. No documented-but-removed slugs. Pre-existing (not delta), and the list
+  reads as a curated set of decision-backing measures; recorded so it isn't
+  re-flagged. (Every *delta* measure — `expand-reorder-resolution`,
+  `version-suffix-shape`, the upgrade/24.2 measures — is documented.)
+
+### Coverage note
+Single pass over a large delta: high-signal sweeps (guards, boundaries, the changed
+abstractions in ARCHITECTURE.md, the full doc/measure/skill freshness sweep) rather
+than a line-by-line read of all +12,908 lines. A quiet result on those targets is a
+positive signal (skill guidance); escalation (multi-agent adversarial verification)
+was not requested and is available for maximum confidence on the upgrade-arc
+soundness gates specifically.
+
+
 
 **Audited commit:** `2df9e4d`. Delta since `c46d579`: the version-tokenization
 arc lands proper (PR #181 `version_tokens.py` shipped as a tier-1 module with the
