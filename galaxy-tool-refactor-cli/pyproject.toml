@@ -1,6 +1,6 @@
 [project]
 name = "galaxy-tool-refactor-cli"
-version = "0.2.0"
+version = "0.3.0"
 description = "Top-level CLI app that composes the Galaxy tool refactoring tiers (format + upgrade)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -10,9 +10,9 @@ authors = [{ name = "Richard Burhans" }]
 # it plus fmt's file-walking engine (cli_support) and tier-1 parsing. It no
 # longer depends on the codemod / check tiers directly — the facade wraps them.
 dependencies = [
-    "galaxy-tool-source==0.2.0",
-    "galaxy-tool-fmt==0.2.0",
-    "galaxy-tool-refactor-registry==0.2.0",
+    "galaxy-tool-source==0.3.0",
+    "galaxy-tool-fmt==0.3.0",
+    "galaxy-tool-refactor-registry==0.3.0",
     "click>=8",
 ]
 
