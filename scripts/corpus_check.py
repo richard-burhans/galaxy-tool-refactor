@@ -74,8 +74,9 @@ from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import date
-from functools import cache
+from functools import cache, partial
 from pathlib import Path
+from typing import Any
 
 from lxml import etree
 from packaging.version import Version
@@ -1684,58 +1685,96 @@ def _fmt_record_rule_stats(state: _FmtSweepState, outcome: _FormatOutcome) -> No
         state.pass2_edits_per_rule[rule_code] += count
 
 
-def _fmt_process_path(
-    path: Path,
-    *,
-    display_name: str,
-    repo_dir: Path,
-    version: str,
-    profile: str | None,
-    state: _FmtSweepState,
-) -> bool:
-    """Sweep one XML file and update ``state``; return ``True`` if it counted as a tool."""
+@dataclass
+class _FmtToolResult:
+    """One file's fmt-sweep outcome — picklable, returned by the pool worker.
+
+    Carries everything the (serial, single-writer) reducer needs to roll the result
+    into the sweep state and, on a failure, write the retained fixture. The expensive
+    format-twice analysis runs in the worker; the rare fixture file write does not.
+    """
+
+    sha: str
+    status: str
+    signature: str
+    detail: str
+    outcome: _FormatOutcome | None
+    relative: str
+    display_name: str
+    version: str
+    path: str
+
+
+def _fmt_analyze(
+    item: tuple[str, Path, str, Path], *, profile: str | None
+) -> _FmtToolResult | None:
+    """Pure per-tool worker for the fmt sweep: no shared state, picklable result."""
+    display_name, repo_dir, version, path = item
     if not path.is_file():
-        return False
+        return None
     status, signature, detail, outcome = _fmt_exercise(path, profile=profile)
-    if status == "skip-unparseable":
+    return _FmtToolResult(
+        sha=_sha256_of(path),
+        status=status,
+        signature=signature,
+        detail=detail,
+        outcome=outcome,
+        relative=str(path.relative_to(repo_dir)),
+        display_name=display_name,
+        version=version,
+        path=str(path),
+    )
+
+
+def _fmt_reduce(
+    state: _FmtSweepState, result: _FmtToolResult, *, regressions_dir: Path
+) -> bool:
+    """Fold one worker result into ``state``; return ``True`` if it counted as a tool.
+
+    Order-independent for the counters; retention dedups by (display_name, relative)
+    and the caller feeds results in serial order, so the retained list matches serial.
+    """
+    if result.status == "skip-unparseable":
         state.unparseable += 1
         return False
-    if status == "skip-non-tool":
+    if result.status == "skip-non-tool":
         state.non_tool += 1
         return False
     state.parsed += 1
-    if status == "skip-no-validate":
+    if result.status == "skip-no-validate":
         return False
     state.validated += 1
-    if outcome is not None:
+    if result.outcome is not None:
         state.formatted_ok += 1
-        _fmt_record_rule_stats(state, outcome)
-    if status == "ok":
+        _fmt_record_rule_stats(state, result.outcome)
+    if result.status == "ok":
         state.idempotent += 1
         return True
-    if status == "non-idempotent":
+    if result.status == "non-idempotent":
         state.non_idempotent += 1
-    elif status == "crash":
+    elif result.status == "crash":
         state.crashed += 1
-    state.signatures[signature] += 1
-    relative = path.relative_to(repo_dir)
-    if (display_name, str(relative)) in state.known_fixture_paths:
+    state.signatures[result.signature] += 1
+    relative = Path(result.relative)
+    if (result.display_name, result.relative) in state.known_fixture_paths:
         return True
-    state.known_fixture_paths.add((display_name, str(relative)))
+    state.known_fixture_paths.add((result.display_name, result.relative))
     dest = _retain(
-        path,
-        display_name.replace("/", "__"),
-        regressions_dir=_FMT_REGRESSIONS,
+        Path(result.path),
+        result.display_name.replace("/", "__"),
+        regressions_dir=regressions_dir,
     )
-    state.retained.append((dest.name, display_name, relative, version, signature))
+    state.retained.append(
+        (dest.name, result.display_name, relative, result.version, result.signature)
+    )
     logger.warning(
         "%s [%s] %s\n  %s\n  retained -> %s\n  %s",
-        status.upper(),
-        display_name,
-        signature,
+        result.status.upper(),
+        result.display_name,
+        result.signature,
         relative,
         dest,
-        detail.strip().replace("\n", "\n  "),
+        result.detail.strip().replace("\n", "\n  "),
     )
     return True
 
@@ -1978,6 +2017,16 @@ def _fmt_main(argv: list[str]) -> int:
             "validates under ANY vendored profile (fmt decisions §D9)"
         ),
     )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=_default_jobs(),
+        metavar="N",
+        help=(
+            "parallel worker processes for the full sweep (default: %(default)s, "
+            "cpu_count - 2). --jobs 1 / --limit run serially."
+        ),
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -2007,40 +2056,44 @@ def _fmt_main(argv: list[str]) -> int:
     state = _FmtSweepState(
         known_fixture_paths=_fmt_known_fixture_paths(regressions_dir=_FMT_REGRESSIONS)
     )
-    repo_tool_counts: list[tuple[str, str, int]] = []
     tools = 0
+    # Every repo (even a zero-tool one) must appear so the per-source rollup repo
+    # counts match the serial sweep; insertion order = _iter_sources order.
+    repo_counts: dict[tuple[str, str], int] = {}
+    for _source_label, display_name, _repo_dir, version in _iter_sources(
+        sources, repo_filter=args.repo
+    ):
+        repo_counts.setdefault((display_name, version), 0)
     # Dedup identical tools by content hash so a tool present in both sources
     # (the corpus is ~46% cross-source duplicates) is swept and counted once.
     seen_sha: set[str] = set()
-    for _source_label, display_name, repo_dir, version in _iter_sources(
-        sources, repo_filter=args.repo
-    ):
-        repo_tool_count = 0
-        for path in sorted(_iter_tool_xmls(repo_dir)):
-            if args.limit and tools >= args.limit:
+    items = _sweep_items(sources, repo_filter=args.repo)
+    worker = partial(_fmt_analyze, profile=args.profile)
+
+    def _accumulate(result: _FmtToolResult | None) -> None:
+        nonlocal tools
+        if result is None or result.sha in seen_sha:
+            return
+        seen_sha.add(result.sha)
+        if not _fmt_reduce(state, result, regressions_dir=_FMT_REGRESSIONS):
+            return
+        tools += 1
+        repo_counts[(result.display_name, result.version)] += 1
+        if tools % 500 == 0:
+            logger.info("... %d tools", tools)
+
+    if args.limit:  # partial/debug: serial, exact stop-after-N semantics
+        for item in items:
+            if tools >= args.limit:
                 break
-            if not path.is_file():
-                continue
-            sha = _sha256_of(path)
-            if sha in seen_sha:
-                continue
-            seen_sha.add(sha)
-            if not _fmt_process_path(
-                path,
-                display_name=display_name,
-                repo_dir=repo_dir,
-                version=version,
-                profile=args.profile,
-                state=state,
-            ):
-                continue
-            tools += 1
-            repo_tool_count += 1
-            if tools % 500 == 0:
-                logger.info("... %d tools", tools)
-        repo_tool_counts.append((display_name, version, repo_tool_count))
-        if args.limit and tools >= args.limit:
-            break
+            _accumulate(worker(item))
+    else:
+        for result in _parallel_map(items, worker, jobs=args.jobs):
+            _accumulate(result)
+    repo_tool_counts: list[tuple[str, str, int]] = [
+        (display_name, version, count)
+        for (display_name, version), count in repo_counts.items()
+    ]
 
     logger.info(
         "swept %d tools; %d validated@%s; %d idempotent; %d non-idempotent; %d crashed",
@@ -3250,23 +3303,41 @@ def _sweep_paths(
     return paths
 
 
+def _sweep_items(
+    sources: tuple[str, ...], repo_filter: str | None
+) -> list[tuple[str, Path, str, Path]]:
+    """Every ``(display_name, repo_dir, version, path)`` work item, in order.
+
+    The richer counterpart to ``_sweep_paths`` for sweeps whose per-tool work needs
+    the repo/version context (rows, per-repo counts, retention provenance).
+    """
+    items: list[tuple[str, Path, str, Path]] = []
+    for _source_label, display_name, repo_dir, version in _iter_sources(
+        sources, repo_filter=repo_filter
+    ):
+        for path in sorted(_iter_tool_xmls(repo_dir)):
+            items.append((display_name, repo_dir, version, path))
+    return items
+
+
 def _parallel_map(
-    items: list[Path],
-    worker: "Callable[[Path], _CheckToolResult | None]",
+    items: "list[Any]",
+    worker: "Callable[[Any], Any]",
     *,
     jobs: int,
-) -> list["_CheckToolResult | None"]:
-    """Map *worker* over *items* across *jobs* processes (``imap_unordered``).
+) -> "list[Any]":
+    """Map *worker* over *items* across *jobs* processes, **preserving input order**.
 
-    Returns results in completion order; callers must be order-independent (the
-    sweeps accumulate counts and dedup by sha, both order-free). ``jobs <= 1``
-    runs serially in-process (the exact-fallback / debug path).
+    Uses ``imap`` (ordered), so results come back in *items* order, i.e. the serial
+    iteration order. Callers can therefore dedup first-occurrence, append rows, and
+    retain fixtures exactly as the serial sweep did, giving byte-identical output.
+    ``jobs <= 1`` runs serially in-process (the exact-fallback / debug path).
     """
     if jobs <= 1:
         return [worker(item) for item in items]
     chunksize = max(1, len(items) // (jobs * 16))
     with multiprocessing.Pool(processes=jobs) as pool:
-        return list(pool.imap_unordered(worker, items, chunksize=chunksize))
+        return list(pool.imap(worker, items, chunksize=chunksize))
 
 
 def _check_sweep(
