@@ -460,6 +460,34 @@ def test_check_strict_ruleset_shows_advisory_without_failing(tmp_path: Path) -> 
     assert "advisory finding(s)" in result.output
 
 
+def test_check_references_footer_points_findings_to_docs(tmp_path: Path) -> None:
+    # The overarching-goal contract: a surfaced finding must point to detailed
+    # docs. `check` closes with a deduplicated References block mapping each fired
+    # code to its citation URL, plus a pointer to the full `rules` reference.
+    file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
+    CliRunner().invoke(main, ["format", str(file)])
+    result = CliRunner().invoke(main, ["check", "--ruleset", "strict", str(file)])
+    assert result.exit_code == 0, result.output
+    assert "References (what each code means + how to fix):" in result.output
+    after = result.output.split("References", 1)[1]
+    assert "https://" in after
+    assert "Run `galaxy-tool-refactor rules` for the full reference." in result.output
+
+
+def test_check_quiet_suppresses_references_footer(tmp_path: Path) -> None:
+    file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
+    result = CliRunner().invoke(
+        main, ["check", "--quiet", "--ruleset", "strict", str(file)]
+    )
+    assert "References" not in result.output
+
+
+def test_rules_subcommand_shows_citations(tmp_path: Path) -> None:
+    result = CliRunner().invoke(main, ["rules"])
+    assert result.exit_code == 0, result.output
+    assert "doc:https://" in result.output
+
+
 def test_check_strict_flag_fails_on_advisory(tmp_path: Path) -> None:
     file = _write(tmp_path / "tool.xml", _PARAM_OUT_OF_ORDER)
     CliRunner().invoke(main, ["format", str(file)])

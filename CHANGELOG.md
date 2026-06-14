@@ -11,6 +11,19 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+### Added
+- **`docs/design_principles.md`**: the two governing contracts written as precise,
+  CI-enforced criteria — (1) a fix must be behavior-preserving *by construction*
+  (guarded by `test_proof_documents.py`), and (2) every non-fixable warning points
+  to detailed docs (now guarded by `test_advisory_citations.py`: every advisory rule
+  must carry a `RuleMeta.cite`). The overarching-goal adherence pass.
+- **`check` now closes with a `References` block** mapping each fired code to its
+  documentation URL (deduplicated; plus a pointer to `rules`), so a finding the
+  toolchain cannot auto-fix still tells the author where to read what to do —
+  generalizing the `upgrade` → `profile_boundaries.md` pattern to `check`.
+- **`rules` now prints each rule's `doc:<cite>`**, surfacing the documentation
+  pointer that previously lived only in metadata.
+
 ## [0.3.0] — 2026-06-14
 
 ### Added

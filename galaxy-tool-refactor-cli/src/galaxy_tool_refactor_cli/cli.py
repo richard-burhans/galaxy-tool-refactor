@@ -559,8 +559,10 @@ def check_command(
     Runs the selected rules' detect phases (default ruleset ``default``): *fixable*
     (GTR — what ``format`` would change) and, under ``--ruleset strict``, the
     *advisory* IUC best-practice checks (marked ``(advisory)``). Prints one
-    ``file:line  CODE  message`` per finding. Exits non-zero on any *fixable*
-    finding or error; advisory findings are informational unless ``--strict``.
+    ``file:line  CODE  message`` per finding, then a deduplicated ``References``
+    block mapping each fired code to its documentation URL (so every finding points
+    at what to do). Exits non-zero on any *fixable* finding or error; advisory
+    findings are informational unless ``--strict``.
     Macro-library files (``<macros>`` root) are also checked, for cosmetic
     (fixable) drift only — the selection governs tools; macro files get the
     standard cosmetic checks. PATHS may be files or directories; other XML is
@@ -568,6 +570,16 @@ def check_command(
     """
     codes = _resolve(rulesets=rulesets, select=select, ignore=ignore)
     fixable = advisory = flagged = clean = skipped = errored = 0
+    # Displayed code -> documentation URL, accumulated across every finding so the
+    # closing "References" block can point each emitted code at its detailed doc
+    # (the overarching-goal contract: a finding we surface must point to what to do;
+    # docs/design_principles.md). Deduplicated — cites are shared, so one line per
+    # fired code, not per occurrence.
+    cite_by_code = {
+        info.code: info.cite
+        for info in facade.list_rules(include_upgrade=True)
+    }
+    references: dict[str, str] = {}
     for target in iter_targets(paths):
         try:
             original = target.read_bytes()
@@ -619,11 +631,19 @@ def check_command(
                 advisory += 1
             else:
                 fixable += 1
+            displayed = display_code(violation.code)
+            # Resolve the doc pointer by the rule's own code, falling back to the
+            # partition parent (a sub-rule like GTR020.2 shares the parent's cite).
+            cite = cite_by_code.get(violation.code) or cite_by_code.get(
+                violation.code.split(".")[0]
+            )
+            if cite:
+                references.setdefault(displayed, cite)
             if not quiet:
                 suffix = "  (advisory)" if is_advisory else ""
                 click.echo(
                     f"{target}:{violation.sourceline}  "
-                    f"{display_code(violation.code)}  {violation.message}{suffix}"
+                    f"{displayed}  {violation.message}{suffix}"
                 )
     if not quiet:
         click.echo(
@@ -636,6 +656,11 @@ def check_command(
                 errored=errored,
             )
         )
+        if references:
+            click.echo("\nReferences (what each code means + how to fix):")
+            for code in sorted(references):
+                click.echo(f"  {code}  {references[code]}")
+            click.echo("  Run `galaxy-tool-refactor rules` for the full reference.")
     fail = bool(errored or fixable or (strict and advisory))
     sys.exit(1 if fail else 0)
 
@@ -940,9 +965,10 @@ def rules_command(include_upgrade: bool) -> None:
         kind = "fixable" if info.fixable else "advisory"
         in_rulesets = ",".join(info.rulesets) if info.rulesets else "-"
         planemo = ",".join(info.planemo_linters) if info.planemo_linters else "-"
+        doc = f"  doc:{info.cite}" if info.cite else ""
         click.echo(
             f"{info.code}  [{info.family}/{kind}]  rulesets:{in_rulesets}  "
-            f"planemo:{planemo}  {info.summary}"
+            f"planemo:{planemo}  {info.summary}{doc}"
         )
 
 

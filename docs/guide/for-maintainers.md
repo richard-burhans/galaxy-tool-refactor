@@ -58,6 +58,10 @@ $ galaxy-tool-refactor check --ruleset strict tools/qualimap/qualimap_macros.xml
 tools/qualimap/qualimap_macros.xml:3   GTR001  Canonical 4-space indentation; no tabs.
 …
 4 fixable finding(s) in 1 file(s).
+
+References (what each code means + how to fix):
+  GTR001  https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html
+  Run `galaxy-tool-refactor rules` for the full reference.
 ```
 
 Fixable (GTR) findings are what `format` would fix and **fail CI** (non-zero exit).
