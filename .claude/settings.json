@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); case \"$cmd\" in *\"git push\"*) bash \"${CLAUDE_PROJECT_DIR:-$PWD}/scripts/qa_gate.sh\" 1>&2 || exit 2 ;; esac",
+            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); case \"$cmd\" in *\"git push\"*) QA_GATE_REQUIRE_CLEAN=1 bash \"${CLAUDE_PROJECT_DIR:-$PWD}/scripts/qa_gate.sh\" 1>&2 || exit 2 ;; esac",
             "timeout": 600,
             "statusMessage": "Pre-push QA gate (ruff + mypy + tests)…"
           }
