@@ -59,7 +59,10 @@ format, `GTR090`–`GTR091`; the `GTR035.2` name-whitespace residual, D33; the
 `GTR095` id/name/version missing-or-empty trio — the half tier-1 `validate` can't
 see, D35; and the `GTR098`/`GTR099` datatypes pair — `format`/`ftype`/`ext`
 registry membership over a vendored `datatypes_conf.xml.sample` snapshot + a custom
-`datatypes_conf.xml` on disk, D36). The tier is now **72 checks total**. Each
+`datatypes_conf.xml` on disk, D36), and the `GTR100`/`GTR101` **test-validation
+bindings** — opt-in (the `[test-validation]` extra) wrappers that run Galaxy's own
+`TestsAssertionValidation`/`TestsCaseValidation` linters rather than reimplement their
+evolving pydantic models (D37). The tier is now **74 checks total**. Each
 wave check that a `<macro>` could spoof skips that tool via the tier-1 `has_macros`
 raw-tree guard (`detect()` reads the un-expanded tree). The authoritative
 planemo→GTR map is `../docs/planemo_linter_parity.md`; per-group rationale + corpus

@@ -135,12 +135,27 @@ re-implementation below carries a parity oracle.
 - **Verdict:** re-implement. Galaxy's verdict defines correctness; the snapshot + oracle make
   ours faithful with zero false positives, no dependency.
 
-## Touchpoint 5: the test-validation linters (`assertions.py` / `parameters.py`) — KEEP
+## Touchpoint 5: the test-validation linters (`assertions.py` / `parameters.py`) — BIND (opt-in)
 
 The two remaining planemo DETECT linters, `TestsAssertionValidation` and
 `TestsCaseValidation`, were assessed for reimplementation (the same exercise as
-Touchpoint 4). Verdict: **keep the dependency** — and the reason is architectural, not
-just size.
+Touchpoint 4). Verdict: **do not reimplement — bind Galaxy's own linters behind an
+opt-in extra.** The reason not to reimplement is architectural, not just size; the
+reason to bind (rather than skip) is that the checks are genuinely useful and binding
+Galaxy's actual linter is faithful by construction.
+
+**Shipped (`galaxy-tool-lint` GTR100/GTR101, the `[test-validation]` extra).** Rather
+than port the models, `galaxy_tool_lint/checks/test_validation.py` runs Galaxy's real
+`TestsAssertionValidation` / `TestsCaseValidation` linters (via `get_tool_source` + a
+`LintContext`) and maps their messages to `Violation`s — only when the opt-in
+`galaxy-tool-util` extra is installed and the document has a source path; otherwise the
+two rules yield nothing. So parity is exact (we run planemo's own check, no drift as the
+models evolve) and the base lint tier stays dependency-light (the coupling is opt-in,
+the project's second runtime Galaxy touchpoint after macro expansion, and only when the
+user asks for it). The rules count toward planemo parity (HAVE) and are selectable by
+planemo name, but are deliberately **excluded from the `.lint_skip` provable-removal
+gate** (`lint_skip._EXTRA_GATED_CHECK_CODES`): a clean result can mean "the extra is
+absent", not "the tool is valid", so they must not gate suppression removal.
 
 - **`TestsAssertionValidation` → `tool_util_models/assertions.py` (~4,175 lines).** This
   file is auto-generated, but **not by hand and not from the XSD** — Galaxy's bespoke

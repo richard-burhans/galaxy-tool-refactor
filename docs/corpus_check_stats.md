@@ -105,3 +105,5 @@ Detect-only IUC best-practice checks. Advisory: `check` reports them but does no
 | GTR095 | check | 467 | 5.0% | 467 | Tool must declare a non-empty id, name, and version. |
 | GTR098 | check | 1,020 | 11.0% | 2,975 | format/ftype/ext should name a known Galaxy datatype. |
 | GTR099 | check | 0 | 0.0% | 0 | A tool should not ship a custom datatypes_conf.xml. |
+| GTR100 | check | 0 | 0.0% | 0 | Test output assertions should validate against Galaxy's assertion models. |
+| GTR101 | check | 0 | 0.0% | 0 | Test-case parameters should validate against the tool's inputs on a modern profile. |

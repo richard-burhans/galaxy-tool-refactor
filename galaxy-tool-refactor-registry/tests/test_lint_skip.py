@@ -42,8 +42,11 @@ def test_covering_codes_is_case_insensitive() -> None:
 
 
 def test_uncovered_name_is_not_completely_covered() -> None:
-    # TestsCaseValidation needs Galaxy's pydantic models — not reimplemented.
-    assert covering_codes("TestsCaseValidation") == frozenset()
+    # TestsCaseValidation is bound (GTR101) behind the opt-in [test-validation]
+    # extra, so it is *covered* (selectable by name) but NOT a proof-of-clean for
+    # suppression removal — its clean state is conditional on the extra being
+    # installed, so is_completely_covered must stay False.
+    assert covering_codes("TestsCaseValidation") == frozenset({"GTR101"})
     assert not is_completely_covered("TestsCaseValidation")
 
 

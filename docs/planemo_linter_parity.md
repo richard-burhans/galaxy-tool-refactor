@@ -128,6 +128,8 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR097 | — | ✓ | ✓ | upgrade | — | Declare the minimum profile at or above the baseline the tool validates at. |
 | GTR098 | ValidDatatypes | ✓ | ✗ | check | strict | format/ftype/ext should name a known Galaxy datatype. |
 | GTR099 | DatatypesCustomConf | ✓ | ✗ | check | strict | A tool should not ship a custom datatypes_conf.xml. |
+| GTR100 | TestsAssertionValidation | ✓ | ✗ | check | strict | Test output assertions should validate against Galaxy's assertion models. |
+| GTR101 | TestsCaseValidation | ✓ | ✗ | check | strict | Test-case parameters should validate against the tool's inputs on a modern profile. |
 <!-- END GENERATED -->
 
 The remaining unmapped planemo linters (the ~80 correctness checks + the advisory-by-design
@@ -168,9 +170,9 @@ they're **SKIP**.
 
 | Disposition | Count | Meaning |
 |---|--:|---|
-| **HAVE** | 119 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), **GTR077–079** (option-filter attributes/expression/references), **GTR080–084** (test assertions/compare/output-correspondence/discovered), **GTR085–088** (test param-in-inputs / expect-failure / expect-num-outputs / has-expectations), **GTR089** (help RST validity, docutils), 2026-06-06; **GTR090–091** (output structured_like/format_source reference integrity + data-param format), 2026-06-10; **GTR095** (id/name/version missing-or-empty — the tier-1-residual half of the trio: `version` is not XSD-required and `""` is XSD-valid), 2026-06-11; **GTR098–099** (datatype-registry membership + custom `datatypes_conf.xml` — faithful ports over a vendored datatype snapshot, decisions D36), 2026-06-14 |
+| **HAVE** | 121 | already covered (mostly as fixers / advisory checks). Incl. **GTR035** (`name`/req-`version` whitespace), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`), **GTR038**/**GTR039** (citations/TODO), **GTR040–043** (output correctness), **GTR044–047** (command/profile/requirement-name/version-whitespace), **GTR048–050** (outputs present/format/label), **GTR051–053** (container shape, output-filter & stdio-regex validity), **GTR054–057** (input param naming/identity), **GTR058–060** (static select-option correctness), **GTR061–064** (dynamic select `<options>` correctness), **GTR065–068** (validator compatibility/text/expression/required-attrs), **GTR069–071** (conditional test-param + when/option correspondence), **GTR072–074** (inputs present / param type-child / data-options validity), **GTR075–076** (boolean values + select display idiom), **GTR077–079** (option-filter attributes/expression/references), **GTR080–084** (test assertions/compare/output-correspondence/discovered), **GTR085–088** (test param-in-inputs / expect-failure / expect-num-outputs / has-expectations), **GTR089** (help RST validity, docutils), 2026-06-06; **GTR090–091** (output structured_like/format_source reference integrity + data-param format), 2026-06-10; **GTR095** (id/name/version missing-or-empty — the tier-1-residual half of the trio: `version` is not XSD-required and `""` is XSD-valid), 2026-06-11; **GTR098–099** (datatype-registry membership + custom `datatypes_conf.xml` — faithful ports over a vendored datatype snapshot, decisions D36), 2026-06-14; **GTR100–101** (test assertion / test-case validation — an **opt-in binding** to Galaxy's own linters, not a reimplementation, since their pydantic models sit above the XSD; see [Touchpoint 5](galaxy_reimplementations.md)), 2026-06-14 |
 | **FIX** (new, auto-fixable) | 0 | **complete** — GTR035/036/037 shipped; the rest of the original FIX candidates reclassified to advisory/detect on inspection (identity-changing or no mechanical equivalent) |
-| **DETECT** (new advisory) | 2 | correctness checks for the `check` tier (report-only). 57 GTR rules landed so far (GTR038–091 + GTR095 + GTR098–099) — the **entire `inputs.py` correctness surface**, **all mechanically-reimplementable `tests.py` checks**, **help RST validity** (GTR089, via `docutils`), and the **datatypes pair** (GTR098 registry membership over a vendored snapshot, GTR099 custom `datatypes_conf.xml`), plus citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, container/filter/regex validity, output reference integrity, data-param format, and the id/name/version missing-or-empty trio (GTR095). **Remaining DETECT** need external infra: `TestsAssertionValidation`/`TestsCaseValidation` (2, need Galaxy's pydantic models) |
+| **DETECT** (new advisory) | 0 | **complete** — the `check` tier covers the **entire `inputs.py` correctness surface**, **all mechanically-reimplementable `tests.py` checks**, **help RST validity** (GTR089, via `docutils`), the **datatypes pair** (GTR098–099), and — via the opt-in [`test-validation`] binding — the last two `tests.py` linters (GTR100–101, `TestsAssertionValidation`/`TestsCaseValidation`), plus citations/TODO, output correctness, command/profile/requirement-name, version-whitespace, container/filter/regex validity, output reference integrity, data-param format, and the id/name/version missing-or-empty trio (GTR095). Nothing left to build |
 | **SKIP** (pass-state) | ~14 | `valid`/`info` reporters — nothing to build |
 | **n/a** (out of scope) | ~11 | CWL (9), filesystem (`required_files`), `ResourceRequirementExpression` |
 | **Total** | 146 | |
@@ -199,19 +201,22 @@ they're **SKIP**.
 
 By our tier, for the **buildable** rows (HAVE + FIX + DETECT):
 - **codemod** (structural fix): the FIX rows below + GTR013/015/016/**035** — ~15
-- **check** (advisory): the DETECT bulk + the advisory HAVEs — **70 GTR check rules shipped**
-  (GTR021–GTR095, detect-only), 4 planemo advisories still to build
+- **check** (advisory): the DETECT bulk + the advisory HAVEs — **74 GTR check rules shipped**
+  (GTR021–GTR101, detect-only); the planemo advisory surface is **complete**
 - **parse/validate**: 1 (XSD)
 
 **Headline:** planemo only *reports*; we *fix* the provably-safe subset (**GTR035/036/037**,
-complete) and **detect the rest** as advisory `check`-tier rules. As of 2026-06-10 the check
-tier has **70 rules** covering the whole `inputs.py` correctness surface, **all
+complete) and **detect the rest** as advisory `check`-tier rules. The check tier now has
+**74 rules** covering the whole `inputs.py` correctness surface, **all
 mechanically-reimplementable `tests.py` checks**, **help RST validity** (GTR089, via
-`docutils`), and **output reference integrity + data-param format** (GTR090–091), plus
-citations, command, container, general, output, and stdio. Only ~4 planemo advisories
-remain, all needing external infra: the two `tests.py` linters that need Galaxy's
-pydantic models (`TestsAssertionValidation`, `TestsCaseValidation`), and datatypes
-(registry/filesystem). The id/name/version trio is now covered by GTR095.
+`docutils`), **output reference integrity + data-param format** (GTR090–091), the
+id/name/version trio (GTR095), and the **datatypes pair** (GTR098–099), plus citations,
+command, container, general, output, and stdio. The advisory surface is now complete:
+the last two `tests.py` linters that validate against Galaxy's evolving pydantic models
+(`TestsAssertionValidation`, `TestsCaseValidation`) are surfaced as **GTR100–101**, an
+opt-in binding to Galaxy's own linters (the `[test-validation]` extra) rather than an
+unsound reimplementation — see the reimplementation ledger
+[Touchpoint 5](galaxy_reimplementations.md).
 
 ---
 
@@ -376,10 +381,12 @@ needs author intent. The **FIX** candidates (auto-fixable, our edge):
 | TestsExpectNumOutputs | warn | check | **HAVE** | **GTR087** set `expect_num_outputs` for filtered outputs |
 | TestsHasExpectations / TestsValid | warn | check | **HAVE** | **GTR088** a test asserts outputs/expectations (TestsValid subsumed) |
 | TestsMissingDatasource · TestsNoValid | info/valid | — | SKIP | |
-| TestsAssertionValidation · TestsCaseValidation | warn/error | check | DETECT (deferred) | need Galaxy's pydantic assertion / parameter models (not a raw-tree query) |
+| TestsAssertionValidation · TestsCaseValidation | warn/error | check | **HAVE** | **GTR100**/**GTR101** — opt-in binding to Galaxy's own linters (`[test-validation]` extra); their pydantic models sit above the XSD, so we bind rather than reimplement (ledger Touchpoint 5) |
 
-The mechanically-reimplementable `tests.py` linters are now all **HAVE**; only the two
-pydantic-model-dependent ones (`TestsAssertionValidation`, `TestsCaseValidation`) remain.
+The mechanically-reimplementable `tests.py` linters are all **HAVE**; the two
+pydantic-model-dependent ones (`TestsAssertionValidation`, `TestsCaseValidation`) are
+now **HAVE** too — surfaced as GTR100/GTR101, an opt-in binding to Galaxy's own linters
+(the `[test-validation]` extra) rather than a reimplementation of their evolving models.
 
 ## xml_order.py (1)
 

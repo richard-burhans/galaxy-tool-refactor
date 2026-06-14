@@ -60,6 +60,10 @@ from galaxy_tool_lint.checks.partition import (
     HelpCdata,
     SingleQuotedCheetah,
 )
+from galaxy_tool_lint.checks.test_validation import (
+    TestsAssertionValidation,
+    TestsCaseValidation,
+)
 from galaxy_tool_lint.checks.tests import (
     TestAssertionsWellFormed,
     TestDiscoveredOutputsChecked,
@@ -190,6 +194,9 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         # datatypes
         ValidDatatypes,
         DatatypesCustomConf,
+        # test validation (opt-in [test-validation] extra; binds Galaxy's linters)
+        TestsAssertionValidation,
+        TestsCaseValidation,
     ]
     return tuple(sorted(classes, key=lambda cls: cls.meta.code))
 
