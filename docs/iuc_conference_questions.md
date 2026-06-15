@@ -136,7 +136,7 @@ of entry.
 (`ReorderParamAttributes`) over the combined corpus
 (`docs/corpus_check_stats.md` / `docs/corpus_rule_stats.md`):
 
-- **6,639 of 9,302 tools (71.4%)** have at least one `<param>` whose attribute
+- **6,639 of 9,304 tools (71.4%)** have at least one `<param>` whose attribute
   order differs from the documented convention (37,462 attribute-reorder findings
   total); the per-rule sweep modifies **6,087 of 8,622** validatable tools.
 

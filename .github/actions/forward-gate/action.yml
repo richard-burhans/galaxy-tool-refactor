@@ -74,11 +74,19 @@ runs:
         # The rule set is DERIVED from the installed release's classification, so the
         # gate and the bulk normalizer can never disagree on what is canonical.
         codes="$(python -c 'from galaxy_tool_refactor_registry.gate_eligibility import eligibility_groups, GATE_ELIGIBLE; print(",".join(sorted(eligibility_groups()[GATE_ELIGIBLE])))')"
-        # Added/modified tool XML in this PR (a deleted file or a non-tool XML is
-        # harmless — `check` reports a macros/non-tool file as clean).
-        mapfile -t files < <(git diff --name-only --diff-filter=AM "$base"...HEAD -- 'tools/' | grep -E '\.xml$' || true)
+        # Added/modified XML under tools/ in this PR, then narrowed to actual <tool>
+        # documents. A changed macros.xml or other non-tool XML is NOT gated (a bare
+        # `check` would flag its cosmetic drift, which is not this gate's job), matching
+        # scripts/forward_gate.py — the gate only ever judges the tools a PR touches.
+        mapfile -t changed < <(git diff --name-only --diff-filter=AM "$base"...HEAD -- 'tools/' | grep -E '\.xml$' || true)
+        files=()
+        for f in "${changed[@]}"; do
+          if python -c 'import sys; from galaxy_tool_fmt.cli_support import is_tool_root; sys.exit(0 if is_tool_root(open(sys.argv[1],"rb").read()) else 1)' "$f" 2>/dev/null; then
+            files+=("$f")
+          fi
+        done
         if [ "${#files[@]}" -eq 0 ]; then
-          echo "No changed tool XML; forward gate passes."
+          echo "No changed <tool> XML; forward gate passes."
           exit 0
         fi
         echo "Forward gate rules (behaviour-preserving, IUC-blessed): $codes"
