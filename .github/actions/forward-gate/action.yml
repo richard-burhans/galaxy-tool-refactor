@@ -19,6 +19,13 @@ inputs:
       Pin to the same release the bulk normalizer used.
     required: false
     default: "0.3.1"
+  mode:
+    description: >-
+      "block" (fail the check when a changed tool is not canonical, naming the fix
+      command) or "suggest" (post the canonical fix as one-click PR review
+      suggestions; needs `permissions: pull-requests: write` in the caller).
+    required: false
+    default: "block"
   base-ref:
     description: "Base git ref to diff changed tools against. Defaults to the pull request's base SHA."
     required: false
@@ -40,11 +47,15 @@ runs:
       shell: bash
       run: pip install "galaxy-tool-refactor==${{ inputs.version }}"
 
-    - name: Check changed tools are in canonical form
+    - name: Forward gate
       shell: bash
       env:
+        MODE: ${{ inputs.mode }}
         BASE_REF: ${{ inputs.base-ref }}
         PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        REPO_SLUG: ${{ github.repository }}
+        GH_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
         base="${BASE_REF:-$PR_BASE_SHA}"
@@ -52,8 +63,17 @@ runs:
           echo "::error::forward-gate needs a base ref — set the 'base-ref' input, or run it on a pull_request event."
           exit 1
         fi
-        # The gate's rule set is DERIVED from the installed release's classification,
-        # so the gate and the bulk normalizer can never disagree on what is canonical.
+        if [ "$MODE" = "suggest" ]; then
+          # Post the canonical fix as one-click PR review suggestions. The suggest
+          # runner ships with this Action's repo checkout (not the installed wheel),
+          # so put it on the path; the registry/facade come from the pinned release.
+          PYTHONPATH="$GITHUB_ACTION_PATH/../../.." python -m scripts.gate_suggest \
+            --root "$GITHUB_WORKSPACE" --repo "$REPO_SLUG" --pr "$PR_NUMBER" --changed-against "$base"
+          exit 0
+        fi
+        # block mode (default): fail the check when a changed tool is not canonical.
+        # The rule set is DERIVED from the installed release's classification, so the
+        # gate and the bulk normalizer can never disagree on what is canonical.
         codes="$(python -c 'from galaxy_tool_refactor_registry.gate_eligibility import eligibility_groups, GATE_ELIGIBLE; print(",".join(sorted(eligibility_groups()[GATE_ELIGIBLE])))')"
         # Added/modified tool XML in this PR (a deleted file or a non-tool XML is
         # harmless — `check` reports a macros/non-tool file as clean).
