@@ -15,6 +15,7 @@ from scripts.measure import (
     _PROFILE_NONE,
     _baseline_bucket,
     _cheetah_feature_flags,
+    _classify_command_boolean_ifs,
     _classify_command_language,
     _classify_command_vars,
     _classify_lone_amps,
@@ -29,6 +30,7 @@ from scripts.measure import (
     _measure_cheetah_cdm_coverage,
     _measure_cheetah_command_complexity,
     _measure_collection_type_normalization,
+    _measure_command_boolean_if,
     _measure_command_iuc_heuristics,
     _measure_command_language,
     _measure_command_quoting_kinds,
@@ -2578,3 +2580,91 @@ def test_measure_text_param_quotable_counts_provable_subset(tmp_path: Path) -> N
     assert result.reason_not["no-validator"] == 1  # extra
     assert result.reason_not["optional"] == 1  # maybe
     assert result.provable_patterns[r"^[\w-]+$"] == 1
+
+
+# --- command-boolean-if ---------------------------------------------------------
+
+
+def test_classify_command_boolean_ifs_gates_other_params() -> None:
+    # #if on a boolean whose body references ANOTHER input param -> the anti-pattern.
+    text = "prog\n#if $strict\n  --threshold $threshold\n#end if\n"
+    classes = _classify_command_boolean_ifs(
+        text, boolean_names={"strict"}, param_names={"strict", "threshold"}
+    )
+    assert classes == ["gates-other-params"]
+
+
+def test_classify_command_boolean_ifs_constant_only() -> None:
+    # #if on a boolean emitting only a literal flag -> the truevalue/falsevalue idiom.
+    text = "prog\n#if $strict\n  --enable-strict\n#end if\n"
+    classes = _classify_command_boolean_ifs(
+        text, boolean_names={"strict"}, param_names={"strict"}
+    )
+    assert classes == ["constant-only"]
+
+
+def test_classify_command_boolean_ifs_other_references_only_the_bool() -> None:
+    text = "prog\n#if $strict\n  --mode=$strict\n#end if\n"
+    classes = _classify_command_boolean_ifs(
+        text, boolean_names={"strict"}, param_names={"strict"}
+    )
+    assert classes == ["other"]
+
+
+def test_classify_command_boolean_ifs_ignores_non_boolean_if() -> None:
+    # #if on a non-boolean (e.g. a select) is not the boolean anti-pattern.
+    text = "prog\n#if $mode == 'x'\n  --threshold $threshold\n#end if\n"
+    classes = _classify_command_boolean_ifs(
+        text, boolean_names=set(), param_names={"mode", "threshold"}
+    )
+    assert classes == []
+
+
+def test_classify_command_boolean_ifs_nested_ref_bubbles_to_outer() -> None:
+    # A param referenced in a nested block still counts for the enclosing boolean #if.
+    text = (
+        "prog\n#if $strict\n  #if $verbose\n    --threshold $threshold\n"
+        "  #end if\n#end if\n"
+    )
+    classes = _classify_command_boolean_ifs(
+        text,
+        boolean_names={"strict"},
+        param_names={"strict", "verbose", "threshold"},
+    )
+    # Only $strict is boolean here; its body (via the nested #if) references $threshold.
+    assert "gates-other-params" in classes
+
+
+def test_measure_command_boolean_if_classifies_a_small_corpus(tmp_path: Path) -> None:
+    corpus = tmp_path / "corpus"
+    gated = corpus / "owner" / "gated"
+    gated.mkdir(parents=True)
+    (gated / "tool.xml").write_text(
+        '<tool id="t" name="T" version="1.0">'
+        "<command><![CDATA[prog\n#if $strict\n  --thr $threshold\n#end if\n]]>"
+        "</command>"
+        "<inputs>"
+        '<param name="strict" type="boolean" truevalue="--s" falsevalue=""/>'
+        '<param name="threshold" type="integer" value="1"/>'
+        "</inputs><outputs/></tool>",
+        encoding="utf-8",
+    )
+    flagonly = corpus / "owner" / "flagonly"
+    flagonly.mkdir(parents=True)
+    (flagonly / "tool.xml").write_text(
+        '<tool id="t2" name="T2" version="1.0">'
+        "<command><![CDATA[prog\n#if $strict\n  --enable-strict\n#end if\n]]></command>"
+        "<inputs>"
+        '<param name="strict" type="boolean" truevalue="--s" falsevalue=""/>'
+        "</inputs><outputs/></tool>",
+        encoding="utf-8",
+    )
+
+    result = _measure_command_boolean_if(corpus_root=corpus)
+
+    assert result.n_command_tools == 2
+    assert result.n_tools_with_bool_if == 2
+    assert result.occurrences["gates-other-params"] == 1
+    assert result.occurrences["constant-only"] == 1
+    assert result.tools_by_class["gates-other-params"] == 1
+    assert result.tools_by_class["constant-only"] == 1
