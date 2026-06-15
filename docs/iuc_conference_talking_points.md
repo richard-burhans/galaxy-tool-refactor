@@ -84,13 +84,19 @@ automatically at the point of entry.** Either half alone is close to pointless.
   keep the judgment."
 - "Sixty-five PRs differ only in attribute order. That is the exact thing your
   decision unlocks."
+- "We ran the upgrade on a real published-tools repo: the fixes were correct and the
+  gate passed, but it could not land without a version-suffix bump. That bump is your
+  policy call, not something we should auto-apply."
 
 ## The decisions we want to walk away with
 
 1. Attribute order: enforce (and confirm the canonical order), or advisory-only?
 2. A pre-merge gate: yes or no?
 3. If yes: auto-normalize or block, plus the day-one rule list and who owns it.
-4. (If time) the §1 suffix-bump policy, since any content change needs it.
+4. (If time) the §1 suffix-bump policy, since any content change to a published tool
+   needs it. Live proof: a real `upgrade` of the author's `galaxytools` was correct but
+   blocked by `planemo shed_lint` `ShedVersion` on all six tools — the version-suffix
+   codemod (N2) stays blocked on this answer.
 
 ## Backing data (have it on a laptop, do not lead with it)
 

@@ -35,6 +35,19 @@ answer. Rationale: a shared `macros.xml` is the natural place for a single
 But it is not obviously right (independent tools arguably deserve independent
 revision counters), so confirm before baking it into a codemod.
 
+**Live example (2026-06-15).** Running `galaxy-tool-refactor upgrade` over a real
+published-tools repo (the author's `galaxytools`) makes this concrete. The upgrade's
+changes were correct (canonical formatting plus the `profile=` bumps validity strictly
+required, and the repo's own forward gate confirmed canonical form), but the PR could
+not land: `planemo shed_lint` raised `ShedVersion` on all six changed tools, because
+each is already installable on the ToolShed, so any content change needs a
+`@VERSION_SUFFIX@` bump first (e.g. `1.4.22+galaxy7 → +galaxy8`). We closed that PR
+rather than auto-bump, because bumping a published tool's revision (and the per-tool
+vs suite-wide policy below) is a "publish a new revision" decision, not a
+behavior-preserving auto-fix. This is exactly why the version-suffix codemod (N2)
+stays blocked on this answer: the toolchain can canonicalize a published tool, but it
+cannot land that change without the revision-bump policy you own.
+
 **Data to bring (the measure, run 2026-06-13).** Our hypothesis was that most
 tools already use `version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"` with *both*
 tokens imported from a shared `macros.xml`, which would make a shared-suffix token
