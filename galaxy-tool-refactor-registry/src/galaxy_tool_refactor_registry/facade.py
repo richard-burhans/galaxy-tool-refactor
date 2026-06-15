@@ -520,6 +520,11 @@ def _deployment_stale_note() -> str | None:
     )
 
 
+def _is_profile_token(value: str | None, /) -> bool:
+    """True when a ``profile=`` value is a Cheetah macro token (e.g. ``@PROFILE@``)."""
+    return value is not None and value.startswith("@") and value.endswith("@")
+
+
 def _minimal_outcome_note(
     *,
     declared: str | None,
@@ -541,6 +546,17 @@ def _minimal_outcome_note(
             "  no profile= declared: left undeclared (Galaxy runs the tool"
             f" under its {baseline} legacy defaults); rerun with --modernize"
             " to declare and upgrade a profile."
+        )
+    if _is_profile_token(declared):
+        # The tool file's profile= is a macro token (e.g. @PROFILE@); its value
+        # lives where the token is defined, so the token (not this per-tool line)
+        # carries the real bump decision. Don't claim "kept / validates at its
+        # declared profile" here, which misleads when the token is being bumped
+        # (issue #262): the imported-@PROFILE@ phase reports its own line.
+        return (
+            f"  profile= is the macro token {declared}; its value is handled"
+            " where the token is defined (inline by GTR007, or in the macros"
+            " file when every importer agrees), not assessed per-tool here."
         )
     if unreachable is not None:
         return (
