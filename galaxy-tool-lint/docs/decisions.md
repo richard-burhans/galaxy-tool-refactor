@@ -1245,3 +1245,43 @@ surface is complete).
 uv run --package galaxy-tool-lint pytest galaxy-tool-lint/tests/test_checks_test_validation.py
 uv run --package galaxy-tool-refactor-registry pytest galaxy-tool-refactor-registry/tests/test_planemo_aliases.py galaxy-tool-refactor-registry/tests/test_lint_skip.py
 ```
+
+## D38 (2026-06-15) — GTR102: a boolean should not gate other options in `<command>`
+
+### Decision
+
+`GTR102` (`BooleanGatesOtherOptions`, detect-only, `strict`) flags a `type="boolean"`
+parameter used as a conditional for *other* options inside a `<command>` Cheetah
+`#if`/`#elif`/`#unless`. The IUC `tool_xml` "Booleans" standard says a boolean "should
+not be used as a conditional for other options" — for options shown or hidden by a
+choice, use a `<conditional>` with a `select`. **GTR069** already catches this for
+`<conditional>` *elements*; GTR102 is the command-side manifestation GTR069 cannot see.
+
+### What is and isn't flagged
+
+A bare `#if $bool` is common and fine — it usually just adds the boolean's own flag
+(`#if $strict: --enable-strict`), which is the `truevalue`/`falsevalue` idiom, not an
+anti-pattern. So the rule fires **only** when the `#if` body references a *different*
+input parameter (the boolean is gating other options). The classification is the tier-1
+`command_boolean_conditionals` (the faithful CT3 lexer + leaf-name reference
+resolution), shared as one source of truth with the `command-boolean-if` sizing measure.
+One finding per controlling boolean param.
+
+### Soundness
+
+Detect-only: the fix (restructure to a `<conditional>`/`select`) changes the input form,
+an authoring decision. Reads the raw tree, so a macro-injected conditional is
+under-reported, never over-reported. Sizing + spot-check basis: `scripts.measure
+command-boolean-if` (342 tools / 629 occurrences gate-other-params, vs 593 tools of the
+legitimate constant-flag idiom that the rule correctly leaves alone); manual spot-check
+confirmed the gate-other-params signature isolates genuine cases (e.g. a boolean
+choosing between an auto rule and a manual `$rule`). No planemo equivalent — an own-rule
+addition to the IUC coverage map.
+
+### Reproduced by
+
+```sh
+uv run --package galaxy-tool-source pytest galaxy-tool-source/tests/test_command_conditionals.py
+uv run --package galaxy-tool-lint pytest galaxy-tool-lint/tests/test_checks_boolean_gates.py
+uv run python -m scripts.measure command-boolean-if   # needs the corpus
+```

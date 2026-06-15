@@ -130,6 +130,7 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR099 | DatatypesCustomConf | ✓ | ✗ | check | strict | A tool should not ship a custom datatypes_conf.xml. |
 | GTR100 | TestsAssertionValidation | ✓ | ✗ | check | strict | Test output assertions should validate against Galaxy's assertion models. |
 | GTR101 | TestsCaseValidation | ✓ | ✗ | check | strict | Test-case parameters should validate against the tool's inputs on a modern profile. |
+| GTR102 | — | ✓ | ✗ | check | strict | A boolean param should not gate other options in `<command>` (use a `<conditional>`/select). |
 <!-- END GENERATED -->
 
 The remaining unmapped planemo linters (the ~80 correctness checks + the advisory-by-design

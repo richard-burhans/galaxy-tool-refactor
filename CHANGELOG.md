@@ -23,6 +23,17 @@ is the breaking-change channel.
   generalizing the `upgrade` → `profile_boundaries.md` pattern to `check`.
 - **`rules` now prints each rule's `doc:<cite>`**, surfacing the documentation
   pointer that previously lived only in metadata.
+- **GTR102 — boolean-as-conditional in `<command>`** (galaxy-tool-lint, lint
+  decisions D38): a detect-only advisory flagging a `type="boolean"` parameter used
+  as a conditional for *other* options inside a Cheetah `#if`/`#elif`/`#unless` (the
+  command-side companion to GTR069's `<conditional>`-element check). Fires only when
+  the `#if` body references a *different* input param; a bare `#if $bool` adding the
+  boolean's own flag is left alone. Backed by the new tier-1
+  `command_boolean_conditionals` (one source of truth, shared with the
+  `command-boolean-if` sizing measure: 342 tools have the anti-pattern). In `strict`.
+- **New `command-boolean-if` sizing measure** (`scripts.measure`): sizes the IUC
+  "Booleans" anti-pattern in `<command>`, splitting boolean `#if` blocks into
+  gates-other-params / constant-only / other. Backs GTR102.
 - **GTR100 / GTR101 — test-validation bindings** (galaxy-tool-lint, lint decisions
   D37): the last two planemo `tests.py` linters (`TestsAssertionValidation`,
   `TestsCaseValidation`) are surfaced as an **opt-in binding** to Galaxy's own linters

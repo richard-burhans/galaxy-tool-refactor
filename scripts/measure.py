@@ -8744,141 +8744,33 @@ def _run_corpus_check(args: argparse.Namespace, extra: list[str]) -> int:
 #     -> the IUC boolean idiom is `truevalue="--flag"` + a bare `$bool`, no `#if`.
 #   - other: the body references only the controlling boolean / Galaxy builtins.
 #
-# The split decides whether either pattern is a clean enough signal to ship as a
-# detect-only advisory. Uses the faithful CT3 lexer (cheetah_spans); a body ref is
-# resolved to its <inputs> param by leaf name (sizing-grade, like find-references).
-# Print-only; needs the corpus. Backs the IUC tool_xml "Booleans" recommendation.
-
-_OPENER_DIRECTIVES = frozenset(
-    {"if", "unless", "for", "while", "def", "block", "with", "closure"}
-)
-
+# The split decided that gates-other-params is a clean enough signal to ship as the
+# detect-only advisory GTR102. Classification is the tier-1
+# `command_boolean_conditionals` (one source of truth, shared with the check): the
+# faithful CT3 lexer (cheetah_spans) + leaf-name reference resolution (sizing-grade,
+# like find-references). Print-only; needs the corpus. Backs the IUC tool_xml
+# "Booleans" recommendation.
 
 @dataclass
 class _CommandBooleanIfResult:
     n_command_tools: int  # pure-text <command> tools examined
-    n_lexer_bail: int  # CT3 could not parse the command body (excluded)
     n_tools_with_bool_if: int  # tools with >=1 boolean #if/#elif/#unless
     occurrences: Counter[str]  # class -> total boolean-#if occurrences
     tools_by_class: Counter[str]  # class -> tools with >=1 of that class
     examples: dict[str, list[str]]  # class -> a few example tool paths
 
 
-def _command_param_names(root: etree._Element) -> tuple[set[str], set[str]]:
-    """``(all input param leaf names, boolean param leaf names)``.
-
-    A param with no ``name`` derives one from ``argument`` the way Galaxy does
-    (strip leading dashes, internal dashes -> underscores), mirroring the IUC note.
-    """
-    inputs = root.find("inputs")
-    params: set[str] = set()
-    booleans: set[str] = set()
-    if inputs is None:
-        return params, booleans
-    for param in inputs.iter("param"):
-        name = param.get("name")
-        if not name:
-            argument = param.get("argument")
-            if argument:
-                name = argument.lstrip("-").replace("-", "_")
-        if not name:
-            continue
-        params.add(name)
-        if param.get("type") == "boolean":
-            booleans.add(name)
-    return params, booleans
-
-
-def _ref_components(text: str) -> set[str]:
-    """Every path component of every Cheetah ``$ref`` in *text* (``$a.b`` -> a, b)."""
-    components: set[str] = set()
-    for raw in _CHEETAH_VAR.findall(text):
-        bare = raw.lstrip("$").strip("{}")
-        for part in bare.replace("[", ".").split("."):
-            cleaned = part.strip("] ")
-            if cleaned:
-                components.add(cleaned)
-    return components
-
-
-def _classify_command_boolean_ifs(
-    text: str, *, boolean_names: set[str], param_names: set[str]
-) -> list[str] | None:
-    """One class per boolean ``#if``/``#elif``/``#unless`` in *text*; None if CT3 bails.
-
-    Walks the lexer's spans with a block stack so a body reference (including refs
-    in nested directive heads) is attributed to every enclosing block.
-    """
-    from galaxy_tool_source.cheetah_cdm import SpanKind, cheetah_spans
-
-    spans = cheetah_spans(text)
-    if spans is None:
-        return None
-
-    @dataclass
-    class _Frame:
-        is_bool: bool
-        ctrl: set[str]
-        body: set[str]
-
-    classes: list[str] = []
-    stack: list[_Frame] = []
-
-    def finalize(frame: _Frame) -> None:
-        if not frame.is_bool:
-            return
-        other_params = {r for r in frame.body if r in param_names} - frame.ctrl
-        if other_params:
-            classes.append("gates-other-params")
-        elif not frame.body:
-            classes.append("constant-only")
-        else:
-            classes.append("other")
-
-    for span in spans:
-        if span.kind is SpanKind.PLACEHOLDER:
-            refs = _ref_components(span.text)
-            for frame in stack:
-                frame.body |= refs
-            continue
-        if span.kind is not SpanKind.DIRECTIVE:
-            continue
-        directive = span.directive or ""
-        refs = _ref_components(span.text)
-        if directive in ("elif", "else"):
-            if stack:
-                finalize(stack[-1])
-                for frame in stack[:-1]:  # the condition lives in the enclosing blocks
-                    frame.body |= refs
-                ctrl = refs & boolean_names
-                stack[-1] = _Frame(
-                    is_bool=(directive == "elif" and bool(ctrl)), ctrl=ctrl, body=set()
-                )
-            continue
-        if directive == "end":
-            if stack:
-                finalize(stack.pop())
-            continue
-        for frame in stack:  # a condition / #set ref is seen within enclosing blocks
-            frame.body |= refs
-        if directive in _OPENER_DIRECTIVES:
-            ctrl = refs & boolean_names
-            stack.append(
-                _Frame(
-                    is_bool=(directive in ("if", "unless") and bool(ctrl)),
-                    ctrl=ctrl,
-                    body=set(),
-                )
-            )
-    while stack:  # CT3 balances on a clean parse; be defensive anyway
-        finalize(stack.pop())
-    return classes
-
-
 def _measure_command_boolean_if(*, corpus_root: Path) -> _CommandBooleanIfResult:
-    """Size boolean-controlled #if blocks in <command>, split by what the body does."""
+    """Size boolean-controlled #if blocks in <command>, split by what the body does.
+
+    The classification is the tier-1 ``command_boolean_conditionals`` — one source of
+    truth, shared with the GTR102 advisory check (which flags the gates-other-params
+    subset). A tool whose command body the CT3 lexer cannot parse yields no findings.
+    """
+    from galaxy_tool_source.command_conditionals import command_boolean_conditionals
+
     seen: set[str] = set()
-    n_command_tools = n_lexer_bail = n_tools_with_bool_if = 0
+    n_command_tools = n_tools_with_bool_if = 0
     occurrences: Counter[str] = Counter()
     tools_by_class: Counter[str] = Counter()
     examples: dict[str, list[str]] = {
@@ -8900,18 +8792,7 @@ def _measure_command_boolean_if(*, corpus_root: Path) -> _CommandBooleanIfResult
         if command is None or len(command) > 0:  # skip missing / mixed-content
             continue
         n_command_tools += 1
-        text = "".join(command.itertext())
-        if not any(token in text for token in ("#if", "#elif", "#unless")):
-            continue
-        param_names, boolean_names = _command_param_names(root)
-        if not boolean_names:
-            continue
-        classes = _classify_command_boolean_ifs(
-            text, boolean_names=boolean_names, param_names=param_names
-        )
-        if classes is None:
-            n_lexer_bail += 1
-            continue
+        classes = [finding.klass for finding in command_boolean_conditionals(root)]
         if not classes:
             continue
         n_tools_with_bool_if += 1
@@ -8923,7 +8804,6 @@ def _measure_command_boolean_if(*, corpus_root: Path) -> _CommandBooleanIfResult
                 examples[cls].append(str(path))
     return _CommandBooleanIfResult(
         n_command_tools=n_command_tools,
-        n_lexer_bail=n_lexer_bail,
         n_tools_with_bool_if=n_tools_with_bool_if,
         occurrences=occurrences,
         tools_by_class=tools_by_class,
@@ -8936,10 +8816,7 @@ _BOOLEAN_IF_CLASSES = ("gates-other-params", "constant-only", "other")
 
 def _report_command_boolean_if(result: _CommandBooleanIfResult) -> None:
     print("\n=== command-boolean-if (IUC 'boolean as a conditional' in <command>) ===")
-    print(
-        f"Pure-text <command> tools examined: {result.n_command_tools}"
-        f"  (CT3 lexer bails excluded: {result.n_lexer_bail})"
-    )
+    print(f"Pure-text <command> tools examined: {result.n_command_tools}")
     print(
         f"Tools with >=1 boolean #if/#elif/#unless: {result.n_tools_with_bool_if}"
     )

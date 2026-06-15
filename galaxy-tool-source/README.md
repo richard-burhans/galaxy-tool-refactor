@@ -66,6 +66,7 @@ from galaxy_tool_source.macros import MacroError, imported_macro_paths, token_de
 from galaxy_tool_source.corrections import suggest_corrections, Correction
 from galaxy_tool_source.boolean_values import suggest_boolean_normalizations, normalize_boolean_token, BooleanNormalization
 from galaxy_tool_source.cheetah_refs import tool_cheetah_references, CheetahRef
+from galaxy_tool_source.command_conditionals import command_boolean_conditionals, BooleanConditional
 from galaxy_tool_source.cheetah_rename import rename_param, rename_param_plan, RenameOutcome, RenameEdit, RenamePlan
 from galaxy_tool_source.bundle import ToolBundle, load_bundle, rename_param_in_bundle, BundleRenameOutcome
 from galaxy_tool_source.version_tokens import tokenization_skip_reason, expansion_equality_holds, adopt_suffix_skip_reason, adopt_suffix_equality_holds, GALAXY_SUFFIX_VERSION, package_requirements, retarget_version, append_version_tokens, build_version_macros_root, tokenize_tree, tokenize_version_plan, VersionTokenPlan, VersionEdit, NewMacroFile

@@ -15,7 +15,6 @@ from scripts.measure import (
     _PROFILE_NONE,
     _baseline_bucket,
     _cheetah_feature_flags,
-    _classify_command_boolean_ifs,
     _classify_command_language,
     _classify_command_vars,
     _classify_lone_amps,
@@ -2583,56 +2582,8 @@ def test_measure_text_param_quotable_counts_provable_subset(tmp_path: Path) -> N
 
 
 # --- command-boolean-if ---------------------------------------------------------
-
-
-def test_classify_command_boolean_ifs_gates_other_params() -> None:
-    # #if on a boolean whose body references ANOTHER input param -> the anti-pattern.
-    text = "prog\n#if $strict\n  --threshold $threshold\n#end if\n"
-    classes = _classify_command_boolean_ifs(
-        text, boolean_names={"strict"}, param_names={"strict", "threshold"}
-    )
-    assert classes == ["gates-other-params"]
-
-
-def test_classify_command_boolean_ifs_constant_only() -> None:
-    # #if on a boolean emitting only a literal flag -> the truevalue/falsevalue idiom.
-    text = "prog\n#if $strict\n  --enable-strict\n#end if\n"
-    classes = _classify_command_boolean_ifs(
-        text, boolean_names={"strict"}, param_names={"strict"}
-    )
-    assert classes == ["constant-only"]
-
-
-def test_classify_command_boolean_ifs_other_references_only_the_bool() -> None:
-    text = "prog\n#if $strict\n  --mode=$strict\n#end if\n"
-    classes = _classify_command_boolean_ifs(
-        text, boolean_names={"strict"}, param_names={"strict"}
-    )
-    assert classes == ["other"]
-
-
-def test_classify_command_boolean_ifs_ignores_non_boolean_if() -> None:
-    # #if on a non-boolean (e.g. a select) is not the boolean anti-pattern.
-    text = "prog\n#if $mode == 'x'\n  --threshold $threshold\n#end if\n"
-    classes = _classify_command_boolean_ifs(
-        text, boolean_names=set(), param_names={"mode", "threshold"}
-    )
-    assert classes == []
-
-
-def test_classify_command_boolean_ifs_nested_ref_bubbles_to_outer() -> None:
-    # A param referenced in a nested block still counts for the enclosing boolean #if.
-    text = (
-        "prog\n#if $strict\n  #if $verbose\n    --threshold $threshold\n"
-        "  #end if\n#end if\n"
-    )
-    classes = _classify_command_boolean_ifs(
-        text,
-        boolean_names={"strict"},
-        param_names={"strict", "verbose", "threshold"},
-    )
-    # Only $strict is boolean here; its body (via the nested #if) references $threshold.
-    assert "gates-other-params" in classes
+# (The classifier itself is tested in galaxy-tool-source test_command_conditionals;
+# this exercises the measure's corpus aggregation over the tier-1 function.)
 
 
 def test_measure_command_boolean_if_classifies_a_small_corpus(tmp_path: Path) -> None:
