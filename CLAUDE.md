@@ -27,6 +27,7 @@ galaxy-tool-refactor/
 │   ├── regenerate.py           regenerate per-version xsdata models
 │   ├── gen_planemo_parity.py   regenerate the GTR coverage table (docs/planemo_linter_parity.md)
 │   ├── gen_profile_boundaries.py regenerate the per-boundary upgrade reference (docs/profile_boundaries.md)
+│   ├── gen_gate_eligibility.py  regenerate the auto-fix eligibility table (docs/gate_eligibility.md)
 │   ├── bump_version.py         set the lockstep version across all 9 packages
 │   ├── poll_galaxy_servers.py  poll major Galaxy servers' /api/version -> deployment floor + profile ceiling (docs/galaxy_server_versions.json)
 │   └── galaxy_blog.py          scaffold/lint a Galaxy Hub news/blog post
@@ -158,6 +159,7 @@ uv run python -m scripts.poll_galaxy_servers   # --no-write to report only
 uv run python -m scripts.regenerate            # regenerate per-version models
 uv run python -m scripts.gen_planemo_parity    # regenerate the GTR coverage table in docs/planemo_linter_parity.md (from rule metadata; freshness-tested)
 uv run python -m scripts.gen_profile_boundaries # regenerate the per-boundary upgrade reference docs/profile_boundaries.md (from PROFILE_UPGRADE_CODES + the auto-fix registry; freshness-tested)
+uv run python -m scripts.gen_gate_eligibility  # regenerate the auto-fix eligibility table docs/gate_eligibility.md (from rule metadata + gate_eligibility classification; freshness-tested)
 uv run python -m scripts.measure               # ad-hoc corpus queries (--list)
 
 # Macro organisation across the corpus (inline vs imported macro files,

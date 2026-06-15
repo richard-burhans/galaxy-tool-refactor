@@ -975,3 +975,33 @@ The faithful-resolution layer over the GTR013 pinning floor (codemod §53), size
 - **No corpus-stat impact.** `corpus_check check`/`rules` run GTR013 standalone
   (pinning), so its modified/detect counts are unchanged; the resolution is sized by
   its own measure.
+
+## D26 (2026-06-14): per-rule auto-fix eligibility (`gate_eligibility.py`)
+
+The repository-scale auto-fix system (plan:
+`~/.claude/plans/tools-iuc-autofix-system.md`) has two halves — a one-shot bulk
+normalizer and a pre-merge forward-enforcement gate (`docs/iuc_conference_questions.md`
+§7) — that must agree on which rules they touch. `gate_eligibility.py` is the shared
+classification both read, so a rule the gate enforces is exactly one the bulk pass
+applies.
+
+- **Four buckets.** `gate-eligible` (behaviour-preserving AND an uncontroversial
+  canonical form — runs in both halves), `bulk-only` (behaviour-preserving but an
+  uncited house convention — offered by the bulk pass, not a hard gate),
+  `blocked-pending-iuc` (behaviour-preserving but a contested canonical form — runs
+  in neither half until IUC decides), `advisory-only` (`detect_only`; never
+  auto-applied).
+- **Classification rule.** `detect_only` → advisory-only, mechanically. Every
+  fixable rule carries an explicit `(bucket, rationale)` entry in `_FIXABLE_BUCKETS`;
+  one missing raises (the `classify` guard + a test), so a new fixable rule cannot
+  silently become gate-eligible. The discriminator for an *uncited* fixable rule is
+  validity-repair vs house-style: GTR006/GTR017 restore XSD validity (form dictated
+  by the schema → gate-eligible) while GTR004 shorthand is editorial (→ bulk-only).
+  The two attribute-reordering rules (GTR002 param, GTR005 root `<tool>`) are
+  blocked-pending-iuc — the contested class (conference §3).
+- **Scope = the selectable set.** Classifies `registry()` (what `format`/`check`
+  consider). The upgrade-internal (GTR007–GTR016/GTR093) and opt-in-command
+  (GTR092/GTR094) codemods are a separate axis, intentionally out of scope.
+- **Generated artifact.** `docs/gate_eligibility.md` is rendered by
+  `scripts/gen_gate_eligibility.py` from this module and pinned by a freshness test
+  (`tests/test_gate_eligibility.py`), mirroring the planemo-parity table (D6).

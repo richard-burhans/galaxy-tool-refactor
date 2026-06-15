@@ -122,6 +122,11 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
   coverage gate `is_completely_covered` (derived: check-tier ports ∪ canonical
   codemods), backing `facade.reconcile_lint_skip` and the `lint-skip` command
   (D24).
+- `gate_eligibility.py` — per-rule classification for the repository-scale
+  auto-fix system's two halves (bulk normalizer + forward-enforcement gate):
+  `classify` into gate-eligible / bulk-only / blocked-pending-iuc / advisory-only,
+  rendered to `docs/gate_eligibility.md` by `scripts/gen_gate_eligibility.py`
+  (freshness-tested). See `docs/decisions.md` D26.
 - `results.py` — the structured result + introspection dataclasses.
 - `errors.py` — `UnknownRuleCode` / `UnknownRuleset` / `UnknownProfile` /
   `UpgradeFlagError`.
