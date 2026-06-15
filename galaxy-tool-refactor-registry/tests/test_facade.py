@@ -60,6 +60,67 @@ def test_facade_resolves_and_places_opaque_top_level_expand() -> None:
     ).index(b"<macros")
 
 
+# A macros.xml imported by the tools below: one macro that expands to a single
+# IUC element (<xrefs>) and one that expands to two (<requirements> + <citations>).
+_IMPORTED_MACROS = (
+    b"<macros>"
+    b'<xml name="xref_block"><xrefs>'
+    b'<xref type="bio.tools">x</xref></xrefs></xml>'
+    b'<xml name="reqs_and_cites">'
+    b'<requirements><requirement type="package">samtools</requirement></requirements>'
+    b'<citations><citation type="doi">10.0/x</citation></citations></xml>'
+    b"</macros>"
+)
+
+
+def test_facade_resolves_imported_macro_expand_into_iuc_slot(tmp_path: Path) -> None:
+    """GTR013 §53 resolution layer, end-to-end via an IMPORTED macros.xml (not an
+    inline block). ``<expand macro="xref_block">`` resolves through the imported
+    file to a single ``<xrefs>`` (IUC rank 4), so it is actively placed after
+    ``<macros>`` and before ``<command>`` — exercising ``top_level_expand_tags``'
+    import resolution against the tool's source path (the real-world / vg-suite
+    path the bare inline test does not cover)."""
+    (tmp_path / "macros.xml").write_bytes(_IMPORTED_MACROS)
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(
+        b'<tool id="t" name="T" version="0.1" profile="24.1">'
+        b"<description>d</description>"
+        b'<expand macro="xref_block"/>'
+        b"<macros><import>macros.xml</import></macros>"
+        b"<command><![CDATA[echo x]]></command>"
+        b"<inputs/><outputs/></tool>"
+    )
+    out = facade.run(tool, codes=resolve_codes()).formatted
+    assert out.index(b"<macros") < out.index(b'<expand macro="xref_block"')
+    assert out.index(b'<expand macro="xref_block"') < out.index(b"<command")
+
+
+def test_facade_pins_unresolvable_imported_expand_not_floated_to_end(
+    tmp_path: Path,
+) -> None:
+    """GTR013 §53 pinning, end-to-end via an imported macros.xml: an ``<expand>``
+    that resolves to MORE than one top-level element (``reqs_and_cites`` →
+    ``<requirements>`` + ``<citations>``) cannot be placed, so it is pinned at its
+    author position rather than floated past every known element to the end (the
+    vg-suite bug). Here it sits between ``<command>`` and ``<inputs>`` and stays
+    there after the full ``format``."""
+    (tmp_path / "macros.xml").write_bytes(_IMPORTED_MACROS)
+    tool = tmp_path / "tool.xml"
+    tool.write_bytes(
+        b'<tool id="t" name="T" version="0.1" profile="24.1">'
+        b"<description>d</description>"
+        b"<macros><import>macros.xml</import></macros>"
+        b"<command><![CDATA[echo x]]></command>"
+        b'<expand macro="reqs_and_cites"/>'
+        b"<inputs/><outputs/><help>h</help></tool>"
+    )
+    out = facade.run(tool, codes=resolve_codes()).formatted
+    expand_at = out.index(b'<expand macro="reqs_and_cites"')
+    # Pinned between <command> and <inputs>; crucially, NOT after the last element.
+    assert out.index(b"<command") < expand_at < out.index(b"<inputs")
+    assert expand_at < out.index(b"<help")
+
+
 def test_cosmetic_ruleset_skips_structural_reorder(sample_bytes: bytes) -> None:
     """cosmetic does not reorder <param> attributes; default does."""
     cosmetic_codes = resolve_codes(rulesets=["cosmetic"])

@@ -123,6 +123,15 @@ reordering. Confirm upstream so the codemod's default is unambiguously endorsed
 (or downgrade it to advisory if the community prefers not to churn attribute
 order on existing tools).
 
+**Connected to §7 (the deeper point).** For attribute-order normalization to
+actually *work* — rather than churn forever — two things have to be true: IUC
+must bless a single canonical order (this question), AND tools-iuc must run that
+normalization automatically on every incoming tool/PR (§7's forward-enforcement
+gate). A one-shot reorder of existing tools decays the moment new tools land in
+the author's own order, so we would re-fix the same files forever. So §3 and §7
+are really one decision: bless the canonical order, then enforce it at the point
+of entry.
+
 **Data to bring (the churn, from the committed corpus stats).** GTR002
 (`ReorderParamAttributes`) over the combined corpus
 (`docs/corpus_check_stats.md` / `docs/corpus_rule_stats.md`):
@@ -233,3 +242,80 @@ but flag that it is uncited.
 **1,584 of 9,304 tools (17.0%)** — those carry at least one empty-with-whitespace
 element the rule would collapse (2,790 occurrences). So most tools are already in
 shorthand or have no such element; the change touches ~17%.
+
+## 7. Would IUC adopt an automated pre-merge normalization gate?
+
+**Context.** We are designing an auto-fix system for tools-iuc (plan:
+`~/.claude/plans/tools-iuc-autofix-system.md`), modelled on Carta Engineering's
+LibCST automation. The central lesson is that a one-shot bulk reformat is close to
+pointless on its own: reformat every tool today, and new PRs reintroduce drift
+tomorrow, so the toolchain re-fixes the same files forever — pure review churn that
+never converges. The durable answer is two cooperating halves that run the *same*
+blessed rule subset: a one-shot bulk normalizer (clears the backlog) AND a
+**forward-enforcement gate** — an automated step that runs the blessed, behaviour-
+preserving, IUC-blessed rule subset on every incoming PR, over just the changed
+tools, before merge. This is what makes §3 (attribute order) and the other
+canonicalization questions actually enforceable rather than aspirational.
+
+**The question(s).**
+- Would IUC adopt a required CI check / GitHub Action in tools-iuc that runs a
+  blessed subset of our cosmetic, behaviour-preserving rules on every PR?
+- If so, should it **auto-normalize** (the action rewrites the changed tools to
+  canonical and pushes the fix onto the PR branch / posts a suggestion — lowest
+  author friction) or **block-until-canonical** (the check fails with the exact
+  local fix command — authors stay in control of their branch)?
+- Which rules belong in such a gate on day one? Our position: only rules that are
+  both provably behaviour-preserving AND have a blessed canonical form. Indentation
+  qualifies immediately; attribute order (§3) cannot enter the gate until IUC
+  blesses the order; uncited house conventions (§4 blank lines, §5 attr-wrapping,
+  §6 shorthand) only if IUC adopts them as standards.
+
+**Why this is an easier ask than an open-ended PR-bot.** A gate only ever touches
+code the author is *already* changing — no unsolicited mass PRs — and it makes
+"canonical" objective and self-service, removing the need for reviewers to nitpick
+formatting by hand. It is also the only thing that lets the bulk pass run *once*
+instead of forever.
+
+**Our provisional design choice.** Ship the gate as a reusable, version-pinned
+Action wrapping the same `galaxy-tool-refactor` release the bulk pass uses, so the
+two halves provably agree. Bulk PRs land human-in-the-loop at a conservative
+cadence; the gate keeps the result clean.
+
+**Data to bring (the measure, run 2026-06-14).** `scripts.gate_reaccumulation`
+evaluates each recently merged PR in its **merged (`head`) state** — the bytes
+that actually landed — and asks whether the gate's rule subset would still flag
+it. A flagged merged PR is one whose author left the tool non-canonical even
+after a full human review cycle: direct evidence the backlog re-accumulates.
+
+```
+uv run python -m scripts.fetch_iuc_prs --state closed --merged-only \
+    --corpus-name galaxyproject__tools-iuc__merged --limit 0
+uv run python -m scripts.gate_reaccumulation
+```
+
+Over **452** merged PRs that touched a `<tool>` file (of 459 fetched before the
+GitHub rate limit deferred the rest), the share whose merged result the gate would
+still flag:
+
+- **cosmetic gate** (indent + shorthand): **78.8%** (356/452);
+- **full behaviour-preserving gate**: **96.7%** (437/452);
+- **full, minus the contested attribute order (GTR002)**: **82.3%** (372/452).
+
+So even freshly merged, human-reviewed tools are non-canonical ~97% of the time —
+a one-shot bulk pass would start decaying immediately, which is the case for a
+forward gate. The argument does **not** depend on winning the attribute-order
+debate: dropping GTR002 it is still 82.3%, and a whitespace-only gate alone is
+78.8%. **65** PRs (14.4%) are flagged *only* by attribute order — the exact
+population an IUC canonical-order decision (§3) would unlock for the gate.
+
+Read it honestly: "non-canonical" means "differs from our canonical form," not
+"defective" — the dominant drivers are attribute order (410 PRs) and indentation
+(348). But there is real substance beyond cosmetics: GTR020.1 (provable command-
+variable quoting) still fires on 66 merged PRs and GTR019.1 (CDATA-wrap `<help>`)
+on 25 — behaviour-preserving safety/structure fixes that landed un-applied even
+after review. Full breakdown: `docs/gate_reaccumulation_stats.md`.
+
+**Specific things to ask:**
+- Appetite for a required formatting/normalization check at all?
+- Auto-normalize vs. block-until-canonical?
+- Which rule subset is acceptable on day one, and who owns the blessed list?
