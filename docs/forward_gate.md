@@ -40,7 +40,7 @@ is **not** in the gate — it is blocked pending an IUC canonical-order decision
   Action): the gate reports where a changed tool deviates and fails the check,
   naming the exact local fix command. The author keeps control of their branch.
   The conservative default.
-- **suggest** (implemented, `scripts/gate_suggest.py`): instead of failing, the
+- **suggest** (implemented, `galaxy-tool-refactor gate-suggest`): instead of failing, the
   gate posts the canonical fix as GitHub **review suggestions** (the one-click
   "Commit suggestion" diffs) on the PR, with the IUC doc link. The author applies
   the edits in place. A fix that lands outside the PR's diff cannot be inlined as a
@@ -109,22 +109,23 @@ mode"). The local `scripts/forward_gate.py` is the equivalent maintainer runner
 
 ## Suggest mode
 
-`scripts/gate_suggest.py` posts the canonical fix as GitHub one-click review
-suggestions instead of failing the check. It computes the same provable fix the
-bulk normalizer applies, diffs it against the PR's version, and emits a
-`suggestion` block for each changed run of lines that falls inside the PR's diff
-(GitHub only accepts a comment on a diff line); anything outside the diff is
-summarized in the review body with the local `format` command.
+The shipped `galaxy-tool-refactor gate-suggest` command posts the canonical fix as
+GitHub one-click review suggestions instead of failing the check. It computes the
+same provable fix the bulk normalizer applies, diffs it against the PR's version,
+and emits a `suggestion` block for each changed run of lines that falls inside the
+PR's diff (GitHub only accepts a comment on a diff line); anything outside the diff
+is summarized in the review body with the local `format` command.
 
 ```bash
 # preview the review JSON locally (no token, no posting)
 make gate-suggest REF=origin/main
 # post the suggestions on a PR (in CI, with a PR-write token)
-uv run python -m scripts.gate_suggest --repo OWNER/REPO --pr 123 --changed-against "$BASE_SHA"
+galaxy-tool-refactor gate-suggest --repo OWNER/REPO --pr 123 --changed-against "$BASE_SHA"
 ```
 
-The published Action supports it directly via `mode: suggest` (it runs the bundled
-`gate_suggest` against the PR; the caller must grant `pull-requests: write`):
+The published Action drives it via `mode: suggest` (the caller grants
+`pull-requests: write`; needs `galaxy-tool-refactor >= 0.3.2`, the release that adds
+the `gate-suggest` command):
 
 ```yaml
 jobs:
@@ -136,16 +137,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with: { fetch-depth: 0 }
-      - uses: richard-burhans/galaxy-tool-refactor/.github/actions/forward-gate@main
+      - uses: richard-burhans/galaxy-tool-refactor/.github/actions/forward-gate@v0.3.2
         with:
-          version: "0.3.1"
+          version: "0.3.2"
           mode: suggest
 ```
 
-(Reference the Action at `@main` until a release that includes the `mode` input is
-cut, then pin to that tag.) Suggest mode is non-blocking: it posts the suggestions
-and the check passes. Hardening it into a first-class shipped CLI command (instead
-of the bundled runner) is the follow-on.
+Suggest mode is non-blocking: it posts the suggestions and the check passes.
 
 ## Relationship to planemo
 

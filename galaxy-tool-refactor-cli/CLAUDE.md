@@ -98,6 +98,13 @@ longer imports the codemod / check tiers directly. It exposes the
   `--backup` keeps `.bak`s. Rewrites the tool XML + its `.lint_skip`, so never part
   of `format`/`upgrade` (cli §D19; registry D24; `docs/lint_skip.md`).
 
+There is also one **hidden** subcommand, `gate-suggest`, that does not appear in
+`--help` or the eleven-command count above: it is CI plumbing for the forward
+gate's suggest mode (post a PR's canonical fixes as one-click GitHub review
+suggestions over the gate-eligible rule subset). It ships in the package — rather
+than as bundled CI shell — so the published forward-gate Action can call it; see
+`docs/forward_gate.md` and `gate_suggest.py`.
+
 Macro handling is **cosmetic-only and bundle-free for `format`/`check`** (macro
 files are formatted/checked standalone as encountered — cosmetic formatting is safe
 regardless of sharing; cli §D5). But `rename-param` / `find-references` **are
