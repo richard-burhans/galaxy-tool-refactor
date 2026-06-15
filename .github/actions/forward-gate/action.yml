@@ -1,0 +1,72 @@
+name: "Galaxy tool forward gate"
+description: >-
+  Fail a pull request whose changed Galaxy tool XML is not in canonical form under
+  galaxy-tool-refactor's behaviour-preserving, IUC-blessed rule subset
+  (block-until-canonical). Half B of the auto-fix system: it runs the same blessed
+  rules a one-shot bulk normalizer applies, on every PR, over only the tools the PR
+  changed, so a repository stays canonical without re-accumulating a backlog. See
+  docs/forward_gate.md.
+author: "galaxy-tool-refactor"
+branding:
+  icon: "check-circle"
+  color: "blue"
+
+inputs:
+  version:
+    description: >-
+      galaxy-tool-refactor release to install. Must be a release that includes the
+      forward gate (>= 0.3.1, the first with gate_eligibility); 0.3.0 predates it.
+      Pin to the same release the bulk normalizer used.
+    required: false
+    default: "0.3.1"
+  base-ref:
+    description: "Base git ref to diff changed tools against. Defaults to the pull request's base SHA."
+    required: false
+    default: ""
+  python-version:
+    description: "Python version to run the toolchain on."
+    required: false
+    default: "3.12"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install galaxy-tool-refactor
+      shell: bash
+      run: pip install "galaxy-tool-refactor==${{ inputs.version }}"
+
+    - name: Check changed tools are in canonical form
+      shell: bash
+      env:
+        BASE_REF: ${{ inputs.base-ref }}
+        PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      run: |
+        set -euo pipefail
+        base="${BASE_REF:-$PR_BASE_SHA}"
+        if [ -z "$base" ]; then
+          echo "::error::forward-gate needs a base ref — set the 'base-ref' input, or run it on a pull_request event."
+          exit 1
+        fi
+        # The gate's rule set is DERIVED from the installed release's classification,
+        # so the gate and the bulk normalizer can never disagree on what is canonical.
+        codes="$(python -c 'from galaxy_tool_refactor_registry.gate_eligibility import eligibility_groups, GATE_ELIGIBLE; print(",".join(sorted(eligibility_groups()[GATE_ELIGIBLE])))')"
+        # Added/modified tool XML in this PR (a deleted file or a non-tool XML is
+        # harmless — `check` reports a macros/non-tool file as clean).
+        mapfile -t files < <(git diff --name-only --diff-filter=AM "$base"...HEAD -- 'tools/' | grep -E '\.xml$' || true)
+        if [ "${#files[@]}" -eq 0 ]; then
+          echo "No changed tool XML; forward gate passes."
+          exit 0
+        fi
+        echo "Forward gate rules (behaviour-preserving, IUC-blessed): $codes"
+        echo "Checking ${#files[@]} changed file(s)…"
+        if galaxy-tool-refactor check --select "$codes" "${files[@]}"; then
+          echo "All changed tools are in canonical form. ✓"
+        else
+          echo "::error::Changed tools are not in canonical form. These are deterministic, behaviour-preserving fixes — apply them locally with: galaxy-tool-refactor format --select $codes <file>"
+          exit 1
+        fi

@@ -56,16 +56,11 @@ make forward-gate REF=origin/main
 
 Exit code: 0 when every checked tool is canonical, 1 when any is not.
 
-## CI adoption (template for a tool repository)
+## CI adoption — the published Action
 
-This workflow is a **template to copy into a tool repository** (e.g.
-`tools-iuc/.github/workflows/forward-gate.yml`); it does not run in this repo. It
-installs a pinned `galaxy-tool-refactor` release, derives the gate codes from that
-release's classification at runtime (so the gate and the bulk pass can never
-drift), and runs the shipped `check`. Pin the version to the same release the bulk
-normalizer used (or install from a tagged commit,
-`pip install "git+https://github.com/<owner>/galaxy-tool-refactor@vX"`, if that
-release is not on PyPI).
+The gate ships as a reusable composite **GitHub Action** at
+[`.github/actions/forward-gate`](../.github/actions/forward-gate/action.yml). A tool
+repository adopts it by adding one workflow — no copied shell, no vendored code:
 
 ```yaml
 name: forward-gate
@@ -79,28 +74,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
+          fetch-depth: 0   # the gate diffs against the PR base
+      - uses: richard-burhans/galaxy-tool-refactor/.github/actions/forward-gate@v0.3.1
         with:
-          python-version: "3.12"
-      - name: Install the toolchain (pin to the bulk-pass release)
-        run: pip install "galaxy-tool-refactor==0.3.0"
-      - name: Check changed tools are in canonical form
-        run: |
-          set -euo pipefail
-          base="${{ github.event.pull_request.base.sha }}"
-          # the gate's rule set, derived from the shipped classification
-          codes=$(python -c "from galaxy_tool_refactor_registry.gate_eligibility import eligibility_groups, GATE_ELIGIBLE; print(','.join(sorted(eligibility_groups()[GATE_ELIGIBLE])))")
-          files=$(git diff --name-only --diff-filter=AM "$base"...HEAD -- 'tools/**/*.xml')
-          if [ -z "$files" ]; then echo "no changed tool XML"; exit 0; fi
-          echo "Gate rules: $codes"
-          galaxy-tool-refactor check --select "$codes" $files
+          version: "0.3.1"   # pin to the release the bulk normalizer used
 ```
 
-The shipped `galaxy-tool-refactor check` exits non-zero when a fixable rule fires,
-which fails the job; the richer message (naming the exact `format` command) is what
-`scripts/forward_gate.py` prints, and a maintainer-facing Action could call that
-instead once the gate is productionized as a versioned, published Action.
+**Requires `galaxy-tool-refactor` >= 0.3.1** — the first release that includes the
+forward gate (`gate_eligibility`); 0.3.0 predates it. Cut that release (the standard
+`make bump VERSION=0.3.1` + tag flow) before adopting the Action, then reference it
+at the matching `@v0.3.1` tag. Substitute the owner the toolchain is published under.
+
+The Action installs the pinned `galaxy-tool-refactor` release, **derives the gate's
+rule set from that release's classification at runtime** (the `gate-eligible` codes
+from `gate_eligibility` — so the gate and the bulk normalizer provably agree),
+diffs the PR's changed `tools/**/*.xml`, and runs the shipped `check`. `check`
+exits non-zero when a gate-eligible (fixable) rule fires, failing the job; a
+changed `macros.xml` or other non-tool XML is reported clean, never an error. On
+failure the Action emits a GitHub `::error::` annotation naming the exact
+`galaxy-tool-refactor format --select …` command to fix it locally.
+
+`version` (default the pinned release) and `base-ref` (default the PR base SHA) are
+the Action's inputs. The local `scripts/forward_gate.py` is the equivalent
+maintainer runner (`make forward-gate`).
 
 ## Relationship to planemo
 
