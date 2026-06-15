@@ -1219,3 +1219,31 @@ def test_reconcile_lint_skip_requires_all_dir_tools_clear() -> None:
         [has_cites, no_cites], _skip("CitationsNoValid")
     )
     assert result.removed == ()  # one tool still trips it -> keep for the dir
+
+
+_RAGGED = b"""<tool id="t" name="T" version="1.0" profile="24.0">
+  <description>desc</description>
+        <command><![CDATA[echo x]]></command>
+  <inputs>
+    <param name="a" type="text"/>
+  </inputs>
+  <outputs>
+        <data name="out" format="txt"/>
+  </outputs>
+</tool>
+"""
+
+
+def test_is_canonical_and_fired_codes_agree_with_run() -> None:
+    from galaxy_tool_refactor_registry.gate_eligibility import gate_codes
+
+    codes = gate_codes()
+    # The ragged-indentation tool is non-canonical (GTR001 fires).
+    assert not facade.is_canonical(_RAGGED, codes=codes)
+    fired = facade.fired_codes(_RAGGED, codes=codes)
+    assert "GTR001" in fired
+    # After format over the same codes, nothing fires — canonical, and the two
+    # primitives agree (fired empty <=> is_canonical True).
+    canonical = facade.run(_RAGGED, codes=codes).formatted
+    assert facade.fired_codes(canonical, codes=codes) == set()
+    assert facade.is_canonical(canonical, codes=codes)

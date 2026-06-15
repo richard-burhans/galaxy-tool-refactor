@@ -149,8 +149,8 @@ def classify(handle: RuleHandle, /) -> str:
     return bucket_rationale[0]
 
 
-def rationale(handle: RuleHandle, /) -> str:
-    """Return the one-line rationale for *handle*'s bucket.
+def _rationale(handle: RuleHandle, /) -> str:
+    """Return the one-line rationale for *handle*'s bucket (internal to the renderer).
 
     Fixable rules carry a hand-written rationale; advisory rules share the generic
     "detect-only, never auto-applied" rationale.
@@ -173,6 +173,28 @@ def eligibility_groups() -> dict[str, list[str]]:
     return {
         bucket: sorted(codes, key=_code_sort_key) for bucket, codes in groups.items()
     }
+
+
+def gate_codes() -> frozenset[str]:
+    """The forward gate's rule set: the GATE_ELIGIBLE codes.
+
+    The single source of truth every consumer reads — the forward gate (block and
+    suggest modes), the bulk normalizer's gate view, the coverage tracker, and the
+    published Action — so they cannot drift on what is auto-enforced. A tool is
+    *canonical* (under the gate) when none of these codes fires on it; see
+    :func:`galaxy_tool_refactor_registry.facade.is_canonical`.
+    """
+    return frozenset(eligibility_groups()[GATE_ELIGIBLE])
+
+
+def bulk_codes() -> frozenset[str]:
+    """The bulk normalizer's rule set: gate-eligible PLUS bulk-only.
+
+    A superset of :func:`gate_codes` (never the blocked-pending-IUC or advisory
+    buckets), so a tool the bulk pass has cleaned always passes the gate.
+    """
+    groups = eligibility_groups()
+    return frozenset(groups[GATE_ELIGIBLE]) | frozenset(groups[BULK_ELIGIBLE_ONLY])
 
 
 def render_eligibility_table() -> str:
@@ -200,7 +222,7 @@ def render_eligibility_table() -> str:
             if handle.meta.detect_only:
                 continue
             lines.append(
-                f"| {bucket} | {code} | {handle.meta.summary} | {rationale(handle)} |"
+                f"| {bucket} | {code} | {handle.meta.summary} | {_rationale(handle)} |"
             )
     advisory = groups[ADVISORY_ONLY]
     lines += [

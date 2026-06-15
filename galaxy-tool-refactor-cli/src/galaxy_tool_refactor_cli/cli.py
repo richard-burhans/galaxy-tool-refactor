@@ -87,6 +87,7 @@ from galaxy_tool_refactor_registry.errors import (
     UnknownRuleset,
     UpgradeFlagError,
 )
+from galaxy_tool_refactor_registry.gate_eligibility import gate_codes
 from galaxy_tool_refactor_registry.lint_skip import lint_skip_path, parse_lint_skip
 from galaxy_tool_refactor_registry.macro_datatype import normalize_macro_files
 from galaxy_tool_refactor_registry.macro_profile import (
@@ -1420,8 +1421,8 @@ def gate_suggest_command(
     review body. Non-blocking; intended for a PR CI job (the forward-gate Action's
     ``mode: suggest``). ``--dry-run`` prints the review without posting (no token).
     """
-    codes = gate_suggest.gate_codes()
-    result = gate_suggest.collect(root, changed_against, codes=codes)
+    codes = gate_codes()
+    result = gate_suggest.collect_suggestions(root, changed_against, codes=codes)
     if not result.suggestions and not result.skipped:
         click.echo(
             f"all {result.checked} changed tool(s) are canonical; no suggestions"

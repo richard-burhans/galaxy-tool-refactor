@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import pytest
+
+from galaxy_tool_source import command_conditionals
 from galaxy_tool_source.binding import load_tool
 from galaxy_tool_source.command_conditionals import (
     CONSTANT_ONLY,
@@ -83,4 +86,16 @@ def test_no_boolean_param_is_empty() -> None:
         "prog\n#if $threshold\n  --x\n#end if\n",
         '<param name="threshold" type="integer"/>',
     )
+    assert command_boolean_conditionals(root) == []
+
+
+def test_lexer_bailout_returns_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The docstring promises [] when CT3 cannot lex the body. Force the lexer to
+    # bail (cheetah_spans -> None) on a command that would otherwise yield a finding
+    # and assert the conservative empty result, never a regex-based guess.
+    root = _tool(
+        "prog\n#if $strict\n  --thr $threshold\n#end if\n",
+        _BOOL + '<param name="threshold" type="integer" value="1"/>',
+    )
+    monkeypatch.setattr(command_conditionals, "cheetah_spans", lambda _text: None)
     assert command_boolean_conditionals(root) == []

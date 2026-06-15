@@ -38,22 +38,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from galaxy_tool_refactor_registry.facade import run as facade_run
-from galaxy_tool_refactor_registry.gate_eligibility import (
-    BULK_ELIGIBLE_ONLY,
-    GATE_ELIGIBLE,
-    eligibility_groups,
-)
+from galaxy_tool_refactor_registry.gate_eligibility import bulk_codes
 from galaxy_tool_source.binding import validate_tool
 
 from scripts._shared import is_tool_document, iter_tool_xmls
 
 logger = logging.getLogger("bulk_normalize")
-
-
-def bulk_codes() -> frozenset[str]:
-    """The bulk pass's rule set: gate-eligible plus bulk-only (never blocked/advisory)."""
-    groups = eligibility_groups()
-    return frozenset(groups[GATE_ELIGIBLE]) | frozenset(groups[BULK_ELIGIBLE_ONLY])
 
 
 @dataclass
@@ -99,8 +89,10 @@ def _normalize_one(
     before_valid = validate_tool(path).valid  # path still holds the original here
     if not write:
         return
+    wrote = False
     try:
         path.write_bytes(normalized)
+        wrote = True
         regressed = before_valid and not validate_tool(path).valid
         not_idempotent = facade_run(path, codes=codes).formatted != normalized
         if regressed or not_idempotent:
@@ -115,6 +107,11 @@ def _normalize_one(
         else:
             result.written += 1
     except Exception as error:  # noqa: BLE001 — retain a write/re-check failure
+        # If the re-check raised *after* the write, never leave the unverified bytes
+        # on disk: restore the original (the same safe-by-construction guarantee).
+        if wrote:
+            path.write_bytes(original)
+            result.reverted += 1
         result.errors.append(f"{relpath}: {error}")
 
 

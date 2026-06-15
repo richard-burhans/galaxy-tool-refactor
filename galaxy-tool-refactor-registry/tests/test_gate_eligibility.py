@@ -21,8 +21,10 @@ from galaxy_tool_refactor_registry.gate_eligibility import (
     BULK_ELIGIBLE_ONLY,
     END_MARKER,
     GATE_ELIGIBLE,
+    bulk_codes,
     classify,
     eligibility_groups,
+    gate_codes,
     render_eligibility_table,
 )
 from galaxy_tool_refactor_registry.registry import registry
@@ -88,3 +90,21 @@ def test_eligibility_table_block_is_fresh() -> None:
         "docs/gate_eligibility.md table is stale — regenerate with "
         "`uv run python -m scripts.gen_gate_eligibility`"
     )
+
+
+def test_gate_codes_is_exactly_the_gate_eligible_group() -> None:
+    # The single source of truth: every consumer (forward gate, suggest mode,
+    # coverage tracker, the Action) reads this, so it MUST equal the GATE_ELIGIBLE
+    # bucket — the "halves cannot disagree on what is auto-enforced" contract.
+    assert gate_codes() == frozenset(eligibility_groups()[GATE_ELIGIBLE])
+
+
+def test_bulk_codes_is_gate_plus_bulk_only_and_supersets_the_gate() -> None:
+    groups = eligibility_groups()
+    expected = frozenset(groups[GATE_ELIGIBLE]) | frozenset(groups[BULK_ELIGIBLE_ONLY])
+    assert bulk_codes() == expected
+    # The bulk pass applies a superset of the gate, so a bulk-cleaned tool passes
+    # the gate; it never includes the blocked-pending-IUC or advisory buckets.
+    assert gate_codes() <= bulk_codes()
+    assert bulk_codes().isdisjoint(groups[BLOCKED_PENDING_IUC])
+    assert bulk_codes().isdisjoint(groups[ADVISORY_ONLY])

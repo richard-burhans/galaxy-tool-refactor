@@ -81,7 +81,10 @@ def test_extra_absent_yields_nothing(
     path = tmp_path / "tool.xml"
     path.write_bytes(_BAD_TEST_PARAM)
     document = load_tool(path)
+    # Both rules share the lazy `_galaxy_lint_messages` import, so both must fall
+    # silent when the extra is absent — assert both, not just one.
     assert list(TestsCaseValidation().detect(document)) == []
+    assert list(TestsAssertionValidation().detect(document)) == []
 
 
 def test_case_validation_fires_on_bad_test_param(tmp_path: Path) -> None:
