@@ -83,14 +83,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0   # the gate diffs against the PR base
-      - uses: richard-burhans/galaxy-tool-refactor/.github/actions/forward-gate@v0.3.2
+      - uses: richard-burhans/galaxy-tool-refactor/.github/actions/forward-gate@v0.3.3
         with:
-          version: "0.3.2"   # pin to the release the bulk normalizer used
+          version: "0.3.3"   # pin to the release the bulk normalizer used
 ```
 
 **Requires `galaxy-tool-refactor` >= 0.3.1** — the first release with the forward
 gate (`gate_eligibility`); 0.3.0 predates it. Suggest mode (below) needs >= 0.3.2,
-the release that adds the `gate-suggest` command. Pin to the latest tag (`@v0.3.2`)
+the release that adds the `gate-suggest` command. Pin to the latest tag (`@v0.3.3`)
 and substitute the owner the toolchain is published under.
 
 The Action installs the pinned `galaxy-tool-refactor` release, **derives the gate's
@@ -139,9 +139,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with: { fetch-depth: 0 }
-      - uses: richard-burhans/galaxy-tool-refactor/.github/actions/forward-gate@v0.3.2
+      - uses: richard-burhans/galaxy-tool-refactor/.github/actions/forward-gate@v0.3.3
         with:
-          version: "0.3.2"
+          version: "0.3.3"
           mode: suggest
 ```
 

@@ -1,14 +1,14 @@
 [project]
 name = "galaxy-tool-codemod"
-version = "0.3.2"
+version = "0.3.3"
 description = "Structural-refactor framework for Galaxy tool XML — tier 2 of the galaxy-tool-source ecosystem."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Richard Burhans" }]
 dependencies = [
-    "galaxy-tool-refactor-rules==0.3.2",
-    "galaxy-tool-source==0.3.2",
+    "galaxy-tool-refactor-rules==0.3.3",
+    "galaxy-tool-source==0.3.3",
     "lxml>=5",
     "packaging>=23",       # version comparison in profile_semantics / runtime_fixes
 ]

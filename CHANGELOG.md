@@ -11,6 +11,33 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+## [0.3.3] — 2026-06-15
+
+### Added
+- **MCP server: two new tools (7 → 9)** — `find_references_tool` (read-only: every
+  Cheetah `$name` reference site across a tool's templated sections) and
+  `rename_param_tool` (atomic single-document rename). Both are single-document over
+  the facade; the cross-file/imported-macro variants and the repo-scoped
+  `normalize-macros` / `lint-skip` stay CLI-only by design (mcp `docs/decisions.md`
+  D7). The MCP now covers every single-document CLI operation.
+- **Registry facade: `gate_codes()` / `bulk_codes()` + `is_canonical()` /
+  `fired_codes()`** — the single source of truth for the auto-fix gate's rule set and
+  the detect-based "is this tool canonical?" query, now read by the forward gate, the
+  coverage tracker, the bulk normalizer, and the `gate-suggest` command (no local
+  re-derivation; guarded by cross-halves tests).
+
+### Fixed
+- **Forward-gate Action (block mode) now filters changed XML to actual `<tool>`
+  documents** before running `check`, matching `scripts/forward_gate.py`. Previously a
+  changed `macros.xml` or other non-tool XML under `tools/` could fail the gate on its
+  cosmetic drift. Adopters should re-pin the Action to `@v0.3.3`.
+
+### Changed
+- Internal quality (escalated architecture audit + all its proposals): the
+  conservative `$var` fallback regex de-duplicated to `cheetah_cdm.CHEETAH_VAR_RE`;
+  `bulk_normalize.py --write` reverts on an exception in the post-write re-check; doc
+  and docstring freshness across `ARCHITECTURE.md`, the capability matrix, and the CLI.
+
 ## [0.3.2] — 2026-06-15
 
 ### Added
