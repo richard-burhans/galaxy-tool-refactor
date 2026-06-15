@@ -1247,3 +1247,27 @@ def test_is_canonical_and_fired_codes_agree_with_run() -> None:
     canonical = facade.run(_RAGGED, codes=codes).formatted
     assert facade.fired_codes(canonical, codes=codes) == set()
     assert facade.is_canonical(canonical, codes=codes)
+
+
+def test_minimal_note_token_profile_defers_not_kept() -> None:
+    # Issue #262: a token profile (@PROFILE@) must NOT be narrated as "kept /
+    # validates at its declared profile" — the token carries the real decision.
+    from galaxy_tool_refactor_registry.facade import _minimal_outcome_note
+
+    note = _minimal_outcome_note(
+        declared="@PROFILE@", baseline="21.05", reached="21.05", unreachable=None
+    )
+    assert note is not None
+    assert "macro token" in note and "@PROFILE@" in note
+    assert "validates at its declared profile" not in note
+
+
+def test_minimal_note_numeric_profile_still_says_kept() -> None:
+    # A real (non-token) profile is unchanged: it still reports the kept message.
+    from galaxy_tool_refactor_registry.facade import _minimal_outcome_note
+
+    note = _minimal_outcome_note(
+        declared="24.0", baseline="24.0", reached="24.0", unreachable=None
+    )
+    assert note is not None and "24.0 kept" in note
+    assert "validates at its declared profile" in note
