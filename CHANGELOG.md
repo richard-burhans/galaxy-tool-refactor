@@ -11,7 +11,28 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-06-15
+
 ### Added
+- **Repository-scale auto-fix system — Half A + Half B.** `scripts/bulk_normalize.py`
+  (one-shot bulk normalizer applying the behaviour-preserving, IUC-blessed rule subset
+  across a tool repository; `--write` asserts validity-preservation + idempotence per
+  tool and reverts any tool that would fail, so the pass is safe by construction) and
+  `scripts/forward_gate.py` + a published composite **GitHub Action**
+  (`.github/actions/forward-gate/`) that fails a pull request whose changed tools are
+  not in canonical form. Both halves read one classification so they cannot drift.
+  Proven over the tools-iuc fork (2,131 tools, 100% canonical + idempotent after).
+  See `docs/forward_gate.md`.
+- **Per-rule auto-fix eligibility** (`galaxy_tool_refactor_registry.gate_eligibility`,
+  registry decisions D26): classifies every selectable rule into gate-eligible /
+  bulk-only / blocked-pending-iuc / advisory-only — the shared rule-set source both
+  halves read. Generated, freshness-tested `docs/gate_eligibility.md` via
+  `scripts/gen_gate_eligibility.py`.
+- **Re-accumulation measure + conference artifacts.** `scripts/gate_reaccumulation.py`
+  + `docs/gate_reaccumulation_stats.md` (96.7% of 452 recently merged tools-iuc PRs
+  are still non-canonical in their merged state — the evidence for forward
+  enforcement); `docs/iuc_conference_questions.md` §7 (the gate question) and
+  `docs/iuc_conference_talking_points.md`.
 - **`docs/design_principles.md`**: the two governing contracts written as precise,
   CI-enforced criteria — (1) a fix must be behavior-preserving *by construction*
   (guarded by `test_proof_documents.py`), and (2) every non-fixable warning points
@@ -50,6 +71,14 @@ is the breaking-change channel.
 - **GTR032's D3 deferral note is marked superseded by D34** (galaxy-tool-lint
   decisions): GTR032 shipped as a real detector once a precise lexer existed; the stale
   "reserved no-op placeholder" present-tense claims are corrected.
+
+### Fixed
+- **GTR036 no longer breaks expression-tool outputs** (codemod decisions §34): it
+  converted an expression tool's `<output type="data" … from="output">` to
+  `<data from=…>`, but `from` is not valid on `<data>`, so the result failed XSD
+  validation. It now skips any `<output>` carrying a `from` attribute (an expression
+  output, routed by `from`). Found by the Half-A bulk-normalizer fork proof — the one
+  validity regression across 2,131 tools-iuc tools.
 
 ## [0.3.0] — 2026-06-14
 

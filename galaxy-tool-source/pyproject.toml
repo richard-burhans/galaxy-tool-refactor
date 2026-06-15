@@ -1,6 +1,6 @@
 [project]
 name = "galaxy-tool-source"
-version = "0.3.0"
+version = "0.3.1"
 description = "Foundation library for parsing, profile-aware validation, and typed inspection of Galaxy tool XML"
 authors = [{ name = "Richard Burhans", email = "richard.burhans@gmail.com" }]
 license = "MIT"
