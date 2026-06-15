@@ -229,3 +229,47 @@ def test_tokenize_version_tool_reports_skip() -> None:
     assert result["tokenized"] is False
     skip_reason = result["skip_reason"]
     assert isinstance(skip_reason, str) and "+galaxy" in skip_reason
+
+
+# A tool whose <command> references $input, with a matching <param name="input">.
+_REFERENCED = (
+    '<tool id="m" name="M" version="1.0.0" profile="24.0">'
+    "<command><![CDATA[echo '$input']]></command>"
+    '<inputs><param name="input" type="text"/></inputs>'
+    '<outputs><data name="o"/></outputs></tool>'
+)
+
+
+def test_find_references_finds_the_command_reference() -> None:
+    result = service.find_references_tool(_REFERENCED, name="input")
+    assert result["name"] == "input"
+    occurrences = result["occurrences"]
+    assert isinstance(occurrences, list) and len(occurrences) >= 1
+    assert any(o["section"] == "command" for o in occurrences)  # type: ignore[index]
+    assert all("reference" in o and "sourceline" in o for o in occurrences)  # type: ignore[operator]
+
+
+def test_find_references_absent_name_is_empty() -> None:
+    result = service.find_references_tool(_REFERENCED, name="absent")
+    assert result["name"] == "absent"
+    assert result["occurrences"] == []
+
+
+def test_rename_param_rewrites_references_and_definition() -> None:
+    result = service.rename_param_tool(_REFERENCED, old="input", new="renamed")
+    assert result["changed"] is True
+    assert isinstance(result["renamed"], int) and result["renamed"] >= 1
+    assert result["reason"] is None
+    formatted = result["formatted"]
+    assert isinstance(formatted, str)
+    assert "renamed" in formatted and 'name="renamed"' in formatted
+    assert "$input" not in formatted  # the old reference is gone
+
+
+def test_rename_param_bail_reports_reason_and_no_formatted() -> None:
+    # Renaming a name the tool does not define is a clean bail: changed False, a
+    # reason, and no formatted bytes (content-based, single document).
+    result = service.rename_param_tool(_REFERENCED, old="absent", new="x")
+    assert result["changed"] is False
+    assert result["formatted"] is None
+    assert result["reason"]

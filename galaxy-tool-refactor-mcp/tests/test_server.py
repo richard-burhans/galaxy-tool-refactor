@@ -8,7 +8,9 @@ import pytest
 
 from galaxy_tool_refactor_mcp.server import (
     _check_tool,
+    _find_references_tool,
     _format_tool,
+    _rename_param_tool,
     build_server,
 )
 
@@ -29,6 +31,8 @@ def test_build_server_registers_every_tool() -> None:
         "check_tool",
         "convert_help_tool",
         "tokenize_version_tool",
+        "find_references_tool",
+        "rename_param_tool",
         "list_rulesets",
         "list_rules",
     }
@@ -51,3 +55,28 @@ def test_handler_success_path_returns_dict() -> None:
     result = _check_tool(_TOOL)
     assert isinstance(result, dict)
     assert "violations" in result
+
+
+_REFERENCED = (
+    '<tool id="m" name="M" version="1.0.0" profile="24.0">'
+    "<command><![CDATA[echo '$a']]></command>"
+    '<inputs><param value="v" type="text" name="a"/></inputs>'
+    '<outputs><data name="o"/></outputs></tool>'
+)
+
+
+def test_find_references_handler_returns_occurrences() -> None:
+    result = _find_references_tool(_REFERENCED, name="a")
+    assert result["name"] == "a"
+    assert isinstance(result["occurrences"], list)
+
+
+def test_rename_param_handler_returns_dict() -> None:
+    result = _rename_param_tool(_REFERENCED, old="a", new="b")
+    assert result["changed"] is True
+    assert isinstance(result["formatted"], str)
+
+
+def test_rename_param_handler_maps_malformed_xml_to_value_error() -> None:
+    with pytest.raises(ValueError, match="invalid tool XML"):
+        _rename_param_tool("<tool><unclosed></tool>", old="a", new="b")

@@ -1,12 +1,13 @@
 # Using it from an MCP client (agents)
 
-> **TL;DR.** The MCP server exposes the same engine to AI agents as seven tools —
+> **TL;DR.** The MCP server exposes the same engine to AI agents as nine tools —
 > `format_tool`, `upgrade_tool`, `check_tool`, `convert_help_tool`,
-> `tokenize_version_tool`, `list_rulesets`, `list_rules` — over a thin FastMCP
-> binding. Tools take the tool XML as a string and
-> return JSON; nothing is written to disk. This is vision Goal 1, and it ships today.
+> `tokenize_version_tool`, `find_references_tool`, `rename_param_tool`,
+> `list_rulesets`, `list_rules` — over a thin FastMCP binding. Tools take the tool
+> XML as a string and return JSON; nothing is written to disk. This is vision Goal 1,
+> and it ships today.
 
-## The seven tools
+## The nine tools
 
 | Tool | Input | Returns |
 |---|---|---|
@@ -15,6 +16,8 @@
 | `check_tool` | `xml`, optional `rulesets`/`select`/`ignore` | report-only findings (never mutates) |
 | `convert_help_tool` | `xml` | `{converted, formatted, skip_reason}` — opt-in RST→Markdown help conversion; a skip (e.g. "profile below 24.2 — run `upgrade` first") is a normal result an agent can act on |
 | `tokenize_version_tool` | `xml` | `{tokenized, formatted, skip_reason}` — opt-in @TOOL_VERSION@ extraction (expansion-equality gated); macro-importing tools fail closed (content-based — use the path-based CLI for those) |
+| `find_references_tool` | `xml`, `name` | `{name, occurrences: [{section, sourceline, reference}]}` — read-only; this tool's own templated sections (imported-macro references are the path-based CLI) |
+| `rename_param_tool` | `xml`, `old`, `new` | `{old, new, changed, renamed, reason, formatted}` — atomic single-document rename; `formatted` is `null` on a bail (the cross-file/imported-macro rename is the path-based CLI) |
 | `list_rulesets` | — | the baked-in rulesets (name / codes / default / description) |
 | `list_rules` | optional `include_upgrade` | every rule (code / family / fixable / rulesets / cite) |
 

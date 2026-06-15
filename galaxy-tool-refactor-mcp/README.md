@@ -27,6 +27,8 @@ disk writes unless asked, introspectable), so the server is a *thin adapter*:
 | `check_tool` | Report-only detect over the selected rules; returns the findings (each flagged fixable vs advisory). |
 | `convert_help_tool` | Convert an RST `<help>` body to Markdown when provable (profile ≥ 24.2 + render-equivalence gate); returns converted XML or a skip reason. |
 | `tokenize_version_tool` | Factor a literal `version="<base>+galaxy<suffix>"` into `@TOOL_VERSION@`/`@VERSION_SUFFIX@` tokens when the expansion-equality gate proves it byte-identical; returns tokenized XML or a skip reason. |
+| `find_references_tool` | Read-only: every Cheetah `$name` reference site across the tool's templated sections (returns `{name, occurrences}`). Single-document — references inside imported macro files are the CLI `find-references`. |
+| `rename_param_tool` | Rename a parameter across the tool atomically (returns `{old, new, changed, renamed, reason, formatted}`; `formatted` is `null` on a bail). Single-document — the cross-file/imported-macro rename is the CLI `rename-param`. |
 | `list_rulesets` | The baked-in rulesets (name / codes / is_default / description). |
 | `list_rules` | The baked-in rules (code / summary / family / fixable / rulesets). |
 

@@ -123,6 +123,16 @@ def _tokenize_version_tool(xml: str) -> dict[str, object]:
     return _guarded(lambda: service.tokenize_version_tool(xml))
 
 
+def _find_references_tool(xml: str, name: str) -> dict[str, object]:
+    """Every Cheetah $name reference site across the tool's templated sections."""
+    return _guarded(lambda: service.find_references_tool(xml, name=name))
+
+
+def _rename_param_tool(xml: str, old: str, new: str) -> dict[str, object]:
+    """Rename a parameter across the tool (single-document); report a bail reason."""
+    return _guarded(lambda: service.rename_param_tool(xml, old=old, new=new))
+
+
 def _list_rulesets() -> list[dict[str, object]]:
     """The baked-in rulesets (name / codes / is_default / description)."""
     return service.list_rulesets()
@@ -141,6 +151,8 @@ def build_server() -> FastMCP:
     server.add_tool(_check_tool, name="check_tool")
     server.add_tool(_convert_help_tool, name="convert_help_tool")
     server.add_tool(_tokenize_version_tool, name="tokenize_version_tool")
+    server.add_tool(_find_references_tool, name="find_references_tool")
+    server.add_tool(_rename_param_tool, name="rename_param_tool")
     server.add_tool(_list_rulesets, name="list_rulesets")
     server.add_tool(_list_rules, name="list_rules")
     return server
