@@ -78,11 +78,15 @@ uv run mypy --config-file galaxy-tool-refactor-mcp/pyproject.toml galaxy-tool-re
 per package, **at the 3.10 support floor** via `--python-version 3.10`, so a
 version-floor break is caught locally rather than only in CI's 3.10 job), and
 pytest for all eight packages — and exits non-zero (naming the failing step) if
-anything fails. A `git push` **PreToolUse hook** (`.claude/settings.json`) calls
-it with **`QA_GATE_REQUIRE_CLEAN=1`** and **blocks the push** on failure — or on
-an **uncommitted tracked tree** (the gate validates the working tree but the push
-sends commits, so a dirty tree would validate code that isn't being pushed; commit
-or stash first). So code never leaves the machine with a red gate or a
+anything fails. A `git push` **PreToolUse hook** (`.claude/settings.json`) runs
+it and **blocks the push** on failure. For a **bare** `git push` it also adds
+**`QA_GATE_REQUIRE_CLEAN=1`**, blocking on an **uncommitted tracked tree** (the gate
+validates the working tree but the push sends commits, so a dirty tree would
+validate code that isn't being pushed; commit or stash first). A command that
+**commits in the same invocation** (`git commit … && git push`) skips that
+clean-check — the commit makes the tree match what is pushed, so the combined
+command is safe and no longer trips the hook — while the gate itself still runs.
+So code never leaves the machine with a red gate or a
 validated-tree-that-differs-from-the-push. Green runs are **cached per
 working-tree state** (`.git/qa-gate-green`): a re-run on an unchanged tree —
 e.g. the hook right after a manual run — is a free cache hit; any file change
