@@ -79,6 +79,35 @@ def test_write_normalizes_and_holds_invariants(tmp_path: Path) -> None:
     assert again.already_canonical == 1
 
 
+def test_write_reverts_a_validity_regression(tmp_path: Path, monkeypatch) -> None:
+    # Simulate a rule that would break validity (valid before, invalid after): the
+    # tool must be reverted to its original, not left written. Guards the
+    # safe-by-construction property the GTR036 fork-proof finding motivated.
+    import scripts.bulk_normalize as bn
+
+    root = _tool_repo(tmp_path)
+    tool = root / "tools" / "foo" / "foo.xml"
+    original = tool.read_bytes()
+
+    calls = {"n": 0}
+
+    class _FakeValidation:
+        def __init__(self, valid: bool) -> None:
+            self.valid = valid
+
+    def _fake_validate(target, **kwargs):  # noqa: ANN001, ANN003 — test stub
+        calls["n"] += 1
+        return _FakeValidation(calls["n"] == 1)  # original valid, post-write invalid
+
+    monkeypatch.setattr(bn, "validate_tool", _fake_validate)
+    result = bn.normalize_repo(root, codes=bulk_codes(), write=True)
+
+    assert result.validity_regressions == ["tools/foo/foo.xml"]
+    assert result.reverted == 1
+    assert result.written == 0
+    assert tool.read_bytes() == original  # reverted, not left broken
+
+
 def test_macros_only_repo_counts_no_tools(tmp_path: Path) -> None:
     macros_dir = tmp_path / "tools" / "bar"
     macros_dir.mkdir(parents=True)

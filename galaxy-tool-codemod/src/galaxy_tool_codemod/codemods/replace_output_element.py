@@ -25,6 +25,10 @@ the rewrite mirrors the remap exactly: rename the tag to ``<collection>``,
   deprecated path stores ``type=None`` (degenerate); no provable rewrite.
 - ``<output>`` with no ``type`` — an *expression* output (`_parse_expression`),
   a different output kind, not a data rename.
+- ``<output … from="…">`` — also an *expression* output (routed by ``from``, which
+  may carry ``type="data"`` too). ``from`` is not valid on ``<data>``/``<collection>``,
+  so converting it breaks validity; any output with a ``from`` attribute is skipped
+  (found by the corpus fork proof on ``tools/pick_value``).
 
 Only acts on ``<output>`` whose parent is ``<outputs>`` — an ``<output>`` under
 ``<test>`` is a test assertion, not an output definition. Idempotent (after the rename
@@ -86,6 +90,13 @@ class ReplaceOutputElement(CodemodCommand):
         parent = cursor.parent()
         if parent is None or parent.tag != "outputs":
             return  # a <test><output> is a test assertion, not an output definition
+        if cursor.get_attribute("from") is not None:
+            # An expression tool's output (`<output type="data" … from="output">`) is
+            # routed by `from`, not the deprecated-output path, and `from` is not a
+            # valid attribute on <data>/<collection>, so a rename would break
+            # validity. Leave it for the advisory check. (Found by the corpus fork
+            # proof on tools/pick_value; docs/decisions.md §34.)
+            return
         output_type = cursor.get_attribute("type")
         if output_type == "data":
             yield Change(

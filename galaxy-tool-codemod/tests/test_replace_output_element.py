@@ -41,6 +41,21 @@ def test_replaces_output_type_data_with_data() -> None:
     assert module.document.root.find("outputs/output") is None
 
 
+def test_expression_output_with_from_is_left_unchanged() -> None:
+    # An expression tool's <output type="data" … from="output"> is routed by `from`
+    # (not the deprecated-output path); `from` is invalid on <data>, so converting it
+    # breaks validity (found by the Half-A fork proof on tools/pick_value). GTR036
+    # must skip any <output> carrying a `from` attribute.
+    module = parse_module(
+        _tool(b'<output type="data" name="o" from="output" format_source="x"/>')
+    )
+    assert list(ReplaceOutputElement().detect(module)) == []
+    ReplaceOutputElement().apply(module)
+    out = module.document.root.find("outputs/output")
+    assert out is not None and out.get("from") == "output"
+    assert module.document.root.find("outputs/data") is None
+
+
 def test_collection_with_collection_type_now_rewrites() -> None:
     # The C3 widening: with collection_type present the Galaxy remap is exact
     # (unicodify(None) -> None settled the absent-source corner) — see the

@@ -1502,6 +1502,15 @@ galaxy_tool_codemod.codemods.replace_output_element:ReplaceOutputElement`.
     provably equivalent. Deferred.
   - `<output>` with no `type` — an *expression* output (`_parse_expression`), a different
     output kind, not a data rename.
+  - **`<output … from="…">` — also an expression output (2026-06-15).** An expression
+    tool's output is routed by `from` and *may carry* `type="data"`, so the type check
+    alone was not enough: GTR036 converted `<output type="data" name=… from="output"
+    format_source=…>` to `<data from=…>`, but `from` is not valid on `<data>`, breaking
+    validity. Found by the Half-A bulk-normalizer fork proof on `tools/pick_value`
+    (`original valid → normalized invalid`, the only validity regression across 2,131
+    tools-iuc tools). Fix: skip any `<output>` with a `from` attribute (conservative —
+    strictly reduces what GTR036 touches). Regression test:
+    `test_expression_output_with_from_is_left_unchanged`.
 - **Guarded on the parent.** Acts only on `<output>` whose parent is `<outputs>`; an
   `<output>` under `<test>` is a test assertion, not an output definition. Joins
   `CANONICAL_CODEMODS` (safe, idempotent — no `<output>` remains after the rename,

@@ -17,8 +17,9 @@ By default this is a **dry run** (reports what would change, writes nothing).
 ``--write`` applies the normalization in place and, per changed tool, asserts the
 two invariants that make the pass safe: it **preserves validity** (a tool valid at
 its profile before stays valid after) and is **idempotent** (re-normalizing the
-written file is a no-op). Any tool that breaks an invariant, or that errors, is
-retained in the report rather than silently passed.
+written file is a no-op). A tool that breaks either invariant is **reverted to its
+original** (never left written) and retained in the report, so the written tree is
+safe by construction; an errored tool is likewise retained.
 
 Run it against a throwaway working copy (e.g. a fork clone), never the canonical
 repo. Usage::
@@ -63,6 +64,7 @@ class NormalizeResult:
     already_canonical: int = 0
     normalized: int = 0
     written: int = 0
+    reverted: int = 0
     validity_regressions: list[str] = field(default_factory=list)
     idempotence_failures: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -99,11 +101,19 @@ def _normalize_one(
         return
     try:
         path.write_bytes(normalized)
-        result.written += 1
-        if before_valid and not validate_tool(path).valid:
-            result.validity_regressions.append(relpath)
-        if facade_run(path, codes=codes).formatted != normalized:
-            result.idempotence_failures.append(relpath)
+        regressed = before_valid and not validate_tool(path).valid
+        not_idempotent = facade_run(path, codes=codes).formatted != normalized
+        if regressed or not_idempotent:
+            # Never leave an unsafe tool written: restore the original and retain
+            # the failure for the report (safe-by-construction bulk pass).
+            path.write_bytes(original)
+            result.reverted += 1
+            if regressed:
+                result.validity_regressions.append(relpath)
+            if not_idempotent:
+                result.idempotence_failures.append(relpath)
+        else:
+            result.written += 1
     except Exception as error:  # noqa: BLE001 — retain a write/re-check failure
         result.errors.append(f"{relpath}: {error}")
 
@@ -131,7 +141,8 @@ def _report(result: NormalizeResult, /, *, write: bool) -> None:
     mode = "WRITE" if write else "dry-run"
     print(f"\n=== bulk-normalize ({mode}; {total} tools) ===")
     print(f"  already canonical: {result.already_canonical} ({canon_pct:.1f}%)")
-    print(f"  would-normalize:   {result.normalized}" + (f" (wrote {result.written})" if write else ""))
+    written_note = f" (wrote {result.written}, reverted {result.reverted})" if write else ""
+    print(f"  would-normalize:   {result.normalized}{written_note}")
     print(f"  validity regressions: {len(result.validity_regressions)}")
     print(f"  idempotence failures: {len(result.idempotence_failures)}")
     print(f"  errors: {len(result.errors)}")
