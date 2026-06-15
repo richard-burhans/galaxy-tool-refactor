@@ -420,6 +420,18 @@ uv run python -m scripts.measure text-param-quotable
 # advisory residual). Print-only; needs the corpus:
 uv run python -m scripts.measure command-quoting-kinds
 
+# Sizes the IUC "Booleans" anti-pattern in <command>: a Cheetah #if/#elif/#unless
+# whose condition tests a type="boolean" param (GTR069 catches it for <conditional>
+# elements; this is the command-side manifestation). Bare `#if $bool` is fine, so it
+# splits each boolean #if block by what the body does — gates-other-params (references
+# a DIFFERENT input param = the genuine "boolean used as a conditional for other
+# options" anti-pattern), constant-only (literal-flag block; the idiom is
+# truevalue/falsevalue + a bare $bool), other (refs only the bool / builtins) — to
+# tell a sound advisory from noise. Uses the CT3 lexer; print-only; needs the corpus.
+# Corpus: of 9,302 command tools, 1,207 use a boolean #if; gates-other-params 342
+# tools / constant-only 593 tools:
+uv run python -m scripts.measure command-boolean-if
+
 # `.lint_skip` reconciliation sizing (the `lint-skip` command, cli D19 / registry
 # D24): classify every planemo `.lint_skip` name-line, mirroring the shipped
 # removability gate, into auto-removable (fixed-removable + already-stale),

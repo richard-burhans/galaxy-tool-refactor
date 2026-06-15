@@ -8726,6 +8726,251 @@ def _run_corpus_check(args: argparse.Namespace, extra: list[str]) -> int:
     return corpus_check.main(extra)
 
 
+# --- measurement: command-boolean-if --------------------------------------------
+#
+# Sizes the IUC "Booleans" anti-pattern as it surfaces in <command>: a Cheetah
+# `#if`/`#elif`/`#unless` whose condition tests a `type="boolean"` parameter. The
+# IUC standard says a boolean "should not be used as a conditional for other
+# options" (use a `<conditional>` with a `select` instead); GTR069 already catches
+# that for `<conditional>` *elements*, but the same anti-pattern hides in `#if`
+# blocks in the command. Bare `#if $bool` is NOT itself forbidden (it is common and
+# fine), so this measure splits each boolean `#if`/`#elif` block by what its body
+# does, to tell a sound advisory from noise:
+#
+#   - gates-other-params: the block body references a DIFFERENT input parameter ->
+#     the boolean is gating other options (the genuine IUC anti-pattern; the fix is
+#     a <conditional>/select, an authoring change).
+#   - constant-only: the body references no parameter at all (a literal flag block)
+#     -> the IUC boolean idiom is `truevalue="--flag"` + a bare `$bool`, no `#if`.
+#   - other: the body references only the controlling boolean / Galaxy builtins.
+#
+# The split decides whether either pattern is a clean enough signal to ship as a
+# detect-only advisory. Uses the faithful CT3 lexer (cheetah_spans); a body ref is
+# resolved to its <inputs> param by leaf name (sizing-grade, like find-references).
+# Print-only; needs the corpus. Backs the IUC tool_xml "Booleans" recommendation.
+
+_OPENER_DIRECTIVES = frozenset(
+    {"if", "unless", "for", "while", "def", "block", "with", "closure"}
+)
+
+
+@dataclass
+class _CommandBooleanIfResult:
+    n_command_tools: int  # pure-text <command> tools examined
+    n_lexer_bail: int  # CT3 could not parse the command body (excluded)
+    n_tools_with_bool_if: int  # tools with >=1 boolean #if/#elif/#unless
+    occurrences: Counter[str]  # class -> total boolean-#if occurrences
+    tools_by_class: Counter[str]  # class -> tools with >=1 of that class
+    examples: dict[str, list[str]]  # class -> a few example tool paths
+
+
+def _command_param_names(root: etree._Element) -> tuple[set[str], set[str]]:
+    """``(all input param leaf names, boolean param leaf names)``.
+
+    A param with no ``name`` derives one from ``argument`` the way Galaxy does
+    (strip leading dashes, internal dashes -> underscores), mirroring the IUC note.
+    """
+    inputs = root.find("inputs")
+    params: set[str] = set()
+    booleans: set[str] = set()
+    if inputs is None:
+        return params, booleans
+    for param in inputs.iter("param"):
+        name = param.get("name")
+        if not name:
+            argument = param.get("argument")
+            if argument:
+                name = argument.lstrip("-").replace("-", "_")
+        if not name:
+            continue
+        params.add(name)
+        if param.get("type") == "boolean":
+            booleans.add(name)
+    return params, booleans
+
+
+def _ref_components(text: str) -> set[str]:
+    """Every path component of every Cheetah ``$ref`` in *text* (``$a.b`` -> a, b)."""
+    components: set[str] = set()
+    for raw in _CHEETAH_VAR.findall(text):
+        bare = raw.lstrip("$").strip("{}")
+        for part in bare.replace("[", ".").split("."):
+            cleaned = part.strip("] ")
+            if cleaned:
+                components.add(cleaned)
+    return components
+
+
+def _classify_command_boolean_ifs(
+    text: str, *, boolean_names: set[str], param_names: set[str]
+) -> list[str] | None:
+    """One class per boolean ``#if``/``#elif``/``#unless`` in *text*; None if CT3 bails.
+
+    Walks the lexer's spans with a block stack so a body reference (including refs
+    in nested directive heads) is attributed to every enclosing block.
+    """
+    from galaxy_tool_source.cheetah_cdm import SpanKind, cheetah_spans
+
+    spans = cheetah_spans(text)
+    if spans is None:
+        return None
+
+    @dataclass
+    class _Frame:
+        is_bool: bool
+        ctrl: set[str]
+        body: set[str]
+
+    classes: list[str] = []
+    stack: list[_Frame] = []
+
+    def finalize(frame: _Frame) -> None:
+        if not frame.is_bool:
+            return
+        other_params = {r for r in frame.body if r in param_names} - frame.ctrl
+        if other_params:
+            classes.append("gates-other-params")
+        elif not frame.body:
+            classes.append("constant-only")
+        else:
+            classes.append("other")
+
+    for span in spans:
+        if span.kind is SpanKind.PLACEHOLDER:
+            refs = _ref_components(span.text)
+            for frame in stack:
+                frame.body |= refs
+            continue
+        if span.kind is not SpanKind.DIRECTIVE:
+            continue
+        directive = span.directive or ""
+        refs = _ref_components(span.text)
+        if directive in ("elif", "else"):
+            if stack:
+                finalize(stack[-1])
+                for frame in stack[:-1]:  # the condition lives in the enclosing blocks
+                    frame.body |= refs
+                ctrl = refs & boolean_names
+                stack[-1] = _Frame(
+                    is_bool=(directive == "elif" and bool(ctrl)), ctrl=ctrl, body=set()
+                )
+            continue
+        if directive == "end":
+            if stack:
+                finalize(stack.pop())
+            continue
+        for frame in stack:  # a condition / #set ref is seen within enclosing blocks
+            frame.body |= refs
+        if directive in _OPENER_DIRECTIVES:
+            ctrl = refs & boolean_names
+            stack.append(
+                _Frame(
+                    is_bool=(directive in ("if", "unless") and bool(ctrl)),
+                    ctrl=ctrl,
+                    body=set(),
+                )
+            )
+    while stack:  # CT3 balances on a clean parse; be defensive anyway
+        finalize(stack.pop())
+    return classes
+
+
+def _measure_command_boolean_if(*, corpus_root: Path) -> _CommandBooleanIfResult:
+    """Size boolean-controlled #if blocks in <command>, split by what the body does."""
+    seen: set[str] = set()
+    n_command_tools = n_lexer_bail = n_tools_with_bool_if = 0
+    occurrences: Counter[str] = Counter()
+    tools_by_class: Counter[str] = Counter()
+    examples: dict[str, list[str]] = {
+        "gates-other-params": [],
+        "constant-only": [],
+        "other": [],
+    }
+    for path in _iter_corpus_tool_xmls(corpus_root):
+        if not path.is_file():
+            continue
+        digest = _sha256_of(path)
+        if digest in seen:
+            continue
+        seen.add(digest)
+        root = _parse_tool_root(path)
+        if root is None:
+            continue
+        command = root.find("command")
+        if command is None or len(command) > 0:  # skip missing / mixed-content
+            continue
+        n_command_tools += 1
+        text = "".join(command.itertext())
+        if not any(token in text for token in ("#if", "#elif", "#unless")):
+            continue
+        param_names, boolean_names = _command_param_names(root)
+        if not boolean_names:
+            continue
+        classes = _classify_command_boolean_ifs(
+            text, boolean_names=boolean_names, param_names=param_names
+        )
+        if classes is None:
+            n_lexer_bail += 1
+            continue
+        if not classes:
+            continue
+        n_tools_with_bool_if += 1
+        for cls in classes:
+            occurrences[cls] += 1
+        for cls in set(classes):
+            tools_by_class[cls] += 1
+            if len(examples[cls]) < 5:
+                examples[cls].append(str(path))
+    return _CommandBooleanIfResult(
+        n_command_tools=n_command_tools,
+        n_lexer_bail=n_lexer_bail,
+        n_tools_with_bool_if=n_tools_with_bool_if,
+        occurrences=occurrences,
+        tools_by_class=tools_by_class,
+        examples=examples,
+    )
+
+
+_BOOLEAN_IF_CLASSES = ("gates-other-params", "constant-only", "other")
+
+
+def _report_command_boolean_if(result: _CommandBooleanIfResult) -> None:
+    print("\n=== command-boolean-if (IUC 'boolean as a conditional' in <command>) ===")
+    print(
+        f"Pure-text <command> tools examined: {result.n_command_tools}"
+        f"  (CT3 lexer bails excluded: {result.n_lexer_bail})"
+    )
+    print(
+        f"Tools with >=1 boolean #if/#elif/#unless: {result.n_tools_with_bool_if}"
+    )
+    total = sum(result.occurrences.values())
+    print(f"\nBoolean-#if occurrences by class (total {total}):")
+    for cls in _BOOLEAN_IF_CLASSES:
+        occ = result.occurrences.get(cls, 0)
+        tools = result.tools_by_class.get(cls, 0)
+        pct = 100 * occ / total if total else 0.0
+        print(f"  {cls:20} {occ:6d} occ ({pct:4.1f}%)  in {tools} tool(s)")
+    print(
+        "\n  gates-other-params = the IUC anti-pattern (boolean gates other options;"
+        " fix = <conditional>/select)"
+    )
+    print(
+        "  constant-only      = literal-flag block (IUC idiom: truevalue/falsevalue"
+        " + bare $bool)"
+    )
+    for cls in _BOOLEAN_IF_CLASSES:
+        if result.examples[cls]:
+            print(f"\n{cls} examples:")
+            for example in result.examples[cls]:
+                print(f"  {example}")
+
+
+def _run_command_boolean_if(args: argparse.Namespace) -> None:
+    _report_command_boolean_if(
+        _measure_command_boolean_if(corpus_root=args.corpus_root)
+    )
+
+
 # --- dispatcher -----------------------------------------------------------------
 #
 # Two registries: _MEASUREMENTS are cheap analyses that --all sweeps through;
@@ -8790,6 +9035,7 @@ _MEASUREMENTS: dict[str, Callable[[argparse.Namespace], None]] = {
     "macro-token-datatype-residual": _run_macro_token_residual,
     "lint-skip-corpus": _run_lint_skip_corpus,
     "command-quoting-kinds": _run_command_quoting_kinds,
+    "command-boolean-if": _run_command_boolean_if,
     "text-param-quotable": _run_text_param_quotable,
     "expand-reorder-resolution": _run_expand_reorder_resolution,
     "version-suffix-shape": _run_version_suffix_shape,
