@@ -27,15 +27,9 @@ D4 and ``galaxy-tool-source/docs/decisions.md`` §16.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
-from galaxy_tool_source.cheetah_cdm import SpanKind, cheetah_spans
-
-# A ``$name`` / ``${name}`` / ``$obj.attr`` Cheetah variable reference. ``$1`` and
-# ``$(…)`` are not Cheetah variables (no leading ``[A-Za-z_]``), so they are
-# excluded — matching ``scripts.measure``'s ``_CHEETAH_VAR``.
-_CHEETAH_VAR = re.compile(r"\$\{?[A-Za-z_][\w.]*\}?")
+from galaxy_tool_source.cheetah_cdm import CHEETAH_VAR_RE, SpanKind, cheetah_spans
 
 
 @dataclass(frozen=True)
@@ -133,7 +127,7 @@ def _scan_unquoted_cheetah_vars(text: str, /) -> list[UnquotedVar]:
             in_double = not in_double
             index += 1
         elif char == "$" and not in_single and not in_double:
-            match = _CHEETAH_VAR.match(text, index)
+            match = CHEETAH_VAR_RE.match(text, index)
             if match is None:
                 index += 1
             else:

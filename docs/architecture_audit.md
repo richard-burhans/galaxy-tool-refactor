@@ -1,5 +1,138 @@
 # Architectural audit — galaxy-tool-refactor
 
+## Re-audit 2026-06-15 — auto-fix-system delta (PRs #235-#257), multi-agent escalation
+
+**Audited commit:** `007dd3d` (main at audit time; the safe-fixes below land on the
+audit branch). Delta since `7511891` is the repository-scale **auto-fix system** and
+its supporting surface (~80 non-lockfile files): the per-rule classification
+`gate_eligibility.py` (tier 3.6, registry D26), the two halves
+(`scripts/bulk_normalize.py` Half A, `scripts/forward_gate.py` + the published
+composite Action Half B), the durable `scripts/coverage_tracker.py` (N6), the
+re-accumulation measure `scripts/gate_reaccumulation.py`, the hidden `gate-suggest`
+CLI command (`galaxy_tool_refactor_cli.gate_suggest`, cli §D20) the Action's suggest
+mode calls, three new tier-3.5 checks (GTR098/099 datatypes pair, GTR100/101
+test-validation bindings behind the opt-in `[test-validation]` extra, GTR102
+boolean-gates), the tier-1 `command_conditionals.py` model behind GTR102, the 0.3.1 +
+0.3.2 lockstep releases, and the blog/doc work.
+
+**Verdict — healthy; zero High, zero boundary violations, zero abstraction breaks.**
+Escalated with a 10-scout `Workflow` (6 tier + 4 dimension finders → one adversarial
+refuter per finding → synthesis; **61 agents, ~1,688 ground-truth checks**). The
+escalation was **overwhelmingly confirmatory**: the architecture absorbed the
+auto-fix system without strain — clean tier boundaries, a total KeyError-guarded
+eligibility partition, single-source rule-set wiring across all five integration
+points, and **exemplary optional-extra isolation** (the `galaxy-tool-util`
+`[test-validation]` extra is lazily imported and degrades to `[]` when absent, never
+a base/runtime dep). The actionable surface is the usual documentation-drift wave
+plus **one genuine code finding** (a tier-1 regex defined in triplicate). Adversarial
+verification downgraded four Medium→Low candidates and refuted five outright. All
+machine-checked guards green in `qa_gate.sh`.
+
+### Findings — applied this pass (safe-fixes)
+
+- **[fixed] (Medium) `ARCHITECTURE.md` stale CheckRule count 70 → 75.** `:383` ("pins
+  the count (70)") and the tier-3.5 wave close ("now **70 checks**") contradicted the
+  live gate (`galaxy-tool-lint/tests/test_detect.py` asserts 75) and the tier table
+  (`:44`, already 75). Corrected both; the recurring count-drift signature (prior
+  audit fixed 70→72; the GTR098-102 wave reopened it at 75).
+- **[fixed] (Medium) `ARCHITECTURE.md` tier-3.5 prose omitted GTR098–GTR102.** Extended
+  the wave close to cover the datatypes pair (GTR098/099, check D36), the opt-in
+  test-validation bindings (GTR100/101, check D37), and boolean-gates (GTR102, check
+  D38).
+- **[fixed] (Medium) `docs/guide/capabilities.md` omitted the entire auto-fix system.**
+  Added an "Auto-fix system (repository scale)" subsection (eligibility classification,
+  Half A, Half B + suggest mode, coverage tracker, re-accumulation evidence) plus the
+  missing GTR100/101 and GTR102 check rows.
+- **[fixed] (Medium) `command_conditionals.py` absent from `ARCHITECTURE.md`.** Added
+  a §3 tier-1 bullet (beside the command-text utilities) and a §11 reference-index
+  row; cites galaxy-tool-lint D38.
+- **[fixed] (Medium) `_CHEETAH_VAR` regex defined identically in three tier-1
+  modules.** The single genuine code finding: byte-identical
+  `re.compile(r"\$\{?[A-Za-z_][\w.]*\}?")` in `command_text.py`, `cheetah_refs.py`, and
+  `command_conditionals.py` (the latter with no acknowledgement, the former two
+  commenting "Mirrors …"). Extracted to `cheetah_cdm.CHEETAH_VAR_RE` (the shared lexer
+  module all three already import — zero new import edges) and imported in all three;
+  dropped the now-unused `import re` from two of them. Added a §11 index row.
+- **[fixed] (Low) `gate_eligibility.py` absent from `ARCHITECTURE.md` tier-3.6.** Added
+  a §7 bullet (the single-source-of-truth classifier) + a §11 index row (registry D26).
+- **[fixed] (Low) CLI `__init__.py` docstring said "ten commands" and omitted
+  `lint-skip`.** Now "eleven author-facing commands (plus one hidden CI helper,
+  `gate-suggest`)" with the `lint-skip` bullet added.
+- **[fixed] (Low) `scripts/gen_gate_eligibility.py` docstring misleading.** It said the
+  table is rewritten "from rule metadata"; the bucket assignment is a hardcoded
+  per-code dict (`_FIXABLE_BUCKETS`) keyed by `RuleMeta.code`. Reworded.
+- **[fixed] (Low) `gate_suggest.py` module docstring overstated bulk-normalizer
+  equivalence.** It claimed "the same provable fix the bulk normalizer applies"; the
+  bulk pass applies a broader set (gate-eligible + bulk-only). Reworded to the
+  gate-eligible subset, with the distinction stated.
+- **[fixed] (Low) `gate_suggest._eligible_lines` → `_commentable_lines`.** Resolved the
+  `eligible` polysemy (rule classification vs GitHub-commentable diff lines); the
+  docstring already said "commentable".
+- **[fixed] (Low) `capabilities.md` "eight packages" → "all nine packages"** for
+  consistency with `bump_version` and the CHANGELOG.
+
+### Findings — proposals (not applied; need a decision / are test additions)
+
+- **[proposal] (Low) An `is_canonical()` helper in the registry (tier 3.6).**
+  `gate_codes()` is reimplemented in `forward_gate.py`, `gate_suggest.py`,
+  `coverage_tracker.py` (+ the Action's inline derivation), and "is this tool
+  canonical?" uses detect-based vs bytes-identity mechanisms across them. Low real
+  drift risk (all read the immutable `eligibility_groups()`). Refuter-corrected: the
+  obvious `scripts/`-consolidation is **architecturally blocked** (the published CLI
+  package cannot depend on unpublished `scripts/`); the right home is a registry
+  helper — a design choice, left as a proposal.
+- **[proposal] (Low) No test pins cross-halves gate-code agreement.** Nothing asserts
+  `forward_gate.gate_codes() == gate_suggest.gate_codes() == coverage_tracker.gate_codes()`.
+  Trivial one-liners over a heavily-tested constant, so a divergence is runtime-visible;
+  a guard would make the implicit contract explicit.
+- **[proposal] (Low) `bulk_normalize.py --write` exception path does not revert.** The
+  normal validity/idempotence failure path reverts correctly; the exception handler if
+  the post-write re-check *raises* does not. Runs on a throwaway copy and exceptions are
+  rare, so Low; add an except-path revert + test.
+- **[proposal] (Low) Test coverage gaps** — `command_boolean_conditionals()` lexer-bail
+  `[]` contract (implementation correct, untested); `test_extra_absent_yields_nothing`
+  asserts only `TestsCaseValidation`, not `TestsAssertionValidation` (both share the
+  code path). Adding tests is a proposal per the audit policy.
+- **[proposal] (Low) Minor naming/organization** — `gate_suggest.collect()` could read
+  as `collect_suggestions()`; `gate_eligibility.rationale()` is a single-use internal
+  helper that could be nested or documented as internal.
+- **[accepted] (Low) "blessed" / "canonical form" prose synonyms for `GATE_ELIGIBLE`.**
+  The code is unambiguous (one constant); the prose synonyms are readable in context.
+  Recorded, not normalized.
+
+### Independent re-confirmations (no action)
+
+The load-bearing contracts held through the delta, each verified in source by multiple
+scouts: **boundary integrity** (`command_conditionals`, `gate_eligibility`,
+`gate_suggest`, and the whole `scripts/` harness import only downward/same-tier; no
+tier-2/3.5 leak); **the `[test-validation]` optional-extra isolation** is exemplary
+(lazy function-level import, `[]` when absent, mypy `ignore_missing_imports` for
+`galaxy.*`); GTR100/101/102 follow the `CheckRule`/`RuleMeta` conventions
+(`detect_only`, `cite`, ruleset membership); `all_checks()` is the explicit sorted
+75-rule list guarded by `test_detect.py`; the
+GATE_ELIGIBLE/BULK_ELIGIBLE_ONLY/BLOCKED_PENDING_IUC/ADVISORY_ONLY partition is total
+and KeyError-guarded (`test_gate_eligibility.py`); **single source of truth** for the
+gate rule set holds across all five integration points (bulk_normalize, forward_gate,
+coverage_tracker, gate_suggest, the Action — all read `eligibility_groups()[GATE_ELIGIBLE]`
+at runtime, no hardcoded lists); `bulk_normalize.py --write` happy-path safety
+(validate → write → re-validate + idempotence → revert) is correct and tested; pathlib
++ explicit `encoding="utf-8"` and LBYL discipline are consistent across the new scripts;
+the freshness tests (planemo parity, gate-eligibility, stat coverage) pass.
+
+### Refuted candidates (do not re-litigate)
+
+- "GTR102 test coverage incomplete" — `test_checks_boolean_gates.py` has all four
+  contract tests; invariant fully met.
+- "ARCHITECTURE.md undercounts CLI commands by omitting `gate-suggest`" — `gate-suggest`
+  is intentionally hidden (cli §D20); the "eleven subcommands" framing is correct.
+- "Root CLAUDE.md omits the `command-boolean-if` measure" — it is documented (0b6924d);
+  the scout scanned too narrow a range.
+- "`coverage_tracker.gate_codes()` `@cache` could go stale" — pure/parameterless over an
+  immutable registry; textbook memoization.
+- "`gate_codes()` should consolidate via `scripts/_shared.py`" — refuted as proposed
+  (the published CLI package cannot import unpublished `scripts/`); a registry helper is
+  the acceptable alternative, recorded as a proposal above.
+
 ## Re-audit 2026-06-14 — post 0.3.0 release (PRs #220-#234), single delta pass
 
 **Audited commit:** `7511891` (main at audit time; the doc fixes below land on the

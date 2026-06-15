@@ -33,10 +33,18 @@ placeholder list.
 from __future__ import annotations
 
 import importlib.util
+import re
 import warnings
 from dataclasses import dataclass
 from enum import Enum
 from functools import cache
+
+# The conservative ``$var`` / ``${obj.attr}`` reference pattern (``$(…)`` and
+# ``$$`` escapes excluded). The shared fallback the text scanners
+# (``command_text`` / ``cheetah_refs`` / ``command_conditionals``) use when CT3
+# cannot lex a body; it deliberately over-reports comment/raw text, which those
+# callers filter against the span model. Also mirrored by ``scripts.measure``.
+CHEETAH_VAR_RE = re.compile(r"\$\{?[A-Za-z_][\w.]*\}?")
 
 
 class SpanKind(Enum):

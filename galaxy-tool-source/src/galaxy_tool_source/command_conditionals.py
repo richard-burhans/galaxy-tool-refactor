@@ -25,18 +25,15 @@ parameter, or the lexer cannot parse the body. The advisory check tier flags onl
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 
 from lxml import etree
 
-from galaxy_tool_source.cheetah_cdm import SpanKind, cheetah_spans
+from galaxy_tool_source.cheetah_cdm import CHEETAH_VAR_RE, SpanKind, cheetah_spans
 
 GATES_OTHER_PARAMS = "gates-other-params"
 CONSTANT_ONLY = "constant-only"
 OTHER = "other"
-
-_CHEETAH_VAR = re.compile(r"\$\{?[A-Za-z_][\w.]*\}?")
 _OPENER_DIRECTIVES = frozenset(
     {"if", "unless", "for", "while", "def", "block", "with", "closure"}
 )
@@ -62,7 +59,7 @@ class BooleanConditional:
 def _ref_components(text: str) -> set[str]:
     """Every path component of every Cheetah ``$ref`` in *text* (``$a.b`` → a, b)."""
     components: set[str] = set()
-    for raw in _CHEETAH_VAR.findall(text):
+    for raw in CHEETAH_VAR_RE.findall(text):
         bare = raw.lstrip("$").strip("{}")
         for part in bare.replace("[", ".").split("."):
             cleaned = part.strip("] ")

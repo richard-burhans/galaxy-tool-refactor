@@ -25,7 +25,12 @@ _DOC = pathlib.Path(__file__).resolve().parents[1] / "docs" / "gate_eligibility.
 
 
 def regenerate() -> None:
-    """Rewrite the generated table block in the eligibility doc from rule metadata."""
+    """Rewrite the generated table block from the gate-eligibility classification.
+
+    The classification (``gate_eligibility._FIXABLE_BUCKETS``, a per-code dict) is
+    keyed by ``RuleMeta.code``; the rule roster supplies the codes and the advisory
+    set, not the bucket assignment.
+    """
     text = _DOC.read_text(encoding="utf-8")
     before, begin, rest = text.partition(BEGIN_MARKER)
     if not begin:

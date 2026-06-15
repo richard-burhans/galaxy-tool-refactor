@@ -77,6 +77,22 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 > write-back of *arbitrary* macro-supplied content stays deferred (Phase 2b — sizing found
 > **0** additional tools, so it is unjustified for datatypes today).
 
+### Auto-fix system (repository scale)
+
+Two cooperating halves over **one** rule classification
+(`galaxy_tool_refactor_registry.gate_eligibility`, registry D26), so the bulk pass and
+the gate can never disagree on what is auto-applied. **A proposal to the IUC, plus a
+working reference implementation; not enforced on any repository yet.**
+
+| Capability | Status | Source |
+|---|---|---|
+| Per-rule auto-fix eligibility classification (`gate-eligible` / `bulk-only` / `blocked-pending-iuc` / `advisory-only`) — the single source of truth both halves read | ✅ Shipped | `gate_eligibility.py`; generated, freshness-tested `docs/gate_eligibility.md` |
+| **Half A — bulk normalizer**: one-shot pass applying the behaviour-preserving subset across a whole tool repository; `--write` re-validates + checks idempotence per tool and reverts anything unsafe | ✅ Shipped | `scripts/bulk_normalize.py`; proven on current `tools-iuc` (27.4% → 100% canonical, 1,972 tools, 0 reverted) |
+| **Half B — forward gate**: pre-merge check over only a PR's changed `<tool>` files; published composite GitHub Action with `block` and `suggest` modes | ✅ Shipped | `scripts/forward_gate.py`, `.github/actions/forward-gate/`; `docs/forward_gate.md` |
+| Suggest mode: post each canonical fix as a one-click GitHub review suggestion + the IUC doc link (hidden `gate-suggest` CLI command the Action calls; ≥ 0.3.2) | ✅ Shipped | `galaxy_tool_refactor_cli.gate_suggest`; cli §D20 |
+| Durable canonical-form coverage tracker (% of a repo's tools already canonical, over time) | ✅ Shipped | `scripts/coverage_tracker.py`; `docs/coverage_tracker.md` |
+| Re-accumulation evidence (96.7% of 452 merged `tools-iuc` PRs were non-canonical) motivating forward enforcement | ✅ Shipped | `scripts/gate_reaccumulation.py`; `docs/gate_reaccumulation_stats.md` |
+
 ### Check (report-only advisory)
 
 | Capability | Codes | Status | Source |
@@ -105,10 +121,12 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Tool declares a non-empty `id`/`name`/`version` (missing `id`/`name` also fail tier-1 XSD validation; a missing `version` silently defaults to `1.0.0` and empty strings are XSD-valid — this check is the only guard for those) — planemo-parity advisory | GTR095 | ✅ Shipped | `strict` ruleset; check D35; `docs/planemo_linter_parity.md` |
 | `format`/`ftype`/`ext` names a known Galaxy datatype (validated against a vendored `datatypes_conf.xml.sample` snapshot + the tool's own custom conf; `auto`/`input` special-cased, macro-token values skipped) — planemo-parity advisory | GTR098 | ✅ Shipped | `strict` ruleset; check D36; parity oracle `scripts.measure datatype-validation-truth` (9,331 tools, 0 false positives); `docs/galaxy_reimplementations.md` |
 | Tool does not ship a custom `datatypes_conf.xml` beside it — planemo-parity advisory | GTR099 | ✅ Shipped | `strict` ruleset; check D36; `docs/planemo_linter_parity.md` |
+| `<test>` assertion + test-case validation via Galaxy's *own* linters (opt-in `[test-validation]` extra; binds `galaxy-tool-util` lazily and degrades to nothing when it is absent) — planemo-parity advisory | GTR100, GTR101 | ✅ Shipped | `strict` ruleset; opt-in extra; check D37; `docs/planemo_linter_parity.md` |
 | Unquoted Cheetah `$var` in `<command>` — reports every occurrence; the *provable* subset is auto-fixed by GTR020.1, the residual stays advisory | GTR020.2 | ✅ Shipped | advisory; provable subset fixed (GTR020.1) |
 | Input `<param>` never referenced anywhere the tool uses it | GTR034 | ✅ Shipped | `strict` ruleset; 189/467 tools (`docs/corpus_check_stats.md`) |
 | Lone-`&` vs `&&` join | GTR032 | ✅ Shipped | `strict` ruleset, detect-only (check D34); quote/redirect/pipe-aware — flags only genuine joining |
 | `<tool>` `name` edge whitespace (the GTR035 display-contract residual) | GTR035.2 | ✅ Shipped | `strict` ruleset, detect-only (check D33) |
+| `<command>` boolean `#if`/`#elif`/`#unless` that gates a *different* param (the command-side of the IUC "booleans" anti-pattern; `<conditional>` is GTR069) | GTR102 | ✅ Shipped | `strict` ruleset, detect-only (check D38); tier-1 `command_conditionals` |
 
 ### Inspect & refactor parameters (queries, not rules)
 
@@ -128,7 +146,7 @@ that XML** through one rule set, reachable three ways — as a Python **library*
 | Code-addressable rule registry + rulesets (`cosmetic`/`default`/`iuc`/`strict`) + `--select`/`--ignore` | ✅ Shipped | `galaxy-tool-refactor-registry` |
 | CLI (eleven commands): `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` / `convert-help` / `tokenize-version` / `lint-skip` | ✅ Shipped | `galaxy-tool-refactor` |
 | MCP server for agents (seven tools): `format_tool` / `upgrade_tool` / `check_tool` / `convert_help_tool` / `tokenize_version_tool` / `list_rulesets` / `list_rules` | ✅ Shipped | `galaxy-tool-refactor-mcp` (vision Goal 1) |
-| Front-door metapackage `galaxy-tool-refactor` (depends on the CLI, with an `[mcp]` extra for the server); the eight packages are lockstep-versioned with a tag-triggered Trusted-Publishing release. `pip install galaxy-tool-refactor` installs the CLI (the `[mcp]` extra adds the MCP server) | ✅ Shipped (live on PyPI) | `galaxy-tool-refactor-meta/`, `.github/workflows/release.yml` |
+| Front-door metapackage `galaxy-tool-refactor` (depends on the CLI, with an `[mcp]` extra for the server); all nine packages are lockstep-versioned with a tag-triggered Trusted-Publishing release. `pip install galaxy-tool-refactor` installs the CLI (the `[mcp]` extra adds the MCP server) | ✅ Shipped (live on PyPI) | `galaxy-tool-refactor-meta/`, `.github/workflows/release.yml` |
 | Corpus evidence base: 9,374 unique tools, standing measurements | ✅ Shipped | `docs/*_stats.md`, `scripts/measure.py` |
 | Behaviour-preservation proof ledger — every fixable rule adversarially audited; genuine breaks fixed (regression-pinned), over-claims documented | ✅ Shipped | `docs/behavior_preservation.md` (see `soundness.md`) |
 
