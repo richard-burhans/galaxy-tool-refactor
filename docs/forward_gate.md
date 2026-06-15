@@ -36,13 +36,21 @@ is **not** in the gate — it is blocked pending an IUC canonical-order decision
 
 ## Two modes (the IUC choice, conference §7)
 
-- **block-until-canonical** (implemented): the gate reports where a changed tool
-  deviates and fails the check, naming the exact local fix command. The author
-  keeps control of their branch. This is the conservative default.
+- **block-until-canonical** (implemented, `scripts/forward_gate.py` + the published
+  Action): the gate reports where a changed tool deviates and fails the check,
+  naming the exact local fix command. The author keeps control of their branch.
+  The conservative default.
+- **suggest** (implemented, `scripts/gate_suggest.py`): instead of failing, the
+  gate posts the canonical fix as GitHub **review suggestions** (the one-click
+  "Commit suggestion" diffs) on the PR, with the IUC doc link. The author applies
+  the edits in place. A fix that lands outside the PR's diff cannot be inlined as a
+  suggestion (GitHub only comments on diff lines), so those are summarized in the
+  review body with the local `format` command. Non-blocking by design (the friendly
+  nudge). See "Suggest mode" below.
 - **auto-normalize** (not implemented here): the gate rewrites the changed tools to
-  canonical and pushes the fix onto the PR branch (or posts a suggestion). Lower
-  author friction, but it edits the contributor's branch. This is the maintainers'
-  call, so it is intentionally left unbuilt until they choose it.
+  canonical and pushes the fix onto the PR branch. Lowest author friction, but it
+  edits the contributor's branch. This is the maintainers' call, so it is left
+  unbuilt until they choose it.
 
 ## Local use
 
@@ -97,6 +105,28 @@ failure the Action emits a GitHub `::error::` annotation naming the exact
 `version` (default the pinned release) and `base-ref` (default the PR base SHA) are
 the Action's inputs. The local `scripts/forward_gate.py` is the equivalent
 maintainer runner (`make forward-gate`).
+
+## Suggest mode
+
+`scripts/gate_suggest.py` posts the canonical fix as GitHub one-click review
+suggestions instead of failing the check. It computes the same provable fix the
+bulk normalizer applies, diffs it against the PR's version, and emits a
+`suggestion` block for each changed run of lines that falls inside the PR's diff
+(GitHub only accepts a comment on a diff line); anything outside the diff is
+summarized in the review body with the local `format` command.
+
+```bash
+# preview the review JSON locally (no token, no posting)
+make gate-suggest REF=origin/main
+# post the suggestions on a PR (in CI, with a PR-write token)
+uv run python -m scripts.gate_suggest --repo OWNER/REPO --pr 123 --changed-against "$BASE_SHA"
+```
+
+Because the suggestion logic is not yet in the shipped CLI, a CI workflow using
+suggest mode currently checks out `galaxy-tool-refactor` and runs the script (with
+`contents: read` + `pull-requests: write` permissions and the changed-tools base
+SHA). Promoting it into the published Action (a shipped `gate-suggest` command) is
+the follow-on once the mode is settled with the maintainers.
 
 ## Relationship to planemo
 

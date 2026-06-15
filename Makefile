@@ -5,7 +5,7 @@
 
 .DEFAULT_GOAL := help
 .PHONY: help sync hooks qa-gate ship-pr bump fetch-corpus corpus-stats parity \
-        blog-new blog-check forward-gate bulk-normalize coverage
+        blog-new blog-check forward-gate gate-suggest bulk-normalize coverage
 
 help: ## List the available workflows
 	@echo "galaxy-tool-refactor — workflows (see docs/workflows.md):"
@@ -43,6 +43,10 @@ parity: ## Regenerate the planemo coverage table (docs/planemo_linter_parity.md)
 
 forward-gate: ## Forward gate (Half B): fail if changed tools aren't canonical — usage: make forward-gate FILES="a.xml b.xml" | REF=origin/main
 	uv run python -m scripts.forward_gate $(if $(REF),--changed-against $(REF)) $(FILES)
+
+gate-suggest: ## Forward gate suggest mode: preview/post canonical-fix PR suggestions — usage: make gate-suggest REF=origin/main [REPO=owner/repo PR=123]
+	@test -n "$(REF)" || { echo 'usage: make gate-suggest REF=<base> [REPO=owner/repo PR=123]'; exit 1; }
+	uv run python -m scripts.gate_suggest --changed-against "$(REF)" $(if $(REPO),--repo "$(REPO)" --pr "$(PR)",--dry-run)
 
 bulk-normalize: ## Bulk normalizer (Half A): apply the blessed subset across a repo — usage: make bulk-normalize ROOT=.local/tools-iuc [WRITE=1]
 	@test -n "$(ROOT)" || { echo 'usage: make bulk-normalize ROOT=<repo-dir> [WRITE=1]'; exit 1; }
