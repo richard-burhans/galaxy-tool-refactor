@@ -1,6 +1,6 @@
 # Changelog
 
-All eight packages in this workspace are versioned and released **in lockstep**
+All nine packages in this workspace are versioned and released **in lockstep**
 (one version, published as a set — see `galaxy-tool-source/docs/decisions.md` §27).
 This file is the single changelog for the whole release; per-package detail lives
 in each package's `docs/decisions.md`.
@@ -10,6 +10,32 @@ versions are [Semantic Versioning](https://semver.org/) and, pre-1.0, the minor
 is the breaking-change channel.
 
 ## [Unreleased]
+
+## [0.3.2] — 2026-06-15
+
+### Added
+- **Forward gate suggest mode** (`docs/forward_gate.md`): instead of failing a PR,
+  the gate posts each behaviour-preserving canonical fix as a GitHub one-click
+  "Commit suggestion" review comment, with the local `format` command and the IUC
+  doc link; a change outside the PR's diff is summarized in the review body. The
+  composite **Action** gains a `mode: block | suggest` input (suggest needs
+  `permissions: pull-requests: write`). Shipped as a hidden
+  `galaxy-tool-refactor gate-suggest` CLI command
+  (`galaxy_tool_refactor_cli.gate_suggest`, cli decisions §D20) so the Action runs
+  the pinned release rather than bundled CI shell — the same provenance guarantee
+  block mode has.
+- **Durable canonical-form coverage tracker** (auto-fix N6, `scripts/coverage_tracker.py`
+  + `docs/coverage_tracker.md` + `docs/corpus_data/coverage_history.json`): record the
+  percentage of a repository's tools already in canonical form over time, so a
+  bulk-normalize + forward-gate adoption can be tracked.
+- **`docs/data_sources.md`**: the mined data sources behind the auto-fix system and
+  what each one enabled.
+
+### Changed
+- GitHub Actions bumped off the deprecated Node 20 runtime (#247/#188).
+- The pre-push hook now allows a combined `git commit … && git push` in one command
+  (it validates the working tree as committed rather than blocking on the
+  not-yet-run commit).
 
 ## [0.3.1] — 2026-06-15
 

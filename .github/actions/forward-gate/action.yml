@@ -14,11 +14,11 @@ branding:
 inputs:
   version:
     description: >-
-      galaxy-tool-refactor release to install. Must be a release that includes the
-      forward gate (>= 0.3.1, the first with gate_eligibility); 0.3.0 predates it.
-      Pin to the same release the bulk normalizer used.
+      galaxy-tool-refactor release to install. Must include the forward gate
+      (>= 0.3.1, the first with gate_eligibility); suggest mode needs >= 0.3.2
+      (the gate-suggest command). Pin to the same release the bulk normalizer used.
     required: false
-    default: "0.3.1"
+    default: "0.3.2"
   mode:
     description: >-
       "block" (fail the check when a changed tool is not canonical, naming the fix
