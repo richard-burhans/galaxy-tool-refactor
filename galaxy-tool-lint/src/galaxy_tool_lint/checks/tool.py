@@ -9,6 +9,10 @@ from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_refactor_rules.violation import Violation
+from galaxy_tool_source.command_conditionals import (
+    GATES_OTHER_PARAMS,
+    command_boolean_conditionals,
+)
 from galaxy_tool_source.macros import has_macros
 from lxml import etree
 from packaging.version import InvalidVersion, Version
@@ -721,3 +725,50 @@ class StdioRegexValid(CheckRule):
                     self.meta,
                     f"stdio regex match {match!r} is not a valid regular expression",
                 )
+
+
+class BooleanGatesOtherOptions(CheckRule):
+    """GTR102 — a boolean param should not gate other options in ``<command>``.
+
+    The IUC ``tool_xml`` standard: a ``type="boolean"`` param "should not be used
+    as a conditional for other options" — for options shown or hidden by a choice,
+    use a ``<conditional>`` with a ``select`` instead. GTR069 catches this for
+    ``<conditional>`` *elements*; this is the command-side manifestation: a Cheetah
+    ``#if`` / ``#elif`` / ``#unless`` on a boolean whose body references a *different*
+    input parameter (tier-1 ``command_boolean_conditionals``). A bare ``#if $bool``
+    that only emits the boolean's own flag is fine and is not flagged.
+
+    Detect-only: the fix (restructure to a ``<conditional>`` / ``select``) changes
+    the input form, an authoring decision. Reads the raw tree, so it under-reports a
+    macro-injected conditional and never over-reports. One finding per boolean param.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR102",
+        summary=(
+            "A boolean param should not gate other options in <command> "
+            "(use a <conditional>/select)."
+        ),
+        since="0.0.1",
+        cite=_IUC,
+        detect_only=True,
+        rulesets=frozenset({"strict"}),
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        command = document.root.find("command")
+        if command is None:
+            return
+        seen: set[str] = set()
+        for finding in command_boolean_conditionals(document.root):
+            if finding.klass != GATES_OTHER_PARAMS or finding.param in seen:
+                continue
+            seen.add(finding.param)
+            yield Violation(
+                self.meta.code,
+                finding.line or (command.sourceline or 0),
+                "/tool/command",
+                f"boolean parameter '{finding.param}' gates other options in "
+                "<command>; for options shown or hidden by a choice, use a "
+                "<conditional> with a select param instead of a boolean",
+            )

@@ -62,7 +62,10 @@ registry membership over a vendored `datatypes_conf.xml.sample` snapshot + a cus
 `datatypes_conf.xml` on disk, D36), and the `GTR100`/`GTR101` **test-validation
 bindings** — opt-in (the `[test-validation]` extra) wrappers that run Galaxy's own
 `TestsAssertionValidation`/`TestsCaseValidation` linters rather than reimplement their
-evolving pydantic models (D37). The tier is now **74 checks total**. Each
+evolving pydantic models (D37), and `GTR102` (`BooleanGatesOtherOptions`, D38) — a
+boolean param that gates *other* options inside a `<command>` Cheetah `#if` (the
+command-side companion to GTR069's `<conditional>`-element check), via tier-1
+`command_boolean_conditionals`. The tier is now **75 checks total**. Each
 wave check that a `<macro>` could spoof skips that tool via the tier-1 `has_macros`
 raw-tree guard (`detect()` reads the un-expanded tree). The authoritative
 planemo→GTR map is `../docs/planemo_linter_parity.md`; per-group rationale + corpus

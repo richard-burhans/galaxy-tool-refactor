@@ -76,6 +76,7 @@ from galaxy_tool_lint.checks.tests import (
     TestParamsInInputs,
 )
 from galaxy_tool_lint.checks.tool import (
+    BooleanGatesOtherOptions,
     CitationsPresent,
     CommandAndJoining,
     CommandPresent,
@@ -135,6 +136,7 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         ContainerShapeRecognized,
         StdioRegexValid,
         ToolIdentityPresent,
+        BooleanGatesOtherOptions,
         # partition .2 advisory residuals
         CommandCdata,
         HelpCdata,
