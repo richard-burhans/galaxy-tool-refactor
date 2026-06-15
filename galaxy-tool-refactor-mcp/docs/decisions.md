@@ -126,3 +126,29 @@ gate stops it lower; `target_profile` may exceed the ceiling (the notes
 mention it). The asymmetry is deliberate for agents: an unattended
 `allow_behavior_change=true` walk still never lands on a profile the public
 servers cannot install; exceeding the ceiling takes the explicit target.
+
+## D7 (2026-06-15): `find_references_tool` + `rename_param_tool` — the 8th & 9th tools
+
+Reproduced-by: `uv run --package galaxy-tool-refactor-mcp pytest
+galaxy-tool-refactor-mcp/tests/test_service.py -k "find_references or rename_param"`.
+Facade: `find_references` / `rename_param` (registry; the latter D11).
+
+The MCP surface covered every *single-document* facade operation except the two
+parameter ones, an incremental gap (not a deliberate exclusion) flagged by the
+2026-06-15 architecture audit's MCP-vs-CLI delta. Closed it:
+
+- **`find_references_tool(xml, name)`** → `{name, occurrences: [{section, sourceline,
+  reference}]}` — read-only, over `facade.find_references`.
+- **`rename_param_tool(xml, old, new)`** → `{old, new, changed, renamed, reason,
+  formatted}` — the mutating sibling, over `facade.rename_param`; `formatted` is the
+  new XML on success and `null` on a bail (with `reason`). Returns content like every
+  MCP tool; never writes (`write_path` is not passed).
+
+**Scope boundary (the principled part).** Both are **single-document**, matching the
+in-memory `xml: str` model: they span only the tool supplied. The **cross-file**
+variants — references/renames that reach an *imported macro file*, with the
+sole-owned `--repo-root` gate — stay **CLI-only**, because they need filesystem
+access a string-only call does not have (same reason `tokenize_version_tool` fails
+closed on imported macros, D3). The two remaining CLI commands, `normalize-macros`
+and `lint-skip`, are repo-scoped multi-file batch operations with no single-document
+form, so they are deliberately not MCP tools. The server is now **9 tools**.

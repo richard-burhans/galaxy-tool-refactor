@@ -1,7 +1,7 @@
 # For AI agents (and people building them)
 
 > **In one sentence:** this is a substrate for agents that work on Galaxy tools — call
-> it over **MCP** (seven tools) or embed the **library**, and let it do the deterministic,
+> it over **MCP** (nine tools) or embed the **library**, and let it do the deterministic,
 > verifiable parts (format, upgrade, check) while the agent does the reasoning.
 
 ## Why an agent wants this

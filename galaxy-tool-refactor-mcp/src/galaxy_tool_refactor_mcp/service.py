@@ -27,7 +27,9 @@ if TYPE_CHECKING:
     from galaxy_tool_refactor_registry.results import (
         ConvertHelpResult,
         DetectResult,
+        FindReferencesResult,
         FormatResult,
+        RenameParamResult,
         RuleInfo,
         RulesetInfo,
         TokenizeVersionResult,
@@ -102,6 +104,35 @@ def _detect_result_to_dict(result: DetectResult, /) -> dict[str, object]:
             for v in result.violations
         ],
         "advisory_codes": sorted(result.advisory_codes),
+    }
+
+
+def _find_references_result_to_dict(
+    result: FindReferencesResult, /
+) -> dict[str, object]:
+    return {
+        "name": result.name,
+        "occurrences": [
+            {
+                "section": occ.section,
+                "sourceline": occ.sourceline,
+                "reference": occ.reference,
+            }
+            for occ in result.occurrences
+        ],
+    }
+
+
+def _rename_param_result_to_dict(result: RenameParamResult, /) -> dict[str, object]:
+    return {
+        "old": result.old,
+        "new": result.new,
+        "changed": result.changed,
+        "renamed": result.renamed,
+        "reason": result.reason,
+        "formatted": (
+            result.formatted.decode("utf-8") if result.formatted is not None else None
+        ),
     }
 
 
@@ -212,6 +243,35 @@ def tokenize_version_tool(xml: str, /) -> dict[str, object]:
     """
     return _tokenize_version_result_to_dict(
         facade.tokenize_version(xml.encode("utf-8"))
+    )
+
+
+def find_references_tool(xml: str, /, *, name: str) -> dict[str, object]:
+    """Every Cheetah ``$name`` reference site across the tool's templated sections.
+
+    Read-only. Single-document like every MCP tool: it scans the sections of the
+    provided tool (``<command>`` / inline ``<configfile>`` / attribute-Cheetah), so a
+    reference that lives only in an *imported* macro file is not visible here — the
+    bundle-aware, filesystem-walking view is the CLI ``find-references`` (path-based).
+    """
+    return _find_references_result_to_dict(
+        facade.find_references(xml.encode("utf-8"), name=name)
+    )
+
+
+def rename_param_tool(xml: str, /, *, old: str, new: str) -> dict[str, object]:
+    """Rename parameter *old* to *new* across the provided tool, atomically.
+
+    The mutating sibling of ``find_references_tool``: rewrites every live ``$old``
+    reference plus the definition, or changes nothing and reports ``reason`` (e.g.
+    ``not-found`` / ``shadowed`` / ``lexer-bail``). ``formatted`` is the new XML on
+    success and ``None`` on a bail. Content-based and single-document: the rename
+    spans only the tool supplied — the cross-file rename across **imported macros**
+    (with the sole-owned ``--repo-root`` gate) is the filesystem-aware CLI
+    ``rename-param``, not available to a string-only call.
+    """
+    return _rename_param_result_to_dict(
+        facade.rename_param(xml.encode("utf-8"), old=old, new=new)
     )
 
 
