@@ -1,14 +1,14 @@
 [project]
 name = "galaxy-tool-fmt"
-version = "0.3.0"
+version = "0.3.1"
 description = "Opinionated formatter for Galaxy tool XML — tier 3 of the galaxy-tool-source ecosystem."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Richard Burhans" }]
 dependencies = [
-    "galaxy-tool-refactor-rules==0.3.0",
-    "galaxy-tool-source==0.3.0",
+    "galaxy-tool-refactor-rules==0.3.1",
+    "galaxy-tool-source==0.3.1",
     "click>=8",
     "lxml>=5",
 ]

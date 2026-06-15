@@ -1,6 +1,6 @@
 [project]
 name = "galaxy-tool-refactor"
-version = "0.3.0"
+version = "0.3.1"
 description = "Front-door metapackage for galaxy-tool-refactor: installs the CLI (and, with the [mcp] extra, the MCP server)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -9,14 +9,14 @@ authors = [{ name = "Richard Burhans" }]
 keywords = ["galaxy", "bioinformatics", "tool-xml", "linter", "formatter"]
 # The CLI is the front door (it provides the `galaxy-tool-refactor` command).
 dependencies = [
-    "galaxy-tool-refactor-cli==0.3.0",
+    "galaxy-tool-refactor-cli==0.3.1",
 ]
 
 [project.optional-dependencies]
 # The agent-facing MCP server (pulls the MCP SDK); opt in with
 # `pip install galaxy-tool-refactor[mcp]`.
 mcp = [
-    "galaxy-tool-refactor-mcp==0.3.0",
+    "galaxy-tool-refactor-mcp==0.3.1",
 ]
 
 [project.urls]
