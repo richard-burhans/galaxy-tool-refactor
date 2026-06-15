@@ -96,11 +96,13 @@ and substitute the owner the toolchain is published under.
 The Action installs the pinned `galaxy-tool-refactor` release, **derives the gate's
 rule set from that release's classification at runtime** (the `gate-eligible` codes
 from `gate_eligibility` — so the gate and the bulk normalizer provably agree),
-diffs the PR's changed `tools/**/*.xml`, and runs the shipped `check`. `check`
-exits non-zero when a gate-eligible (fixable) rule fires, failing the job; a
-changed `macros.xml` or other non-tool XML is reported clean, never an error. On
-failure the Action emits a GitHub `::error::` annotation naming the exact
-`galaxy-tool-refactor format --select …` command to fix it locally.
+diffs the PR's changed `tools/**/*.xml`, **narrows them to actual `<tool>`
+documents** (via the shipped `is_tool_root` predicate, so a changed `macros.xml`
+or other non-tool XML is not gated, matching `scripts/forward_gate.py`), and runs
+the shipped `check` on those. `check` exits non-zero when a gate-eligible (fixable)
+rule fires, failing the job. On failure the Action emits a GitHub `::error::`
+annotation naming the exact `galaxy-tool-refactor format --select …` command to fix
+it locally.
 
 The Action's inputs are `version` (the pinned release), `base-ref` (default the PR
 base SHA), and `mode` (`block`, the default above, or `suggest` — see "Suggest
