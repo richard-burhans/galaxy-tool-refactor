@@ -102,9 +102,10 @@ changed `macros.xml` or other non-tool XML is reported clean, never an error. On
 failure the Action emits a GitHub `::error::` annotation naming the exact
 `galaxy-tool-refactor format --select …` command to fix it locally.
 
-`version` (default the pinned release) and `base-ref` (default the PR base SHA) are
-the Action's inputs. The local `scripts/forward_gate.py` is the equivalent
-maintainer runner (`make forward-gate`).
+The Action's inputs are `version` (the pinned release), `base-ref` (default the PR
+base SHA), and `mode` (`block`, the default above, or `suggest` — see "Suggest
+mode"). The local `scripts/forward_gate.py` is the equivalent maintainer runner
+(`make forward-gate`).
 
 ## Suggest mode
 
@@ -122,11 +123,29 @@ make gate-suggest REF=origin/main
 uv run python -m scripts.gate_suggest --repo OWNER/REPO --pr 123 --changed-against "$BASE_SHA"
 ```
 
-Because the suggestion logic is not yet in the shipped CLI, a CI workflow using
-suggest mode currently checks out `galaxy-tool-refactor` and runs the script (with
-`contents: read` + `pull-requests: write` permissions and the changed-tools base
-SHA). Promoting it into the published Action (a shipped `gate-suggest` command) is
-the follow-on once the mode is settled with the maintainers.
+The published Action supports it directly via `mode: suggest` (it runs the bundled
+`gate_suggest` against the PR; the caller must grant `pull-requests: write`):
+
+```yaml
+jobs:
+  canonical-form:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write   # so the gate can post review suggestions
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 0 }
+      - uses: richard-burhans/galaxy-tool-refactor/.github/actions/forward-gate@main
+        with:
+          version: "0.3.1"
+          mode: suggest
+```
+
+(Reference the Action at `@main` until a release that includes the `mode` input is
+cut, then pin to that tag.) Suggest mode is non-blocking: it posts the suggestions
+and the check passes. Hardening it into a first-class shipped CLI command (instead
+of the bundled runner) is the follow-on.
 
 ## Relationship to planemo
 
