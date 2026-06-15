@@ -10,6 +10,8 @@ Exports:
   ``is_deprecated_path`` — True if a path lives under a deprecated directory.
   ``iter_tool_xmls`` — yield every ``*.xml`` under a root, skipping Mercurial
       metadata and deprecated directories (the single corpus-discovery filter).
+  ``is_tool_document`` — True if a path parses as XML with a ``<tool>`` root
+      (excludes ``macros.xml`` / non-tool XML from tool-scoped sweeps).
 """
 
 from __future__ import annotations
@@ -18,6 +20,8 @@ import hashlib
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import TypeVar
+
+from lxml import etree
 
 PROFILE_NONE = "(none)"
 
@@ -89,3 +93,17 @@ def iter_tool_xmls(root: Path) -> Iterable[Path]:
         if is_deprecated_path(path):
             continue
         yield path
+
+
+def is_tool_document(path: Path, /) -> bool:
+    """Return True when *path* parses as XML with a ``<tool>`` root.
+
+    A repository's ``*.xml`` files include ``macros.xml`` and other non-tool XML
+    that a tool-scoped rule does not lint; callers (the forward gate, the bulk
+    normalizer) use this to keep their denominator to actual ``<tool>`` documents.
+    """
+    try:
+        tree = etree.parse(str(path))
+    except etree.LxmlError:
+        return False
+    return bool(tree.getroot().tag == "tool")

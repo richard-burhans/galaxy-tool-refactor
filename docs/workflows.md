@@ -28,6 +28,8 @@ to do the work: `make help` lists the same things a skill would run.
 | Quality gate (ruff + strict mypy + tests + guard checks) | `make qa-gate` (= `scripts/qa_gate.sh`) | `/pre-pr-audit` (mechanical step) |
 | Pre-PR review (code + docs judgment) | the [PR template](../.github/PULL_REQUEST_TEMPLATE.md) checklist + `make qa-gate` | `/pre-pr-audit` |
 | Merge a PR + clean up safely | `make ship-pr PR=123` (= `scripts/ship-pr.sh`; `DRY_RUN=1` to preview) | `/ship-pr` |
+| Forward gate — Half B (fail PRs whose changed tools aren't canonical) | `make forward-gate FILES=… \| REF=origin/main` (= `scripts/forward_gate.py`); see [`forward_gate.md`](forward_gate.md) | — (CI gate) |
+| Bulk normalize — Half A (apply the blessed subset across a repo) | `make bulk-normalize ROOT=… [WRITE=1]` (= `scripts/bulk_normalize.py`) | — |
 | Cut a release (lockstep bump + tag) | `make bump VERSION=0.3.0`, then `git tag vX && git push --tags` ([CONTRIBUTING](../CONTRIBUTING.md#releasing-maintainers)) | — |
 | Enable the local pre-push gate | `make hooks` (= `git config core.hooksPath .githooks`) | — |
 | Refresh corpus stats | `make fetch-corpus` then `make corpus-stats` (or the scheduled `corpus-stats.yml`) | — |

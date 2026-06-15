@@ -14,11 +14,11 @@ from pathlib import Path
 
 from galaxy_tool_refactor_registry.facade import run as facade_run
 from galaxy_tool_refactor_registry.resolve import resolve_codes
+from scripts._shared import is_tool_document
 from scripts.gate_reaccumulation import (
     _ATTRIBUTE_ORDER_CODE,
     _attribute_order_only,
     _gate_candidate_codes,
-    _is_tool_document,
     _measure_gate_reaccumulation,
     _variant_shares,
 )
@@ -68,8 +68,8 @@ def test_is_tool_document_distinguishes_tool_from_macros(tmp_path: Path) -> None
     macros = tmp_path / "macros.xml"
     macros.write_bytes(_MACROS)
 
-    assert _is_tool_document(tool) is True
-    assert _is_tool_document(macros) is False
+    assert is_tool_document(tool) is True
+    assert is_tool_document(macros) is False
 
 
 def test_dirty_merged_pr_is_flagged_clean_is_not(tmp_path: Path) -> None:
