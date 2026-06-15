@@ -1,0 +1,21 @@
+{
+  "snapshots": [
+    {
+      "date": "2026-06-15",
+      "repo": "tools-iuc",
+      "total_tools": 2131,
+      "clean": 583,
+      "pct": 27.4,
+      "skipped": 0,
+      "per_code_flagged": {
+        "GTR001": 1317,
+        "GTR019.1": 380,
+        "GTR013": 176,
+        "GTR018.1": 160,
+        "GTR020.1": 125,
+        "GTR037": 44,
+        "GTR089.1": 5
+      }
+    }
+  ]
+}
