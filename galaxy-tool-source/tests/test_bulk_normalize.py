@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from scripts.bulk_normalize import bulk_codes, normalize_repo
 
 # Valid tool (validates at 24.0) with ragged 2-/8-space indentation, so GTR001 fires.
@@ -116,3 +117,36 @@ def test_macros_only_repo_counts_no_tools(tmp_path: Path) -> None:
     result = normalize_repo(tmp_path, codes=bulk_codes(), write=False)
 
     assert result.total_tools == 0
+
+
+def test_write_reverts_when_the_post_write_recheck_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # If the idempotence/validity re-check raises *after* the write, the unverified
+    # bytes must never be left on disk (safe-by-construction): the original is
+    # restored, the revert is counted, and the failure is retained for the report.
+    import scripts.bulk_normalize as bn
+
+    repo = _tool_repo(tmp_path)
+    tool = repo / "tools" / "foo" / "foo.xml"
+    original = tool.read_bytes()
+
+    real_run = bn.facade_run
+    calls = {"n": 0}
+
+    def flaky_run(path: Path, *, codes: frozenset[str]):  # type: ignore[no-untyped-def]
+        calls["n"] += 1
+        if calls["n"] >= 2:  # the post-write idempotence re-check
+            raise RuntimeError("boom")
+        return real_run(path, codes=codes)
+
+    monkeypatch.setattr(bn, "facade_run", flaky_run)
+
+    result = bn.NormalizeResult()
+    bn._normalize_one(
+        tool, "tools/foo/foo.xml", result, codes=bn.bulk_codes(), write=True
+    )
+
+    assert tool.read_bytes() == original  # reverted, not left half-written
+    assert result.reverted == 1
+    assert result.errors  # the failure is retained, not silently swallowed

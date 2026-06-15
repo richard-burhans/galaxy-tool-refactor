@@ -37,22 +37,14 @@ import subprocess
 import sys
 from pathlib import Path, PurePosixPath
 
-from galaxy_tool_refactor_registry.facade import detect as facade_detect
-from galaxy_tool_refactor_registry.gate_eligibility import (
-    GATE_ELIGIBLE,
-    eligibility_groups,
-)
+from galaxy_tool_refactor_registry.facade import fired_codes as facade_fired_codes
+from galaxy_tool_refactor_registry.gate_eligibility import gate_codes
 
 from scripts._shared import is_tool_document
 
 logger = logging.getLogger("forward_gate")
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-
-
-def gate_codes() -> frozenset[str]:
-    """The gate's rule set: the gate-eligible codes (the single source of truth)."""
-    return frozenset(eligibility_groups()[GATE_ELIGIBLE])
 
 
 def _changed_tool_xmls(ref: str, root: Path, /) -> list[Path]:
@@ -104,11 +96,10 @@ def check_files(paths: list[Path], /, *, codes: frozenset[str]) -> dict[Path, se
     findings: dict[Path, set[str]] = {}
     for path in _select_tool_documents(paths):
         try:
-            result = facade_detect(path, codes=codes)
+            fired = facade_fired_codes(path, codes=codes)
         except Exception as error:  # noqa: BLE001 — gate sweep: an uncheckable tool is skipped, not failed
             logger.warning("skipping %s (could not check): %s", path, error)
             continue
-        fired = {violation.code for violation in result.violations}
         if fired:
             findings[path] = fired
     return findings

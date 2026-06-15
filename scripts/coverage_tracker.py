@@ -30,14 +30,10 @@ import sys
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date
-from functools import cache
 from pathlib import Path
 
-from galaxy_tool_refactor_registry.facade import detect as facade_detect
-from galaxy_tool_refactor_registry.gate_eligibility import (
-    GATE_ELIGIBLE,
-    eligibility_groups,
-)
+from galaxy_tool_refactor_registry.facade import fired_codes as facade_fired_codes
+from galaxy_tool_refactor_registry.gate_eligibility import gate_codes
 
 from scripts._shared import is_tool_document, iter_tool_xmls
 
@@ -48,12 +44,6 @@ _HISTORY = _REPO_ROOT / "docs" / "corpus_data" / "coverage_history.json"
 _DOC = _REPO_ROOT / "docs" / "coverage_tracker.md"
 _BEGIN = "<!-- BEGIN generated coverage trend -->"
 _END = "<!-- END generated coverage trend -->"
-
-
-@cache
-def gate_codes() -> frozenset[str]:
-    """The gate-eligible rule set — what 'canonical' means for coverage."""
-    return frozenset(eligibility_groups()[GATE_ELIGIBLE])
 
 
 @dataclass
@@ -87,13 +77,12 @@ def measure_coverage(
         if not is_tool_document(path):
             continue
         try:
-            result = facade_detect(path, codes=codes)
+            fired = facade_fired_codes(path, codes=codes)
         except Exception as error:  # noqa: BLE001 — coverage sweep: an uncheckable tool is skipped
             logger.warning("skipping %s: %s", path, error)
             snapshot.skipped += 1
             continue
         snapshot.total_tools += 1
-        fired = {violation.code for violation in result.violations}
         if fired:
             for code in fired:
                 snapshot.per_code_flagged[code] += 1

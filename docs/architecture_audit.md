@@ -71,7 +71,20 @@ machine-checked guards green in `qa_gate.sh`.
 - **[fixed] (Low) `capabilities.md` "eight packages" → "all nine packages"** for
   consistency with `bump_version` and the CHANGELOG.
 
-### Findings — proposals (not applied; need a decision / are test additions)
+### Findings — proposals (ALL ADDRESSED in a same-day follow-up)
+
+> **Resolved 2026-06-15 (follow-up):** every proposal below was implemented. The
+> registry now owns `gate_codes()` **and** `bulk_codes()` (`gate_eligibility.py`)
+> plus `is_canonical()` / `fired_codes()` (`facade.py`); the forward gate, coverage
+> tracker, bulk normalizer, and `gate-suggest` all import the single registry
+> definition (no local re-derivation). A `gate_codes == GATE_ELIGIBLE` guard + a
+> `bulk_codes ⊇ gate_codes` guard (`test_gate_eligibility.py`) and an
+> `is_canonical`/`fired_codes` agreement test (`test_facade.py`) pin the cross-halves
+> contract. `bulk_normalize.py --write` now reverts on an exception in the post-write
+> re-check (+ test). The two coverage-gap tests (lexer-bail `[]`; both
+> test-validation rules silent when the extra is absent) landed, and the two renames
+> were applied (`collect`→`collect_suggestions`, `rationale`→`_rationale`).
+> `qa_gate.sh` green. Original write-ups kept below.
 
 - **[proposal] (Low) An `is_canonical()` helper in the registry (tier 3.6).**
   `gate_codes()` is reimplemented in `forward_gate.py`, `gate_suggest.py`,

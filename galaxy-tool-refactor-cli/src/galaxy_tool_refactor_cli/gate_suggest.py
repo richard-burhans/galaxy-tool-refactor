@@ -27,19 +27,10 @@ from pathlib import Path, PurePosixPath
 
 from galaxy_tool_fmt.cli_support import is_tool_root
 from galaxy_tool_refactor_registry.facade import run as facade_run
-from galaxy_tool_refactor_registry.gate_eligibility import (
-    GATE_ELIGIBLE,
-    eligibility_groups,
-)
 
 logger = logging.getLogger("gate_suggest")
 
 _IUC_DOC = "https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/tool_xml.html"
-
-
-def gate_codes() -> frozenset[str]:
-    """The gate-eligible rule set — the same one block mode enforces."""
-    return frozenset(eligibility_groups()[GATE_ELIGIBLE])
 
 
 @dataclass(frozen=True)
@@ -155,7 +146,9 @@ class SuggestResult:
     checked: int = 0
 
 
-def collect(root: Path, base: str, /, *, codes: frozenset[str]) -> SuggestResult:
+def collect_suggestions(
+    root: Path, base: str, /, *, codes: frozenset[str]
+) -> SuggestResult:
     """Compute suggestions for every non-canonical changed tool in the PR."""
     result = SuggestResult()
     for relpath in _changed_tool_xmls(root, base):

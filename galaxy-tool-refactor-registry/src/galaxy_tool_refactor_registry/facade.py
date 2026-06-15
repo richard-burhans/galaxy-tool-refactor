@@ -176,6 +176,24 @@ def detect(
     return DetectResult(violations=violations, advisory_codes=advisory)
 
 
+def fired_codes(
+    source: Source | ToolDocument, /, *, codes: frozenset[str]
+) -> set[str]:
+    """The subset of *codes* whose rules fire on *source* (empty ⇒ canonical).
+
+    The named detect-based "what would the gate flag here?" primitive shared by the
+    forward gate and the coverage tracker, so both judge canonical form the same way.
+    """
+    return {violation.code for violation in detect(source, codes=codes).violations}
+
+
+def is_canonical(
+    source: Source | ToolDocument, /, *, codes: frozenset[str]
+) -> bool:
+    """True when no rule in *codes* fires on *source* (canonical under that set)."""
+    return not fired_codes(source, codes=codes)
+
+
 def find_references(
     source: Source | ToolDocument, /, *, name: str
 ) -> FindReferencesResult:
