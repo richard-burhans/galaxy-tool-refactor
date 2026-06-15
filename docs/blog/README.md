@@ -27,7 +27,8 @@ tone, no em-dash, Oxford comma.
   conventions questions we are bringing to GCC. Builds on the first post; published
   before GCC.
 - [`2026-06-15-fixing-galaxy-tools-at-scale/`](2026-06-15-fixing-galaxy-tools-at-scale/index.md)
-  — **draft.** Fixing tools at the repository scale without the churn: why a one-time
+  — **submitted** ([galaxy-hub#4062](https://github.com/galaxyproject/galaxy-hub/pull/4062)).
+  Fixing tools at the repository scale without the churn: why a one-time
   cleanup decays (the 96.7% re-accumulation finding), the bulk normalizer run end to
   end on the current `tools-iuc` (27.4% to 100% canonical, 1,972 tools, 0 reverted,
   idempotent), the forward gate and its suggest mode (one-click PR review suggestions,
