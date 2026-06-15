@@ -566,3 +566,33 @@ gate and the facade are registry D24.
   `deconstruct.xml` too (a line is removable only when clear for the whole
   directory). The facade returns per-document bytes; the command writes only the
   documents a fix actually changed.
+
+## D20 (2026-06-15): `gate-suggest` — the forward gate's suggest mode, a hidden CI command
+
+Reproduced-by: `uv run --package galaxy-tool-refactor-cli pytest
+galaxy-tool-refactor-cli/tests/test_gate_suggest.py`. Forward-gate background is
+`docs/forward_gate.md`; the gate-eligible rule subset is registry D26
+(`gate_eligibility`).
+
+- **What it is.** `galaxy-tool-refactor gate-suggest --changed-against REF
+  [--repo OWNER/REPO --pr N] [--root DIR] [--dry-run]`: for each tool a PR changed
+  that is not in canonical form, compute the behaviour-preserving fix (the
+  gate-eligible codes — the same subset block mode's `check` enforces) and post it
+  as GitHub one-click `suggestion` review comments, with the local `format`
+  command and the IUC doc link. A change outside the PR's diff cannot be inlined
+  (GitHub only comments on diff lines), so it is summarized in the review body.
+  Non-blocking. `--dry-run` prints the review payload without posting (no token).
+- **Why it ships in the package (not as bundled CI shell).** The published
+  forward-gate Action's `mode: suggest` previously ran a bundled
+  `scripts/gate_suggest.py`. Hardening it: the logic now lives in the installed
+  release (`galaxy_tool_refactor_cli.gate_suggest`), so the Action's suggest step
+  is one `galaxy-tool-refactor gate-suggest` call against the pinned version — the
+  same provenance guarantee block mode already had (the rule set derives from the
+  installed release's classification, never drifting from the bulk normalizer).
+  Needs `galaxy-tool-refactor >= 0.3.2`.
+- **Hidden, not author-facing.** It is CI plumbing, not a command a tool author
+  runs on a file, so it is `hidden=True` (absent from `--help` and the
+  eleven-command count). The pure suggestion-computation core
+  (`build_suggestions` / `review_payload` / `_comment`) is unit-tested; the
+  git/`gh` I/O (`collect` / `post_review`) is exercised live (validated end-to-end
+  on a real PR). `make gate-suggest` is the maintainer on-ramp.

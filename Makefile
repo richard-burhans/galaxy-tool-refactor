@@ -46,7 +46,7 @@ forward-gate: ## Forward gate (Half B): fail if changed tools aren't canonical �
 
 gate-suggest: ## Forward gate suggest mode: preview/post canonical-fix PR suggestions — usage: make gate-suggest REF=origin/main [REPO=owner/repo PR=123]
 	@test -n "$(REF)" || { echo 'usage: make gate-suggest REF=<base> [REPO=owner/repo PR=123]'; exit 1; }
-	uv run python -m scripts.gate_suggest --changed-against "$(REF)" $(if $(REPO),--repo "$(REPO)" --pr "$(PR)",--dry-run)
+	uv run galaxy-tool-refactor gate-suggest --changed-against "$(REF)" $(if $(REPO),--repo "$(REPO)" --pr "$(PR)",--dry-run)
 
 bulk-normalize: ## Bulk normalizer (Half A): apply the blessed subset across a repo — usage: make bulk-normalize ROOT=.local/tools-iuc [WRITE=1]
 	@test -n "$(ROOT)" || { echo 'usage: make bulk-normalize ROOT=<repo-dir> [WRITE=1]'; exit 1; }

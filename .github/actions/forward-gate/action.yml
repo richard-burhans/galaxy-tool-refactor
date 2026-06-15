@@ -64,10 +64,9 @@ runs:
           exit 1
         fi
         if [ "$MODE" = "suggest" ]; then
-          # Post the canonical fix as one-click PR review suggestions. The suggest
-          # runner ships with this Action's repo checkout (not the installed wheel),
-          # so put it on the path; the registry/facade come from the pinned release.
-          PYTHONPATH="$GITHUB_ACTION_PATH/../../.." python -m scripts.gate_suggest \
+          # Post the canonical fix as one-click PR review suggestions, via the shipped
+          # command (needs galaxy-tool-refactor >= 0.3.2).
+          galaxy-tool-refactor gate-suggest \
             --root "$GITHUB_WORKSPACE" --repo "$REPO_SLUG" --pr "$PR_NUMBER" --changed-against "$base"
           exit 0
         fi

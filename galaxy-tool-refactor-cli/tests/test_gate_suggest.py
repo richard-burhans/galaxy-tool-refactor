@@ -1,14 +1,13 @@
-"""Tests for the forward gate's suggest mode core (scripts/gate_suggest.py).
+"""Tests for the gate-suggest engine (galaxy_tool_refactor_cli.gate_suggest).
 
-Synthetic and pure: the tricky, testable part is turning an original->canonical
-line diff into GitHub one-click suggestions, posting only where the lines are
-inside the PR's diff (eligible). The git/gh integration (collect/post_review) is
-exercised live, not here.
+Synthetic and pure: the tricky, testable part is turning an original->canonical line
+diff into GitHub one-click suggestions, posting only where the lines are inside the
+PR's diff (eligible). The git/gh integration (collect/post_review) is exercised live.
 """
 
 from __future__ import annotations
 
-from scripts.gate_suggest import (
+from galaxy_tool_refactor_cli.gate_suggest import (
     Suggestion,
     _comment,
     build_suggestions,
