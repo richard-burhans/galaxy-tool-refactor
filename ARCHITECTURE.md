@@ -158,6 +158,12 @@ schema, and expose a typed view — **without ever serialising**.
   tier 1 so **both** the codemod fix sub-rules (tier 2) **and** the advisory check
   residuals (tier 3.5) share one definition — the partition's soundness seam (xml
   `docs/decisions.md` §16; registry D10).
+- **`command_conditionals.py`** — read-only classifier of `<command>` boolean
+  `#if`/`#elif`/`#unless` blocks: `command_boolean_conditionals(root) ->
+  list[BooleanConditional]`, each tagged `gates-other-params` / `constant-only` /
+  `other` by what the guarded body references. Built on the CT3 lexer (bails to `[]`
+  when a body can't be lexed), it backs the check-tier `GTR102` and the
+  `command-boolean-if` measure (galaxy-tool-lint `docs/decisions.md` D38).
 - **Cheetah-mutation subsystem** — the read/edit layer over a tool's *templated*
   sections (`<command>` / inline `<configfile>` / attribute-Cheetah), all in tier 1,
   built on CT3 (a base dependency — the MIT-licensed faithful lexer; `cheetah_spans`
@@ -380,7 +386,7 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   enumerated check set (an explicit list, sorted by code) and the aggregate runner
   (findings sorted by line). Mirrors codemod's `coded_codemods()` and fmt's
   `all_rules()` — the same explicit-list convention across all three rule families;
-  `test_detect.py` pins the count (70) as the acknowledgement gate when the roster
+  `test_detect.py` pins the count (75) as the acknowledgement gate when the roster
   grows.
 - **The checks** — the `checks/` sub-package (split by element/source area:
   `tool.py`, `partition.py`, `outputs.py`, `inputs.py`, `validators.py`,
@@ -413,9 +419,17 @@ on tiers 1 + 0.5 — a sibling the app *composes*, not a consumer of the fixers.
   the `docutils` dependency — now split into the `GTR089.1` repair + `GTR089.2` residual
   partition, with the predicate in tier 1, xml §23; GTR035.2 — the name-whitespace
   residual of the GTR035 partition, check D33; GTR095 — the id/name/version
-  missing-or-empty trio, check D35). The whole tier is now **70 checks**
+  missing-or-empty trio, check D35). The newest members extend the tier past the
+  parity wave: **`GTR098`/`GTR099`** (the datatypes pair — `ValidDatatypes` /
+  `DatatypesCustomConf` over a vendored `datatypes_conf.xml.sample` snapshot, no
+  runtime `galaxy-tool-util`; check D36), **`GTR100`/`GTR101`** (faithful bindings of
+  Galaxy's own test-validation linters, gated behind the opt-in `[test-validation]`
+  extra and degrading to nothing when `galaxy-tool-util` is absent; check D37), and
+  **`GTR102`** (`BooleanGatesOtherOptions` — a `<command>` boolean `#if` that gates a
+  *different* param, over the tier-1 `command_conditionals` model; check D38). The
+  whole tier is now **75 checks**
   (`GTR018.2`/`GTR019.2`/`GTR020.2`/`GTR089.2` + the flat IUC advisories above + this
-  wave). A recurring soundness rule across the wave: a check that would mis-fire when a
+  wave + the five newest). A recurring soundness rule across the wave: a check that would mis-fire when a
   `<macro>` injects the construct it inspects skips that tool (the tier-1
   `has_macros` raw-tree guard) — `detect()` reads the **un-expanded** tree.
   Per-group rationale + corpus counts: check `docs/decisions.md` D12–D31; the full
@@ -515,6 +529,17 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
   agreement**; `apply_profile_token_plans(plans, *, write)` bumps the token in
   place **only when every importer agrees** (else reports and skips). This spans a
   *set* of tools — orchestration — which is why it lives in this tier.
+- **`gate_eligibility.py`** — the auto-fix rule classification behind the
+  repository-scale auto-fix system. `classify(code)` / `eligibility_groups()`
+  partition every selectable rule into `GATE_ELIGIBLE` (provably
+  behaviour-preserving *and* uncontroversially canonical — what the forward gate
+  enforces), `BULK_ELIGIBLE_ONLY`, `BLOCKED_PENDING_IUC` (e.g. attribute order), and
+  `ADVISORY_ONLY`; `render_eligibility_table()` feeds `docs/gate_eligibility.md` (via
+  `scripts/gen_gate_eligibility.py`). It is the single source of truth both halves of
+  the auto-fix system (`scripts/bulk_normalize.py`, `scripts/forward_gate.py`, the
+  published Action, and the cli `gate-suggest` command) read at runtime, so the bulk
+  pass and the gate can never disagree on what is auto-applied (registry
+  `docs/decisions.md` D26).
 
 **Contract:** library-first; one handle per code; selectable ≠ all; apply order
 reproduces `format` (pinned by a regression test); fmt is still the only
@@ -735,6 +760,8 @@ Each abstraction → its file → the decision record that justifies it.
 | `cdata_wrappable` / `needs_cdata` / `is_cdata_wrapped` | `galaxy-tool-source/src/.../cdata.py` | xml `docs/decisions.md` §16; registry D10 |
 | `cheetah_spans` / `CheetahSpan` (faithful CT3 lexer) | `galaxy-tool-source/src/.../cheetah_cdm.py` | xml `docs/decisions.md` §19 |
 | `tool_cheetah_references` / `CheetahRef` (reference model) | `galaxy-tool-source/src/.../cheetah_refs.py` | xml `docs/decisions.md` §18 |
+| `command_boolean_conditionals` / `BooleanConditional` (boolean-`#if` classifier) | `galaxy-tool-source/src/.../command_conditionals.py` | galaxy-tool-lint `docs/decisions.md` D38 |
+| `CHEETAH_VAR_RE` (shared conservative `$var` fallback) | `galaxy-tool-source/src/.../cheetah_cdm.py` | xml `docs/decisions.md` §19 |
 | `rename_param` / `rename_param_plan` / `RenameOutcome` / `RenamePlan` | `galaxy-tool-source/src/.../cheetah_rename.py` | xml `docs/decisions.md` §20 |
 | `ToolBundle` / `load_bundle` / `rename_param_in_bundle` | `galaxy-tool-source/src/.../bundle.py` | xml `docs/decisions.md` §21 |
 | `rst_is_invalid` / `repair_help_rst` (help-RST predicate + repair) | `galaxy-tool-source/src/.../rst.py` | xml `docs/decisions.md` §23 |
@@ -750,6 +777,7 @@ Each abstraction → its file → the decision record that justifies it.
 | `cli_support` engine | `galaxy-tool-fmt/src/.../cli_support.py` | fmt `docs/decisions.md` §D12 |
 | `CheckRule`, `detect_violations` | `galaxy-tool-lint/src/.../rules.py`, `detect.py` | check `docs/decisions.md` §D1; `docs/iuc_best_practices.md` |
 | `RuleHandle`, registry | `galaxy-tool-refactor-registry/src/.../handle.py`, `registry.py` | registry `docs/decisions.md` D1–D2 |
+| `classify` / `eligibility_groups` / `GATE_ELIGIBLE` … (auto-fix rule classification) | `galaxy-tool-refactor-registry/src/.../gate_eligibility.py` | registry `docs/decisions.md` D26 |
 | `Ruleset` catalog (names + descriptions) | `galaxy-tool-refactor-rules/src/.../rulesets.py` | rules `docs/decisions.md` §D4 |
 | rulesets, `resolve_codes`, `apply_selection` | `galaxy-tool-refactor-registry/src/.../rulesets.py`, `resolve.py`, `apply.py` | registry `docs/decisions.md` D3–D4, D15 |
 | planemo aliases + parity table | `galaxy-tool-refactor-registry/src/.../planemo.py`, `parity.py` | registry `docs/decisions.md` D16–D17 |

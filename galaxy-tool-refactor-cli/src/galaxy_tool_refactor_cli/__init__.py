@@ -5,7 +5,8 @@ lives in the tier-3.6 facade (``galaxy-tool-refactor-registry``), which composes
 the lower tiers; this package depends on that facade plus fmt's ``cli_support``
 file-walking engine (tier 3) and tier-1 parsing — **not** on the codemod tier
 directly (cli `docs/decisions.md` D4). It exposes the ``galaxy-tool-refactor`` CLI
-with ten commands:
+with eleven author-facing commands (plus one hidden CI helper, ``gate-suggest`` —
+cli §D20):
 
 - ``format`` — structural canonicalisation + cosmetic formatting (safe,
   idempotent; never changes ``profile=``).
@@ -22,6 +23,8 @@ with ten commands:
   (GTR092; cli §D12).
 - ``tokenize-version`` — opt-in: factor a literal version into
   ``@TOOL_VERSION@``/``@VERSION_SUFFIX@`` tokens when provable (GTR094; cli §D13).
+- ``lint-skip`` — opt-in: prune a planemo ``.lint_skip`` sidecar's suppression lines
+  only when the toolchain can prove each resolved (cli §D19).
 
 Per dignified-python there are no re-exports; import from
 ``galaxy_tool_refactor_cli.cli`` directly.

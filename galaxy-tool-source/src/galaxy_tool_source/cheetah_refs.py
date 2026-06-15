@@ -15,7 +15,7 @@ inside a ``##``/``#* *#`` comment, a ``#raw`` block, or behind an escaped ``\\$`
 ``$var``\\ s in ``#if``/``#set``/… ``DIRECTIVE`` heads). This matches what the rename
 mutator (``cheetah_rename``, also faithful) would touch, so ``find-references`` and
 ``rename-param`` agree. Only on the ~0.4% of sections CT3 cannot compile does it fall
-back to the conservative ``_CHEETAH_VAR`` regex (which over-reports the comment/raw/
+back to the conservative ``CHEETAH_VAR_RE`` regex (which over-reports the comment/raw/
 escaped cases — the safe direction for a read-only query). Correctness for novel tool
 XML, not a corpus-fitted superset, is the goal. References from imported macros /
 ``<expand>`` live in the macro files and are out of scope for this raw-tree scan.
@@ -28,11 +28,7 @@ from dataclasses import dataclass
 
 from lxml import etree
 
-from galaxy_tool_source.cheetah_cdm import SpanKind, cheetah_spans
-
-# ``$name`` / ``${name}`` / ``$obj.attr`` — a Cheetah variable reference (``$1`` and
-# ``$(…)`` excluded). Mirrors ``command_text._CHEETAH_VAR`` / ``scripts.measure``.
-_CHEETAH_VAR = re.compile(r"\$\{?[A-Za-z_][\w.]*\}?")
+from galaxy_tool_source.cheetah_cdm import CHEETAH_VAR_RE, SpanKind, cheetah_spans
 
 
 @dataclass(frozen=True)
@@ -89,7 +85,7 @@ def cheetah_references(
     Faithful via the CT3 span lexer (a base dep): a reference is a ``PLACEHOLDER``
     span or a ``$var`` in a ``DIRECTIVE`` head (``#if`` / ``#set``); ``COMMENT`` spans,
     ``#raw`` content, and an escaped ``\\$`` are excluded — Cheetah does not treat those
-    as references. Falls back to the conservative ``_CHEETAH_VAR`` regex (a superset)
+    as references. Falls back to the conservative ``CHEETAH_VAR_RE`` regex (a superset)
     only on the ~0.4% of sections CT3 cannot compile. *base_line* is the file
     line the text starts on (an element's ``sourceline``); each reference's
     ``sourceline`` is ``base_line`` plus the newline count before it.
@@ -108,7 +104,7 @@ def cheetah_references(
                 base_line=base_line,
                 text=text,
             )
-            for match in _CHEETAH_VAR.finditer(text)
+            for match in CHEETAH_VAR_RE.finditer(text)
         ]
     refs: list[CheetahRef] = []
     for span in spans:
@@ -117,7 +113,7 @@ def cheetah_references(
         if span.kind is SpanKind.PLACEHOLDER:
             # The span may carry call/index suffixes (``$arr[0]``); the regex match at
             # the span start gives the reference name shape (stops at ``[``).
-            match = _CHEETAH_VAR.match(text, span.start)
+            match = CHEETAH_VAR_RE.match(text, span.start)
             if match is not None and match.start() == span.start:
                 refs.append(
                     _ref_at(
@@ -132,7 +128,7 @@ def cheetah_references(
         elif span.directive == "raw":
             continue  # a #raw block is verbatim — its $vars are literal, not refs
         else:  # DIRECTIVE head — its clause may reference vars (``#if $x``, ``#set``)
-            for match in _CHEETAH_VAR.finditer(span.text):
+            for match in CHEETAH_VAR_RE.finditer(span.text):
                 refs.append(
                     _ref_at(
                         match.group(),

@@ -4,8 +4,10 @@ The block-mode gate (``check``) fails a PR whose changed tools are not canonical
 Suggest mode is the friendlier sibling (forward-gate Action ``mode: suggest``):
 instead of failing, it posts the canonical fix as GitHub one-click "Commit
 suggestion" review comments on the PR, with the IUC doc link, so the author accepts
-the edits in place. The transform is the same provable, behaviour-preserving fix the
-bulk normalizer applies (``format`` over the gate-eligible rules).
+the edits in place. The transform applies ``format`` over the **gate-eligible** rule
+subset (``gate_codes()``) — the same set the forward gate's block mode enforces. (The
+bulk normalizer applies a broader set, gate-eligible plus bulk-only; suggest mode
+deliberately posts only the gate subset.)
 
 GitHub only accepts a review comment on a line that is part of the PR's diff, so a
 fix that lands outside the changed hunks cannot be inlined; those are summarized in
@@ -116,7 +118,7 @@ def review_payload(
             "comments": [_comment(s) for s in suggestions]}
 
 
-def _eligible_lines(root: Path, base: str, relpath: str, /) -> set[int]:
+def _commentable_lines(root: Path, base: str, relpath: str, /) -> set[int]:
     """RIGHT-side line numbers of *relpath* inside the PR diff (commentable lines)."""
     result = subprocess.run(
         ["git", "-C", str(root), "diff", "--unified=0",
@@ -171,7 +173,7 @@ def collect(root: Path, base: str, /, *, codes: frozenset[str]) -> SuggestResult
         result.checked += 1
         if canonical == original:
             continue
-        eligible = _eligible_lines(root, base, relpath)
+        eligible = _commentable_lines(root, base, relpath)
         found, skipped = build_suggestions(
             relpath,
             original.decode("utf-8"),
