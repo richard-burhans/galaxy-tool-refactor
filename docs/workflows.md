@@ -29,6 +29,7 @@ to do the work: `make help` lists the same things a skill would run.
 | Pre-PR review (code + docs judgment) | the [PR template](../.github/PULL_REQUEST_TEMPLATE.md) checklist + `make qa-gate` | `/pre-pr-audit` |
 | Merge a PR + clean up safely | `make ship-pr PR=123` (= `scripts/ship-pr.sh`; `DRY_RUN=1` to preview) | `/ship-pr` |
 | Forward gate — Half B (fail PRs whose changed tools aren't canonical) | `make forward-gate FILES=… \| REF=origin/main` (= `scripts/forward_gate.py`); see [`forward_gate.md`](forward_gate.md) | — (CI gate) |
+| Forward gate — suggest mode (post canonical fixes as PR review suggestions) | `make gate-suggest REF=origin/main [REPO=… PR=…]` (= `scripts/gate_suggest.py`) | — (CI gate) |
 | Bulk normalize — Half A (apply the blessed subset across a repo) | `make bulk-normalize ROOT=… [WRITE=1]` (= `scripts/bulk_normalize.py`) | — |
 | Coverage tracker — N6 (record % canonical for a repo over time) | `make coverage ROOT=… NAME=…` (= `scripts/coverage_tracker.py`); see [`coverage_tracker.md`](coverage_tracker.md) | — |
 | Cut a release (lockstep bump + tag) | `make bump VERSION=0.3.0`, then `git tag vX && git push --tags` ([CONTRIBUTING](../CONTRIBUTING.md#releasing-maintainers)) | — |
