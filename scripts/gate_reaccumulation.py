@@ -55,11 +55,11 @@ from datetime import date
 from functools import cache
 from pathlib import Path
 
-from lxml import etree
-
 from galaxy_tool_refactor_registry.facade import detect as facade_detect
 from galaxy_tool_refactor_registry.registry import registry
 from galaxy_tool_refactor_registry.resolve import resolve_codes
+
+from scripts._shared import is_tool_document
 
 logger = logging.getLogger("gate_reaccumulation")
 
@@ -92,20 +92,6 @@ def _gate_candidate_codes() -> frozenset[str]:
 def _cosmetic_codes() -> frozenset[str]:
     """The conservative gate: cosmetic whitespace/shorthand only."""
     return resolve_codes(rulesets=["cosmetic"])
-
-
-def _is_tool_document(path: Path, /) -> bool:
-    """Return True when *path* parses as XML with a ``<tool>`` root.
-
-    The changed-file list can include ``macros.xml`` / other non-tool XML, which
-    the gate does not lint as a tool; those are excluded from the denominator
-    rather than miscounted as clean.
-    """
-    try:
-        tree = etree.parse(str(path))
-    except etree.LxmlError:
-        return False
-    return bool(tree.getroot().tag == "tool")
 
 
 def _firing_codes(path: Path, /, *, codes: frozenset[str]) -> set[str] | None:
@@ -168,7 +154,7 @@ def _measure_gate_reaccumulation(
             if not isinstance(relpath, str):
                 continue
             head_path = head_dir / relpath
-            if not head_path.is_file() or not _is_tool_document(head_path):
+            if not head_path.is_file() or not is_tool_document(head_path):
                 continue
             firing = _firing_codes(head_path, codes=candidate_codes)
             if firing is None:

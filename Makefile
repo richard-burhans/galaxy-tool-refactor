@@ -5,7 +5,7 @@
 
 .DEFAULT_GOAL := help
 .PHONY: help sync hooks qa-gate ship-pr bump fetch-corpus corpus-stats parity \
-        blog-new blog-check
+        blog-new blog-check forward-gate bulk-normalize
 
 help: ## List the available workflows
 	@echo "galaxy-tool-refactor — workflows (see docs/workflows.md):"
@@ -40,6 +40,13 @@ corpus-stats: ## Regenerate the corpus stat pages (needs a complete corpus)
 
 parity: ## Regenerate the planemo coverage table (docs/planemo_linter_parity.md)
 	uv run python -m scripts.gen_planemo_parity
+
+forward-gate: ## Forward gate (Half B): fail if changed tools aren't canonical — usage: make forward-gate FILES="a.xml b.xml" | REF=origin/main
+	uv run python -m scripts.forward_gate $(if $(REF),--changed-against $(REF)) $(FILES)
+
+bulk-normalize: ## Bulk normalizer (Half A): apply the blessed subset across a repo — usage: make bulk-normalize ROOT=.local/tools-iuc [WRITE=1]
+	@test -n "$(ROOT)" || { echo 'usage: make bulk-normalize ROOT=<repo-dir> [WRITE=1]'; exit 1; }
+	uv run python -m scripts.bulk_normalize "$(ROOT)" $(if $(WRITE),--write)
 
 blog-new: ## Scaffold a Galaxy blog post — usage: make blog-new TITLE="..." AUTHOR=handle [TAGS=a,b]
 	@test -n "$(TITLE)" && test -n "$(AUTHOR)" || \
