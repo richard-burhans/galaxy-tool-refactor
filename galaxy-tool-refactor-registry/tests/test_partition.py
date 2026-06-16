@@ -36,6 +36,37 @@ def test_partition_groups_and_parent_codes() -> None:
     assert parent_codes() == frozenset(_GROUPS)
 
 
+def test_every_partition_group_is_structurally_consistent() -> None:
+    """Integrity guard over EVERY live partition group, not just the GTR020 spot-checks.
+
+    For each parent in the live ``partition_groups()``: it is selectable shorthand but
+    not a handle; it has exactly a ``.1`` and a ``.2`` child; the ``.1`` is the fixable
+    rule and the ``.2`` the advisory residual (the dotted-suffix orientation the whole
+    ``.1``/``.2`` scheme assumes); each child is a real selectable handle that collapses
+    to the parent and passes through ``expand_codes``; and selecting the parent pulls
+    exactly both children. The build-time ``_validate_partitions`` guard only asserts
+    that *some* fixable and *some* advisory child exist — it does **not** pin the suffix
+    orientation, nor are display/expand checked for groups other than GTR020. So a
+    future partition that wires its suffixes backwards (or display/expand wrong) fails
+    here even though the existing single-group tests still pass.
+    """
+    handles = all_handles()
+    selectable = known_codes()
+    for parent, children in partition_groups().items():
+        assert parent in selectable, parent
+        assert parent not in handles, parent
+        assert expand_codes(frozenset({parent})) == set(children)
+        by_suffix = {code.rsplit(".", 1)[1]: code for code in children}
+        assert set(by_suffix) == {"1", "2"}, children
+        assert handles[by_suffix["1"]].fixable is True, by_suffix["1"]
+        assert handles[by_suffix["2"]].fixable is False, by_suffix["2"]
+        for child in children:
+            assert child in selectable, child
+            assert child in handles, child
+            assert display_code(child) == parent
+            assert expand_codes(frozenset({child})) == {child}
+
+
 def test_parent_codes_are_selectable_but_not_handles() -> None:
     # A parent is selectable (in known_codes) but is not itself a rule handle.
     assert parent_codes() <= known_codes()

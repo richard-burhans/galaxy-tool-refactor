@@ -75,9 +75,14 @@ machine-checked guards green in `qa_gate.sh`.
   `service` for non-`_` module-level functions) independently and asserts equality.
   Verified it fails on a simulated unbound op; the existing hardcoded-roster test is
   kept as the explicit count pin.
-- **[proposal] (Low) no guard on partition-fixture integrity across corpus sweeps.**
-  `test_partition.py` pins the build-time partition validation but nothing pins the
-  fixtures against the live partition groups. Low urgency.
+- **[addressed] (Low) no guard on partition-fixture integrity.** The build-time
+  `_validate_partitions` only checks that *some* fixable and *some* advisory child
+  exist, and `display_code`/`expand_codes` were spot-checked for GTR020 only.
+  **Fixed in a same-session follow-up:**
+  `test_partition.py::test_every_partition_group_is_structurally_consistent` iterates
+  every live `partition_groups()` entry and pins the dotted-suffix orientation (`.1`
+  fixable, `.2` advisory) plus selectable/collapse/expand for all groups. Verified
+  non-vacuous (flipping the `.1`-is-fixable expectation fails, naming GTR018.1).
 
 ### Findings — accepted / refuted (recorded so they are not re-litigated)
 
