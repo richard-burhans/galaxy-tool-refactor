@@ -11,6 +11,17 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+## [0.3.4] — 2026-06-16
+
+### Fixed
+- **`check` resolves a tool's imported macros** — `check` built the `ToolDocument`
+  from the file's bytes, which drops `source_path`, so every macro-aware detect
+  rule failed to stage the tool's imported `macros.xml` and logged
+  `macro expansion failed for in-memory tree: … No such file or directory` once per
+  rule (116 lines on a real tool) while silently falling back to the un-expanded
+  tree. It now loads from the path (matching `format`/`upgrade`), so imports
+  resolve: no warning noise, and macro-aware checks run on the macro-expanded tree.
+
 ## [0.3.3] — 2026-06-15
 
 ### Added
@@ -291,6 +302,7 @@ version, so the others jump from 0.0.1 to 0.2.0 to align.)
 - A corpus-completeness guard in `scripts/corpus_check.py` that refuses to
   regenerate stat pages from a partial corpus.
 
-[Unreleased]: https://github.com/richard-burhans/galaxy-tool-refactor/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/richard-burhans/galaxy-tool-refactor/compare/v0.3.4...HEAD
+[0.3.4]: https://github.com/richard-burhans/galaxy-tool-refactor/compare/v0.3.3...v0.3.4
 [0.3.0]: https://github.com/richard-burhans/galaxy-tool-refactor/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/richard-burhans/galaxy-tool-refactor/releases/tag/v0.2.0
