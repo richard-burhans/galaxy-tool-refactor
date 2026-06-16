@@ -598,7 +598,7 @@ def check_command(
         # cosmetic macro rules only (all fixable). Other XML is skipped.
         if is_tool_root(original):
             try:
-                tool_document = load_tool(original)
+                tool_document = load_tool(target)  # load from path so imports resolve
             except ToolXmlSyntaxError as error:
                 click.echo(f"error: {target}: malformed XML: {error}", err=True)
                 errored += 1
