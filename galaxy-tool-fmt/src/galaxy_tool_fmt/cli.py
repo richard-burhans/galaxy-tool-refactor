@@ -6,10 +6,11 @@ expand to ``*.xml`` recursively), ``--check`` to detect drift without writing,
 Both tool files (``<tool>`` root) and macro-library files (``<macros>`` root)
 are formatted; other XML is skipped quietly.
 
-This CLI applies **cosmetic rules only** (indentation, blank lines,
-empty-element shorthand). Each rule runs only on the document kinds it applies
-to (``RuleMeta.applies_to``): a macro file gets the generic XML rules
-(indentation, empty-element shorthand) but not the tool-only blank-line rule.
+This CLI applies **cosmetic rules only** (indentation and empty-element
+shorthand; the tool-only blank-line rule GTR003 is parked pending IUC input,
+§D4). Each rule runs only on the document kinds it applies to
+(``RuleMeta.applies_to``): a macro file gets the generic XML rules
+(indentation, empty-element shorthand), never the tool-only blank-line rule.
 Structural canonicalisation (attribute order) and profile upgrades live in the
 ``galaxy-tool-refactor`` app (``galaxy-tool-refactor-cli``), which composes the
 codemod and fmt tiers; this package stays a single-purpose cosmetic formatter.

@@ -518,6 +518,10 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
     crosses no *applicable* behaviour code (codemod §23).
   - `detect(source, *, codes) -> DetectResult` — report-only; fmt rules detected
     as one net-effect group, codemod/advisory rules per-code.
+  - `is_canonical(source, *, codes)` / `fired_codes(source, *, codes)` — the
+    single-source canonical-form primitives over `detect` (PR #259), shared by the
+    forward gate, bulk normalizer, and coverage tracker so all three judge
+    canonical form identically (no local re-derivation).
   - `list_rulesets()` / `list_rules(*, include_upgrade=False)` — introspection.
   - Results live in `results.py` (`FormatResult`, `UpgradeResult`, `DetectResult`,
     `RuleInfo`, `RulesetInfo`).

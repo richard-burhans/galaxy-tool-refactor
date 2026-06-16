@@ -610,7 +610,8 @@ def check_command(
             findings = [(v, result.is_advisory(v)) for v in result.violations]
         elif is_macros_root(original):
             try:
-                macro_document = load_macros(original)
+                # load from path, mirroring the tool branch
+                macro_document = load_macros(target)
             except ToolXmlSyntaxError as error:
                 click.echo(f"error: {target}: malformed XML: {error}", err=True)
                 errored += 1

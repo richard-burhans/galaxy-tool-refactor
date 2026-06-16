@@ -2,11 +2,11 @@
 
 ``detect_tool_document`` is the non-mutating counterpart to
 ``format_tool_document``. The fmt rules emit overlapping, *unconditional*
-whitespace rewrites (GTR001 and GTR003 both target top-level-child tails, with
-GTR003 winning by order), so an individual ``Edit`` "changing the tree" does not
-mean the document deviates from canonical form — the intermediate change may be
-reverted by a later rule. The only faithful signal is the **net** effect of the
-whole pipeline.
+whitespace rewrites (when GTR003 ships beside GTR001 both target top-level-child
+tails, with GTR003 winning by order; GTR003 is currently parked, §D4), so an
+individual ``Edit`` "changing the tree" does not mean the document deviates from
+canonical form — the intermediate change may be reverted by a later rule. The
+only faithful signal is the **net** effect of the whole pipeline.
 
 So detection formats a throwaway copy through the same pipeline, records for each
 element the last rule that altered its whitespace, then diffs the formatted copy

@@ -14,10 +14,13 @@ blanket set:
   rewrite) but ``simpleContent`` under ``<configfiles>`` (``ConfigInputs`` — a
   text body by schema), so it is payload **only in the configfiles context** —
   a latent hand-list gap the derivation surfaced.
-- ``<macros>`` is ``xs:anyType`` in the legacy schemas, but Galaxy's macro
-  loader harvests its children and then **clears the element**
-  (``galaxy/util/xml_macros.py:39-45``) — its text is provably dead, so it is
-  excepted (the D18-help style: a justified, cited exception).
+- ``<macros>`` is ``xs:anyType`` in the legacy schemas (so the derived set would
+  treat it as text-bearing and protect it), but Galaxy's macro loader harvests its
+  children and then **clears the element** (``galaxy/util/xml_macros.py:39-45``) —
+  its text is provably dead. So it is excepted *out* of the protected set and a
+  whitespace-only ``<macros>`` collapses to ``<macros/>`` (the inverse of the
+  D18-``<help>`` exception, which protects whitespace-only help; both are
+  justified, cited proof-carried exceptions to the blanket set).
 """
 
 from __future__ import annotations

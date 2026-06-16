@@ -1,8 +1,8 @@
 # galaxy-tool-refactor
 
-A uv workspace housing eight independently-installable Python packages for
-parsing, validating, formatting, linting, and refactoring Galaxy tool
-definition XML.
+A uv workspace housing eight independently-installable Python packages (plus a
+thin front-door metapackage — nine published distributions in all) for parsing,
+validating, formatting, linting, and refactoring Galaxy tool definition XML.
 
 ## Packages
 
