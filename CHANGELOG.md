@@ -14,6 +14,10 @@ is the breaking-change channel.
 ## [0.3.4] — 2026-06-16
 
 ### Fixed
+- **`upgrade` no longer claims a token-profile tool "validates at its declared
+  profile"** while its `@PROFILE@` token is being bumped. The minimal-bump summary
+  (`facade._minimal_outcome_note`) defers that wording for a `@…@` token profile, whose
+  value the tool's macros supply. Reporting-only; the upgrade behaviour is unchanged.
 - **`check` resolves a tool's imported macros** — `check` built the `ToolDocument`
   from the file's bytes, which drops `source_path`, so every macro-aware detect
   rule failed to stage the tool's imported `macros.xml` and logged
