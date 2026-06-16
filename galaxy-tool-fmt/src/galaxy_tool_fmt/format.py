@@ -1,7 +1,8 @@
 """The cosmetic format pipeline entry point.
 
-``format_tool_document`` applies fmt's cosmetic rules (indentation,
-blank lines, empty-element shorthand) and serialises. It does **not**
+``format_tool_document`` applies fmt's cosmetic rules (indentation and
+empty-element shorthand; the blank-line rule GTR003 is parked, see ``all_rules``
+below) and serialises. It does **not**
 perform structural canonicalisation — that's tier 2 (``galaxy-tool-codemod``)'s
 ``canonical_codemods()``. This package has no dependency on the codemod
 package; minimal installs (xml + fmt) get cosmetic-only formatting. The

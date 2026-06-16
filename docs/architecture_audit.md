@@ -1,5 +1,100 @@
 # Architectural audit — galaxy-tool-refactor
 
+## Re-audit 2026-06-16 — consolidation delta (PRs #259–#268), multi-agent escalation
+
+**Audited commit:** `4555eeb` (main at audit time; the safe-fixes below land on the
+audit branch). Delta since `007dd3d` (the 2026-06-15 baseline) is the **consolidation
+wave** (10 commits, ~48 non-lockfile files): the single-source registry-facade
+refactor (#259 — `is_canonical` / `fired_codes` joining `gate_codes` / `bulk_codes`,
+all consumers importing the one definition), the MCP expansion (#260 — 7 → 9 tools,
+`find_references_tool` + `rename_param_tool` in `service.py` / `server.py`), the 0.3.3
+and 0.3.4 lockstep releases, the `upgrade` token-profile reporting fix (#262), the
+`check` loads-from-path fix (#265), and CHANGELOG hygiene (#267/#268).
+
+**Verdict — healthy; zero High, zero boundary violations, zero abstraction breaks.**
+Escalated with a project-wide `Workflow`: 13 scouts (8 tier finders + 5 cross-cutting
+dimension finders) → one adversarial refuter per finding → synthesis (**47 agents, 33
+raw findings, 23 survived verification, 10 refuted**). The escalation was
+**overwhelmingly confirmatory**: the load-bearing invariant (no tier depends on a
+higher one; orchestration in the registry facade; CLI/MCP thin front-ends) holds
+firm, the single-source `is_canonical`/`fired_codes` primitives are consumed (not
+re-derived) by the forward gate / bulk normalizer / coverage tracker, the MCP
+expansion stayed inside the documented single-document scope (mcp D7), and the
+optional `[test-validation]` extra remains lazily isolated. The actionable surface is
+**documentation drift only** — ten safe-fixes (nine docstring/prose, one mechanical
+load-from-path parity) plus two test-coverage proposals. No code logic changed. All
+machine-checked guards green in `qa_gate.sh`.
+
+### Findings — applied this pass (safe-fixes)
+
+- **[fixed] (Low) tier-0.5 `__init__.py` docstring omitted `Violation`.** The import
+  guidance listed `RuleMeta` + `render_rule_reference_table` but not `Violation`
+  (the package's third public primitive, per its own CLAUDE.md). Added it.
+- **[fixed] (Low) tier-3.6 `__init__.py` miscategorised facade exports.** It listed
+  `advisory_codes` / `known_codes` / `resolve_codes` *under the facade* (they live in
+  `registry.py` / `resolve.py`) and omitted the newer facade entry points. Rewrote the
+  surface list: facade = `run`/`upgrade`/`detect`/`find_references`/`rename_param`/
+  `convert_help`/`tokenize_version`/`reconcile_lint_skip` + the single-source
+  `is_canonical`/`fired_codes` + introspection; `advisory_codes`/`known_codes` under
+  `registry`, `resolve_codes` under `resolve`.
+- **[fixed] (Low) three fmt docstrings described GTR003 (blank lines) as active.**
+  `format.py`, `cli.py`, and `detect.py` each listed blank lines / a GTR001↔GTR003
+  overlap as live behaviour, but GTR003 is parked out of `all_rules()` (§D4). Reworded
+  all three to match the authoritative `all_rules()` docstring; `detect.py` now frames
+  the overlap as conditional on GTR003 shipping.
+- **[fixed] (Low) `fmt/README.md` "three cosmetic rules ship" → two active.** Only
+  GTR001 + GTR004 are in `all_rules()`; GTR003 is parked (the README's own table
+  already marks it PARKED). Corrected the count.
+- **[fixed] (Low) `payload.py` `<macros>` exception wording inverted the D18-help
+  parallel.** It called `<macros>` "excepted (the D18-help style)" but the help
+  exception *protects* whitespace whereas `<macros>` is excepted *out* of the
+  protected set (its whitespace collapses to `<macros/>`). Reworded to state the
+  inverse relationship explicitly (both are proof-carried exceptions, opposite
+  directions). Code (`element_text_may_be_payload`) was already correct + tested.
+- **[fixed] (Low→Medium-recount) root `README.md` "eight independently-installable
+  packages".** The table enumerates nine installable distributions (the metapackage
+  is `pip install`-able). Reframed to "eight packages plus a thin front-door
+  metapackage — nine published distributions", matching `CONTRIBUTING.md`. (The prior
+  audit fixed this count in `capabilities.md` but not the root README.)
+- **[fixed] (Low) `ARCHITECTURE.md` §7 facade list omitted the #259 primitives.**
+  Added an `is_canonical` / `fired_codes` bullet (the single-source canonical-form
+  primitives shared with the auto-fix gate + coverage tracker).
+- **[fixed] (Low) CLI `check` macro-file branch loaded from bytes.** `load_macros(original)`
+  → `load_macros(target)`, mirroring the tool branch's #265 load-from-path fix. No
+  behaviour change today (cosmetic macro checks don't resolve imports), but it removes
+  the latent inconsistency and future-proofs a macro-file check that needs `source_path`.
+
+### Findings — proposals (not applied; need a test or a decision)
+
+- **[proposal] (Medium) no guard that the MCP server's registered tools match the
+  service functions.** `server.py` registers 9 tools by hand against `service.py`; a
+  future service op added without a server binding (or a rename) would drift silently.
+  Propose a `test_server.py` assertion that the registered tool set equals the
+  service's public op set. (Verified real; the existing tests check behaviour per
+  tool, not set-membership parity.)
+- **[proposal] (Low) no guard on partition-fixture integrity across corpus sweeps.**
+  `test_partition.py` pins the build-time partition validation but nothing pins the
+  fixtures against the live partition groups. Low urgency.
+
+### Findings — accepted / refuted (recorded so they are not re-litigated)
+
+- **[accepted] `TokenizeVersion` (GTR094) omits an explicit `meta.order`.** Opt-in
+  command codemods run via dedicated facade entry points (`tokenize_version` /
+  `convert_help`), never in a sorted pipeline, so `order` is moot. The sibling
+  GTR092's `order=90` is equally inert. Adding one would imply participation it does
+  not have; left as-is.
+- **[accepted] `apply.py` "fmt is the only serializer" has no *standalone* facade
+  lock.** It is structurally enforced — `apply_selection` always routes output through
+  `format_tool_document_subset`, pinned by `test_serializer_allowlist.py`. Not a gap.
+- **[accepted] `CONTRIBUTING.md` / root `CLAUDE.md` "eight packages + metapackage".**
+  Accurate framing (8 code packages + 1 front-door metapackage); left unchanged.
+- **[accepted] codemod `CLAUDE.md` 12-codemod enumeration.** Factually accurate and in
+  the right order; the `canonical_codemods()` derivation is documented in "Further
+  reading" + pinned by `test_canonical_front_to_back_roster_is_pinned`. No change.
+- **[refuted]** five MCP "positive confirmation" candidates (single-document scope,
+  error-boundary mapping, 9-tool registration, current docs, green static checks) were
+  re-confirmations of correct design, not findings.
+
 ## Re-audit 2026-06-15 — auto-fix-system delta (PRs #235-#257), multi-agent escalation
 
 **Audited commit:** `007dd3d` (main at audit time; the safe-fixes below land on the

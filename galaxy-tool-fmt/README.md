@@ -17,8 +17,9 @@ The **formatting** tier of the Galaxy refactoring architecture:
 
 ## Status
 
-The format pipeline and three cosmetic rules ship; the cosmetic-only
-`galaxy-tool-fmt` CLI is working. Structural canonicalisation
+The format pipeline and two active cosmetic rules ship (GTR001 indent + GTR004
+empty-element shorthand; a third, GTR003 blank lines, is parked pending IUC
+input, §D4); the cosmetic-only `galaxy-tool-fmt` CLI is working. Structural canonicalisation
 (attribute reordering on `<tool>` and `<param>`) and profile upgrades
 live in tier 2 and are run by the tier-4 app
 (`galaxy-tool-refactor`), not by this package's CLI.
