@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 
 import pytest
 
+from galaxy_tool_refactor_mcp import service
 from galaxy_tool_refactor_mcp.server import (
     _check_tool,
     _find_references_tool,
@@ -13,6 +15,20 @@ from galaxy_tool_refactor_mcp.server import (
     _rename_param_tool,
     build_server,
 )
+
+
+def _public_service_ops() -> set[str]:
+    """The public (agent-facing) operations defined in the ``service`` adapter.
+
+    Functions defined in ``service`` itself (not the imported ``resolve_codes`` /
+    facade) whose name does not start with ``_`` (excludes the ``_*_to_dict``
+    serialiser helpers) — i.e. exactly the ops a server tool should wrap.
+    """
+    return {
+        name
+        for name, obj in inspect.getmembers(service, inspect.isfunction)
+        if obj.__module__ == service.__name__ and not name.startswith("_")
+    }
 
 _TOOL = (
     '<tool id="m" name="M" version="1.0.0" profile="24.0">'
@@ -36,6 +52,20 @@ def test_build_server_registers_every_tool() -> None:
         "list_rulesets",
         "list_rules",
     }
+
+
+def test_server_tools_match_service_ops_exactly() -> None:
+    """The registered server tools equal the public service ops — no drift.
+
+    ``server.py`` hand-registers a tool per ``service`` op; this derives both sets
+    independently (the live ``build_server`` registration vs. introspecting
+    ``service``) and asserts equality, so a new ``service`` op with no server
+    binding, an orphaned binding, or a rename on one side fails loudly instead of
+    drifting silently. (The architecture audit 2026-06-16 proposal.)
+    """
+    server = build_server()
+    registered = {tool.name for tool in asyncio.run(server.list_tools())}
+    assert registered == _public_service_ops()
 
 
 def test_handler_maps_unknown_ruleset_to_plain_valueerror() -> None:

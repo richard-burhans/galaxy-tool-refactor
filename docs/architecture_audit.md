@@ -66,12 +66,15 @@ machine-checked guards green in `qa_gate.sh`.
 
 ### Findings — proposals (not applied; need a test or a decision)
 
-- **[proposal] (Medium) no guard that the MCP server's registered tools match the
+- **[addressed] (Medium) no guard that the MCP server's registered tools match the
   service functions.** `server.py` registers 9 tools by hand against `service.py`; a
   future service op added without a server binding (or a rename) would drift silently.
-  Propose a `test_server.py` assertion that the registered tool set equals the
-  service's public op set. (Verified real; the existing tests check behaviour per
-  tool, not set-membership parity.)
+  **Fixed in a same-session follow-up:**
+  `test_server.py::test_server_tools_match_service_ops_exactly` derives the registered
+  tool set (`build_server().list_tools()`) and the public service-op set (introspecting
+  `service` for non-`_` module-level functions) independently and asserts equality.
+  Verified it fails on a simulated unbound op; the existing hardcoded-roster test is
+  kept as the explicit count pin.
 - **[proposal] (Low) no guard on partition-fixture integrity across corpus sweeps.**
   `test_partition.py` pins the build-time partition validation but nothing pins the
   fixtures against the live partition groups. Low urgency.
