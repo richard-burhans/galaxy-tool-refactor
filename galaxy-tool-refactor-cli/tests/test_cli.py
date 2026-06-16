@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.metadata
+import logging
 from pathlib import Path
 
 import pytest
@@ -144,6 +145,34 @@ def test_upgrade_resolves_imported_macros(tmp_path: Path) -> None:
     assert result.exit_code == 1, result.output
     assert "would upgrade" in result.output  # a valid profile was found via expansion
     assert "macro expansion failed" not in result.output
+
+
+def test_check_resolves_imported_macros(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """``check`` on an imported-macro tool resolves ``<import>`` via the file's
+    source_path. Regression — loading from bytes dropped it, so every macro-aware
+    detect rule fell back to the raw tree and logged 'macro expansion failed'
+    (116 lines on ncbi_egapx)."""
+    _write(
+        tmp_path / "macros.xml",
+        b'<macros><xml name="reqs"><requirements>'
+        b'<requirement type="package" version="1.0">foo</requirement>'
+        b"</requirements></xml></macros>",
+    )
+    tool = _write(
+        tmp_path / "tool.xml",
+        b'<tool id="m" name="M" version="1.0.0" profile="20.01">'
+        b"<macros><import>macros.xml</import></macros>"
+        b'<expand macro="reqs"/>'
+        b"<command><![CDATA[echo x]]></command>"
+        b'<inputs/><outputs><data name="o"/></outputs></tool>',
+    )
+    with caplog.at_level(logging.WARNING):
+        result = CliRunner().invoke(main, ["check", str(tool)])
+    assert result.exit_code in (0, 1), result.output
+    assert "macro expansion failed" not in result.output
+    assert not [r for r in caplog.records if "macro expansion failed" in r.message]
 
 
 def test_upgrade_check_reports_and_does_not_write(tmp_path: Path) -> None:
