@@ -39,7 +39,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from lxml import etree
 from packaging.version import InvalidVersion, Version
@@ -52,6 +52,8 @@ from scripts._shared import unique_by_sha as _unique_by_sha
 
 if TYPE_CHECKING:
     from galaxy_tool_codemod.profile_semantics import ProfileUpgradeCode
+    from galaxy_tool_refactor_registry.handle import RuleHandle
+    from galaxy_tool_source.document import ToolDocument
 
 logger = logging.getLogger("measure")
 
@@ -92,7 +94,8 @@ def _load_combined_data(*, path: Path | None = None) -> list[dict[str, object]]:
             f"{resolved} not found; run `uv run python -m scripts.corpus_check "
             f"validate --source combined` first."
         )
-    return json.loads(resolved.read_text(encoding="utf-8"))
+    rows: list[dict[str, object]] = json.loads(resolved.read_text(encoding="utf-8"))
+    return rows
 
 
 def _validity_columns(rows: list[dict[str, object]]) -> tuple[str, ...]:
@@ -6540,7 +6543,14 @@ def _measure_xsd_tightenings(*, schema_dir: Path) -> _XsdTighteningsResult:
         key=Version,
     )
     rows: list[tuple[str, str, str, str, str]] = []
-    previous: tuple[str, dict, dict] | None = None
+    previous: (
+        tuple[
+            str,
+            dict[str, tuple[tuple[str, ...], frozenset[str]]],
+            dict[str, tuple[str | None, str | None]],
+        ]
+        | None
+    ) = None
     for version in versions:
         simple, sites = _xsd_model(schema_dir / f"galaxy-{version}.xsd")
         if previous is not None:
@@ -7226,7 +7236,10 @@ def _rst_doctree(text: str) -> object | None:
     }
     try:
         with contextlib.redirect_stderr(io.StringIO()):
-            return docutils.core.publish_doctree(text, settings_overrides=overrides)
+            doctree: object = docutils.core.publish_doctree(
+                text, settings_overrides=overrides
+            )
+            return doctree
     except Exception:
         return None
 
@@ -8277,9 +8290,12 @@ def _measure_lint_skip_corpus(*, corpus_root: Path) -> _LintSkipCorpusResult:
     return result
 
 
-def _lint_skip_load_docs(tool_paths, load_tool):  # type: ignore[no-untyped-def]
+def _lint_skip_load_docs(
+    tool_paths: list[Path],
+    load_tool: Callable[[Path], ToolDocument],
+) -> dict[Path, ToolDocument]:
     """Load each tool path read-only for detection; drop any that fail to load."""
-    docs = {}
+    docs: dict[Path, ToolDocument] = {}
     for path in tool_paths:
         try:
             docs[path] = load_tool(path)
@@ -8290,14 +8306,14 @@ def _lint_skip_load_docs(tool_paths, load_tool):  # type: ignore[no-untyped-def]
 
 def _classify_lint_skip_line(
     *,
-    name,
-    covering,
-    tool_paths,
-    ro_docs,
-    handles,
-    load_tool,
-    result,
-):  # type: ignore[no-untyped-def]
+    name: str,
+    covering: frozenset[str],
+    tool_paths: list[Path],
+    ro_docs: dict[Path, ToolDocument],
+    handles: dict[str, RuleHandle],
+    load_tool: Callable[[Path], ToolDocument],
+    result: _LintSkipCorpusResult,
+) -> str | None:
     """Return the bucket for one (skip_file, name) line, or ``None`` if unclassifiable.
 
     Mirrors the shipped ``facade.reconcile_lint_skip`` removability decision so
@@ -8347,15 +8363,21 @@ def _classify_lint_skip_line(
     return "located"
 
 
-def _lint_skip_fix_clears(path, covering, handles, load_tool):  # type: ignore[no-untyped-def]
+def _lint_skip_fix_clears(
+    path: Path,
+    covering: frozenset[str],
+    handles: dict[str, RuleHandle],
+    load_tool: Callable[[Path], ToolDocument],
+) -> bool:
     """Apply the fixable covering codes to a fresh copy; do all covering codes clear?"""
     try:
         doc = load_tool(path)
     except Exception:  # noqa: BLE001 — unloadable on the fix pass: treat as not cleared
         return False
     for code in covering:
-        if handles[code].apply is not None:
-            handles[code].apply(doc)
+        apply = handles[code].apply
+        if apply is not None:
+            apply(doc)
     return not any(handles[code].detect(doc) for code in covering)
 
 
@@ -8468,7 +8490,9 @@ def _plan_order(ranked: list[tuple[int, int | None]]) -> list[int]:
     """Mirror ``Cursor._plan_reorder_children``: knowns (rank not None) sort into
     the slots they occupy; unknowns (``None``) stay pinned. Returns original
     indices in their resulting order."""
-    known = iter(sorted((r for r in ranked if r[1] is not None), key=lambda r: r[1]))
+    known = iter(
+        sorted((r for r in ranked if r[1] is not None), key=lambda r: cast(int, r[1]))
+    )
     return [next(known)[0] if rank is not None else idx for idx, rank in ranked]
 
 
@@ -8721,7 +8745,8 @@ def _run_version_suffix_shape(args: argparse.Namespace) -> None:
 def _run_corpus_check(args: argparse.Namespace, extra: list[str]) -> int:
     """Delegate to ``scripts/corpus_check.py``'s main with passthrough args."""
     del args  # corpus_check parses its own
-    import corpus_check  # local import: avoids loading galaxy_tool_source just to --list
+    # local import: avoids loading galaxy_tool_source just to --list
+    from scripts import corpus_check
 
     return corpus_check.main(extra)
 

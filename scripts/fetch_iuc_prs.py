@@ -43,6 +43,7 @@ import subprocess
 import sys
 from datetime import date
 from pathlib import Path, PurePosixPath
+from typing import cast
 
 logger = logging.getLogger("fetch_iuc_prs")
 
@@ -98,7 +99,8 @@ def _gh_api_json(path: str, /, *, paginate: bool = False) -> object | None:
             result.stderr.strip() or "<no stderr>",
         )
         return None
-    return json.loads(result.stdout)
+    parsed: object = json.loads(result.stdout)
+    return parsed
 
 
 def _is_rate_limited() -> bool:
@@ -355,7 +357,7 @@ def _snapshot_pr(
     caller decides whether to call this (it skips PRs already on disk unless
     ``--force``), so this always downloads fresh.
     """
-    number = int(pr["number"])  # type: ignore[arg-type]
+    number = cast(int, pr["number"])
     pr_dir = _pr_dir(corpus_name, number)
     base_sha = _nested_sha(pr, "base")
     head_sha = _nested_sha(pr, "head")

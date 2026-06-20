@@ -37,6 +37,7 @@ import urllib.request
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from typing import cast
 
 from packaging.version import InvalidVersion, Version
 
@@ -179,7 +180,7 @@ def _snapshot(versions: list[ServerVersion], today: str) -> dict[str, object]:
 
 def _report(snapshot: dict[str, object]) -> None:
     print("\n=== major Galaxy server versions ===")
-    for server in snapshot["servers"]:  # type: ignore[union-attr]
+    for server in cast("list[dict[str, object]]", snapshot["servers"]):
         if server["reachable"]:
             flag = " (pre-release)" if server["prerelease"] else ""
             print(

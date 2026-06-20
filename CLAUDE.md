@@ -70,14 +70,17 @@ uv run mypy --config-file galaxy-tool-lint/pyproject.toml   galaxy-tool-lint/src
 uv run mypy --config-file galaxy-tool-refactor-registry/pyproject.toml galaxy-tool-refactor-registry/src
 uv run mypy --config-file galaxy-tool-refactor-cli/pyproject.toml galaxy-tool-refactor-cli/src
 uv run mypy --config-file galaxy-tool-refactor-mcp/pyproject.toml galaxy-tool-refactor-mcp/src
+uv run mypy --config-file pyproject.toml scripts
 ```
 
 ## Pre-push QA gate
 
 `scripts/qa_gate.sh` runs the deterministic quality slice — ruff, mypy (strict,
-per package, **at the 3.10 support floor** via `--python-version 3.10`, so a
-version-floor break is caught locally rather than only in CI's 3.10 job), and
-pytest for all eight packages — and exits non-zero (naming the failing step) if
+per package **plus the maintainer `scripts/` tree** under the root
+`pyproject.toml`'s `[tool.mypy]`, **at the 3.10 support floor** via
+`--python-version 3.10`, so a version-floor break is caught locally rather than
+only in CI's 3.10 job), and pytest for all eight packages — and exits non-zero
+(naming the failing step) if
 anything fails. A `git push` **PreToolUse hook** (`.claude/settings.json`) runs
 it and **blocks the push** on failure. For a **bare** `git push` it also adds
 **`QA_GATE_REQUIRE_CLEAN=1`**, blocking on an **uncommitted tracked tree** (the gate
