@@ -128,6 +128,10 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
   rendered to `docs/gate_eligibility.md` by `scripts/gen_gate_eligibility.py`
   (freshness-tested). See `docs/decisions.md` D26.
 - `results.py` — the structured result + introspection dataclasses.
+- `notes.py` — pure user-facing note-string builders for `upgrade` (the
+  semantic / behavior-preserving / behavior-stop / deployment-cap / minimal-bump
+  notes), lifted out of the library-first facade so the facade returns structured
+  data and these render it.
 - `errors.py` — `UnknownRuleCode` / `UnknownRuleset` / `UnknownProfile` /
   `UpgradeFlagError`.
 
