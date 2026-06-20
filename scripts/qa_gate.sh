@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Pre-push QA gate for the galaxy-tool-refactor workspace.
 #
-# Runs the deterministic quality slice — ruff, mypy (strict, per package, at the
-# 3.10 support floor), and pytest for all eight packages — and exits non-zero,
+# Runs the deterministic quality slice — ruff, mypy (strict, per package plus the
+# maintainer scripts/ tree, at the 3.10 support floor), and pytest for all eight
+# packages — and exits non-zero,
 # naming the failing step, if anything fails. A `git push` PreToolUse hook
 # (.claude/settings.json) calls this and blocks the push on failure; for a bare
 # push it adds QA_GATE_REQUIRE_CLEAN=1 (blocking on an uncommitted tracked tree),
@@ -92,6 +93,12 @@ for package in "${PACKAGES[@]}"; do
     uv run mypy --python-version 3.10 --config-file "$package/pyproject.toml" \
         "$package/src" || fail "mypy ($package)"
 done
+
+# The maintainer scripts/ tree (measure.py / corpus_check.py / fetch_*.py) imports
+# package internals, so type-check it under the same strict 3.10 gate via the root
+# pyproject's [tool.mypy] section.
+uv run mypy --python-version 3.10 --config-file pyproject.toml scripts \
+    || fail "mypy (scripts)"
 
 echo "QA gate: pytest…"
 for package in "${PACKAGES[@]}"; do
