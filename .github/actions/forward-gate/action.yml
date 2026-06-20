@@ -18,7 +18,7 @@ inputs:
       (>= 0.3.1, the first with gate_eligibility); suggest mode needs >= 0.3.2
       (the gate-suggest command). Pin to the same release the bulk normalizer used.
     required: false
-    default: "0.3.3"
+    default: "0.3.4"
   mode:
     description: >-
       "block" (fail the check when a changed tool is not canonical, naming the fix
