@@ -45,9 +45,22 @@ _ALLOWLIST: dict[str, tuple[frozenset[str], str]] = {
         frozenset({".write_bytes("}),
         "writes fmt-produced canonical bytes to disk",
     ),
-    "galaxy-tool-refactor-cli/src/galaxy_tool_refactor_cli/cli.py": (
+    "galaxy-tool-refactor-cli/src/galaxy_tool_refactor_cli/commands/convert_help.py": (
         frozenset({".write_bytes("}),
         "convert-help writes facade-produced (fmt-serialised) bytes after "
+        "make_backup; the write-after-backup ordering is CLI policy the "
+        "facade's write_path cannot express",
+    ),
+    "galaxy-tool-refactor-cli/src/galaxy_tool_refactor_cli/commands/lint_skip.py": (
+        frozenset({".write_bytes("}),
+        "lint-skip writes facade-produced (fmt-serialised) bytes after "
+        "make_backup; the write-after-backup ordering is CLI policy the "
+        "facade's write_path cannot express",
+    ),
+    "galaxy-tool-refactor-cli/src/galaxy_tool_refactor_cli/commands/"
+    "tokenize_version.py": (
+        frozenset({".write_bytes("}),
+        "tokenize-version writes facade-produced (fmt-serialised) bytes after "
         "make_backup; the write-after-backup ordering is CLI policy the "
         "facade's write_path cannot express",
     ),
