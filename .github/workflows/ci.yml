@@ -4,7 +4,8 @@ name: CI
 # package roster: ruff + per-package strict mypy + the eight test suites) on
 # every PR and on pushes to main, across the supported Python range. No corpus
 # is needed — the unit/regression tests use synthetic data and committed
-# fixtures; the slow xsdata-codegen sweep stays behind the `slow` marker.
+# fixtures. The slow xsdata-codegen sweep (`-m slow`, deselected by the gate)
+# runs in its own `slow` job below so the codegen path is actually exercised.
 
 on:
   push:
@@ -47,15 +48,36 @@ jobs:
         # green-tree cache — meaningless on a fresh checkout, explicit anyway.
         run: QA_GATE_FORCE=1 bash scripts/qa_gate.sh
 
+  slow:
+    # The xsdata codegen sweep the gate deselects (`-m 'not slow'`). It is
+    # deterministic (vendored XSDs, no corpus) and quick (~20s / 33 tests), so a
+    # single interpreter on each PR keeps the codegen path from rotting unnoticed.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync workspace
+        run: uv sync
+
+      - name: Run the slow xsdata-codegen sweep
+        run: uv run --package galaxy-tool-source pytest galaxy-tool-source/tests/ -m slow -q
+
   ci:
     # One stable check for branch protection: green only if every matrix job
     # passed, so the required-check name never changes when the matrix does.
-    needs: qa
+    needs: [qa, slow]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Verify the qa matrix all passed
+      - name: Verify the qa matrix and slow sweep all passed
         run: |
-          result="${{ needs.qa.result }}"
-          echo "qa matrix result: $result"
-          test "$result" = "success" || { echo "::error::qa matrix failed"; exit 1; }
+          qa_result="${{ needs.qa.result }}"
+          slow_result="${{ needs.slow.result }}"
+          echo "qa matrix result: $qa_result; slow sweep result: $slow_result"
+          test "$qa_result" = "success" || { echo "::error::qa matrix failed"; exit 1; }
+          test "$slow_result" = "success" || { echo "::error::slow sweep failed"; exit 1; }

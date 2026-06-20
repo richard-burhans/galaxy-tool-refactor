@@ -11,9 +11,41 @@ members = [
     "galaxy-tool-refactor-meta",
 ]
 
+[tool.mypy]
+# Brings the maintainer scripts/ tree (which imports package internals) under
+# the same strict gate the per-package src/ trees get. mypy_path = "." so the
+# intra-package `from scripts import ...` imports resolve.
+strict = true
+python_version = "3.10"
+files = ["scripts"]
+mypy_path = "."
+
+[[tool.mypy.overrides]]
+module = ["lxml.*", "docutils.*"]
+ignore_missing_imports = true
+
+[dependency-groups]
+# Workspace-root dev tooling. pytest-cov backs the (non-gating) `make
+# test-coverage` report; it lands in the shared .venv so every package's
+# `uv run --package … pytest` can use it.
+dev = ["pytest-cov>=5"]
+
 [tool.pytest.ini_options]
 # importlib mode allows duplicate test-file basenames across packages.
 addopts = "--import-mode=importlib"
 markers = ["slow: xsdata codegen sweep over every vendored XSD"]
 # Workspace root on sys.path so all packages can import shared scripts.
 pythonpath = ["."]
+
+[tool.coverage.run]
+# `make test-coverage` runs each package's suite in turn with --cov-append into a
+# single .coverage data file (sequential, so no parallel/combine needed).
+branch = true
+# Exclude the xsdata-generated per-version models (same carve-out mypy/ruff make):
+# generated code, not hand-written, and ~13k trivially-100% lines that otherwise
+# inflate the headline number (97% -> the real hand-written 90%).
+omit = ["*/models/v*/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

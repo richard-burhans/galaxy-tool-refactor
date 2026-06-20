@@ -116,7 +116,8 @@ def _try_download(url: str) -> bytes | None:
     request.add_header("User-Agent", _USER_AGENT)
     try:
         with urllib.request.urlopen(request, timeout=_HTTP_TIMEOUT) as response:  # noqa: S310
-            return response.read()
+            data: bytes = response.read()
+            return data
     except urllib.error.HTTPError as error:
         if error.code != 404:
             logger.warning("download failed (HTTP %s): %s", error.code, url)
