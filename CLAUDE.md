@@ -58,6 +58,11 @@ uv run --package galaxy-tool-refactor-cli   pytest galaxy-tool-refactor-cli/test
 uv run --package galaxy-tool-refactor-mcp   pytest galaxy-tool-refactor-mcp/tests/
 ```
 
+`make test-coverage` (= `scripts/coverage_report.sh`) runs every suite with
+coverage — **reporting only, not a gate** (no threshold; generated `models/v*`
+excluded, so it shows the honest hand-written number). A non-gating `coverage.yml`
+job also uploads the HTML report as an artifact on `main`.
+
 ## Lint / type-check
 
 ```bash
@@ -486,6 +491,10 @@ partial corpus silently corrupts every number, so the sweep refuses; re-run
 All hand-written code follows **dignified-python** (governs), with
 **optimized-python** as a secondary reference. Both skills are vendored at
 `.claude/skills/dignified-python/` and `.claude/skills/optimized-python/`.
+`make check-skills` (= `scripts/check_vendored_skills.py`) reports when either
+vendored skill has drifted from its upstream (a weekly `vendored-skills.yml` job
+also opens a tracking issue); re-vendor deliberately, since upstream can change
+the governing standard.
 
 Key rules:
 - Prefer LBYL for routine branching; use exceptions at the CLI error boundary
