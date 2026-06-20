@@ -42,6 +42,23 @@ audit that accompanied this update). No source code was changed by this
 re-vendor; existing code that follows the stricter rule still conforms (the softer
 rule is a superset of the stricter one).
 
+## Updated 2026-06-20: verified current + periodic drift check added
+
+Re-checked against upstream: the skill directory is **byte-identical** to the
+current `dagster-io/skills` copy. The last upstream commit to touch the skill
+path (`skills/dignified-python/skills/dignified-python`) is
+`f904a2a218b3b3dd85152dbd4747854ae88b4cab` (2026-04-28); nothing has changed it
+since the 2026-06-13 vendoring, so no re-vendor was needed.
+
+Drift is now checked **automatically**: `scripts/check_vendored_skills.py`
+(run via `make check-skills`, or weekly by `.github/workflows/vendored-skills.yml`)
+compares this skill — and `optimized-python` — against upstream and opens a
+tracking issue when an upstream source moves. The machine-checkable baseline
+(`f904a2a…`) lives in that script's `VENDORED_SOURCES` table; **when you
+re-vendor, update both this file and that baseline.** The stance-drift follow-up
+flagged above has been reconciled in the `/pre-pr-audit` skill (its Step 1 now
+states the softened stance); `CLAUDE.md` already carried it.
+
 ## How it was vendored
 
 Copied with a sparse, blobless clone:
