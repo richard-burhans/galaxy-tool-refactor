@@ -82,7 +82,7 @@ def rst_is_invalid(text: str, /) -> bool:
             docutils.core.publish_string(
                 text, writer="html4css1", settings_overrides=overrides
             )
-    except Exception:
+    except Exception:  # noqa: BLE001 - docutils has no LBYL validity check
         return True
     return False
 
@@ -110,7 +110,7 @@ def _serious_messages(text: str, /) -> list[tuple[int | None, str]]:
             doctree = docutils.core.publish_doctree(
                 text, settings_overrides=overrides
             )
-    except Exception:
+    except Exception:  # noqa: BLE001 - docutils parse failure: no messages
         return []
     out: list[tuple[int | None, str]] = []
     for node in doctree.findall(docutils.nodes.system_message):
@@ -138,7 +138,7 @@ def _structural_signature(text: str, /) -> str | None:
             doctree = docutils.core.publish_doctree(
                 text, settings_overrides=overrides
             )
-    except Exception:
+    except Exception:  # noqa: BLE001 - docutils parse failure: no signature
         return None
     for node in list(doctree.findall(docutils.nodes.system_message)):
         if node.parent is not None:

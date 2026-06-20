@@ -2,6 +2,14 @@
 # Contributor-visible pre-push gate. Mirrors the Claude Code pre-push hook so a
 # plain `git push` runs the same checks, whether or not you use Claude Code.
 #
+# Like the Claude hook's bare-push path, it sets QA_GATE_REQUIRE_CLEAN=1: the
+# gate validates the working tree but the push sends commits, so a dirty tree
+# would validate code that isn't being pushed. Unlike the Claude PreToolUse hook
+# (which fires *before* the command and so must skip this for `git commit && git
+# push`), this git hook runs at push time *after* any commit, so the tree is
+# already clean for the commit-then-push case and the check has no false
+# positives — commit or stash first, then push.
+#
 # Enable once per clone:
 #     git config core.hooksPath .githooks
 #
@@ -9,4 +17,4 @@
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-exec bash "$REPO_ROOT/scripts/qa_gate.sh"
+exec env QA_GATE_REQUIRE_CLEAN=1 bash "$REPO_ROOT/scripts/qa_gate.sh"
