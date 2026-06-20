@@ -51,8 +51,10 @@ audit whose record predates the branch.
 dignified-python is the tiebreaker; optimized-python is secondary (both vendored at
 `.claude/skills/`). Check, per changed file:
 
-- **Prefer LBYL for routine branching** — exceptions at the CLI error boundary (chained
-  `from e`) and third-party API boundaries with no LBYL form.
+- **Prefer explicit preconditions (LBYL) for routine branching** — but EAFP is fine
+  where the operation itself is the authoritative test, and at the CLI error boundary
+  (chained `from e`) and third-party API boundaries with no LBYL form
+  (dignified-python's softened stance; see `../dignified-python/VENDORED.md`).
 - **`pathlib.Path` + explicit `encoding="utf-8"`** on all text I/O.
 - **Keyword-only arguments after the first** (`*` in the signature).
 - **Absolute imports, no re-exports, no `__all__`** (the generated `models/v*/` are

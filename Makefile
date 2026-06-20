@@ -5,7 +5,8 @@
 
 .DEFAULT_GOAL := help
 .PHONY: help sync hooks qa-gate ship-pr bump fetch-corpus corpus-stats parity \
-        blog-new blog-check forward-gate gate-suggest bulk-normalize coverage
+        blog-new blog-check forward-gate gate-suggest bulk-normalize coverage \
+        check-skills test-coverage
 
 help: ## List the available workflows
 	@echo "galaxy-tool-refactor — workflows (see docs/workflows.md):"
@@ -40,6 +41,12 @@ corpus-stats: ## Regenerate the corpus stat pages (needs a complete corpus)
 
 parity: ## Regenerate the planemo coverage table (docs/planemo_linter_parity.md)
 	uv run python -m scripts.gen_planemo_parity
+
+check-skills: ## Check the vendored skills (dignified/optimized-python) for upstream updates
+	uv run python -m scripts.check_vendored_skills
+
+test-coverage: ## Test-coverage report across all packages (reporting only, not a gate)
+	bash scripts/coverage_report.sh
 
 forward-gate: ## Forward gate (Half B): fail if changed tools aren't canonical — usage: make forward-gate FILES="a.xml b.xml" | REF=origin/main
 	uv run python -m scripts.forward_gate $(if $(REF),--changed-against $(REF)) $(FILES)

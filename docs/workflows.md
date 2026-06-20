@@ -35,11 +35,15 @@ to do the work: `make help` lists the same things a skill would run.
 | Cut a release (lockstep bump + tag) | `make bump VERSION=0.3.0`, then `git tag vX && git push --tags` ([CONTRIBUTING](../CONTRIBUTING.md#releasing-maintainers)) | — |
 | Enable the local pre-push gate | `make hooks` (= `git config core.hooksPath .githooks`) | — |
 | Refresh corpus stats | `make fetch-corpus` then `make corpus-stats` (or the scheduled `corpus-stats.yml`) | — |
+| Regenerate the planemo coverage table | `make parity` (= `scripts/gen_planemo_parity.py`; freshness-tested) | — |
+| Check vendored skills for upstream updates | `make check-skills` (= `scripts/check_vendored_skills.py`; or the scheduled `vendored-skills.yml`) | — |
+| Test-coverage report (informational, not a gate) | `make test-coverage` (= `scripts/coverage_report.sh`; or the `coverage.yml` artifact on main) | — |
 | Add a structural codemod | read [`add-codemod`](../.claude/skills/add-codemod/SKILL.md) as a TDD how-to | `/add-codemod` |
 | Add a corpus measurement | read [`corpus-measurement`](../.claude/skills/corpus-measurement/SKILL.md); helpers in `scripts/measure.py` | `/corpus-measurement` |
 | Write a Galaxy blog post | `make blog-new TITLE=… AUTHOR=…` + `make blog-check POST=…` (= `scripts/galaxy_blog.py`) | `/galaxy-blog-post` |
 | Coding standards | [`dignified-python`](../.claude/skills/dignified-python/SKILL.md) (governs) · [`optimized-python`](../.claude/skills/optimized-python/SKILL.md) | same (auto-applied) |
 | Deep architecture audit | read [`architecture-audit`](../.claude/skills/architecture-audit/SKILL.md) + `docs/architecture_audit.md` | `/architecture-audit` |
+| Regenerate the audience guide (`docs/guide/`) | read [`repo-explainer`](../.claude/skills/repo-explainer/SKILL.md) (generation skill, no script) | `/repo-explainer` |
 
 The `add-codemod` / `corpus-measurement` / `architecture-audit` skills are
 **how-to guides** — a human reads the `SKILL.md` as documentation and follows it;
