@@ -524,7 +524,10 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
     canonical form identically (no local re-derivation).
   - `list_rulesets()` / `list_rules(*, include_upgrade=False)` — introspection.
   - Results live in `results.py` (`FormatResult`, `UpgradeResult`, `DetectResult`,
-    `RuleInfo`, `RulesetInfo`).
+    `RuleInfo`, `RulesetInfo`); the user-facing `upgrade` note strings (the semantic
+    warning, behavior-preserving, behavior-stop, deployment-cap, and minimal-bump
+    notes) are built by pure helpers in `notes.py`, kept out of this library-first
+    tier so the facade returns structured data and `notes.py` renders it.
 - **`macro_profile.py`** — the Phase-3b imported-`@PROFILE@` upgrade. A tool whose
   `profile="@TOKEN@"` resolves to a token in an *imported* macro file can't be
   upgraded by editing the tool alone. `profile_token_site(document)` maps one tool
@@ -553,9 +556,11 @@ serializer. *(registry `docs/decisions.md` D1–D5.)*
 
 ## 8. Tier 4 — `galaxy-tool-refactor-cli` (app)
 
-The user-facing `galaxy-tool-refactor` CLI (`cli.py`). **CLI plumbing only** — all
+The user-facing `galaxy-tool-refactor` CLI. **CLI plumbing only** — all
 rule orchestration is delegated to the facade; this package no longer imports the
-codemod / check tiers directly. Eleven subcommands (`format`, `upgrade`, `check`,
+codemod / check tiers directly. `cli.py` registers the `main` group; each subcommand
+lives in its own module under `commands/`, with the shared Click option decorators and
+selection helpers in `options.py`. Eleven subcommands (`format`, `upgrade`, `check`,
 `find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`,
 `convert-help`, `tokenize-version`, `lint-skip`) —
 `find-references` is a read-only query for a parameter's Cheetah `$var` reference sites
@@ -788,7 +793,7 @@ Each abstraction → its file → the decision record that justifies it.
 | `run` / `upgrade` / `detect` facade | `galaxy-tool-refactor-registry/src/.../facade.py`, `results.py` | registry `docs/decisions.md` D1 |
 | imported-`@PROFILE@` upgrade | `galaxy-tool-refactor-registry/src/.../macro_profile.py` | registry `docs/decisions.md` D5 |
 | imported-macro `format`/`ftype` normalization | `galaxy-tool-refactor-registry/src/.../macro_datatype.py` | registry `docs/decisions.md` D8 |
-| the CLI | `galaxy-tool-refactor-cli/src/.../cli.py` | cli `docs/decisions.md` D1–D6 |
+| the CLI | `galaxy-tool-refactor-cli/src/.../cli.py` + `commands/` + `options.py` | cli `docs/decisions.md` D1–D6 |
 | the MCP server | `galaxy-tool-refactor-mcp/src/.../server.py` (+ `service.py`) | mcp `docs/decisions.md` D1 |
 | the lockstep metapackage (no code) | `galaxy-tool-refactor-meta/pyproject.toml` | xml `docs/decisions.md` §28 |
 
