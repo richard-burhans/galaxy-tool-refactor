@@ -1,16 +1,17 @@
 # Using it from the command line
 
-> **TL;DR.** Install, then run one of eleven commands on a tool file or a directory:
+> **TL;DR.** Install, then run one of twelve commands on a tool file or a directory:
 > `format` (fix), `upgrade` (repair; bump profile only when needed), `check` (report), `find-references`
 > (locate a param's Cheetah `$var` uses across a tool **and its imported macros**),
 > `rename-param` (rename a param everywhere — tool **and its imported macros** —
 > atomically), `rulesets`/`rules` (introspect), `normalize-macros` (opt-in macro-library
 > fix), `convert-help` (opt-in RST → Markdown help conversion, equivalence-gated),
-> `tokenize-version` (opt-in version-token extraction), `lint-skip` (opt-in: prune
-> planemo `.lint_skip` suppressions we can prove are resolved).
-> `format`/`upgrade`/`rename-param`/`convert-help`/`tokenize-version`/`lint-skip` support `--check` (and
-> `format`/`upgrade` `--diff`) to preview without writing; all six mutating commands
-> take `--backup` (`<file>.bak` before overwrite).
+> `tokenize-version` (opt-in version-token extraction), `bump-version-suffix` (opt-in:
+> increment the Galaxy revision suffix, `…+galaxy7` → `…+galaxy8`), `lint-skip` (opt-in:
+> prune planemo `.lint_skip` suppressions we can prove are resolved).
+> `format`/`upgrade`/`rename-param`/`convert-help`/`tokenize-version`/`bump-version-suffix`/`lint-skip`
+> support `--check` (and `format`/`upgrade` `--diff`) to preview without writing; all
+> seven mutating commands take `--backup` (`<file>.bak` before overwrite).
 
 ## Install & run
 
@@ -30,7 +31,7 @@ uv sync
 uv run galaxy-tool-refactor --help
 ```
 
-The eleven commands:
+The twelve commands:
 
 ```text
 check            Report where tools deviate from the selection, without changing them.
@@ -60,6 +61,12 @@ tokenize-version Factor a literal version into @TOOL_VERSION@/@VERSION_SUFFIX@
                  (created, or merged/shared when provably inert) instead of inline.
                  --adopt-suffix (identity-changing) adds +galaxy0 to a bare version
                  matching a requirement, then tokenizes (1.20 -> 1.20+galaxy0).
+bump-version-suffix
+                 Increment a tool's integer Galaxy revision suffix (...+galaxy7 ->
+                 ...+galaxy8). Identity-changing (the published revision moves), so
+                 opt-in and never part of format/upgrade. --scope per-tool|suite
+                 (default suite) governs a shared imported @VERSION_SUFFIX@ token:
+                 suite bumps it once, moving every importer in lockstep.
 convert-help     Convert an RST <help> to Markdown (format="markdown") when provably
                  render-equivalent and the profile is >= 24.2 (run upgrade first below it);
                  anything unprovable is skipped with the reason (opt-in; never part of

@@ -1257,3 +1257,103 @@ def test_lint_skip_noop_when_no_skip_file(tmp_path: Path) -> None:
     result = CliRunner().invoke(main, ["lint-skip", str(tmp_path)])
     assert result.exit_code == 0, result.output
     assert "no .lint_skip suppressions could be provably removed" in result.output
+
+
+_BUMP_LITERAL_TOOL = (
+    b'<tool id="m" name="M" version="1.20+galaxy7" profile="24.0">'
+    b"<command><![CDATA[echo x]]></command>"
+    b'<requirements><requirement type="package" version="1.20">samtools'
+    b"</requirement></requirements>"
+    b'<inputs><param name="i" type="text"/></inputs>'
+    b'<outputs><data name="o"/></outputs></tool>'
+)
+
+
+def test_bump_version_suffix_command(tmp_path: Path) -> None:
+    tool = _write(tmp_path / "tool.xml", _BUMP_LITERAL_TOOL)
+    result = CliRunner().invoke(main, ["bump-version-suffix", str(tool)])
+    assert result.exit_code == 0, result.output
+    assert "bumped" in result.output and "published revision changed" in result.output
+    assert "1.20+galaxy8" in result.output
+    assert b'version="1.20+galaxy8"' in tool.read_bytes()
+
+
+def test_bump_version_suffix_check_writes_nothing(tmp_path: Path) -> None:
+    tool = _write(tmp_path / "tool.xml", _BUMP_LITERAL_TOOL)
+    result = CliRunner().invoke(main, ["bump-version-suffix", "--check", str(tool)])
+    assert result.exit_code == 0, result.output
+    assert "would bump" in result.output
+    assert tool.read_bytes() == _BUMP_LITERAL_TOOL
+
+
+def test_bump_version_suffix_backup(tmp_path: Path) -> None:
+    tool = _write(tmp_path / "tool.xml", _BUMP_LITERAL_TOOL)
+    result = CliRunner().invoke(main, ["bump-version-suffix", "--backup", str(tool)])
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "tool.xml.bak").read_bytes() == _BUMP_LITERAL_TOOL
+    assert b'version="1.20+galaxy8"' in tool.read_bytes()
+
+
+def test_bump_version_suffix_reports_skip_reason(tmp_path: Path) -> None:
+    bare = _BUMP_LITERAL_TOOL.replace(b"1.20+galaxy7", b"1.20")
+    tool = _write(tmp_path / "tool.xml", bare)
+    result = CliRunner().invoke(main, ["bump-version-suffix", str(tool)])
+    assert result.exit_code == 0
+    assert "skipped" in result.output and "--adopt-suffix" in result.output
+
+
+def _bump_shared_suite(tmp_path: Path) -> tuple[Path, Path, Path]:
+    macros = tmp_path / "macros.xml"
+    macros.write_text(
+        "<macros>\n"
+        '    <token name="@TOOL_VERSION@">1.20</token>\n'
+        '    <token name="@VERSION_SUFFIX@">4</token>\n'
+        "</macros>\n",
+        encoding="utf-8",
+    )
+    body = (
+        '<tool id="{id}" name="{id}" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"'
+        ' profile="24.0">\n'
+        "    <macros><import>macros.xml</import></macros>\n"
+        "    <command><![CDATA[echo x]]></command>\n"
+        "    <requirements>\n"
+        '        <requirement type="package" version="@TOOL_VERSION@">samtools'
+        "</requirement>\n"
+        "    </requirements>\n"
+        '    <inputs><param name="i" type="text"/></inputs>\n'
+        '    <outputs><data name="o"/></outputs>\n'
+        "</tool>\n"
+    )
+    a = tmp_path / "a.xml"
+    b = tmp_path / "b.xml"
+    a.write_text(body.format(id="a"), encoding="utf-8")
+    b.write_text(body.format(id="b"), encoding="utf-8")
+    return macros, a, b
+
+
+def test_bump_version_suffix_per_tool_skips_shared(tmp_path: Path) -> None:
+    _macros, a, _b = _bump_shared_suite(tmp_path)
+    result = CliRunner().invoke(
+        main, ["bump-version-suffix", "--scope", "per-tool", str(a)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "skipped" in result.output
+    assert "--scope suite" in result.output
+
+
+def test_bump_version_suffix_suite_bumps_shared(tmp_path: Path) -> None:
+    macros, a, b = _bump_shared_suite(tmp_path)
+    result = CliRunner().invoke(
+        main, ["bump-version-suffix", "--scope", "suite", str(a)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "bumped" in result.output
+    assert b'<token name="@VERSION_SUFFIX@">5</token>' in macros.read_bytes()
+    # the affected importers are listed
+    assert "a.xml" in result.output and "b.xml" in result.output
+
+
+def test_bump_version_suffix_in_help() -> None:
+    result = CliRunner().invoke(main, ["--help"])
+    assert result.exit_code == 0
+    assert "bump-version-suffix" in result.output

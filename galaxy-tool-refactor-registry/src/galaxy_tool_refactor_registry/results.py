@@ -8,6 +8,7 @@ same structured data. ``Violation`` (tier 0.5) is the shared finding type.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -140,6 +141,42 @@ class TokenizeVersionResult:
     tokenized: bool
     skip_reason: str | None = None
     new_macros: NewMacrosFile | None = None
+
+
+@dataclass(frozen=True)
+class BumpSuffixResult:
+    """The outcome of ``bump_version_suffix`` (the opt-in revision-suffix bump, N2).
+
+    Identity-changing: bumping ``+galaxy<N>`` to ``+galaxy<N+1>`` changes the tool's
+    published Galaxy revision. A tool-local suffix (literal ``version=`` or inline
+    ``@VERSION_SUFFIX@`` token) bumps the tool itself; an imported-token suffix bumps
+    the shared macros file once under ``--scope suite``, moving every importer.
+
+    Attributes:
+        bumped: Whether the suffix was bumped.
+        old_version: The tool's ``version=`` before the bump (``None`` when skipped).
+        new_version: The tool's ``version=`` after the bump (``None`` when skipped, or
+            for an imported-token bump the value is the tokenized form unchanged).
+        skip_reason: Why the bump did not apply (``None`` when ``bumped``).
+        formatted: The serialised tool XML (unchanged when skipped). For an
+            imported-token suite bump this is the tool itself; the shared macros file
+            is written separately (see ``affected_paths``).
+        affected_importers: Every tool sharing the bumped macros file (suite bump),
+            i.e. every tool whose published revision the bump moved; empty for a
+            tool-local bump.
+        affected_paths: Files other than the named tool that the bump wrote (the
+            shared macros file); empty for a tool-local bump.
+        scope: The scope the bump ran under (``"suite"`` or ``"per-tool"``).
+    """
+
+    formatted: bytes
+    bumped: bool
+    old_version: str | None = None
+    new_version: str | None = None
+    skip_reason: str | None = None
+    affected_importers: tuple[Path, ...] = ()
+    affected_paths: tuple[Path, ...] = ()
+    scope: str = "suite"
 
 
 @dataclass(frozen=True)

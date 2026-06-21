@@ -592,7 +592,49 @@ galaxy-tool-refactor-cli/tests/test_gate_suggest.py`. Forward-gate background is
   Needs `galaxy-tool-refactor >= 0.3.2`.
 - **Hidden, not author-facing.** It is CI plumbing, not a command a tool author
   runs on a file, so it is `hidden=True` (absent from `--help` and the
-  eleven-command count). The pure suggestion-computation core
+  twelve-command count). The pure suggestion-computation core
   (`build_suggestions` / `review_payload` / `_comment`) is unit-tested; the
   git/`gh` I/O (`collect` / `post_review`) is exercised live (validated end-to-end
   on a real PR). `make gate-suggest` is the maintainer on-ramp.
+
+## D21 (2026-06-21): `bump-version-suffix` — bump the Galaxy revision suffix (opt-in, identity-changing)
+
+Reproduced-by: `uv run --package galaxy-tool-refactor-cli pytest
+galaxy-tool-refactor-cli/tests/test_cli.py -k bump_version_suffix`. The tier-1
+primitives are `galaxy-tool-source/docs/decisions.md` §32; the suite-scoped shared
+bump is registry D27.
+
+- **The command.** `galaxy-tool-refactor bump-version-suffix PATHS [--scope
+  per-tool|suite] [--check] [--backup]`: increment a tool's integer Galaxy revision
+  suffix, `version="…+galaxy7"` → `…+galaxy8`. The twelfth author-facing command. It
+  wraps `facade.bump_version_suffix`, writes the changed tool (and, in the shared case,
+  the imported macros file), and backs up originals under `--backup`; `--check` previews
+  and exits non-zero when anything would change.
+- **Author-invoked, not content-detected.** The command bumps when run. It does **not**
+  inspect whether the tool's content changed (there is no `ShedVersion` / content-diff
+  machinery): the author runs it precisely when they have changed a published tool and
+  need to publish a new revision. This is the deliberate division of labour the IUC
+  conference question §1 settles — the toolchain can canonicalize a published tool, but
+  bumping its revision is a "publish a new revision" decision the author (and the
+  IUC policy) owns, not a behaviour-preserving auto-fix.
+- **Opt-in command only, no GTR code, never `format`/`upgrade`/MCP.** Incrementing the
+  suffix *changes the published version*, so — exactly like `tokenize-version
+  --adopt-suffix` (§D15) — it is identity-changing by construction. It therefore carries
+  no GTR code, is in no ruleset, and is never folded into `format`/`upgrade` or exposed
+  over MCP (the MCP surface is the single-document, behaviour-preserving facade ops).
+  It is a deliberate, separate author action.
+- **`--scope` and the three suffix sites.** The suffix lives at exactly one of three
+  sites, resolved by tier-1 `current_suffix` (§32): a literal `+galaxy<N>` in the tool's
+  own `version=`, an inline `@VERSION_SUFFIX@` token in the tool's own `<macros>`, or a
+  `@VERSION_SUFFIX@` token in an **imported** macros file. The two *tool-local* sites
+  (literal / inline token) bump the tool itself, so `--scope` is irrelevant for them. An
+  *imported* shared token is identity-shared across every importer of that file, so the
+  scope choice matters: under `--scope per-tool` (the conservative reading) the bump is
+  **declined with a reason** (rerun with `--scope suite`); under `--scope suite` (the
+  default) the shared file's token is bumped **once**, moving every importer in lockstep,
+  behind the registry's proof-by-execution gate (D27). The provisional default is
+  suite-wide, the IUC §1 question now just confirms or flips it.
+- **Skip reasons.** `bump_suffix_skip_reason` (§32) declines, with a reason, a tool with
+  no `version=`, a `version=` with no `+galaxy` suffix (the user is pointed at
+  `tokenize-version --adopt-suffix`, which adds `+galaxy0` first), or a non-integer
+  suffix (we only increment integer revisions).

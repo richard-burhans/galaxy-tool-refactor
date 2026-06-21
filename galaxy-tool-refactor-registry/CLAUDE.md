@@ -89,7 +89,10 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
 - `apply.py` — `apply_selection` (phase-ordered apply).
 - `facade.py` — `run` / `upgrade` / `detect` / `find_references` / `rename_param`
   (the mutating sibling of `find_references`; deep-copies + serialises on success, see
-  `docs/decisions.md` D11) / `convert_help` / `tokenize_version` / `reconcile_lint_skip` (prune
+  `docs/decisions.md` D11) / `convert_help` / `tokenize_version` /
+  `bump_version_suffix` (increment a tool's integer Galaxy revision suffix; the
+  suite-scoped imported-token case is `version_suffix_bump`, D27) /
+  `reconcile_lint_skip` (prune
   provable `.lint_skip` suppressions, D24) / `list_rulesets` / `list_rules`.
   `upgrade` is **minimal-bump by default** (D22): keep `profile=` when the
   repaired tool validates at its resolved baseline (an undeclared tool stays
@@ -114,6 +117,12 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
   is inert for every other importer of the file). The facade's `tokenize_version` (one
   tool) and `tokenize_version_shared` (a directory group) sit on top. See
   `docs/decisions.md` D20.
+- `version_suffix_bump.py`: the suite-scoped shared `@VERSION_SUFFIX@` token bump via
+  `plan_suite_suffix_bump`, behind a proof-by-execution gate (each importer re-expands to
+  the same bytes except its `+galaxy<N>` segment). The facade's `bump_version_suffix`
+  sits on top, applying the tier-1 `bump_suffix_tree` for the tool-local sites and this
+  planner for an imported shared token. The structural twin of the `@PROFILE@` bump
+  (`macro_profile.py`, D5). See `docs/decisions.md` D27.
 - `deployment.py` — the vendored deployment ceiling (the newest profile every
   major public Galaxy server runs) + snapshot date + staleness probe; caps the
   no-explicit-target walk (D23). Drift-guarded against the committed

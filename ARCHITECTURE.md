@@ -42,7 +42,7 @@ load-bearing rule:
 | 3 | **formatting** | `galaxy-tool-fmt` | Cosmetic `Rule`s (indent / shorthand; the blank-line rule GTR003 is parked, fmt §D4), the `Edit` union + `apply_edits`, `format_tool_document` + the net-diff `detect_tool_document`, the shared `cli_support` engine, the serializer. **The only tier that serialises canonical output XML.** |
 | 3.5 | **advisory checks** | `galaxy-tool-lint` | Detect-only IUC best-practice + planemo-parity checks (75; `CheckRule`, `detect_violations`). Read-only LBYL queries. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | `RuleHandle` (uniform adapter over all three families), the unified registry, declarative rule-sets, ruff-style selection, and the **library-first** `run` / `upgrade` / `detect` facade. Composes 0.5/1/2/3/3.5. |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` / `convert-help` / `tokenize-version` / `lint-skip`. CLI plumbing only. |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI: `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` / `convert-help` / `tokenize-version` / `bump-version-suffix` / `lint-skip`. CLI plumbing only. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the facade (CLI sibling): a thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools (9): `format_tool`/`upgrade_tool`/`check_tool`/`convert_help_tool`/`tokenize_version_tool`/`find_references_tool`/`rename_param_tool`/`list_rulesets`/`list_rules` — every single-document facade op (repo-scoped `normalize-macros`/`lint-skip` stay CLI-only; mcp D7). Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) future. |
 
 > Not a tier: **`galaxy-tool-refactor`** (directory `galaxy-tool-refactor-meta/`) is a
@@ -560,9 +560,9 @@ The user-facing `galaxy-tool-refactor` CLI. **CLI plumbing only** — all
 rule orchestration is delegated to the facade; this package no longer imports the
 codemod / check tiers directly. `cli.py` registers the `main` group; each subcommand
 lives in its own module under `commands/`, with the shared Click option decorators and
-selection helpers in `options.py`. Eleven subcommands (`format`, `upgrade`, `check`,
+selection helpers in `options.py`. Twelve subcommands (`format`, `upgrade`, `check`,
 `find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`,
-`convert-help`, `tokenize-version`, `lint-skip`) —
+`convert-help`, `tokenize-version`, `bump-version-suffix`, `lint-skip`) —
 `find-references` is a read-only query for a parameter's Cheetah `$var` reference sites
 (`galaxy_tool_source.cheetah_refs`; cli `docs/decisions.md` §D8) and `rename-param` is its
 mutating sibling (the first Cheetah mutator, `galaxy_tool_source.cheetah_rename`; cli §D9):
@@ -590,6 +590,15 @@ mutating sibling (the first Cheetah mutator, `galaxy_tool_source.cheetah_rename`
   into `@TOOL_VERSION@`/`@VERSION_SUFFIX@`, kept only when the expansion-equality
   gate proves the macro expansion byte-identical. Wraps `facade.tokenize_version`
   (cli §D13, registry D19).
+- **`bump-version-suffix`** — opt-in: increment a tool's integer Galaxy revision
+  suffix (`…+galaxy7` → `…+galaxy8`). **Identity-changing** (the published revision
+  moves), so — like `tokenize-version --adopt-suffix` — it carries no GTR code and is
+  never part of `format` / `upgrade` or exposed over MCP. `--scope per-tool|suite`
+  (default `suite`) governs only an *imported* shared `@VERSION_SUFFIX@` token: a
+  literal `+galaxy<N>` or an inline token bumps the tool itself, but a shared imported
+  token is identity-shared across all importers, so `per-tool` declines it while `suite`
+  bumps it once behind a proof-by-execution gate (the structural twin of the `@PROFILE@`
+  bump). Wraps `facade.bump_version_suffix` (cli §D21, registry D27).
 - **`lint-skip`** — opt-in convenience: prune planemo `.lint_skip` suppressions the
   toolchain can prove are resolved (apply the fixes, remove a line only when its
   linter is completely covered — a derived check-tier-port ∪ canonical-codemod set —
