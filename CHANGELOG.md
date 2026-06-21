@@ -11,6 +11,25 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+### Added
+- **`bump-version-suffix` command** (cli §D21, registry D27, tier-1 source §32):
+  an opt-in, author-invoked command that increments a tool's integer Galaxy
+  revision suffix, `version="…+galaxy7"` → `…+galaxy8`. It bumps when run (no
+  `ShedVersion` / content-diff machinery): the author runs it precisely after
+  changing a published tool that needs a new revision. The suffix is resolved at one
+  of three sites — a literal `+galaxy<N>` in the tool's `version=`, an inline
+  `@VERSION_SUFFIX@` token, or a `@VERSION_SUFFIX@` token in an imported macros file.
+  `--scope per-tool|suite` (default `suite`) governs the imported-shared-token case:
+  `per-tool` declines a shared token with a reason, `suite` bumps it once behind a
+  proof-by-execution gate, moving every importer in lockstep (the structural twin of
+  the `@PROFILE@` bump). `--check` previews; `--backup` keeps `.bak`s. Skips with a
+  reason on no `version=`, no `+galaxy` suffix (use `tokenize-version --adopt-suffix`
+  first), or a non-integer suffix. Identity-changing like `tokenize-version
+  --adopt-suffix`, so it carries no GTR code, is in no ruleset, and is never part of
+  `format`/`upgrade` or MCP. Resolves the long-standing N2 gap (the toolchain could
+  canonicalize a published tool but not land the change, which planemo `shed_lint`
+  blocks without a suffix bump).
+
 ## [0.3.4] — 2026-06-16
 
 ### Fixed
