@@ -708,7 +708,7 @@ wheels = [
 
 [[package]]
 name = "galaxy-tool-codemod"
-version = "0.3.4"
+version = "0.3.5"
 source = { editable = "galaxy-tool-codemod" }
 dependencies = [
     { name = "galaxy-tool-refactor-rules" },
@@ -743,7 +743,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-fmt"
-version = "0.3.4"
+version = "0.3.5"
 source = { editable = "galaxy-tool-fmt" }
 dependencies = [
     { name = "click" },
@@ -776,7 +776,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-lint"
-version = "0.3.4"
+version = "0.3.5"
 source = { editable = "galaxy-tool-lint" }
 dependencies = [
     { name = "galaxy-tool-refactor-rules" },
@@ -818,7 +818,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-refactor"
-version = "0.3.4"
+version = "0.3.5"
 source = { editable = "galaxy-tool-refactor-meta" }
 dependencies = [
     { name = "galaxy-tool-refactor-cli" },
@@ -838,7 +838,7 @@ provides-extras = ["mcp"]
 
 [[package]]
 name = "galaxy-tool-refactor-cli"
-version = "0.3.4"
+version = "0.3.5"
 source = { editable = "galaxy-tool-refactor-cli" }
 dependencies = [
     { name = "click" },
@@ -871,7 +871,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-refactor-mcp"
-version = "0.3.4"
+version = "0.3.5"
 source = { editable = "galaxy-tool-refactor-mcp" }
 dependencies = [
     { name = "galaxy-tool-refactor-registry" },
@@ -904,7 +904,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-refactor-registry"
-version = "0.3.4"
+version = "0.3.5"
 source = { editable = "galaxy-tool-refactor-registry" }
 dependencies = [
     { name = "galaxy-tool-codemod" },
@@ -939,7 +939,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-refactor-rules"
-version = "0.3.4"
+version = "0.3.5"
 source = { editable = "galaxy-tool-refactor-rules" }
 
 [package.dev-dependencies]
@@ -960,7 +960,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-source"
-version = "0.3.4"
+version = "0.3.5"
 source = { editable = "galaxy-tool-source" }
 dependencies = [
     { name = "click" },
