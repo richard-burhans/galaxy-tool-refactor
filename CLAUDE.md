@@ -16,7 +16,7 @@ galaxy-tool-refactor/
 ├── galaxy-tool-fmt/      Tier 3 (formatting)
 ├── galaxy-tool-lint/    Tier 3.5 (advisory detect-only checks)
 ├── galaxy-tool-refactor-registry/ Tier 3.6 (unified rule registry + rulesets; library-first facade)
-├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + find-references + rename-param + rulesets/rules + normalize-macros + convert-help + tokenize-version + lint-skip)
+├── galaxy-tool-refactor-cli/ Tier 4 (app CLI: format + upgrade + check + find-references + rename-param + rulesets/rules + normalize-macros + convert-help + tokenize-version + bump-version-suffix + lint-skip)
 ├── galaxy-tool-refactor-mcp/ Tier 4 (MCP server over the registry facade; thin FastMCP adapter)
 ├── galaxy-tool-refactor-meta/ Front-door metapackage (dist `galaxy-tool-refactor`; deps cli + `[mcp]` extra; no code)
 ├── scripts/                  Shared maintainer scripts (not installed)
@@ -518,14 +518,14 @@ Tiers, each independently installable:
 | 3 | **formatting** | `galaxy-tool-fmt` | Cosmetic rules (indent / empty-element shorthand; the blank-line rule GTR003 is parked pending IUC input, fmt §D4) + the shared `cli_support` CLI engine. The only tier that serialises canonical output XML. |
 | 3.5 | **advisory checks** | `galaxy-tool-lint` | Detect-only IUC best-practice checks (`GTR` codes, `RuleMeta.detect_only`); read-only LBYL queries over tier 1 yielding `Violation`. Depends only on tiers 1 + 0.5. |
 | 3.6 | **rule registry / rulesets** | `galaxy-tool-refactor-registry` | Unified, code-addressable `RuleHandle` over all three families + named rulesets (`cosmetic`/`default`/`iuc`/`strict`) + `run`/`upgrade`/`detect`. **Library-first** (no click/exit; structured I/O; introspectable). Depends on 0.5/1/2/3/3.5; lower tiers don't depend on it. |
-| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`, `convert-help`, `tokenize-version`, `lint-skip`. |
+| 4 | **app / CLI** | `galaxy-tool-refactor-cli` | The user-facing `galaxy-tool-refactor` CLI. Consumes the registry facade (tier 3.6); owns `format`, `upgrade`, `check`, `find-references`, `rename-param`, `rulesets`, `rules`, `normalize-macros`, `convert-help`, `tokenize-version`, `bump-version-suffix`, `lint-skip`. |
 | 4 | **MCP server** | `galaxy-tool-refactor-mcp` | An agent-facing MCP server over the registry facade (a sibling of the CLI). A thin FastMCP binding (`server.py`) over a protocol-agnostic adapter (`service.py`, facade → JSON). Tools (9): `format_tool`/`upgrade_tool`/`check_tool`/`convert_help_tool`/`tokenize_version_tool`/`find_references_tool`/`rename_param_tool`/`list_rulesets`/`list_rules` — every single-document facade op (repo-scoped `normalize-macros`/`lint-skip` stay CLI-only; mcp D7). Goal 1 of `docs/vision.md`; agent-authored rules (Goal 2) remain future. |
 
 **Orchestration lives in the registry facade (tier 3.6); the CLI is a thin
 front-end.** Each lower tier is consumable standalone; the facade composes them
 into one code-addressable rule set with rulesets and a library-first
 `run`/`upgrade`/`detect` API. The CLI (`galaxy-tool-refactor-cli`) depends on the
-facade (plus fmt's `cli_support` engine and tier-1 parsing) and owns eleven
+facade (plus fmt's `cli_support` engine and tier-1 parsing) and owns twelve
 commands:
 
 - `galaxy-tool-refactor format` — apply a ruleset's fixable rules (the default
@@ -599,6 +599,21 @@ commands:
   Not behaviour-preserving (the published version changes), so it is gated on the
   controlled-change gate (expansion differs solely in the version), inline only, and
   never in `format`/`upgrade` or MCP (cli §D15).
+- `galaxy-tool-refactor bump-version-suffix PATHS [--scope per-tool|suite]` — opt-in:
+  increment a tool's integer Galaxy revision suffix (`version="…+galaxy7"` →
+  `…+galaxy8`). **Identity-changing** (the published revision moves), so — exactly like
+  `tokenize-version --adopt-suffix` — it carries no GTR code, is in no ruleset, and is
+  never part of `format`/`upgrade` or exposed over MCP. Author-invoked: it bumps when
+  run (no ShedVersion/content-diff machinery — the author runs it after changing a
+  published tool). The suffix lives at one of three sites — a literal `+galaxy<N>` in the
+  tool's `version=`, an inline `@VERSION_SUFFIX@` token in the tool's own `<macros>`, or
+  a `@VERSION_SUFFIX@` token in an *imported* macros file. Tool-local sites bump the tool
+  itself (scope irrelevant); an imported shared token is identity-shared across all
+  importers, so under `per-tool` (default `suite`) it is declined with a reason while
+  `--scope suite` bumps it once, moving every importer in lockstep behind a
+  proof-by-execution gate (the structural twin of the `@PROFILE@` bump). Skips with a
+  reason on no `version=`, no `+galaxy` suffix (use `tokenize-version --adopt-suffix`
+  first), or a non-integer suffix (cli §D21, registry D27, tier-1 `version_tokens` §32).
 - `galaxy-tool-refactor lint-skip PATHS` — opt-in convenience: clean up planemo
   `.lint_skip` sidecars. For each tool directory with a `.lint_skip`, apply the
   toolchain's fixes and delete a suppression line **only when it can prove the line

@@ -1,7 +1,8 @@
 """The ``galaxy-tool-refactor`` command-line interface (the ``main`` group).
 
-Eleven author-facing subcommands (including the two opt-in conversions,
-``convert-help`` and ``tokenize-version``), plus one hidden CI helper,
+Twelve author-facing subcommands (including the two opt-in conversions,
+``convert-help`` and ``tokenize-version``, and the opt-in identity-changing
+``bump-version-suffix``), plus one hidden CI helper,
 ``gate-suggest`` (the forward gate's suggest mode — see ``docs/forward_gate.md``;
 the published Action calls it, so it ships in the package rather than as bundled
 CI shell). Each command lives in its own module under the ``commands`` sub-package
@@ -43,6 +44,15 @@ does CLI plumbing.
   imported macro file). It rewrites files other than the one named (a shared
   macro file affects every importer), so it is never folded into ``format`` /
   ``upgrade``; see ``galaxy-tool-codemod/docs/macro-aware-normalization.md``.
+- ``bump-version-suffix`` — opt-in: increment a tool's integer Galaxy revision
+  suffix (``version="…+galaxy7"`` → ``…+galaxy8``). Identity-changing (the
+  published revision moves), so — like ``tokenize-version --adopt-suffix`` — it
+  carries no rule code and is never folded into ``format`` / ``upgrade``.
+  ``--scope per-tool|suite`` (default ``suite``) governs only an *imported* shared
+  ``@VERSION_SUFFIX@`` token: a literal ``+galaxy<N>`` or an inline token bumps the
+  tool itself, but a shared imported token is bumped once (moving every importer in
+  lockstep) only under ``suite``, behind a proof-by-execution gate. See
+  ``docs/decisions.md`` §D21.
 
 Selection (``--ruleset`` / ``--select`` / ``--ignore``) is shared by ``format``,
 ``upgrade`` (no ``--ruleset``), and ``check``; precedence is ruff-style
@@ -54,6 +64,9 @@ from __future__ import annotations
 
 import click
 
+from galaxy_tool_refactor_cli.commands.bump_version_suffix import (
+    bump_version_suffix_command,
+)
 from galaxy_tool_refactor_cli.commands.check import check_command
 from galaxy_tool_refactor_cli.commands.convert_help import convert_help_command
 from galaxy_tool_refactor_cli.commands.format import format_command
@@ -93,6 +106,7 @@ main.add_command(normalize_macros_command)
 main.add_command(convert_help_command)
 main.add_command(lint_skip_command)
 main.add_command(tokenize_version_command)
+main.add_command(bump_version_suffix_command)
 main.add_command(gate_suggest_command)
 
 

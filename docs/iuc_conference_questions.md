@@ -48,6 +48,12 @@ behavior-preserving auto-fix. This is exactly why the version-suffix codemod (N2
 stays blocked on this answer: the toolchain can canonicalize a published tool, but it
 cannot land that change without the revision-bump policy you own.
 
+N2 is now built as the opt-in `bump-version-suffix` command, with `--scope
+per-tool|suite` defaulting to the provisional suite-wide choice (one shared
+`@VERSION_SUFFIX@` token bumped once, moving every importer in lockstep). So this
+question no longer blocks the build: the IUC answer now simply confirms or flips that
+default, rather than gating whether the tool ships at all.
+
 **Data to bring (the measure, run 2026-06-13).** Our hypothesis was that most
 tools already use `version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"` with *both*
 tokens imported from a shared `macros.xml`, which would make a shared-suffix token

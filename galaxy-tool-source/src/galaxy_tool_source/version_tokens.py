@@ -31,6 +31,7 @@ from __future__ import annotations
 import copy
 import re
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -268,6 +269,154 @@ def adopt_suffix_equality_holds(document: ToolDocument, *, base: str) -> bool:
         return False
     before.set("version", f"{base}+galaxy0")  # the one intended change
     return bytes(etree.tostring(before)) == bytes(etree.tostring(after))
+
+
+# --------------------------------------------------------------------------- #
+# Bump-suffix (N2): the opt-in, identity-changing revision-suffix bump          #
+# --------------------------------------------------------------------------- #
+
+# The ``+galaxy<N>`` revision segment, anywhere a version may carry it: the base
+# may be a literal (``1.20+galaxy7``) or already tokenized (``@TOOL_VERSION@+galaxy7``),
+# so the base half is left unconstrained and only the trailing suffix is captured.
+# ``@`` in the suffix excludes the fully-tokenized ``+galaxy@VERSION_SUFFIX@`` form,
+# whose suffix lives in a ``<token>`` (resolved separately).
+_GALAXY_SUFFIX_LITERAL = re.compile(r"\+galaxy(?P<suffix>[^@]+)$")
+_VERSION_SUFFIX_TOKEN = "@VERSION_SUFFIX@"
+_FULLY_TOKENIZED_VERSION = "@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"
+
+
+class SuffixSiteKind(Enum):
+    """Where a tool's ``+galaxy<N>`` revision suffix is defined."""
+
+    VERSION_LITERAL = "version_literal"
+    """A literal ``+galaxy<N>`` in the tool's own ``version=`` attribute."""
+
+    INLINE_TOKEN = "inline_token"
+    """The ``@VERSION_SUFFIX@`` ``<token>`` lives in the tool's own ``<macros>``."""
+
+    IMPORTED_TOKEN = "imported_token"
+    """The ``@VERSION_SUFFIX@`` ``<token>`` lives in an imported macros file."""
+
+
+@dataclass(frozen=True)
+class SuffixSite:
+    """Where a tool's revision suffix is defined, and how to rewrite it.
+
+    Attributes:
+        kind: The defining-site classification.
+        macro_file: The imported macros file the token lives in, set only for
+            ``IMPORTED_TOKEN`` (``None`` for the two tool-local kinds).
+    """
+
+    kind: SuffixSiteKind
+    macro_file: Path | None = None
+
+
+def _parse_int_suffix(raw: str, /) -> int | None:
+    """*raw* as a non-negative integer suffix, or ``None`` if it is not one."""
+    if raw.isdigit():
+        return int(raw)
+    return None
+
+
+def current_suffix(document: ToolDocument, /) -> tuple[int, SuffixSite] | None:
+    """The tool's current integer revision suffix and where it is defined.
+
+    Returns ``(value, site)`` when the tool carries a ``+galaxy<N>`` suffix with a
+    non-negative integer ``N`` — whether ``N`` is a literal in ``version=`` or the
+    resolved value of the ``@VERSION_SUFFIX@`` token (inline or imported). Returns
+    ``None`` when there is no ``version=``, no ``+galaxy`` segment, or the effective
+    suffix value is not a non-negative integer. Use ``bump_suffix_skip_reason`` for
+    the reason a caller should report.
+    """
+    version = document.root.get("version")
+    if version is None:
+        return None
+    literal = _GALAXY_SUFFIX_LITERAL.search(version)
+    if literal is not None:
+        value = _parse_int_suffix(literal["suffix"])
+        if value is None:
+            return None
+        return value, SuffixSite(SuffixSiteKind.VERSION_LITERAL)
+    if version != _FULLY_TOKENIZED_VERSION:
+        return None
+    definition = next(
+        (
+            candidate
+            for candidate in token_definitions(document)
+            if candidate.name == _VERSION_SUFFIX_TOKEN
+        ),
+        None,
+    )
+    if definition is None:
+        return None
+    value = _parse_int_suffix(definition.value)
+    if value is None:
+        return None
+    kind = (
+        SuffixSiteKind.IMPORTED_TOKEN
+        if definition.source is not None
+        else SuffixSiteKind.INLINE_TOKEN
+    )
+    return value, SuffixSite(kind, macro_file=definition.source)
+
+
+def bump_suffix_skip_reason(document: ToolDocument, /) -> str | None:
+    """Why ``bump-version-suffix`` would skip *document*, or ``None`` when it applies.
+
+    Identity-changing: bumping ``+galaxy<N>`` to ``+galaxy<N+1>`` changes the tool's
+    published Galaxy revision, so the author invokes it deliberately (it does not
+    detect whether the tool's content changed). The suffix must be a non-negative
+    integer — the only shape ``N+1`` is meaningful for.
+    """
+    version = document.root.get("version")
+    if version is None:
+        return "no version= to bump"
+    literal = _GALAXY_SUFFIX_LITERAL.search(version)
+    if literal is not None:
+        if _parse_int_suffix(literal["suffix"]) is None:
+            return f"suffix {literal['suffix']!r} is not an integer; bump it manually"
+        return None
+    if version != _FULLY_TOKENIZED_VERSION:
+        return (
+            "no +galaxy suffix to bump; run `tokenize-version --adopt-suffix` to add "
+            "+galaxy0 first"
+        )
+    definition = next(
+        (
+            candidate
+            for candidate in token_definitions(document)
+            if candidate.name == _VERSION_SUFFIX_TOKEN
+        ),
+        None,
+    )
+    if definition is None:
+        return (
+            "no +galaxy suffix to bump; run `tokenize-version --adopt-suffix` to add "
+            "+galaxy0 first"
+        )
+    if _parse_int_suffix(definition.value) is None:
+        return f"suffix {definition.value!r} is not an integer; bump it manually"
+    return None
+
+
+def bump_suffix_tree(root: etree._Element, *, new_suffix: int) -> None:
+    """Rewrite the tool's own revision suffix to *new_suffix* (tool-local cases).
+
+    Handles the two tool-local sites: a literal ``+galaxy<N>`` in ``version=`` (the
+    attribute is rewritten) and the inline ``@VERSION_SUFFIX@`` ``<token>`` (its text
+    is rewritten, the ``version=`` left as the tokenized form). The imported-token
+    case is *not* handled here — it edits a separate file and is the registry's job.
+    Preconditions (an integer suffix at a tool-local site) are assumed already checked.
+    """
+    version = root.get("version") or ""
+    literal = _GALAXY_SUFFIX_LITERAL.search(version)
+    if literal is not None:
+        root.set("version", _GALAXY_SUFFIX_LITERAL.sub(f"+galaxy{new_suffix}", version))
+        return
+    token = root.find(f'macros/token[@name="{_VERSION_SUFFIX_TOKEN}"]')
+    if token is not None:
+        token.text = str(new_suffix)
 
 
 # --------------------------------------------------------------------------- #

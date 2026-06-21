@@ -22,7 +22,7 @@ Rule orchestration lives in the tier-3.6 **registry facade**
 (`galaxy-tool-refactor-registry`); this package depends on it (plus fmt's
 `cli_support` engine and tier-1 parsing) and does CLI plumbing only — it no
 longer imports the codemod / check tiers directly. It exposes the
-`galaxy-tool-refactor` CLI with eleven subcommands:
+`galaxy-tool-refactor` CLI with twelve subcommands:
 
 - `format` — apply a ruleset's fixable rules then cosmetic formatting. The default
   ruleset = `canonical_codemods()` (repair + attribute / element order + the
@@ -89,6 +89,20 @@ longer imports the codemod / check tiers directly. It exposes the
   expansion byte-identical. A multi-element style restructure (and `--macros-file` /
   `--adopt-suffix` variants), so never part of `format`/`upgrade` (cli §D13–§D15;
   codemod §43; registry D19–D20).
+- `bump-version-suffix` — opt-in: increment a tool's integer Galaxy revision suffix
+  (`version="…+galaxy7"` → `…+galaxy8`). **Identity-changing** (the published revision
+  moves), so — like `tokenize-version --adopt-suffix` — it carries no GTR code, is in no
+  ruleset, and is never part of `format`/`upgrade` or exposed over MCP. Author-invoked
+  (it bumps when run; there is no ShedVersion/content-diff machinery — the author runs it
+  after changing a published tool). The suffix lives at one of three sites — a literal
+  `+galaxy<N>` in `version=`, an inline `@VERSION_SUFFIX@` token, or a `@VERSION_SUFFIX@`
+  token in an *imported* macros file. `--scope per-tool|suite` (default `suite`) matters
+  only for the imported shared token (identity-shared across importers): `per-tool`
+  declines it with a reason, `suite` bumps it once and moves every importer in lockstep
+  behind a proof-by-execution gate (the structural twin of the `@PROFILE@` bump, registry
+  D5). Skips with a reason on no `version=`, no `+galaxy` suffix (use `tokenize-version
+  --adopt-suffix` first), or a non-integer suffix; `--check` previews, `--backup` keeps
+  `.bak`s. See `docs/decisions.md` §D21; registry D27; tier-1 `version_tokens` §32.
 - `lint-skip` — opt-in convenience: clean up planemo `.lint_skip` sidecars. For each
   tool directory with a `.lint_skip`, apply the toolchain's fixes and delete a
   suppression line only when it is **provably** resolved (the planemo linter is
@@ -99,7 +113,7 @@ longer imports the codemod / check tiers directly. It exposes the
   of `format`/`upgrade` (cli §D19; registry D24; `docs/lint_skip.md`).
 
 There is also one **hidden** subcommand, `gate-suggest`, that does not appear in
-`--help` or the eleven-command count above: it is CI plumbing for the forward
+`--help` or the twelve-command count above: it is CI plumbing for the forward
 gate's suggest mode (post a PR's canonical fixes as one-click GitHub review
 suggestions over the gate-eligible rule subset). It ships in the package — rather
 than as bundled CI shell — so the published forward-gate Action can call it; see
@@ -110,7 +124,7 @@ files are formatted/checked standalone as encountered — cosmetic formatting is
 regardless of sharing; cli §D5). But `rename-param` / `find-references` **are
 bundle-aware** (cli §D10): they operate over a tool *and its imported macro files*,
 with a sole-owned `--repo-root` gate for the macro edits a rename makes (registry D12;
-`galaxy-tool-source/docs/decisions.md` §21). All five mutating commands accept `--backup`
+`galaxy-tool-source/docs/decisions.md` §21). All six mutating commands accept `--backup`
 (`<file>.bak` before overwrite).
 
 Selection (`--ruleset` / `--select` / `--ignore`) is shared by

@@ -1005,3 +1005,35 @@ applies.
 - **Generated artifact.** `docs/gate_eligibility.md` is rendered by
   `scripts/gen_gate_eligibility.py` from this module and pinned by a freshness test
   (`tests/test_gate_eligibility.py`), mirroring the planemo-parity table (D6).
+
+## D27 (2026-06-21): `bump_version_suffix` — the suite-scoped shared-suffix bump
+
+Reproduced-by: `uv run --package galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_version_suffix_bump.py`. The tier-1
+primitives are `galaxy-tool-source/docs/decisions.md` §32; the CLI `bump-version-suffix`
+command is cli §D21.
+
+- **What it is.** `facade.bump_version_suffix(document, *, scope, …)` increments a
+  tool's integer Galaxy revision suffix (`…+galaxy7` → `…+galaxy8`). The two
+  *tool-local* sites (a literal `+galaxy<N>` in `version=`, an inline `@VERSION_SUFFIX@`
+  token) are bumped per-document by the tier-1 `bump_suffix_tree` — `scope` is
+  irrelevant there, so the facade applies them directly. The third site — a
+  `@VERSION_SUFFIX@` token in an *imported* macros file — is identity-shared across every
+  importer, so it is run-relative orchestration and belongs in the facade.
+- **The suite-scoped shared bump.** `version_suffix_bump.plan_suite_suffix_bump` is the
+  pure decision core for the imported-token case (kept separate from I/O so the policy is
+  testable): it locates the defining macros file + token, and under `scope="suite"`
+  plans a single token bump that moves every importer in lockstep, behind a
+  **proof-by-execution gate** — re-expand every importer before and after the bump and
+  require that the bump changed *only* each importer's `+galaxy<N>` segment, else bail
+  (no token leaking elsewhere, no requirement that should not have moved). Under
+  `scope="per-tool"` an imported shared token is declined with a reason (a per-tool bump
+  cannot touch a file other importers share). `BumpSuffixResult` carries the outcome
+  (the bumped documents, the site kind, a skip/decline reason).
+- **The structural twin of the `@PROFILE@` bump.** This is the suffix counterpart of the
+  imported-`@PROFILE@` token upgrade (D5 / `macro_profile.py`): the same "edit a shared
+  imported token once, in place, behind an execution gate proving every importer is moved
+  only as intended" discipline. The difference is the agreement condition — `@PROFILE@`
+  edits only when importers *agree* on a target, while a suffix bump is a uniform `+1`
+  that every importer shares by construction, so the gate is inert-except-`+galaxy<N>`
+  rather than target-agreement.

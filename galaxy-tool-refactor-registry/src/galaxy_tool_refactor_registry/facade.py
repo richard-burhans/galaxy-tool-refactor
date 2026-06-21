@@ -82,6 +82,7 @@ from galaxy_tool_refactor_registry.notes import (
 )
 from galaxy_tool_refactor_registry.registry import all_handles, registry
 from galaxy_tool_refactor_registry.results import (
+    BumpSuffixResult,
     ConvertHelpResult,
     DetectResult,
     FindReferencesResult,
@@ -98,6 +99,7 @@ from galaxy_tool_refactor_registry.results import (
     render_advisory_note,
 )
 from galaxy_tool_refactor_registry.rulesets import ruleset_codes
+from galaxy_tool_refactor_registry.version_suffix_bump import plan_suite_suffix_bump
 from galaxy_tool_refactor_registry.version_token_share import (
     SharedTokenizePlan,
     plan_shared_tokenization,
@@ -846,6 +848,108 @@ def adopt_version_suffix(
         write_path.write_bytes(formatted)
     return TokenizeVersionResult(
         formatted=formatted, tokenized=reason is None, skip_reason=reason
+    )
+
+
+def bump_version_suffix(
+    source: Source | ToolDocument,
+    /,
+    *,
+    scope: str = "suite",
+    write_path: Path | None = None,
+) -> BumpSuffixResult:
+    """Bump a tool's integer ``+galaxy<N>`` revision suffix by one (N2; opt-in).
+
+    Identity-changing: ``+galaxy7`` becomes ``+galaxy8``, which changes the tool's
+    published Galaxy revision. The author invokes it when a published tool's content
+    changed; it does not detect that. Never part of ``run``/``upgrade``, has no GTR
+    code, and is in no ruleset.
+
+    Tool-local sites (a literal ``version=`` suffix, or an inline ``@VERSION_SUFFIX@``
+    token) are bumped in the tool itself and *scope* does not matter. When the suffix
+    is the ``@VERSION_SUFFIX@`` token of an *imported* macros file the bump moves every
+    importer in lockstep: under ``scope="per-tool"`` that is declined with a reason
+    (rerun with ``--scope suite``); under ``scope="suite"`` the shared file's token is
+    bumped once, behind a proof-by-execution gate (each importer's expansion may change
+    only in its ``+galaxy<N>`` segment). ``affected_importers`` / ``affected_paths``
+    report the suite bump's reach. Serialisation goes through fmt. Writes *write_path*
+    (and the shared macros file) only if given AND bumped.
+    """
+    document = _to_document(source)
+    reason = version_tokens.bump_suffix_skip_reason(document)
+    if reason is not None:
+        formatted = apply_selection(document, codes=frozenset())
+        return BumpSuffixResult(
+            formatted=formatted, bumped=False, skip_reason=reason, scope=scope
+        )
+    resolved = version_tokens.current_suffix(document)
+    assert resolved is not None  # skip_reason vetted the suffix is a bumpable integer
+    value, site = resolved
+    new_suffix = value + 1
+    old_version = document.root.get("version")
+
+    if site.kind is version_tokens.SuffixSiteKind.IMPORTED_TOKEN:
+        return _bump_imported_suffix(
+            document, site, value=value, scope=scope, write_path=write_path
+        )
+
+    # Tool-local: literal version= suffix, or inline @VERSION_SUFFIX@ token.
+    version_tokens.bump_suffix_tree(document.root, new_suffix=new_suffix)
+    formatted = apply_selection(document, codes=frozenset())
+    if write_path is not None:
+        write_path.write_bytes(formatted)
+    return BumpSuffixResult(
+        formatted=formatted,
+        bumped=True,
+        old_version=old_version,
+        new_version=document.root.get("version"),
+        scope=scope,
+    )
+
+
+def _bump_imported_suffix(
+    document: ToolDocument,
+    site: version_tokens.SuffixSite,
+    *,
+    value: int,
+    scope: str,
+    write_path: Path | None,
+) -> BumpSuffixResult:
+    """Handle the imported-``@VERSION_SUFFIX@`` case: per-tool skip, suite bump."""
+    echoed = apply_selection(document, codes=frozenset())
+    version = document.root.get("version")
+    assert site.macro_file is not None  # IMPORTED_TOKEN always carries the file
+    macros_file = site.macro_file
+    if scope != "suite":
+        plan = plan_suite_suffix_bump(macros_file, new_suffix=value + 1)
+        count = len(plan.importers) if plan.skip_reason is None else 0
+        shared = f"shared by {count} tool(s)" if count else "imported by other tools"
+        return BumpSuffixResult(
+            formatted=echoed,
+            bumped=False,
+            skip_reason=(
+                f"suffix token @VERSION_SUFFIX@ is defined in imported "
+                f"{macros_file.name} ({shared}); rerun with --scope suite to bump them "
+                "together"
+            ),
+            scope=scope,
+        )
+    plan = plan_suite_suffix_bump(macros_file, new_suffix=value + 1)
+    if plan.skip_reason is not None:
+        return BumpSuffixResult(
+            formatted=echoed, bumped=False, skip_reason=plan.skip_reason, scope=scope
+        )
+    if write_path is not None:
+        assert plan.macros_content is not None  # a non-skip plan always has content
+        plan.macros_path.write_bytes(plan.macros_content)
+    return BumpSuffixResult(
+        formatted=echoed,
+        bumped=True,
+        old_version=version,
+        new_version=version,  # the tokenized form is unchanged; the token value moved
+        affected_importers=plan.importers,
+        affected_paths=(plan.macros_path,),
+        scope=scope,
     )
 
 

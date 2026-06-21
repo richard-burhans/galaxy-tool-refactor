@@ -1427,3 +1427,33 @@ validates at *without crossing a behaviour boundary*"; capping the scan here
 keeps every declaration site (`UpdateProfile`, `UpgradeToLatest`, the
 registry's shared-token targets) on one primitive instead of post-filtering in
 each caller. Backward compatible; the default scans everything as before.
+
+## 32. Version-suffix bump primitives (`version_tokens`, 2026-06-21)
+
+Reproduced-by: `uv run --package galaxy-tool-source pytest
+galaxy-tool-source/tests/test_version_tokens.py -k suffix`.
+
+The tier-1 substrate for the opt-in `bump-version-suffix` command (cli §D21; the
+suite-scoped shared-token orchestration is registry D27). Like the tokenization
+primitives (§29) and the adopt-suffix gate (§30), the decision and the tool-local
+mutation live in tier 1 (`version_tokens.py`); the run-relative shared-token bump sits in
+the registry above.
+
+- **`current_suffix` resolves the three sites.** A tool's Galaxy revision suffix lives at
+  exactly one of three sites, modelled by `SuffixSite` / `SuffixSiteKind`: a literal
+  `+galaxy<N>` in the tool's own `version=`, an inline `@VERSION_SUFFIX@` token defined in
+  the tool's own `<macros>`, or a `@VERSION_SUFFIX@` token defined in an *imported* macros
+  file (resolved through `token_definitions`). `current_suffix` returns the resolved site
+  (kind + current integer + the defining location), so a caller can tell a tool-local
+  bump from one that touches a shared imported file.
+- **`bump_suffix_skip_reason` is the LBYL gate.** It declines, with a reason, a tool with
+  no `version=`, a `version=` carrying no `+galaxy` suffix (the caller is pointed at
+  `tokenize-version --adopt-suffix`, which adds `+galaxy0` first), or a non-integer suffix
+  — only integer revisions are incrementable.
+- **`bump_suffix_tree` mutates the tool-local cases.** For the literal and inline-token
+  sites it increments the integer in place on a copy of the tree (the literal `+galaxy<N>`
+  in `version=`, or the tool's own inline `<token>` text), the tier-1 counterpart of
+  `tokenize_tree`. The imported-shared-token site is *not* mutated here: editing a file
+  other importers share is run-relative orchestration, so the registry's
+  `plan_suite_suffix_bump` (D27) owns it behind a proof-by-execution gate, and
+  `bump_suffix_tree` declines that site to the caller.

@@ -144,7 +144,7 @@ working reference implementation; not enforced on any repository yet.**
 | Capability | Status | Source |
 |---|---|---|
 | Code-addressable rule registry + rulesets (`cosmetic`/`default`/`iuc`/`strict`) + `--select`/`--ignore` | ✅ Shipped | `galaxy-tool-refactor-registry` |
-| CLI (eleven commands): `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` / `convert-help` / `tokenize-version` / `lint-skip` | ✅ Shipped | `galaxy-tool-refactor` |
+| CLI (twelve commands): `format` / `upgrade` / `check` / `find-references` / `rename-param` / `rulesets` / `rules` / `normalize-macros` / `convert-help` / `tokenize-version` / `bump-version-suffix` / `lint-skip` | ✅ Shipped | `galaxy-tool-refactor` |
 | MCP server for agents (nine tools): `format_tool` / `upgrade_tool` / `check_tool` / `convert_help_tool` / `tokenize_version_tool` / `find_references_tool` / `rename_param_tool` / `list_rulesets` / `list_rules` (every single-document facade op; the repo-scoped `normalize-macros` / `lint-skip` stay CLI-only) | ✅ Shipped | `galaxy-tool-refactor-mcp` (vision Goal 1) |
 | Front-door metapackage `galaxy-tool-refactor` (depends on the CLI, with an `[mcp]` extra for the server); all nine packages are lockstep-versioned with a tag-triggered Trusted-Publishing release. `pip install galaxy-tool-refactor` installs the CLI (the `[mcp]` extra adds the MCP server) | ✅ Shipped (live on PyPI) | `galaxy-tool-refactor-meta/`, `.github/workflows/release.yml` |
 | Corpus evidence base: 9,374 unique tools, standing measurements | ✅ Shipped | `docs/*_stats.md`, `scripts/measure.py` |

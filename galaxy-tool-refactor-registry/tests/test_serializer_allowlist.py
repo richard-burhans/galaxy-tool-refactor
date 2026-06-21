@@ -100,6 +100,16 @@ _ALLOWLIST: dict[str, tuple[frozenset[str], str]] = {
         "files into a TemporaryDirectory to re-expand; neither is output (the tool "
         "and macros bytes the facade writes are fmt-produced)",
     ),
+    (
+        "galaxy-tool-refactor-registry/src/galaxy_tool_refactor_registry/"
+        "version_suffix_bump.py"
+    ): (
+        frozenset({"etree.tostring(", ".write_bytes("}),
+        "the N2 suite-bump proof gate: tostring masks each importer's +galaxy<N> "
+        "segment in a throwaway expansion for the byte-compare, and write_bytes "
+        "stages override files into a TemporaryDirectory to re-expand; the shared "
+        "macros bytes written are fmt-produced (format_macro_document)",
+    ),
     "galaxy-tool-codemod/src/galaxy_tool_codemod/codemods/_coarse_detect.py": (
         frozenset({"etree.tostring("}),
         "internal before/after compare to detect change (not output)",

@@ -5,7 +5,7 @@ lives in the tier-3.6 facade (``galaxy-tool-refactor-registry``), which composes
 the lower tiers; this package depends on that facade plus fmt's ``cli_support``
 file-walking engine (tier 3) and tier-1 parsing — **not** on the codemod tier
 directly (cli `docs/decisions.md` D4). It exposes the ``galaxy-tool-refactor`` CLI
-with eleven author-facing commands (plus one hidden CI helper, ``gate-suggest`` —
+with twelve author-facing commands (plus one hidden CI helper, ``gate-suggest`` —
 cli §D20):
 
 - ``format`` — structural canonicalisation + cosmetic formatting (safe,
@@ -23,6 +23,9 @@ cli §D20):
   (GTR092; cli §D12).
 - ``tokenize-version`` — opt-in: factor a literal version into
   ``@TOOL_VERSION@``/``@VERSION_SUFFIX@`` tokens when provable (GTR094; cli §D13).
+- ``bump-version-suffix`` — opt-in: increment a tool's integer Galaxy revision
+  suffix (``…+galaxy7`` → ``…+galaxy8``); identity-changing, no rule code, with
+  ``--scope per-tool|suite`` for a shared imported suffix token (cli §D21).
 - ``lint-skip`` — opt-in: prune a planemo ``.lint_skip`` sidecar's suppression lines
   only when the toolchain can prove each resolved (cli §D19).
 
