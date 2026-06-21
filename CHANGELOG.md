@@ -11,6 +11,8 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+## [0.3.5] — 2026-06-21
+
 ### Added
 - **`bump-version-suffix` command** (cli §D21, registry D27, tier-1 source §32):
   an opt-in, author-invoked command that increments a tool's integer Galaxy
@@ -325,7 +327,8 @@ version, so the others jump from 0.0.1 to 0.2.0 to align.)
 - A corpus-completeness guard in `scripts/corpus_check.py` that refuses to
   regenerate stat pages from a partial corpus.
 
-[Unreleased]: https://github.com/richard-burhans/galaxy-tool-refactor/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/richard-burhans/galaxy-tool-refactor/compare/v0.3.5...HEAD
+[0.3.5]: https://github.com/richard-burhans/galaxy-tool-refactor/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/richard-burhans/galaxy-tool-refactor/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/richard-burhans/galaxy-tool-refactor/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/richard-burhans/galaxy-tool-refactor/compare/v0.3.1...v0.3.2
