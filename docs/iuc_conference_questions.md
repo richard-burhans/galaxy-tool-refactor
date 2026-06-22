@@ -358,6 +358,18 @@ to take a position on. Where an item is one of the §-questions, it is cross-lin
 Nothing here is a criticism of the standard; these are the natural seams a precise,
 automated tool exposes, and the kind of thing worth clarifying once.
 
+**How to walk this in the room.** Group A is mostly quick confirmations (a sentence
+each: "is this what you intend?"). Group B is where the standard is simply silent, so
+a yes/no establishes the convention. Group C are small corrections to the standard's
+own text, worth fixing in a future docs pass rather than discussing live. If time is
+short, the three highest-value to settle in person are: **A1** (does an autoformatter's
+canonical output count as a "cosmetic modification", i.e. no version bump — this gates
+the whole normalization story and ties to §1/§7); **B5 + B6** (attribute quote style and
+the order of unlisted `<param>` attributes — settling these is what lets attribute
+normalization be deterministic, which feeds §3); and **C1** (which `detect_errors` value
+the standard prefers). Everything else can be a fast round of confirmations or deferred
+to a docs PR.
+
 ### A. Vague or judgment-based wording (no precise rule to encode)
 
 1. **"Cosmetic modifications" need no version bump** (Tool versions). Undefined. The
