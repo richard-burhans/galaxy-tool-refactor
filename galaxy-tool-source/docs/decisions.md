@@ -1431,7 +1431,7 @@ each caller. Backward compatible; the default scans everything as before.
 ## 32. Version-suffix bump primitives (`version_tokens`, 2026-06-21)
 
 Reproduced-by: `uv run --package galaxy-tool-source pytest
-galaxy-tool-source/tests/test_version_tokens.py -k suffix`.
+galaxy-tool-source/tests/test_bump_version_suffix.py`.
 
 The tier-1 substrate for the opt-in `bump-version-suffix` command (cli §D21; the
 suite-scoped shared-token orchestration is registry D27). Like the tokenization
@@ -1451,7 +1451,7 @@ the registry above.
   `tokenize-version --adopt-suffix`, which adds `+galaxy0` first), or a non-integer suffix
   — only integer revisions are incrementable.
 - **`bump_suffix_tree` mutates the tool-local cases.** For the literal and inline-token
-  sites it increments the integer in place on a copy of the tree (the literal `+galaxy<N>`
+  sites it increments the integer in place on the passed tree (the literal `+galaxy<N>`
   in `version=`, or the tool's own inline `<token>` text), the tier-1 counterpart of
   `tokenize_tree`. The imported-shared-token site is *not* mutated here: editing a file
   other importers share is run-relative orchestration, so the registry's

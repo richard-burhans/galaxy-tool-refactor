@@ -1009,7 +1009,7 @@ applies.
 ## D27 (2026-06-21): `bump_version_suffix` — the suite-scoped shared-suffix bump
 
 Reproduced-by: `uv run --package galaxy-tool-refactor-registry pytest
-galaxy-tool-refactor-registry/tests/test_version_suffix_bump.py`. The tier-1
+galaxy-tool-refactor-registry/tests/test_bump_version_suffix.py`. The tier-1
 primitives are `galaxy-tool-source/docs/decisions.md` §32; the CLI `bump-version-suffix`
 command is cli §D21.
 
