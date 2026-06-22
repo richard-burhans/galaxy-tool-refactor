@@ -48,7 +48,7 @@ applying only the changes it could verify were safe.
 It works the same way whether a person runs it at the command line or an **AI assistant**
 runs it on their behalf — which means it can plug into modern, automated workflows.
 
-It is **grounded in evidence**: its behaviour is tuned against a library of **9,374 real
+It is **grounded in evidence**: its behaviour is tuned against a library of **9,373 real
 Galaxy tools**, so its decisions reflect how tools are actually written, not assumptions.
 
 ## Why it matters
