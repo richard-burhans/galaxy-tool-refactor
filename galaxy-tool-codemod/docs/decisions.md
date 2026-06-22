@@ -147,6 +147,38 @@ ships GTR013 and the validation-driven codemods).
   with no enforcement — a false sense of safety. Re-introduce the
   contract when a codemod that needs macro expansion / stripping is
   actually written, and when the harness has the logic to honour it.
+- **Inventory for the future consumer (2026-06-22).** Until that consumer
+  lands, each codemod that a macro could fool guards itself ad hoc. A unified
+  `MACRO_MODE` would have to subsume these five distinct postures (today there
+  is no single place that expresses them), so they are catalogued here as the
+  design input:
+  1. **Pin / resolve an opaque top-level `<expand>`** — `ReorderToolChildren`
+     (GTR013) pins an `<expand>` it cannot see through (the safe floor) and is
+     handed a facade-built `expand_ranks` map to place it when it resolves to one
+     IUC tag (§17, §53; registry D25). The one "macro-aware" hook today, and it is
+     supplied externally per-document, not declared by the codemod.
+  2. **Skip a mixed-content body** — `FixInterpreter` and `SingleQuoteCommandVars`
+     (GTR020.1) bail on a `<command>` with a non-zero child-node count, and
+     `WrapCommandCdata` / `WrapHelpCdata` bail on any mixed-content body via the
+     shared `_cdata.cdata_wrap_change` helper (a child `<expand>`/comment carries
+     macro content the rewrite cannot safely reach).
+  3. **Skip text carrying a `@…@` token** — `RepairHelpRst` (GTR089.1) and
+     `ConvertHelpToMarkdown` (GTR092) return / report-skip when the `<help>` text
+     holds a macro token (`galaxy_tool_source.rst.has_macro_token`); the imported-
+     macro datatype pass uses `skip_tokens=True` for the same reason.
+  4. **Inline-only vs cross-file reach** — `UpdateProfile` (GTR007),
+     `Upgrade24_1`, and `TokenizeVersion` rewrite only the tool's own inline
+     `<macros>`; a token defined in an `<import>`ed file is left untouched (the
+     cross-file slice is the separate `normalize-macros` / shared-token paths,
+     §14, registry D8/D20).
+  5. **Detect on the expanded view** — not codemods but the same axis:
+     `profile_semantics` detects over
+     `galaxy_tool_source.macros.expanded_detection_root` (raw fallback on failure);
+     `behavior_gate` re-detects against that same macro-expanded set, and
+     `test_case_check` operates on the already macro-expanded tree — so a construct
+     a macro supplies is still seen (§25).
+  A `MACRO_MODE` worth adding must let a codemod *declare* which of these it
+  wants and have the harness enforce it — re-open with that consumer.
 
 ## 9. Three-tier independence: fmt's library does not depend on codemod
 
@@ -2304,3 +2336,19 @@ tools-iuc vg suite for an external PR.
   facade thus does more than the bare pipeline for the 452 (a documented,
   intentional asymmetry, registry D25); standalone `corpus_check` counts are
   unchanged.
+- **The single-tag restriction is the deliberate scope edge — multi-tag is not
+  worth building.** Both `gtr013_expand_ranks` and the tier-1 resolver place an
+  `<expand>` only when it resolves to *exactly one* known IUC tag; an `<expand>`
+  resolving to two or more tags (e.g. a `macro="edam"` →
+  `<edam_topics/><edam_operations/>`) is pinned. This is principled, not a
+  shortcut: the codemod moves the single `<expand>` *node*, so all its expanded
+  elements land contiguously at one slot, and it cannot reorder the macro's own
+  elements. A multi-tag `<expand>` is therefore sound to move only when its tags
+  are an ascending, gap-free IUC run *and* nothing else interleaves — and even
+  then the macro must already hold them in canonical order. The corpus says this
+  is not worth a layer: of 268 tools with a multi-IUC-tag top-level `<expand>`,
+  only **3** would be laid out differently by a sound multi-tag placement, and
+  those 3 are already *valid* (just not IUC-canonical). Reproduced-by: `uv run
+  python -m scripts.measure expand-reorder-resolution` (the `MULTI-TAG RESIDUAL`
+  block). Pinning a multi-tag `<expand>` stays the behaviour; revisit only if a
+  consumer materially needs it.

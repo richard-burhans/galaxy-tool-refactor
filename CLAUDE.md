@@ -460,7 +460,9 @@ uv run python -m scripts.measure lint-skip-corpus
 # compare PINNING (every expand pinned) vs RESOLUTION (a single-known-IUC-tag
 # expand scored by its resolved tag) layouts. Decision number = tools the two
 # disagree on (an `<expand>` the author placed out of its IUC slot). Corpus:
-# 4,081/9,373 have a top-level <expand>, 452 differ. Print-only; needs the corpus:
+# 4,081/9,373 have a top-level <expand>, 452 differ. Also sizes the MULTI-TAG
+# residual the shipped single-tag layer omits (268 candidates, only 3 soundly
+# placeable — the deliberate scope edge, codemod §53). Print-only; needs the corpus:
 uv run python -m scripts.measure expand-reorder-resolution
 
 # version= attribute shape distribution + two-token provenance (backs

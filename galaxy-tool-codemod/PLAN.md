@@ -166,27 +166,35 @@ reports each `STICKING POINT <version>` where real tools stall.
   non-equivalent cases (differing / partial child filters, pre-existing
   collection filter). First consumer of `Cursor.add_child`; see §14.
 
-**Needed — reported by the full combined sweep, deferred for
-investigation** (each needs a semantic decision, so not auto-fixed; the
-orchestrator leaves these tools at their best reachable profile and the
-discovery sweep keeps reporting them):
+**Reported by the full combined sweep** (the orchestrator leaves these tools at
+their best reachable profile and the discovery sweep keeps reporting them; each
+is either intentionally not auto-fixable or has a separate opt-in command):
 
-- **24.1 residual (39 tools, after `Upgrade24_1` dropped reachable empty
-  `format`/`ftype` — see Shipped above and §14).** The remaining 39 split into:
-  - **~18 — coercible value in an imported macro file.** The value (`Rdata`,
-    `GTiff`, `GenBank`) would normalize clean, but it lives in a `<macros>`
-    `<import>`ed file, and codemods mutate only the tool's own tree. Closing
-    this needs **cross-file / macro-aware normalization** — an architectural
-    decision (a shared macro file is used by sibling tools; the framework and
-    fmt's write path are single-file today), not a one-step codemod. Options and
-    recommendation are written up in `docs/macro-aware-normalization.md`
-    (recommendation: keep reporting these; don't reach into shared macro files
-    from the per-tool pipeline).
+- **24.1 residual (after `Upgrade24_1` dropped reachable empty `format`/`ftype`
+  — see Shipped above and §14).** The tools still below latest split into:
+  - **Coercible value in an imported macro file — RESOLVED (2026-06-03).** The
+    value (`Rdata`, `GTiff`, `GenBank`) would normalize clean, but it lives in a
+    `<macros>` `<import>`ed file, which the per-tool pipeline never mutates. The
+    cross-file / macro-aware normalization this once awaited was decided and
+    shipped: the opt-in, repo-scoped **`normalize-macros`** command (`option D`,
+    `docs/macro-aware-normalization.md`; registry `docs/decisions.md` D8)
+    lowercases literal `format`/`ftype` and drops empties in `<macros>`-root
+    files — a provably validity-safe canonicalization (the same edit
+    `Upgrade24_1` applies tool-tree-wide), so it needs no per-importer gate. The
+    sound residual is **15 tools** (6 via a shared defining file, 9 sole-owned;
+    `docs/macro_format_residual_stats.md`, `scripts/measure.py
+    macro-format-residual`) — the earlier "~18" was an ad-hoc by-shape estimate.
+    The per-tool `upgrade` deliberately still reports these: it does not reach
+    into a (possibly shared) macro file from the single-tool pipeline, so the fix
+    stays the explicit `normalize-macros` invocation. The token-supplied variant
+    (Phase 2b) is **0 tools** (`scripts/measure.py macro-token-datatype-residual`,
+    `docs/macro_token_residual_stats.md`), so 2a is the complete datatype
+    solution and no provenance layer is justified
+    (`docs/macro_handling_architecture.md` §6c).
   - **~11 — non-datatype junk** (`?`, `fasta|fastq`, `plain text`,
     `$output_type`, `Unlabeled data file`): no safe coercion.
   - **~9 — single-token-context comma-list** (`<data format="fasta,fastq">`):
     `Format` holds one token; picking one would drop the others.
-  - **2 — empty value in a macro file**: same macro-reachability problem.
 - **21.09 → 22.01 (1 tool)** — 22.01 pattern-restricted `output_collection/@type`
   and `param/@collection_type` to a `(list|paired)` grammar (25.0 later broadened
   it to add `paired_or_unpaired`/`record`). The sticking tool
