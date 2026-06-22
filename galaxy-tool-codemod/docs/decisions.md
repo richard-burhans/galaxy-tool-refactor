@@ -2337,9 +2337,11 @@ tools-iuc vg suite for an external PR.
   intentional asymmetry, registry D25); standalone `corpus_check` counts are
   unchanged.
 - **The single-tag restriction is the deliberate scope edge — multi-tag is not
-  worth building.** Both `gtr013_expand_ranks` and the tier-1 resolver place an
-  `<expand>` only when it resolves to *exactly one* known IUC tag; an `<expand>`
-  resolving to two or more tags (e.g. a `macro="edam"` →
+  worth building.** The single-tag gate is enforced *above* the tier-1 resolver:
+  `top_level_expand_tags` (tier 1) returns the full resolved tag list and defers the
+  judgement; the facade's `gtr013_expand_ranks` (`adapters.py`) keeps a rank only when
+  the list is exactly one tag, and the codemod (`reorder_tool_children.py`) ranks only
+  *known* IUC tags. So an `<expand>` resolving to two or more tags (e.g. a `macro="edam"` →
   `<edam_topics/><edam_operations/>`) is pinned. This is principled, not a
   shortcut: the codemod moves the single `<expand>` *node*, so all its expanded
   elements land contiguously at one slot, and it cannot reorder the macro's own

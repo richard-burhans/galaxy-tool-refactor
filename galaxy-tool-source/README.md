@@ -69,7 +69,7 @@ from galaxy_tool_source.cheetah_refs import tool_cheetah_references, CheetahRef
 from galaxy_tool_source.command_conditionals import command_boolean_conditionals, BooleanConditional
 from galaxy_tool_source.cheetah_rename import rename_param, rename_param_plan, RenameOutcome, RenameEdit, RenamePlan
 from galaxy_tool_source.bundle import ToolBundle, load_bundle, rename_param_in_bundle, BundleRenameOutcome
-from galaxy_tool_source.version_tokens import tokenization_skip_reason, expansion_equality_holds, adopt_suffix_skip_reason, adopt_suffix_equality_holds, GALAXY_SUFFIX_VERSION, package_requirements, retarget_version, append_version_tokens, build_version_macros_root, tokenize_tree, tokenize_version_plan, VersionTokenPlan, VersionEdit, NewMacroFile
+from galaxy_tool_source.version_tokens import tokenization_skip_reason, expansion_equality_holds, adopt_suffix_skip_reason, adopt_suffix_equality_holds, GALAXY_SUFFIX_VERSION, package_requirements, retarget_version, append_version_tokens, build_version_macros_root, tokenize_tree, tokenize_version_plan, VersionTokenPlan, VersionEdit, NewMacroFile, current_suffix, bump_suffix_skip_reason, bump_suffix_tree, SuffixSite, SuffixSiteKind
 from galaxy_tool_source.profiles import available_profiles, latest_profile, UnknownProfileError
 from galaxy_tool_source.schema_content import text_bearing_tags
 from galaxy_tool_source.models.registry import model_module, tool_class
@@ -92,7 +92,10 @@ tool *and its imported macro files* (`ToolBundle` / `load_bundle` /
 `@TOOL_VERSION@` / `@VERSION_SUFFIX@` IUC tokens, owning the GTR094 decision, the
 expansion-equality gate, the tree mutation, and the offset planner
 `tokenize_version_plan` (the editor / LSP and CLI rendering, like
-`rename_param_plan`); `rst.py` / `rst_markdown.py` own the `<help>`
+`rename_param_plan`); it also owns the Galaxy revision-suffix bump primitives the
+`bump-version-suffix` command builds on (`current_suffix`,
+`bump_suffix_skip_reason`, the in-place `bump_suffix_tree`, and the `SuffixSite` /
+`SuffixSiteKind` site descriptors); `rst.py` / `rst_markdown.py` own the `<help>`
 reStructuredText subsystem — validity + surgical repair (the GTR089 partition seam)
 and the render-equivalence-gated RST → Markdown conversion (GTR092; needs the
 `[markdown]` extra); `models/` holds an xsdata-generated

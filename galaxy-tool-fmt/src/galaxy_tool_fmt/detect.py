@@ -92,10 +92,10 @@ def _detect_over_tree(
     """
     work = copy.deepcopy(original)
     ordered_rules = sorted(rule_classes, key=lambda cls: cls.meta.order)
-    # Include Comment / PI nodes, not just elements: GTR001 and GTR003 rewrite the
-    # *tail* of every child of an element, comments included (a blank line after a
-    # top-level comment is a real format change), so omitting them would let
-    # detect miss changes the pipeline makes.
+    # Include Comment / PI nodes, not just elements: GTR001 rewrites the *tail*
+    # (indentation) of every child of an element, comments included, so omitting
+    # them would let detect miss changes the pipeline makes. (The parked GTR003
+    # blank-line rule, §D4, would also rewrite comment tails if re-enabled.)
     #
     # lxml hands out a fresh Python proxy per ``.iter()`` call, so ``id()`` is
     # only stable for proxies we hold onto. Capture each node list once and reuse
