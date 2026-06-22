@@ -8507,6 +8507,14 @@ class _ExpandReorderResult:
     n_unresolvable: int
     n_resolution_differs_from_pinning: int
     differing_examples: list[str]
+    # The multi-tag residual the shipped single-tag layer omits (codemod §53):
+    # a top-level <expand> resolving to >=2 IUC tags can only be placed as one
+    # contiguous block, so it is sound to move ONLY when its tags form an
+    # ascending, gap-free run (and even then the macro freezes their internal
+    # order). These size whether a multi-tag layer would earn its keep.
+    n_multitag_candidate: int
+    n_multitag_sound_differs: int
+    multitag_sound_examples: list[str]
 
 
 def _measure_expand_reorder_resolution(
@@ -8518,7 +8526,9 @@ def _measure_expand_reorder_resolution(
     rank_of = {tag: i for i, tag in enumerate(_IUC_ELEMENT_ORDER)}
     seen: set[str] = set()
     n_tools = n_expand = n_full = n_partial = n_unres = n_differ = 0
+    n_multi_cand = n_multi_sound = 0
     examples: list[str] = []
+    multi_examples: list[str] = []
     for path in _iter_corpus_tool_xmls(corpus_root):
         root = _parse_tool_root(path)
         if root is None:
@@ -8537,11 +8547,38 @@ def _measure_expand_reorder_resolution(
         n_expand += 1
         tag_map = _macro_xml_tag_map(path)
 
-        def _resolved_rank(child: etree._Element) -> int | None:
+        def _iuc_ranks(child: etree._Element) -> list[int] | None:
+            """Ranks of every tag a top-level <expand> resolves to, or ``None``
+            when the macro is unknown or any tag is not an IUC element."""
             tags = tag_map.get(child.get("macro", ""), [])
-            if len(tags) == 1 and tags[0] in rank_of:
-                return rank_of[tags[0]]
+            if tags and all(tag in rank_of for tag in tags):
+                return [rank_of[tag] for tag in tags]
             return None
+
+        def _resolved_rank(child: etree._Element) -> int | None:
+            ranks = _iuc_ranks(child)
+            return ranks[0] if ranks is not None and len(ranks) == 1 else None
+
+        def _multitag_rank(child: etree._Element) -> int | None:
+            """The first rank of a SOUND multi-tag <expand>, else ``None``. A
+            multi-tag <expand> is sound to move only when its tags are an
+            ascending, gap-free IUC run (placeable as one contiguous block
+            without reordering the macro's own elements)."""
+            ranks = _iuc_ranks(child)
+            if (
+                ranks is not None
+                and len(ranks) >= 2
+                and ranks == list(range(ranks[0], ranks[0] + len(ranks)))
+            ):
+                return ranks[0]
+            return None
+
+        def _placement_rank(child: etree._Element) -> int | None:
+            """Where a hypothetical multi-tag layer would score a top-level
+            <expand>: a sound multi-tag run's first rank, else the single-tag
+            rank (``None`` when neither)."""
+            multi = _multitag_rank(child)
+            return multi if multi is not None else _resolved_rank(child)
 
         resolved = sum(1 for e in expands if _resolved_rank(e) is not None)
         if resolved == len(expands):
@@ -8569,6 +8606,30 @@ def _measure_expand_reorder_resolution(
             n_differ += 1
             if len(examples) < 15:
                 examples.append(str(path))
+        # Multi-tag residual: a hypothetical layer that also places a sound
+        # multi-tag <expand> as a block (scored by its first/min rank). Count
+        # the candidate pool, and where it would lay children out differently
+        # than today's single-tag resolution.
+        if any(
+            (ranks := _iuc_ranks(c)) is not None and len(ranks) >= 2
+            for c in expands
+        ):
+            n_multi_cand += 1
+        resolution_multi = [
+            (
+                i,
+                _placement_rank(c)
+                if str(c.tag) == "expand"
+                else rank_of.get(str(c.tag)),
+            )
+            for i, c in enumerate(children)
+        ]
+        if any(_multitag_rank(c) is not None for c in expands) and _plan_order(
+            resolution_multi
+        ) != _plan_order(resolution):
+            n_multi_sound += 1
+            if len(multi_examples) < 15:
+                multi_examples.append(str(path))
     return _ExpandReorderResult(
         n_unique_tools=n_tools,
         n_with_top_expand=n_expand,
@@ -8577,6 +8638,9 @@ def _measure_expand_reorder_resolution(
         n_unresolvable=n_unres,
         n_resolution_differs_from_pinning=n_differ,
         differing_examples=examples,
+        n_multitag_candidate=n_multi_cand,
+        n_multitag_sound_differs=n_multi_sound,
+        multitag_sound_examples=multi_examples,
     )
 
 
@@ -8602,6 +8666,21 @@ def _report_expand_reorder_resolution(measurement: _ExpandReorderResult) -> None
         "pinning fix alone suffices and layers 1+2 are unjustified.)"
     )
     for example in m.differing_examples:
+        print(f"    {example}")
+    print(
+        "\nMULTI-TAG RESIDUAL -- the single-tag layer omits a top-level <expand> "
+        f"resolving to >=2 IUC tags.\n  candidate pool (any multi-IUC-tag expand): "
+        f"{m.n_multitag_candidate}"
+    )
+    print(
+        "  SOUND incremental opportunity (tags an ascending gap-free run AND "
+        f"layout differs from single-tag resolution): {m.n_multitag_sound_differs}"
+    )
+    print(
+        "  (~0 => a multi-tag layer is unjustified; the multi-tag case is the "
+        "deliberate scope edge of GTR013, codemod §53.)"
+    )
+    for example in m.multitag_sound_examples:
         print(f"    {example}")
 
 

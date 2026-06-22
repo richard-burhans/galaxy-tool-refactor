@@ -253,8 +253,9 @@ def expand_reorder_corpus(tmp_path: Path) -> Path:
         '<tool id="t3"><description>d</description><command>c</command></tool>',
         encoding="utf-8",
     )
-    # Unresolvable (macro expands to two top-level elements) -> pinned by BOTH,
-    # so it never differs even though it sits out of order.
+    # Multi-tag but NON-sound: the macro's tags (requirements rank 6, stdio rank
+    # 8) are not a gap-free run (code rank 7 sits between), so it is a candidate
+    # the single-tag layer omits but NOT soundly placeable -> pinned by BOTH.
     (repo / "unresolvable.xml").write_text(
         '<tool id="t4">'
         "<description>d</description>"
@@ -263,19 +264,37 @@ def expand_reorder_corpus(tmp_path: Path) -> Path:
         "<command>c</command></tool>",
         encoding="utf-8",
     )
+    # Multi-tag AND sound: the macro's tags (command rank 10, environment_variables
+    # rank 11) are an ascending gap-free run, and the <expand> sits out of slot
+    # (before <macros>) -> only a multi-tag layer would move it.
+    (repo / "sound_multi.xml").write_text(
+        '<tool id="t5">'
+        "<description>d</description>"
+        '<expand macro="cmdenv"/>'
+        '<macros><xml name="cmdenv">'
+        "<command/><environment_variables/></xml></macros>"
+        "</tool>",
+        encoding="utf-8",
+    )
     (repo / "not_a_tool.xml").write_text("<data/>", encoding="utf-8")
     return tmp_path
 
 
 def test_expand_reorder_resolution_classes(expand_reorder_corpus: Path) -> None:
     result = _measure_expand_reorder_resolution(corpus_root=expand_reorder_corpus)
-    assert result.n_unique_tools == 4  # not_a_tool is filtered out
-    assert result.n_with_top_expand == 3  # ordered, misplaced, unresolvable
-    assert result.n_fully_resolvable == 2  # ordered + misplaced
+    assert result.n_unique_tools == 5  # not_a_tool is filtered out
+    # ordered, misplaced, unresolvable, sound_multi (no_expand has none):
+    assert result.n_with_top_expand == 4
+    assert result.n_fully_resolvable == 2  # ordered + misplaced (single-tag each)
     assert result.n_partially_resolvable == 0
-    assert result.n_unresolvable == 1  # the two-element macro
-    # Only the misplaced-but-resolvable tool is laid out differently by resolution.
+    assert result.n_unresolvable == 2  # both two-element macros
+    # Only the misplaced single-tag tool is laid out differently by the shipped
+    # (single-tag) resolution layer.
     assert result.n_resolution_differs_from_pinning == 1
+    # Both two-element macros are multi-tag candidates; only the gap-free,
+    # ascending one (command + environment_variables) is a sound opportunity.
+    assert result.n_multitag_candidate == 2
+    assert result.n_multitag_sound_differs == 1
 
 
 def test_expand_reorder_resolution_empty_corpus(tmp_path: Path) -> None:
@@ -283,6 +302,8 @@ def test_expand_reorder_resolution_empty_corpus(tmp_path: Path) -> None:
     assert result.n_unique_tools == 0
     assert result.n_with_top_expand == 0
     assert result.n_resolution_differs_from_pinning == 0
+    assert result.n_multitag_candidate == 0
+    assert result.n_multitag_sound_differs == 0
 
 
 # --- version-suffix-shape ---------------------------------------------------------
