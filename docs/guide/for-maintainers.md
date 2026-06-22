@@ -9,7 +9,7 @@
 Whether you're **submitting** a tool or **reviewing** one, a chunk of the work is
 mechanical: is it indented the IUC way, are attributes in the conventional order, is
 `<command>` wrapped in CDATA, is the `profile=` current, are there tests and pinned
-requirements? That's exactly what this automates — and it's tuned against **9,374 real
+requirements? That's exactly what this automates — and it's tuned against **9,373 real
 tools**, so it matches how IUC tools are actually written.
 
 ## Three things you'll run

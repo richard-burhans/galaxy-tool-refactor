@@ -19,7 +19,8 @@ automatically at the point of entry.** Either half alone is close to pointless.
   codemods, each with a written proof, gated on idempotence and validity. Nothing
   is an LLM guessing and hoping it is right. (This is probably the real root of
   any past hesitation, so say it early.)
-- **Honest scope.** Of 89 rules, 11 are auto-fixable today and 75 stay advisory.
+- **Honest scope.** Of 89 rules, 11 are auto-fixable today and 75 stay advisory
+  (the other 3 are bulk-only or held pending an IUC decision).
   We are automating the mechanical surface, and explicitly leaving the judgment to
   humans.
 
@@ -40,7 +41,7 @@ automatically at the point of entry.** Either half alone is close to pointless.
 ## §3: attribute order (the specific contested rule)
 
 - The written IUC standard specifies a `<param>` attribute order. In the corpus,
-  only ~29% of tools follow it; enforcing it touches ~71% (**6,639 of 9,302
+  only ~29% of tools follow it; enforcing it touches ~71% (**6,639 of 9,304
   tools, 37,462 findings**). That is real churn, which is exactly why it deserves
   a deliberate decision rather than a PR-thread argument.
 - Handle the prior pushback gracefully: one reviewer preferred not to reorder, the
@@ -95,8 +96,9 @@ automatically at the point of entry.** Either half alone is close to pointless.
 3. If yes: auto-normalize or block, plus the day-one rule list and who owns it.
 4. (If time) the §1 suffix-bump policy, since any content change to a published tool
    needs it. Live proof: a real `upgrade` of the author's `galaxytools` was correct but
-   blocked by `planemo shed_lint` `ShedVersion` on all six tools — the version-suffix
-   codemod (N2) stays blocked on this answer.
+   blocked by `planemo shed_lint` `ShedVersion` on all six tools. That bump is exactly
+   what `bump-version-suffix` (N2) now does on request; this answer only sets its
+   default scope.
 
 ## Backing data (have it on a laptop, do not lead with it)
 

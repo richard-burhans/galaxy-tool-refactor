@@ -57,7 +57,7 @@ This project turns much of that work into **one rule set you can run**:
   version pins, …). Report-only.
 
 It is **evidence-driven**: design decisions are backed by sweeps over a corpus of
-**9,374 real Galaxy tools**, not guesses.
+**9,373 real Galaxy tools**, not guesses.
 
 On a tool that already follows IUC conventions, `format` and `check` are often quiet —
 there the value is the **upgrade** and the best-practice report.
