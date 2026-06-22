@@ -17,8 +17,9 @@ is provably safe.
 
 ### MCP (tool calls)
 
-Seven tools — `format_tool`, `upgrade_tool`, `check_tool`, `convert_help_tool`,
-`tokenize_version_tool`, `list_rulesets`, `list_rules` —
+Nine tools — `format_tool`, `upgrade_tool`, `check_tool`, `convert_help_tool`,
+`tokenize_version_tool`, `find_references_tool`, `rename_param_tool`,
+`list_rulesets`, `list_rules` —
 take the tool XML as a string and return JSON. Nothing is written to disk. See
 [usage/mcp](usage/mcp.md). The key signal for autonomy:
 
