@@ -147,8 +147,9 @@ tree in milliseconds with no new dependency. `_detects_test_case_validation`
 now fires only when a tool ships a `<test>` **and** its tests are not provably
 clean (codemod decisions §47). The checker is one-directional: it suppresses
 the 24.2 blocker only for the provably-clean subset and leaves everything it
-cannot model (repeats, collections, drill-downs, any `<validator>`,
-un-expanded macros, novel types) blocked, so it is never wider than Galaxy.
+cannot model (collections, drill-downs, any `<validator>`, un-expanded macros,
+novel types; `<repeat>` is modeled, codemod decisions §54) blocked, so it is
+never wider than Galaxy.
 
 `scripts.measure test-case-validation-truth` is the standing parity oracle: it
 runs Galaxy's real validator beside the checker over every test-shipping

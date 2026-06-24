@@ -192,6 +192,18 @@ def test_data_column_must_be_an_integer_index() -> None:
     )
 
 
+def test_color_must_be_lowercase_hex() -> None:
+    # Galaxy's ensure_color_valid accepts only "#" + six lowercase hex digits;
+    # an uppercase value is "Invalid color", so it is not provably clean.
+    inputs = '<param name="col" type="color" value="#000000"/>'
+    assert all_test_cases_provably_clean(
+        _tool(inputs, '<test><param name="col" value="#548dd4"/></test>')
+    )
+    assert not all_test_cases_provably_clean(
+        _tool(inputs, '<test><param name="col" value="#FF0000"/></test>')
+    )
+
+
 def test_required_integer_must_appear_in_the_test() -> None:
     # Non-optional integer with NO default: the test-case field is required.
     inputs = '<param name="i" type="integer"/>'
@@ -255,13 +267,78 @@ def test_section_params_resolve_through_the_section() -> None:
     )
 
 
-def test_repeats_collections_and_exotics_are_never_provable() -> None:
-    repeat = _tool(
+def test_repeat_omitted_when_inner_has_defaults_is_clean() -> None:
+    # A repeat with no `min` and a defaulted inner param: an empty test is valid
+    # (Galaxy materialises zero instances), and one explicit instance validates.
+    inputs = (
         '<repeat name="r" title="R">'
-        '<param name="i" type="integer" value="1"/></repeat>',
-        "<test/>",
+        '<param name="i" type="integer" value="1"/></repeat>'
     )
-    assert not all_test_cases_provably_clean(repeat)
+    assert all_test_cases_provably_clean(_tool(inputs, "<test/>"))
+    assert all_test_cases_provably_clean(
+        _tool(
+            inputs,
+            '<test><repeat name="r"><param name="i" value="5"/></repeat></test>',
+        )
+    )
+    # Two instances, the second carries a junk integer value -> not clean.
+    assert not all_test_cases_provably_clean(
+        _tool(
+            inputs,
+            '<test><repeat name="r"><param name="i" value="5"/></repeat>'
+            '<repeat name="r"><param name="i" value="abc"/></repeat></test>',
+        )
+    )
+
+
+def test_repeat_unknown_inner_param_is_not_clean() -> None:
+    inputs = (
+        '<repeat name="r"><param name="i" type="integer" value="1"/></repeat>'
+    )
+    assert not all_test_cases_provably_clean(
+        _tool(
+            inputs,
+            '<test><repeat name="r"><param name="i" value="1"/>'
+            '<param name="nope" value="2"/></repeat></test>',
+        )
+    )
+
+
+def test_repeat_max_count_is_enforced() -> None:
+    inputs = (
+        '<repeat name="r" max="1">'
+        '<param name="i" type="integer" value="1"/></repeat>'
+    )
+    assert all_test_cases_provably_clean(
+        _tool(
+            inputs,
+            '<test><repeat name="r"><param name="i" value="1"/></repeat></test>',
+        )
+    )
+    # Two instances exceed max=1 -> Galaxy rejects (List max_length).
+    assert not all_test_cases_provably_clean(
+        _tool(
+            inputs,
+            '<test><repeat name="r"><param name="i" value="1"/></repeat>'
+            '<repeat name="r"><param name="i" value="2"/></repeat></test>',
+        )
+    )
+
+
+def test_repeat_min_with_required_inner_must_be_supplied() -> None:
+    # min=1 and a required (no-default) inner integer: an omitted repeat pads to one
+    # empty instance whose required field is missing -> Galaxy rejects.
+    inputs = '<repeat name="r" min="1"><param name="i" type="integer"/></repeat>'
+    assert not all_test_cases_provably_clean(_tool(inputs, "<test/>"))
+    assert all_test_cases_provably_clean(
+        _tool(
+            inputs,
+            '<test><repeat name="r"><param name="i" value="3"/></repeat></test>',
+        )
+    )
+
+
+def test_collections_and_exotics_are_never_provable() -> None:
     collection = _tool(
         '<param name="dc" type="data_collection" collection_type="paired"/>',
         '<test><param name="dc" value="x"/></test>',
@@ -386,6 +463,37 @@ _PARITY_FIXTURES: tuple[tuple[str, str], ...] = (
         '<section name="adv" title="Advanced">'
         '<param name="i" type="integer" value="1"/></section>',
         '<test><section name="adv"><param name="i" value="2"/></section></test>',
+    ),
+    # color casing: Galaxy rejects uppercase hex (the cp_overlay_outlines case).
+    (
+        '<param name="col" type="color" value="#000000"/>',
+        '<test><param name="col" value="#548dd4"/></test>',
+    ),
+    (
+        '<param name="col" type="color" value="#000000"/>',
+        '<test><param name="col" value="#FF0000"/></test>',
+    ),
+    # repeats — the construct A2 added; each must hold against Galaxy's validator.
+    (
+        '<repeat name="r"><param name="i" type="integer" value="1"/></repeat>',
+        "<test/>",
+    ),
+    (
+        '<repeat name="r"><param name="i" type="integer" value="1"/></repeat>',
+        '<test><repeat name="r"><param name="i" value="5"/></repeat></test>',
+    ),
+    (
+        '<repeat name="r" max="1"><param name="i" type="integer" value="1"/></repeat>',
+        '<test><repeat name="r"><param name="i" value="1"/></repeat>'
+        '<repeat name="r"><param name="i" value="2"/></repeat></test>',
+    ),
+    (
+        '<repeat name="r" min="1"><param name="i" type="integer"/></repeat>',
+        "<test/>",
+    ),
+    (
+        '<repeat name="r" min="1"><param name="i" type="integer"/></repeat>',
+        '<test><repeat name="r"><param name="i" value="3"/></repeat></test>',
     ),
 )
 

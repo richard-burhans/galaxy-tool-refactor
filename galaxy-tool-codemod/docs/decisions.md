@@ -2071,9 +2071,9 @@ recovers it.
   representation, `legacy_from_string` coercions at >= 24.2, the strict
   `Literal` membership for static selects, the `extra="forbid"` unknown-input
   rule, and the test parser's nothing-to-check `<output>` raise). Every
-  construct it cannot model (repeats, collections, drill-downs, `<validator>`,
-  un-expanded macros, novel types) returns `False` and stays blocked, so it is
-  never wider than Galaxy.
+  construct it cannot model (collections, drill-downs, `<validator>`,
+  un-expanded macros, novel types; `<repeat>` is modeled since §54) returns
+  `False` and stays blocked, so it is never wider than Galaxy.
 - **Parity is a standing oracle, not a claim.** `scripts.measure
   test-case-validation-truth` now runs the checker beside Galaxy's real
   validator over every test-shipping corpus tool. The hard gate is
@@ -2354,3 +2354,35 @@ tools-iuc vg suite for an external PR.
   python -m scripts.measure expand-reorder-resolution` (the `MULTI-TAG RESIDUAL`
   block). Pinning a multi-tag `<expand>` stays the behaviour; revisit only if a
   consumer materially needs it.
+
+## 54. The 24.2 test-case checker models `<repeat>` (+ a color-casing fix)
+
+**Date:** 2026-06-24. Reproduced-by: `uv run --package galaxy-tool-codemod pytest
+galaxy-tool-codemod/tests/test_test_case_check.py` (unit + in-CI parity) and `uv run
+python -m scripts.measure test-case-validation-truth` (the corpus oracle). Extends
+§47 (the provably-clean checker) along the headroom axis that §47 named as the target
+for future widening, behind the same zero-unsound gate.
+
+- **What was added.** `all_test_cases_provably_clean` now models `<repeat>`
+  (`RepeatParameterModel`): a min/max-bounded list of instances, each validated as an
+  inner `_Scope`, with Galaxy's exact semantics — repeated same-named `<repeat>` blocks
+  are instances `r_0` / `r_1` / … (`case.py` `repeat_inputs_to_array`); Galaxy pads the
+  instance list to `min` with empty instances that must each still validate; and the
+  final length must satisfy the `List` `min_length` / `max_length`. `min` / `max` are
+  proven only when they are clean non-negative integer literals (`^\d+$`), a strict
+  subset of Galaxy's `int()` parse (so `"-1"` / `"1_0"` / whitespace decline to prove,
+  never over-prove). An absent repeat with no `min` is an empty list — valid, nothing to
+  check.
+- **A latent bug the new coverage exposed.** Reaching a `type="color"` param *inside* a
+  repeat (`cp_overlay_outlines`, an 11-repeat tool) surfaced that `_COLOR` accepted
+  `[0-9a-fA-F]` while Galaxy's `ensure_color_valid` tests membership in
+  `"0123456789abcdef"` — **lowercase only**. `#FF0000` was ours-clean but Galaxy's
+  "Invalid color". Tightened `_COLOR` to `^#[0-9a-f]{6}$` (an exact match); the corpus
+  oracle flagged it as the one unsound suppression and now reports zero. The repeat work
+  did not introduce the bug, it made it reachable — the value of widening behind the
+  oracle.
+- **Measured payoff (the corpus oracle, `.local` toolshed corpus).** Soundly-suppressed
+  test-shipping tools rose **2,587 → 2,666 (+79)**; `headroom` fell 1,930 → 1,851;
+  **UNSOUND suppressions stayed 0** (the hard gate). The reaches-latest count in
+  `docs/upgrade_behavior_block_stats.md` rises accordingly and is refreshed on the next
+  full corpus sweep (that page is the regenerated artifact of record, per §47).

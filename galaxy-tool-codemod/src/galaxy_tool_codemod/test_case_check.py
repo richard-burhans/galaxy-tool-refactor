@@ -25,10 +25,14 @@ test fails validation), ``legacy_from_string`` coercions at profile >= 24.2
 (``int()`` / ``float()`` / ``asbool`` / the ``^(\\d+)$`` column-index pattern),
 the strict-``Literal`` membership rule for static selects, and the
 ``extra="forbid"`` model config that makes any unknown test input an error.
-Constructs deliberately out of scope (always unclean): repeats, data
-collections, drill-downs, directory URIs, any ``<validator>`` (an
-``expression`` validator runs ``eval`` at validation time), un-expanded
-``<expand>`` in ``<inputs>``, and any parameter type not modeled here.
+``<repeat>`` is modeled (``RepeatParameterModel``): a min/max-bounded list of
+instances, each validated as an inner scope, with Galaxy's pad-to-``min``
+empty-instance rule; ``min``/``max`` are proven only when they are clean
+non-negative integers (a strict subset of Galaxy's ``int()`` parse).
+Constructs deliberately out of scope (always unclean): data collections,
+drill-downs, directory URIs, any ``<validator>`` (an ``expression`` validator
+runs ``eval`` at validation time), un-expanded ``<expand>`` in ``<inputs>``,
+and any parameter type not modeled here.
 """
 
 from __future__ import annotations
@@ -52,7 +56,9 @@ _INT_LITERAL = re.compile(r"^[+-]?\d+$")
 _FLOAT_LITERAL = re.compile(r"^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$")
 # Galaxy's INTEGER_STR_PATTERN for data_column values: ^(\d+)$ (unsigned).
 _COLUMN_INDEX = re.compile(r"^\d+$")
-_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
+# Galaxy's ensure_color_valid: exactly "#" + six LOWERCASE hex digits (it tests
+# membership in "0123456789abcdef" — uppercase is rejected as "Invalid color").
+_COLOR = re.compile(r"^#[0-9a-f]{6}$")
 
 # Test-XML child tags that describe OUTPUT expectations. The 24.2 validation
 # covers test INPUTS only, but Galaxy's test PARSER runs first and raises on
@@ -114,16 +120,29 @@ class _Conditional:
 
 
 @dataclass(frozen=True)
+class _Repeat:
+    """A repeat: a min/max-bounded list of instances, each one inner ``_Scope``."""
+
+    scope: _Scope
+    minimum: int | None
+    maximum: int | None
+
+
+@dataclass(frozen=True)
 class _Scope:
     """One nesting level of the input model (top level, a when, a section)."""
 
     params: dict[str, _Param] = field(default_factory=dict)
     conditionals: dict[str, _Conditional] = field(default_factory=dict)
     sections: dict[str, _Scope] = field(default_factory=dict)
+    repeats: dict[str, _Repeat] = field(default_factory=dict)
 
     def member_names(self) -> frozenset[str]:
-        return frozenset(self.params) | frozenset(self.conditionals) | frozenset(
-            self.sections
+        return (
+            frozenset(self.params)
+            | frozenset(self.conditionals)
+            | frozenset(self.sections)
+            | frozenset(self.repeats)
         )
 
 
@@ -262,6 +281,7 @@ def _build_scope(container: etree._Element, /) -> _Scope | None:
     params: dict[str, _Param] = {}
     conditionals: dict[str, _Conditional] = {}
     sections: dict[str, _Scope] = {}
+    repeats: dict[str, _Repeat] = {}
     for child in container:
         if not isinstance(child.tag, str):
             continue  # comments / processing instructions
@@ -283,13 +303,49 @@ def _build_scope(container: etree._Element, /) -> _Scope | None:
             if scope is None or not _model_safe_name(child.get("name")):
                 return None
             sections[str(child.get("name"))] = scope
+        elif child.tag == "repeat":
+            repeat = _build_repeat(child)
+            if repeat is None or not _model_safe_name(child.get("name")):
+                return None
+            repeats[str(child.get("name"))] = repeat
         elif child.tag == "when" and container.tag == "conditional":
             continue  # handled by _build_conditional
         else:
-            # repeat, expand, upload_dataset, display, or anything novel:
-            # the model is not fully visible, so nothing is provable.
+            # expand, upload_dataset, display, or anything novel: the model is not
+            # fully visible, so nothing is provable.
             return None
-    return _Scope(params=params, conditionals=conditionals, sections=sections)
+    return _Scope(
+        params=params,
+        conditionals=conditionals,
+        sections=sections,
+        repeats=repeats,
+    )
+
+
+def _parse_count(value: str | None, /) -> tuple[bool, int | None]:
+    """``(ok, count)`` for a repeat ``min``/``max``; not-ok bails the repeat.
+
+    Galaxy parses these with ``int()`` (which would also accept ``"-1"`` / ``"1_0"``
+    / surrounding whitespace). We prove clean only for a clean non-negative integer
+    literal — a strict subset — and bail (declining to prove) on anything else.
+    """
+    if value is None:
+        return True, None
+    if _COLUMN_INDEX.match(value) is None:  # ^\d+$ — non-negative, no underscores/ws
+        return False, None
+    return True, int(value)
+
+
+def _build_repeat(element: etree._Element, /) -> _Repeat | None:
+    """Model one ``<repeat>``; ``None`` when it is not provably modelable."""
+    inner = _build_scope(element)
+    if inner is None:
+        return None
+    min_ok, minimum = _parse_count(element.get("min"))
+    max_ok, maximum = _parse_count(element.get("max"))
+    if not (min_ok and max_ok):
+        return None
+    return _Repeat(scope=inner, minimum=minimum, maximum=maximum)
 
 
 def _argument_name(element: etree._Element, /) -> str | None:
@@ -302,8 +358,9 @@ def _argument_name(element: etree._Element, /) -> str | None:
 # --- the test side -----------------------------------------------------------------
 
 # A parsed test entry tree: leaf values are the <param> value strings, interior
-# nodes are dicts (from nested <conditional>/<section> elements or pipe paths).
-_TestNode = str | dict[str, "_TestNode"]
+# nodes are dicts (from nested <conditional>/<section> elements or pipe paths), and
+# a repeat is a list of per-instance dicts (one entry per <repeat name="r"> element).
+_TestNode = str | dict[str, "_TestNode"] | list[dict[str, "_TestNode"]]
 
 
 def _insert(tree: dict[str, _TestNode], path: list[str], value: str, /) -> bool:
@@ -348,8 +405,41 @@ def _collect_test_inputs(
                 return False
             if not _collect_test_inputs(child, tree, [*prefix, *name.split("|")]):
                 return False
+        elif child.tag == "repeat":
+            if not _collect_repeat_instance(child, tree, prefix):
+                return False
         else:
-            return False  # repeat instances or anything novel: not provable
+            return False  # anything novel: not provable
+    return True
+
+
+def _collect_repeat_instance(
+    element: etree._Element, tree: dict[str, _TestNode], prefix: list[str], /
+) -> bool:
+    """Append one ``<repeat name=…>`` element's inputs to its instance list.
+
+    Each ``<repeat name="r">`` element is one instance (Galaxy indexes repeated
+    same-named blocks ``r_0`` / ``r_1`` / …); the instance's own inputs are collected
+    into a fresh sub-tree. The list is anchored under the same prefixed path the
+    other grouping constructs use, so a repeat nested in a conditional/section lands
+    in the right scope.
+    """
+    name = element.get("name")
+    if name is None:
+        return False
+    instance: dict[str, _TestNode] = {}
+    if not _collect_test_inputs(element, instance, []):
+        return False
+    node: dict[str, _TestNode] = tree
+    for segment in prefix:
+        nested = node.setdefault(segment, {})
+        if not isinstance(nested, dict):
+            return False
+        node = nested
+    bucket = node.setdefault(name, [])
+    if not isinstance(bucket, list):
+        return False  # name reused as a non-repeat input: undefined, bail
+    bucket.append(instance)
     return True
 
 
@@ -456,7 +546,42 @@ def _scope_clean(scope: _Scope, state: dict[str, _TestNode] | None, /) -> bool:
             return False
         if not _scope_clean(section, node if isinstance(node, dict) else None):
             return False
+    for name, repeat in scope.repeats.items():
+        node = provided.get(name)
+        if node is not None and not isinstance(node, list):
+            return False
+        if not _repeat_clean(repeat, node):
+            return False
     return True
+
+
+def _repeat_clean(
+    repeat: _Repeat, instances: list[dict[str, _TestNode]] | None, /
+) -> bool:
+    """Whether a repeat's test instances (or its absence) are provably valid.
+
+    Mirrors Galaxy: the instances validate as inner scopes, Galaxy pads the list to
+    ``min`` with empty instances (each must still validate), and the final length must
+    satisfy the ``min_length`` / ``max_length`` the ``RepeatParameterModel`` imposes.
+    An absent repeat with no ``min`` is an empty list — valid, nothing to check.
+    """
+    supplied = instances or []
+    count = len(supplied)
+    # After Galaxy pads to `min`, the validated length is max(count, min); it must not
+    # exceed max (catches both too-many instances and a malformed min > max).
+    effective = max(count, repeat.minimum or 0)
+    if repeat.maximum is not None and effective > repeat.maximum:
+        return False
+    for instance in supplied:
+        if not isinstance(instance, dict):
+            return False
+        if not _scope_clean(repeat.scope, instance):
+            return False
+    if repeat.minimum is None or count >= repeat.minimum:
+        return True
+    # count < min: Galaxy pads to `min` with empty instances; each is clean iff the
+    # inner scope needs nothing (no required field). One empty check covers them all.
+    return _scope_clean(repeat.scope, {})
 
 
 def all_test_cases_provably_clean(root: etree._Element, /) -> bool:
