@@ -119,4 +119,7 @@ capabilities
 soundness
 vs-planemo
 leverage
+Examples <examples/index>
+Writing a codemod <writing-codemods>
+Rule proofs <proofs/index>
 ```

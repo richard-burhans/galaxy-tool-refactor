@@ -51,7 +51,7 @@ the modernize walk's behaviour ceiling additionally requires
 (the newest profile every major public Galaxy server runs) without an explicit
 `target_profile`; an unattended behaviour change, or a profile no server can
 install, is worse, not better. The blocking codes map to sections of
-[`docs/profile_boundaries.md`](../../profile_boundaries.md), so an agent can read
+[`docs/profile_boundaries.md`](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/profile_boundaries.md), so an agent can read
 exactly what changed and decide deliberately; see [soundness](../soundness.md).
 
 ## Why it's a thin adapter

@@ -27,7 +27,7 @@ tool-XML structure and profile upgrades).
 
 The detection overlap is *deliberate*: the `check` tier reimplements the
 mechanically-reimplementable `planemo lint` tool-XML linters — the generated
-[parity table](../planemo_linter_parity.md) maps all 146 planemo linters to their
+[parity table](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/planemo_linter_parity.md) maps all 146 planemo linters to their
 GTR coverage rule-by-rule — and the CLI accepts **planemo linter names as rule
 aliases** (`--select HelpMissing`, case-insensitive), so a planemo user can select
 rules by the names they already know.

@@ -28,10 +28,11 @@ Galaxy-catalogued behaviour change the bump would cross, detects per tool which
 actually apply, and **stops below the first applicable `must_fix` change it cannot
 provably fix on that tool**. A fix is credited only by execution (applied, then
 re-detected); the stop report names the blocking code and links to
-[`docs/profile_boundaries.md`](../profile_boundaries.md), the per-boundary
+[`docs/profile_boundaries.md`](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/profile_boundaries.md), the per-boundary
 what-changed-and-what-to-do reference. Advisory (`consider`) changes are warned
 about, never crossed silently. The full argument is
-[`docs/proofs/behavior-gate.md`](../proofs/behavior-gate.md).
+[behavior-gate.md](proofs/behavior-gate.md), part of the published
+[rule proofs](proofs/index.md).
 
 ## How we know `format` is behaviour-preserving — the audit
 
@@ -41,7 +42,7 @@ stress-tested by independent skeptics that try to *execute a counterexample* bre
 it; each "refuted" verdict was then **re-verified by execution on the current code and
 against Galaxy's own source** before being acted on (adversarial agents over-claim).
 The result is recorded, rule by rule, in
-[`docs/behavior_preservation.md`](../behavior_preservation.md) — the proof ledger.
+[`docs/behavior_preservation.md`](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/behavior_preservation.md) — the proof ledger.
 
 This is an honest process, and it *found real bugs* in formatting rules once assumed
 safe — all now fixed, each pinned by a regression fixture so a future change can't

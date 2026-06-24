@@ -38,7 +38,7 @@ behavior-preserving walk, which stops at the behaviour ceiling and never
 passes the deployment ceiling (the newest profile every major public Galaxy
 server runs; only an explicit `target_profile` exceeds it);
 `stopped_at`/`blocking_codes` say where and why (each code maps to a section of
-[`docs/profile_boundaries.md`](../profile_boundaries.md)). Crossing a
+[`docs/profile_boundaries.md`](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/profile_boundaries.md)). Crossing a
 behaviour boundary additionally requires `allow_behavior_change=true`
 explicitly.
 `behavior_preserving` (`true`/`false`/`null`) lets an agent decide what to

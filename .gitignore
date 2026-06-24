@@ -14,6 +14,12 @@ __pycache__/
 .ruff_cache/
 dist/
 
+# Generated at Sphinx build time by docs/guide/conf.py: the proofs and examples
+# subtrees are copied from canonical docs/proofs/ and docs/examples/ so the guide
+# can publish them.
+docs/guide/proofs/
+docs/guide/examples/
+
 # Test-coverage artifacts (make test-coverage / coverage.yml).
 .coverage
 coverage.xml
