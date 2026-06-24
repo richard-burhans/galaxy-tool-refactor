@@ -4,24 +4,24 @@
 
 | Repository | tool_id | Path | Version | Source |
 |---|---|---|---|---|
-| amawla/edger | `edgeR` | `edgeR.xml` | `unknown` | — |
-| bgruening-galaxytools | `jmoleditor` | `chemicaltoolbox/data_source/jmoleditor/jmoleditor.xml` | `9b7c3d6d47bb` | [view](https://github.com/bgruening/galaxytools/blob/9b7c3d6d47bb1bbd3911fa3061d05d30e51621ae/chemicaltoolbox/data_source/jmoleditor/jmoleditor.xml) |
-| bgruening-galaxytools | `graphclust_align_cluster` | `tools/GraphClust/AlignCluster/align_cluster.xml` | `9b7c3d6d47bb` | [view](https://github.com/bgruening/galaxytools/blob/9b7c3d6d47bb1bbd3911fa3061d05d30e51621ae/tools/GraphClust/AlignCluster/align_cluster.xml) |
-| bgruening-galaxytools | `gspan` | `tools/GraphClust/GSPAN/fasta2shrep_gspan.xml` | `9b7c3d6d47bb` | [view](https://github.com/bgruening/galaxytools/blob/9b7c3d6d47bb1bbd3911fa3061d05d30e51621ae/tools/GraphClust/GSPAN/fasta2shrep_gspan.xml) |
-| bgruening-galaxytools | `structure_to_gspan` | `tools/GraphClust/Structure_GSPAN/structure_to_gspan.xml` | `9b7c3d6d47bb` | [view](https://github.com/bgruening/galaxytools/blob/9b7c3d6d47bb1bbd3911fa3061d05d30e51621ae/tools/GraphClust/Structure_GSPAN/structure_to_gspan.xml) |
-| bgruening/chemical_data_sources (also in github: bgruening-galaxytools) | `jmoleditor` | `jmoleditor/jmoleditor.xml` | `unknown` | — |
-| blankenberglab/data_manager_refgenie_pull | `data_manager_refgenie_pull` | `data_manager/data_manager_refgenie_pull.xml` | `unknown` | — |
+| amawla/edger | `edgeR` | `edgeR.xml` | `a8a56766694e` | [view](https://toolshed.g2.bx.psu.edu/view/amawla/edger) |
+| bgruening-galaxytools | `jmoleditor` | `chemicaltoolbox/data_source/jmoleditor/jmoleditor.xml` | `1462deb15898` | [view](https://github.com/bgruening/galaxytools/blob/1462deb158987891e0f6556ebb7238d07acac68d/chemicaltoolbox/data_source/jmoleditor/jmoleditor.xml) |
+| bgruening-galaxytools | `graphclust_align_cluster` | `tools/GraphClust/AlignCluster/align_cluster.xml` | `1462deb15898` | [view](https://github.com/bgruening/galaxytools/blob/1462deb158987891e0f6556ebb7238d07acac68d/tools/GraphClust/AlignCluster/align_cluster.xml) |
+| bgruening-galaxytools | `gspan` | `tools/GraphClust/GSPAN/fasta2shrep_gspan.xml` | `1462deb15898` | [view](https://github.com/bgruening/galaxytools/blob/1462deb158987891e0f6556ebb7238d07acac68d/tools/GraphClust/GSPAN/fasta2shrep_gspan.xml) |
+| bgruening-galaxytools | `structure_to_gspan` | `tools/GraphClust/Structure_GSPAN/structure_to_gspan.xml` | `1462deb15898` | [view](https://github.com/bgruening/galaxytools/blob/1462deb158987891e0f6556ebb7238d07acac68d/tools/GraphClust/Structure_GSPAN/structure_to_gspan.xml) |
+| bgruening/chemical_data_sources (also in github: bgruening-galaxytools) | `jmoleditor` | `jmoleditor/jmoleditor.xml` | `c2055dd1927b` | [view](https://toolshed.g2.bx.psu.edu/view/bgruening/chemical_data_sources) |
+| blankenberglab/data_manager_refgenie_pull | `data_manager_refgenie_pull` | `data_manager/data_manager_refgenie_pull.xml` | `b2fa406276e7` | [view](https://toolshed.g2.bx.psu.edu/view/blankenberglab/data_manager_refgenie_pull) |
 | david-hoover/mirdeep2_and_targetspy_dh | `bowtiebuild` | `bowtie_build.xml` | `17e442abb3de` | [view](https://toolshed.g2.bx.psu.edu/view/david-hoover/mirdeep2_and_targetspy_dh) |
 | david-hoover/mirdeep2_and_targetspy_dh | `mapper` | `mapper.xml` | `17e442abb3de` | [view](https://toolshed.g2.bx.psu.edu/view/david-hoover/mirdeep2_and_targetspy_dh) |
 | david-hoover/mirdeep2_and_targetspy_dh | `mirdeep2` | `mirdeep2.xml` | `17e442abb3de` | [view](https://toolshed.g2.bx.psu.edu/view/david-hoover/mirdeep2_and_targetspy_dh) |
 | david-hoover/mirdeep2_and_targetspy_dh | `target_spy` | `target_spy.xml` | `17e442abb3de` | [view](https://toolshed.g2.bx.psu.edu/view/david-hoover/mirdeep2_and_targetspy_dh) |
-| devteam/annotation_profiler | `Annotation_Profiler_0` | `annotation_profiler.xml` | `unknown` | — |
-| fcaramia/custom_amplicon_alignment | `alignCustomAmplicon` | `alignCustomAmplicon/alignCustomAmplicon_wrapper.xml` | `unknown` | — |
-| fcaramia/edger | `edgeR` | `edgeR.xml` | `unknown` | — |
-| fcaramia/edger | `htseq-count` | `htseq.xml` | `unknown` | — |
-| genouest/baric_archive_rennes | `baric_archive_rennes` | `baric_archive_rennes.xml` | `unknown` | — |
-| genouest/baric_archive_toulouse | `baric_archive_toulouse` | `baric_archive_toulouse.xml` | `unknown` | — |
-| jay/gaiac_pm_data_pulling | `gaiac_pm_data_pulling` | `gaiac_pm_data_pulling/gaiac_pm_data_pulling.xml` | `unknown` | — |
+| devteam/annotation_profiler | `Annotation_Profiler_0` | `annotation_profiler.xml` | `3b33da018e74` | [view](https://toolshed.g2.bx.psu.edu/view/devteam/annotation_profiler) |
+| fcaramia/custom_amplicon_alignment | `alignCustomAmplicon` | `alignCustomAmplicon/alignCustomAmplicon_wrapper.xml` | `0aaf65fbb48a` | [view](https://toolshed.g2.bx.psu.edu/view/fcaramia/custom_amplicon_alignment) |
+| fcaramia/edger | `edgeR` | `edgeR.xml` | `6324eefd9e91` | [view](https://toolshed.g2.bx.psu.edu/view/fcaramia/edger) |
+| fcaramia/edger | `htseq-count` | `htseq.xml` | `6324eefd9e91` | [view](https://toolshed.g2.bx.psu.edu/view/fcaramia/edger) |
+| genouest/baric_archive_rennes | `baric_archive_rennes` | `baric_archive_rennes.xml` | `5c689d1e41fe` | [view](https://toolshed.g2.bx.psu.edu/view/genouest/baric_archive_rennes) |
+| genouest/baric_archive_toulouse | `baric_archive_toulouse` | `baric_archive_toulouse.xml` | `1ae6b80f1e03` | [view](https://toolshed.g2.bx.psu.edu/view/genouest/baric_archive_toulouse) |
+| jay/gaiac_pm_data_pulling | `gaiac_pm_data_pulling` | `gaiac_pm_data_pulling/gaiac_pm_data_pulling.xml` | `9135ae025506` | [view](https://toolshed.g2.bx.psu.edu/view/jay/gaiac_pm_data_pulling) |
 | jjohnson/qiime | `single_rarefaction` | `single_rarefaction.xml` | `e5c3175506b7` | [view](https://toolshed.g2.bx.psu.edu/view/jjohnson/qiime) |
 | kellrott/synapse_interface | `synapse_upload` | `synapse_interface/synapse_create.xml` | `353be5809eeb` | [view](https://toolshed.g2.bx.psu.edu/view/kellrott/synapse_interface) |
 | kellrott/synapse_interface | `synapse_download` | `synapse_interface/synapse_download.xml` | `353be5809eeb` | [view](https://toolshed.g2.bx.psu.edu/view/kellrott/synapse_interface) |
@@ -32,10 +32,10 @@
 | petr-novak/profrep | `profrep` | `profrep.xml` | `1c25246f6e68` | [view](https://toolshed.g2.bx.psu.edu/view/petr-novak/profrep) |
 | petr-novak/profrep | `profrep_refine` | `profrep_refine.xml` | `1c25246f6e68` | [view](https://toolshed.g2.bx.psu.edu/view/petr-novak/profrep) |
 | petr-novak/re_utils | `pairScan` | `pairScan.xml` | `91996b991991` | [view](https://toolshed.g2.bx.psu.edu/view/petr-novak/re_utils) |
-| rnateam/graphclust_align_cluster (also in github: bgruening-galaxytools) | `graphclust_align_cluster` | `align_cluster.xml` | `unknown` | — |
+| rnateam/graphclust_align_cluster (also in github: bgruening-galaxytools) | `graphclust_align_cluster` | `align_cluster.xml` | `40371e8b6ee2` | [view](https://toolshed.g2.bx.psu.edu/view/rnateam/graphclust_align_cluster) |
 | saket-choudhary/sift_web | `sift_web` | `sift_web/sift_web.xml` | `697e66764209` | [view](https://toolshed.g2.bx.psu.edu/view/saket-choudhary/sift_web) |
 | shians/voom_rnaseq | `diffexp` | `diffexp.xml` | `b2fe55fd0651` | [view](https://toolshed.g2.bx.psu.edu/view/shians/voom_rnaseq) |
 | tools-devteam | `gmaj_1` | `tools/gmaj/GMAJ.xml` | `5d53a79839c6` | [view](https://github.com/galaxyproject/tools-devteam/blob/5d53a79839c6d9b7c1f13e8f5bd9f65d69d96a46/tools/gmaj/GMAJ.xml) |
-| tools-ecology | `nfdi4earth_os4a` | `tools/nfdi4earth_os4a_importer/nfdi4earth_os4a_importer.xml` | `a97f329143e1` | [view](https://github.com/galaxyecology/tools-ecology/blob/a97f329143e11c8ea6590de230907b41ce023151/tools/nfdi4earth_os4a_importer/nfdi4earth_os4a_importer.xml) |
-| tools-iuc | `data_source_gdcwebapp` | `tools/gdcwebapp/gdcwebapp.xml` | `965b22b060e0` | [view](https://github.com/galaxyproject/tools-iuc/blob/965b22b060e02e91cea35affe994eb30dfb2f93e/tools/gdcwebapp/gdcwebapp.xml) |
+| tools-ecology | `nfdi4earth_os4a` | `tools/nfdi4earth_os4a_importer/nfdi4earth_os4a_importer.xml` | `b3593dc0979a` | [view](https://github.com/galaxyecology/tools-ecology/blob/b3593dc0979a3d676c7d7fef4dd86d6352934e03/tools/nfdi4earth_os4a_importer/nfdi4earth_os4a_importer.xml) |
+| tools-iuc | `data_source_gdcwebapp` | `tools/gdcwebapp/gdcwebapp.xml` | `7ca969efe8e4` | [view](https://github.com/galaxyproject/tools-iuc/blob/7ca969efe8e445ba602445e6d89683f55e4a4904/tools/gdcwebapp/gdcwebapp.xml) |
 | vlefort/phyml (also in github: tools-iuc) | `phyml` | `phyml.xml` | `6dd988b4b760` | [view](https://toolshed.g2.bx.psu.edu/view/vlefort/phyml) |
