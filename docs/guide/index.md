@@ -1,7 +1,7 @@
-# galaxy-tool-refactor — guide
+# galaxy-tool-refactor: guide
 
 > **In one sentence:** galaxy-tool-refactor reads a Galaxy tool's XML and can
-> **format it, fix it, upgrade it, and flag best-practice gaps** — from the command
+> **format it, fix it, upgrade it, and flag best-practice gaps**, from the command
 > line, a Python library, or an MCP server an AI agent can drive.
 
 ```mermaid
@@ -47,20 +47,20 @@ tidy, valid, and current is real, repetitive work.
 
 This project turns much of that work into **one rule set you can run**:
 
-- **Format** — apply the canonical, IUC-style layout (indentation, attribute and
+- **Format**: apply the canonical, IUC-style layout (indentation, attribute and
   element order, CDATA wrapping). Safe and idempotent; never changes behaviour.
-- **Upgrade** — repair a tool, moving `profile=` only as far as it strictly needs
+- **Upgrade**: repair a tool, moving `profile=` only as far as it strictly needs
   (or, with `--modernize`, as far as behaviour provably holds and every major
-  public server can run, e.g. a real tool jumped `profile="18.01"` → `"25.1"`) —
+  public server can run, e.g. a real tool jumped `profile="18.01"` → `"25.1"`),
   opt-in and semantic.
-- **Check** — report where a tool falls short of best practice (missing tests, no
+- **Check**: report where a tool falls short of best practice (missing tests, no
   version pins, …). Report-only.
 
 It is **evidence-driven**: design decisions are backed by sweeps over a corpus of
 **9,373 real Galaxy tools**, not guesses.
 
-On a tool that already follows IUC conventions, `format` and `check` are often quiet —
-there the value is the **upgrade** and the best-practice report.
+On a tool that already follows IUC conventions, `format` and `check` are often quiet.
+There the value is the **upgrade** and the best-practice report.
 
 ## Pick your path
 
@@ -80,7 +80,7 @@ This guide holds itself to two rules:
 1. **It won't overwhelm you.** Every page goes simple → detailed; you can stop at any
    point and have a complete picture.
 2. **It won't overclaim.** Every "it does X" is traceable to a real artifact, and is
-   tagged **Shipped / Partial / Roadmap** in **[capabilities](capabilities.md)** — the
+   tagged **Shipped / Partial / Roadmap** in **[capabilities](capabilities.md)**, the
    one page every other page defers to.
 
 <details>
@@ -98,12 +98,12 @@ is an explicit flag, and behaviour-affecting edits are made only where the tool 
 
 ## Going deeper
 
-- **[capabilities](capabilities.md)** — the full Shipped/Partial/Roadmap matrix.
-- **[soundness](soundness.md)** — what "safe upgrade" does and doesn't guarantee.
-- **[leverage](leverage.md)** — where this fits in the Galaxy ecosystem.
-- **[vs planemo](vs-planemo.md)** — how it complements the tools you already use.
-- **[`ARCHITECTURE.md`](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/ARCHITECTURE.md)**
-  — for people working *on* the project.
+- **[capabilities](capabilities.md)**: the full Shipped/Partial/Roadmap matrix.
+- **[soundness](soundness.md)**: what "safe upgrade" does and doesn't guarantee.
+- **[leverage](leverage.md)**: where this fits in the Galaxy ecosystem.
+- **[vs planemo](vs-planemo.md)**: how it complements the tools you already use.
+- **[`ARCHITECTURE.md`](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/ARCHITECTURE.md)**:
+  for people working *on* the project.
 
 ```{toctree}
 :hidden:

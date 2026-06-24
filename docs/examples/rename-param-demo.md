@@ -3,13 +3,13 @@
 Renaming a Galaxy tool parameter by hand is a chore *and* a hazard: the name is
 scattered across the `<command>` (often inside `#if` directives and dotted
 `$param.metadata.…` accesses), the output `label`s, by-name cross-reference
-attributes, and the `<tests>` — miss one and the tool silently breaks. The
+attributes, and the `<tests>`. Miss one and the tool silently breaks. The
 `rename-param` command does it in one shot, **atomically**: it rewrites every real
 reference or changes nothing.
 
 ## 1. A tool that references a parameter all over the place
 
-`seqstats.xml` — note `input_bam` appears in a `#if` condition, a dotted
+`seqstats.xml`, note `input_bam` appears in a `#if` condition, a dotted
 `.metadata.bam_index` access, a quoted command argument, the output `label`, the
 `<param>` definition, and the test:
 
@@ -41,7 +41,7 @@ reference or changes nothing.
 </tool>
 ```
 
-First, see where it's used (read-only — changes nothing):
+First, see where it's used (read-only, changes nothing):
 
 ```console
 $ galaxy-tool-refactor find-references input_bam seqstats.xml
@@ -52,7 +52,7 @@ seqstats.xml:17  [output_data_label:stats_out]  ${input_bam.name}
 4 reference(s) to 'input_bam' across 1 tool(s)
 ```
 
-## 2. Rename it — one command
+## 2. Rename it: one command
 
 ```console
 $ galaxy-tool-refactor rename-param input_bam aligned_reads seqstats.xml
@@ -102,24 +102,24 @@ else moved.
 ## What it got right (and what it deliberately left alone)
 
 - **Followed the reference into a `#if` directive** and through a **dotted access**
-  (`$input_bam.metadata.bam_index`) — rewriting only the parameter segment, not the
+  (`$input_bam.metadata.bam_index`), rewriting only the parameter segment, not the
   `.metadata.bam_index` part.
 - **Followed it into the output `label`** (`${input_bam.name}` → `${aligned_reads.name}`).
-- **Renamed the `<tests>` reference** — a test references inputs by name, so a rename
+- **Renamed the `<tests>` reference**: a test references inputs by name, so a rename
   that forgot it would leave the test pointing at a parameter that no longer exists.
 - **Left the other parameters alone** (`$region`, `$stats_out`).
-- **Left the shell variable `${GALAXY_SLOTS:-1}` alone** — it is not a Galaxy
+- **Left the shell variable `${GALAXY_SLOTS:-1}` alone**: it is not a Galaxy
   parameter.
 
 And it is careful by construction. `rename-param` is built on a *faithful* Cheetah
 lexer, so it never rewrites a `$input_bam` that appears inside a `#raw` block, a `##`
-comment, or an escaped `\$input_bam` — those are not live references. It also does
+comment, or an escaped `\$input_bam`: those are not live references. It also does
 **not** touch `<help>` text, because help is rendered documentation (RST/Markdown),
 not a Cheetah-templated section.
 
 ## Following the parameter into an output `<filter>`
 
-An output `<filter>` is a **Python expression**, so it names a parameter by *bare* word —
+An output `<filter>` is a **Python expression**, so it names a parameter by *bare* word:
 `output_format == "ppm"`, not `$output_format`. That used to make a rename **bail**: the
 engine couldn't prove a bare-name rewrite safe without a Python tokeniser. It now uses one.
 
@@ -136,7 +136,7 @@ output `<filter>`s**:
 </outputs>
 ```
 
-Renaming `output_format` → `image_format` rewrites all of it in one shot — including the
+Renaming `output_format` → `image_format` rewrites all of it in one shot, including the
 three filters:
 
 ```console
@@ -152,21 +152,21 @@ renamed 1 tool(s); skipped 0
 
 The rewrite is **token-precise**: it renames the bare `NAME` `output_format` but leaves the
 string literal `"ppm"` and any attribute access untouched. It still bails on the genuinely
-ambiguous case — `old` appearing as a `cond['old']` string key, indistinguishable from a
+ambiguous case: `old` appearing as a `cond['old']` string key, indistinguishable from a
 literal value. Corpus-wide, closing this lifted clean rename coverage **93.1% → 96.3%**
 (the `rename-coverage` measure).
 
 ## Following the parameter into imported macro files
 
 Real tools rarely keep everything in one file. A parameter is defined in the tool but
-*referenced* inside an imported macro — so a single-file rename would rename the
+*referenced* inside an imported macro, so a single-file rename would rename the
 definition and **silently leave the macro reference dangling**, breaking the tool.
 `rename-param` follows the parameter across the whole **bundle** (the tool and every
 macro it `<import>`s).
 
 Take the real IUC tool [`pal2nal`](https://github.com/galaxyproject/tools-iuc/tree/main/tools/pal2nal):
 `pal2nal.xml` *defines* `<param name="protein_alignment">` but its `<command>` is just
-`<expand macro="command"/>` — the `$protein_alignment` references live in
+`<expand macro="command"/>`: the `$protein_alignment` references live in
 `macros.xml`, and six more name-mirrors live in `tests.xml`:
 
 ```console
@@ -187,8 +187,8 @@ skip pal2nal.xml: 'protein_alignment' is referenced in an imported macro; rerun 
 renamed 0 tool(s); skipped 1
 ```
 
-Point `--repo-root` at the repo, and — since `macros.xml` / `tests.xml` are imported
-only by `pal2nal` — the rename applies across all three files at once:
+Point `--repo-root` at the repo, and (since `macros.xml` / `tests.xml` are imported
+only by `pal2nal`) the rename applies across all three files at once:
 
 ```console
 $ galaxy-tool-refactor rename-param protein_alignment aligned_protein \
@@ -200,18 +200,18 @@ renamed 1 tool(s); skipped 0
 Nine sites: the `<param>` definition in `pal2nal.xml`, the two `$protein_alignment`
 references in `macros.xml`, and six `<test>` name-mirrors in `tests.xml`. If
 `macros.xml` were **shared** by another tool, `rename-param` would instead skip the
-whole rename and report which other tools import it — so a shared macro is never edited
+whole rename and report which other tools import it, so a shared macro is never edited
 in a way that breaks a different tool. To rename it everywhere anyway, add
 `--across-importers`: it renames the parameter across **every** importer of the shared
 macro in one lockstep edit, but only if they all agree (any importer that can't rename it
 safely makes the whole group bail). Corpus-wide, **1.7%** of parameter renames reach into
-an imported macro this way — every one a tool the old single-file rename silently broke
+an imported macro this way, every one a tool the old single-file rename silently broke
 (`docs/rename_macro_spread_stats.md`).
 
 ## Atomic, or nothing
 
 If `rename-param` cannot prove *every* occurrence is safe to rewrite, it changes the
-file **not at all** and tells you why — so you never get a half-renamed, broken tool.
+file **not at all** and tells you why, so you never get a half-renamed, broken tool.
 It skips (rather than risk a wrong edit) when, for example, a `#set` local variable
 shadows the name, a section mixes Cheetah text with child elements, or an output
 `<filter>` references the parameter only as an ambiguous string key (`cond['name']`,
@@ -229,7 +229,7 @@ cross-file **bundle** rename), the sole-owned macro gate in
 
 *The CLI shown here rewrites the tree and reserialises through fmt. The same engine
 also exposes a Tier-B offset API (`rename_param_plan`) that returns minimal
-`(start, end, replacement)` edits over the original source — 96.8% corpus parity with
-this CLI, 0 mismatches — for an editor "Rename Symbol" without reflowing the file. An
+`(start, end, replacement)` edits over the original source (96.8% corpus parity with
+this CLI, 0 mismatches) for an editor "Rename Symbol" without reflowing the file. An
 LSP binding over it is an open draft PR (galaxyproject/galaxy-language-server#331); see
 `docs/upgrade_research/lsp_rename_integration.md`.*
