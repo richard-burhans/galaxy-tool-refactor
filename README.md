@@ -4,6 +4,9 @@ A uv workspace housing eight independently-installable Python packages (plus a
 thin front-door metapackage — nine published distributions in all) for parsing,
 validating, formatting, linting, and refactoring Galaxy tool definition XML.
 
+> 📚 **Documentation:** the user and agent guide is published at
+> [galaxy-tool-refactor.readthedocs.io](https://galaxy-tool-refactor.readthedocs.io/en/latest/).
+
 > 📌 **GCC2026 poster:** *An Automated Refactoring Framework for the Galaxy Tool
 > Ecosystem* is available here as
 > [`docs/gcc2026-poster.pdf`](docs/gcc2026-poster.pdf).
