@@ -534,9 +534,10 @@ commands:
   ruleset = `canonical_codemods()` + cosmetic) then serialise. Safe, idempotent; never changes
   `profile=`. Advisory rules in a selection (`--ruleset strict`) are reported as
   notes, never applied. (No longer byte-identical to the pre-partition historical
-  output: GTR020.1 — `SingleQuoteCommandVars` — now also single-quotes the
-  *provably*-single-valued Cheetah vars in `<command>`, a behaviour-preserving fix;
-  codemod `docs/decisions.md` §30.)
+  output: GTR020.1 — `SingleQuoteCommandVars` — now also single-quotes the bare
+  input/output **file** Cheetah vars in `<command>` (the IUC rule's scope; a
+  provably-safe value-domain subset), a behaviour-preserving fix; codemod
+  `docs/decisions.md` §30/§52.)
 - `galaxy-tool-refactor upgrade` — repair, then profile placement, then
   format. Opt-in, semantic. **Minimal-bump by default**: `profile=` moves only
   when strictly needed for validity — kept when the repaired tool validates at

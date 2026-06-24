@@ -34,8 +34,9 @@ def test_default_ruleset_is_default() -> None:
 def test_ruleset_contents_preserve_todays_behavior() -> None:
     sets = ruleset_codes()
     assert sets["cosmetic"] == {"GTR001", "GTR004"}  # GTR003 parked (fmt §D4)
-    # `default` reproduces the historical default `format` set; `iuc` mirrors it
-    # for now (placeholder membership, reassigned per-rule later).
+    # `default` reproduces the historical default `format` set; `iuc` intentionally
+    # mirrors it until the IUC best-practices conversation lands a distinct blessed
+    # membership (rules tier `docs/decisions.md` D4 note; not a placeholder TODO).
     assert sets["default"] == _TODAY_DEFAULT
     assert sets["iuc"] == _TODAY_DEFAULT
     # strict = default + every advisory check (advisory-ness is a rule property).

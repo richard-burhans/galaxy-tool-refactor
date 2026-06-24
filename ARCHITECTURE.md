@@ -221,6 +221,11 @@ schema, and expose a typed view — **without ever serialising**.
   The same planner-feeds-two-renderings pattern as `cheetah_rename` (§20):
   the GTR094 codemod consumes the tree mutation, the CLI/editor path the offsets.
   (xml `docs/decisions.md` §29–§30; codemod §43; cli §D13–§D15.)
+  `version_tokens.py` also owns the Galaxy revision-suffix **bump** primitives the
+  `bump-version-suffix` command (cli §D21) builds on: `current_suffix`,
+  `bump_suffix_skip_reason`, the in-place `bump_suffix_tree`, and the
+  `SuffixSite` / `SuffixSiteKind` site descriptors (no offset planner — CLI-only,
+  no LSP consumer; xml `docs/decisions.md` §32).
 
 **Contract:** the lxml tree is the single representation; tier 1 emits no XML.
 *(xml `docs/decisions.md` §3 representation, §9 three-tier vision, §10 corpus
@@ -536,6 +541,14 @@ given. This is what lets both the CLI and the MCP server be thin adapters.
   agreement**; `apply_profile_token_plans(plans, *, write)` bumps the token in
   place **only when every importer agrees** (else reports and skips). This spans a
   *set* of tools — orchestration — which is why it lives in this tier.
+- **`version_suffix_bump.py`** — the structural twin of the `@PROFILE@` bump for the
+  Galaxy revision suffix. `plan_suite_suffix_bump(...)` / `SuffixBumpPlan` bump a
+  shared `@VERSION_SUFFIX@` token across *every* importer of a macro file in lockstep,
+  behind a proof-by-execution gate (each importer must re-expand to the same bytes
+  except its `+galaxy<N>` segment). Like `macro_profile.py`, it spans a set of tools,
+  so it is orchestration and lives in this tier; `facade.bump_version_suffix` uses the
+  tier-1 `bump_suffix_tree` for tool-local sites and this planner for an imported shared
+  token (registry `docs/decisions.md` D27, cli §D21).
 - **`gate_eligibility.py`** — the auto-fix rule classification behind the
   repository-scale auto-fix system. `classify(code)` / `eligibility_groups()`
   partition every selectable rule into `GATE_ELIGIBLE` (provably
@@ -751,7 +764,8 @@ The invariants above are enforced by standing tooling, not goodwill (`scripts/`)
   answers one empirical question and writes a `docs/*_stats.md` artifact. Reproduced
   analyses live here (with a test), not in throwaway scripts.
 - **`qa_gate.sh`** — the deterministic pre-push gate: ruff + mypy (strict, per
-  package) + pytest across all eight packages. A `git push` hook blocks on
+  package **plus the maintainer `scripts/` tree**, at the 3.10 support floor) +
+  pytest across all eight packages. A `git push` hook blocks on
   failure. (A mechanical backstop — *not* a substitute for the full pre-PR audit.)
 - **`fetch_schemas.py` / `fetch_toolshed.py` / `regenerate.py`** — vendor the XSDs,
   clone the corpus, and regenerate the per-version typed models.
@@ -783,7 +797,7 @@ Each abstraction → its file → the decision record that justifies it.
 | `rename_param` / `rename_param_plan` / `RenameOutcome` / `RenamePlan` | `galaxy-tool-source/src/.../cheetah_rename.py` | xml `docs/decisions.md` §20 |
 | `ToolBundle` / `load_bundle` / `rename_param_in_bundle` | `galaxy-tool-source/src/.../bundle.py` | xml `docs/decisions.md` §21 |
 | `rst_is_invalid` / `repair_help_rst` (help-RST predicate + repair) | `galaxy-tool-source/src/.../rst.py` | xml `docs/decisions.md` §23 |
-| `tokenization_skip_reason` / `expansion_equality_holds` / `adopt_suffix_equality_holds` / `tokenize_tree` / `tokenize_version_plan` (version-tokenization decision, gates, mutation, planner) | `galaxy-tool-source/src/.../version_tokens.py` | xml `docs/decisions.md` §29–§30 |
+| `tokenization_skip_reason` / `expansion_equality_holds` / `adopt_suffix_equality_holds` / `tokenize_tree` / `tokenize_version_plan` (version-tokenization decision, gates, mutation, planner) + `current_suffix` / `bump_suffix_skip_reason` / `bump_suffix_tree` / `SuffixSite` (revision-suffix bump primitives) | `galaxy-tool-source/src/.../version_tokens.py` | xml `docs/decisions.md` §29–§30, §32 |
 | `CodemodCommand`, `Cursor`, `Change` | `galaxy-tool-codemod/src/.../codemod.py`, `cursor.py`, `change.py` | codemod `docs/decisions.md` §6, §19 |
 | `canonical_codemods()` / `AUTO_UPGRADE_CODEMODS` | `galaxy-tool-codemod/src/.../canonical.py` | codemod `docs/decisions.md` §16, §36 |
 | upgrade codemods | `galaxy-tool-codemod/src/.../upgrades.py`, `codemods/upgrade_*.py` | codemod `docs/decisions.md` §11–14 |
@@ -801,6 +815,7 @@ Each abstraction → its file → the decision record that justifies it.
 | planemo aliases + parity table | `galaxy-tool-refactor-registry/src/.../planemo.py`, `parity.py` | registry `docs/decisions.md` D16–D17 |
 | `run` / `upgrade` / `detect` facade | `galaxy-tool-refactor-registry/src/.../facade.py`, `results.py` | registry `docs/decisions.md` D1 |
 | imported-`@PROFILE@` upgrade | `galaxy-tool-refactor-registry/src/.../macro_profile.py` | registry `docs/decisions.md` D5 |
+| suite-scoped `@VERSION_SUFFIX@` bump (`plan_suite_suffix_bump` / `SuffixBumpPlan`, the `@PROFILE@`-bump twin) | `galaxy-tool-refactor-registry/src/.../version_suffix_bump.py` | registry `docs/decisions.md` D27 |
 | imported-macro `format`/`ftype` normalization | `galaxy-tool-refactor-registry/src/.../macro_datatype.py` | registry `docs/decisions.md` D8 |
 | the CLI | `galaxy-tool-refactor-cli/src/.../cli.py` + `commands/` + `options.py` | cli `docs/decisions.md` D1–D6 |
 | the MCP server | `galaxy-tool-refactor-mcp/src/.../server.py` (+ `service.py`) | mcp `docs/decisions.md` D1 |

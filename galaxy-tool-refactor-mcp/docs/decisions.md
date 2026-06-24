@@ -149,6 +149,10 @@ in-memory `xml: str` model: they span only the tool supplied. The **cross-file**
 variants — references/renames that reach an *imported macro file*, with the
 sole-owned `--repo-root` gate — stay **CLI-only**, because they need filesystem
 access a string-only call does not have (same reason `tokenize_version_tool` fails
-closed on imported macros, D3). The two remaining CLI commands, `normalize-macros`
-and `lint-skip`, are repo-scoped multi-file batch operations with no single-document
-form, so they are deliberately not MCP tools. The server is now **9 tools**.
+closed on imported macros, D3). The other CLI commands stay off MCP for
+two distinct reasons: `normalize-macros` and `lint-skip` are repo-scoped multi-file
+batch operations with no single-document form; `bump-version-suffix` is
+**identity-changing** (it moves a tool's published Galaxy revision), so like
+`tokenize-version --adopt-suffix` it is deliberately CLI-only and never exposed to
+agents (cli §D21), even though its tool-local case is single-document. The server is
+now **9 tools**.

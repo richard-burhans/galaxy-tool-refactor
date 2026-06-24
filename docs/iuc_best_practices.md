@@ -131,11 +131,13 @@ D1 and `galaxy-tool-refactor-cli/docs/decisions.md` D2/D3.)
 
 > **Scope note.** The table above is the *IUC-practice* slice of the `check` tier.
 > The same tier (`galaxy-tool-lint`) additionally hosts the **planemo-parity
-> wave `GTR038`–`GTR099`** (57 detect-only checks reimplementing the
+> wave `GTR038`–`GTR102`** (detect-only checks reimplementing the
 > `galaxy.tool_util.lint` linters — outputs, inputs, tests, validators, `<help>` RST,
-> datatypes), bringing it to **72 checks** total (the 2026-06-10 GTR090–091 batch was
-followed by GTR095, 2026-06-11: the id/name/version missing-or-empty trio — the half
-tier-1 XSD validation can't see; then the GTR098/GTR099 datatypes pair, 2026-06-14).
+> datatypes — plus a few command-side best-practice checks), bringing the tier to
+> **75 checks** total (later additions: GTR095, 2026-06-11, the id/name/version
+missing-or-empty trio — the half tier-1 XSD validation can't see; the GTR098/GTR099
+datatypes pair, 2026-06-14; the GTR100/GTR101 test-validation bindings via the
+`[test-validation]` extra and GTR102 boolean-gates-other-options, D37/D38).
 `GTR089` is now a fix/advisory **partition**
 > like GTR018/019/020: the deterministically-fixable invalid `<help>` RST is
 > auto-repaired by the `GTR089.1` codemod (tier 2, in the default `format`

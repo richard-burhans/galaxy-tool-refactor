@@ -130,7 +130,18 @@ uv run --package galaxy-tool-refactor-rules pytest \
   galaxy-tool-refactor-rules/tests/test_rulesets.py galaxy-tool-refactor-rules/tests/test_meta.py
 ```
 
-## D5 (2026-06-09) — `RuleMeta.planemo_linters` (the planemo-name alias)
+### Note (2026-06-22) — `iuc` intentionally mirrors `default` today
+
+The `iuc` ruleset has the same membership as `default` (every rule that declares
+`default` also declares `iuc`), so `ruleset_codes()["iuc"] == ["default"]`. This is
+**deliberate, not an unfinished placeholder**: the set that would distinguish `iuc`
+is the *IUC-blessed* rule subset, and which rules IUC blesses is an open
+best-practices question (the GTR002 attribute-order and forward-gate discussions —
+`docs/iuc_conference_questions.md` §3/§7). Differentiating `iuc` before that answer
+would encode a guess. So `iuc` is kept as a reserved, separately-selectable name that
+mirrors `default` until the IUC conversation lands a distinct membership; the
+user-facing description says exactly that. Re-tag the member rules then — no code
+change here is needed, only per-rule `RuleMeta.rulesets` membership.
 
 ### Decision
 

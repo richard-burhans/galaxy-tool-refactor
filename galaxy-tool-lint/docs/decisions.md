@@ -552,10 +552,15 @@ correctness surface, landing as advisory checks. Reproduced-by:
 - **Why detect, not fix.** Each flags an authoring mistake with no single correct
   mechanical repair (which of two clashing values is right is the author's call), so
   per the soundness discipline they report, never fix. They join the `strict` preset.
-- **Deferred.** The heavier `output` linters — `OutputsFormat` (`_check_format`
-  recursion through `change_format`/`actions`), `OutputsLabelDuplicated` (needs the
-  default-label model), `OutputsExpression`/`OutputsFilterExpression` — are a later
-  sub-batch.
+- **Deferred → shipped (2026-06-06, same wave).** The heavier `output` linters were
+  a later sub-batch *in this wave*, not a standing deferral: `OutputsFormat` shipped as
+  **GTR049** (`OutputFormatDefined`), `OutputsLabelDuplicatedFilter`/`NoFilter` as
+  **GTR050** (`OutputLabelsDistinct`, narrowed to explicit labels), and
+  `OutputsFilterExpression` as **GTR052** (`OutputFilterValid`). There is **no**
+  separate `OutputsExpression` linter (the only output expression linter is
+  `OutputsFilterExpression`); the slash above was an imprecise paraphrase. So every
+  `galaxy.tool_util.linters.output` linter is now covered — see the authoritative
+  `../docs/planemo_linter_parity.md` (`output.py` section).
 - **Scope: direct children only.** `_named_outputs` yields only the direct `<data>` /
   `<collection>` children of `<outputs>`, not nested ones (a `<data>` inside a
   `<collection>` is a structural child in the collection's own namespace, not a top-level

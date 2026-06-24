@@ -1,6 +1,6 @@
 # For AI agents (and people building them)
 
-> **In one sentence:** this is a substrate for agents that work on Galaxy tools — call
+> **In one sentence:** this is a substrate for agents that work on Galaxy tools: call
 > it over **MCP** (nine tools) or embed the **library**, and let it do the deterministic,
 > verifiable parts (format, upgrade, check) while the agent does the reasoning.
 
@@ -8,17 +8,18 @@
 
 An LLM can draft a tool wrapper, but it shouldn't *guess* whether the XML is valid, in
 canonical form, or safe at a newer profile. This project answers those deterministically
-and returns structured results — so the agent offloads the parts that must be *correct*,
+and returns structured results, so the agent offloads the parts that must be *correct*,
 not *plausible*. The **upgrade + validation framework is the most mature surface**: it's
-backed by per-release XSDs and a 9,374-tool evidence base, and it tells you when a change
+backed by per-release XSDs and a 9,373-tool evidence base, and it tells you when a change
 is provably safe.
 
 ## Two ways in
 
 ### MCP (tool calls)
 
-Seven tools — `format_tool`, `upgrade_tool`, `check_tool`, `convert_help_tool`,
-`tokenize_version_tool`, `list_rulesets`, `list_rules` —
+Nine tools, `format_tool`, `upgrade_tool`, `check_tool`, `convert_help_tool`,
+`tokenize_version_tool`, `find_references_tool`, `rename_param_tool`,
+`list_rulesets`, `list_rules`,
 take the tool XML as a string and return JSON. Nothing is written to disk. See
 [usage/mcp](usage/mcp.md). The key signal for autonomy:
 
@@ -37,7 +38,7 @@ behavior-preserving walk, which stops at the behaviour ceiling and never
 passes the deployment ceiling (the newest profile every major public Galaxy
 server runs; only an explicit `target_profile` exceeds it);
 `stopped_at`/`blocking_codes` say where and why (each code maps to a section of
-[`docs/profile_boundaries.md`](../profile_boundaries.md)). Crossing a
+[`docs/profile_boundaries.md`](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/profile_boundaries.md)). Crossing a
 behaviour boundary additionally requires `allow_behavior_change=true`
 explicitly.
 `behavior_preserving` (`true`/`false`/`null`) lets an agent decide what to
@@ -73,7 +74,7 @@ the proven-safe action, surface the rest.
 
 - **Agents calling the tools: shipped.** That's vision Goal 1.
 - **Agents authoring their own rules** (new codemods/checks the framework discovers and
-  runs alongside the baked-in set): vision **Goal 2 — open design, not built**
+  runs alongside the baked-in set): vision **Goal 2: open design, not built**
   (`galaxy-tool-refactor-mcp/docs/vision.md`).
 - `upgrade`'s default bumps only when validity strictly requires it; the
   `modernize` walk stops rather than cross a breaking behaviour change it

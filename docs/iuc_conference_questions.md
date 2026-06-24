@@ -5,6 +5,12 @@ states the question, our current provisional behavior, and any corpus data we
 have to bring to the conversation. Resolve them upstream, then encode the answer
 in the toolchain and delete the entry.
 
+§1 to §7 below are the high-stakes subset (the decisions that unblock auto-fix
+work). The **appendix** at the end is the broader, lower-stakes catalog: every
+place the written IUC tool-XML standard is silent, vague, or self-inconsistent
+that our toolchain had to take a position on. It is there so the in-person
+conversation can clarify the standard itself, not just our open questions.
+
 ## 1. Version-suffix policy for a multi-tool suite that shares `macros.xml`
 
 **Context.** A real-world formatting/normalization PR that changes an
@@ -44,9 +50,9 @@ each is already installable on the ToolShed, so any content change needs a
 `@VERSION_SUFFIX@` bump first (e.g. `1.4.22+galaxy7 → +galaxy8`). We closed that PR
 rather than auto-bump, because bumping a published tool's revision (and the per-tool
 vs suite-wide policy below) is a "publish a new revision" decision, not a
-behavior-preserving auto-fix. This is exactly why the version-suffix codemod (N2)
-stays blocked on this answer: the toolchain can canonicalize a published tool, but it
-cannot land that change without the revision-bump policy you own.
+behavior-preserving auto-fix. This was the original motivation for the version-suffix codemod (N2):
+the toolchain can canonicalize a published tool, but it cannot land that change
+without a revision bump, and the revision-bump policy is yours to own.
 
 N2 is now built as the opt-in `bump-version-suffix` command, with `--scope
 per-tool|suite` defaulting to the provisional suite-wide choice (one shared
@@ -338,3 +344,100 @@ after review. Full breakdown: `docs/gate_reaccumulation_stats.md`.
 - Appetite for a required formatting/normalization check at all?
 - Auto-normalize vs. block-until-canonical?
 - Which rule subset is acceptable on day one, and who owns the blessed list?
+
+---
+
+## Appendix: where the IUC tool-XML standard is silent, vague, or inconsistent
+
+The numbered questions above are the decisions we most need. This appendix is the
+fuller catalog behind them: a careful read of the written standard
+(`galaxy-iuc/standards`, `docs/best_practices/tool_xml.rst`, rendered at
+galaxy-iuc-standards.readthedocs.io) for every point that is **underspecified**,
+**unstated**, or **internally inconsistent**, and that our toolchain therefore had
+to take a position on. Where an item is one of the §-questions, it is cross-linked.
+Nothing here is a criticism of the standard; these are the natural seams a precise,
+automated tool exposes, and the kind of thing worth clarifying once.
+
+**How to walk this in the room.** Group A is mostly quick confirmations (a sentence
+each: "is this what you intend?"). Group B is where the standard is simply silent, so
+a yes/no establishes the convention. Group C are small corrections to the standard's
+own text, worth fixing in a future docs pass rather than discussing live. If time is
+short, the three highest-value to settle in person are: **A1** (does an autoformatter's
+canonical output count as a "cosmetic modification", i.e. no version bump — this gates
+the whole normalization story and ties to §1/§7); **B5 + B6** (attribute quote style and
+the order of unlisted `<param>` attributes — settling these is what lets attribute
+normalization be deterministic, which feeds §3); and **C1** (which `detect_errors` value
+the standard prefers). Everything else can be a fast round of confirmations or deferred
+to a docs PR.
+
+### A. Vague or judgment-based wording (no precise rule to encode)
+
+1. **"Cosmetic modifications" need no version bump** (Tool versions). Undefined. The
+   pivotal case: does running an autoformatter (canonical whitespace, attribute and
+   element order) count as cosmetic, so it does *not* require a revision bump? This
+   is the crux beneath §1 and §7, and it decides whether a normalization gate can run
+   on published tools without forcing a bump.
+2. **"A recent profile, i.e. not older than 1 year"** (Tool profile). Recent relative
+   to which date, and it is a SHOULD, not a MUST, so it is unenforceable as written.
+   It is also in tension with the deployment reality: a profile newer than the release
+   every major public Galaxy server runs cannot install (our `upgrade --modernize`
+   caps at that "deployment ceiling"). What is the precise rule the standard intends?
+3. **"Only the minor version number shall be increased if this is likely to bring the
+   two versions in sync in a reasonable time"** (Tool versions). "Likely" and
+   "reasonable time" are unquantified.
+4. **The `<command>` "should be highly legible"** (Command tag). No concrete criterion,
+   so not mechanically checkable.
+5. **"Large XML elements" may put `label`/`help` on a new line** (Coding Style). "Large"
+   is undefined, so when wrapping is allowed is a judgment call. This is §5; our
+   formatter is currently stricter (all attributes on one line).
+6. **"Cheetah code should be ... mainly PEP8 conformant"** (Coding Style). "Mainly" is
+   undefined.
+7. **Tool IDs "meaningful and unique also in a larger context"** (Tool ids); **tests
+   "All Galaxy Tools should include functional tests"** (Tests). No measurable
+   threshold (how unique, how many tests, what minimum assertions).
+
+### B. Unstated (the standard says nothing; our tooling had to choose)
+
+1. **Blank line between top-level `<tool>` sections** — not mentioned at all (§4; our
+   GTR003 is parked pending this).
+2. **Empty-element shorthand `<foo></foo>` vs `<foo/>`** — not mentioned (§6; GTR004).
+3. **The XML declaration `<?xml ... ?>`** — presence or absence is unstated (a real IUC
+   PR review asked us to drop it; the standard itself is silent).
+4. **A trailing newline at end of file** — unstated.
+5. **XML attribute quote style** (single vs double quotes) — unstated; the standard's
+   own examples mix them (see C2).
+6. **The order of `<param>` attributes not in the listed set** — the standard fixes
+   the order of `name / argument / type / format / min|truevalue / max|falsevalue /
+   value|checked / optional / label / help`, but says nothing about other attributes
+   (`multiple`, `display`, `separator`, `refresh_on_change`, `area`, ...). GTR002 has
+   to choose where those land.
+7. **Quoting of Cheetah variables that are not text, input, or output files**
+   (selects, numbers, booleans) — the standard mandates single-quoting only for "text
+   parameters, input and output files" and is silent on the rest (§2; our GTR020.1
+   quotes only the mandated file scope, GTR020.2 reports the rest as advice).
+8. **Markdown `<help>` (`format="markdown"`)** — only reStructuredText is described;
+   whether Markdown help is acceptable or preferred is unstated (our `convert-help`
+   produces it only on an opt-in, render-equivalence-gated basis).
+9. **Macro-file naming and organization** beyond where `@VERSION_SUFFIX@` may live —
+   unstated (e.g. is `macros.xml` the expected filename; how should shared macros be
+   split).
+10. **The lone-`&` anti-pattern** — the standard mandates `&&` for chaining commands but
+    does not address a stray single `&` (our GTR032 detects only the genuine join case).
+
+### C. Internal inconsistencies or omissions in the standard itself
+
+1. **`detect_errors` value** — the standard's own examples use both
+   `detect_errors="exit_code"` (the xrefs example) and `detect_errors="aggressive"`
+   (the Exit Code Detection section) without saying which is preferred.
+2. **Curly quotes in the Booleans example** — `<param name=”strict” truevalue=”--enable-strict” ...>`
+   uses typographic quotes (`”`) rather than straight ASCII quotes, which both is a
+   typo and muddies the (otherwise unstated) attribute quote-style convention.
+3. **Composite-datatype directory access differs for inputs vs outputs**
+   (`$input.extra_files_path` vs `$output.files_path`); the standard flags this as
+   historical and "hoped [to] be harmonised in a future Galaxy release" — an
+   acknowledged inconsistency in Galaxy that tool authors must still navigate.
+4. **The "Data Managers" section is literally `TODO`** — an unwritten part of the
+   standard.
+5. **The element-order list mixes linked entries with bracketed ones**
+   (`[parallelism]`, `[code]`, plus unlinked `environment_variables`) with no
+   explanation of what the brackets signify (optional? not-yet-documented?).

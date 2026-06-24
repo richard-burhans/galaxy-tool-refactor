@@ -4,12 +4,19 @@ A uv workspace housing eight independently-installable Python packages (plus a
 thin front-door metapackage — nine published distributions in all) for parsing,
 validating, formatting, linting, and refactoring Galaxy tool definition XML.
 
+> 📚 **Documentation:** the user and agent guide is published at
+> [galaxy-tool-refactor.readthedocs.io](https://galaxy-tool-refactor.readthedocs.io/en/latest/).
+
+> 📌 **GCC2026 poster:** *An Automated Refactoring Framework for the Galaxy Tool
+> Ecosystem* is available here as
+> [`docs/gcc2026-poster.pdf`](docs/gcc2026-poster.pdf).
+
 ## Packages
 
 | Package | PyPI status | Role |
 |---|---|---|
 | [`galaxy-tool-refactor-rules`](galaxy-tool-refactor-rules/README.md) | [published](https://pypi.org/project/galaxy-tool-refactor-rules/), `pip install galaxy-tool-refactor-rules` | Shared `RuleMeta` descriptor + `Violation` diagnostic + glossary renderer. Dependency-free; underpins the GTR rule registry across the tiers. |
-| [`galaxy-tool-source`](galaxy-tool-source/README.md) | [published](https://pypi.org/project/galaxy-tool-source/), `pip install galaxy-tool-source` | Parse, validate, and inspect Galaxy tool XML. Foundation for the other tiers. |
+| [`galaxy-tool-source`](galaxy-tool-source/README.md) | [published](https://pypi.org/project/galaxy-tool-source/), `pip install galaxy-tool-source` | Parse, validate, and inspect Galaxy tool XML, including a faithful **Cheetah** lexer and reference model (powering `<command>` reference queries and parameter rename across a tool and its imported macros) and **reStructuredText** `<help>` handling (line-anchored repair, plus render-equivalent Markdown conversion). Foundation for the other tiers. |
 | [`galaxy-tool-codemod`](galaxy-tool-codemod/README.md) | [published](https://pypi.org/project/galaxy-tool-codemod/), `pip install galaxy-tool-codemod` | Detect-primitive `CodemodCommand` framework + bundled structural codemods (`canonical_codemods()`, `AUTO_UPGRADE_CODEMODS`); each rule has a detect (lint) and a fix phase. |
 | [`galaxy-tool-fmt`](galaxy-tool-fmt/README.md) | [published](https://pypi.org/project/galaxy-tool-fmt/), `pip install galaxy-tool-fmt` | Opinionated `black`-like cosmetic formatter (with a non-mutating `detect`). The only tier that serialises canonical output XML. |
 | [`galaxy-tool-lint`](galaxy-tool-lint/README.md) | [published](https://pypi.org/project/galaxy-tool-lint/), `pip install galaxy-tool-lint` | Advisory, detect-only IUC best-practice checks (`GTR` codes); read-only, reports but never mutates. Depends only on tiers 1 + 0.5. |
@@ -74,7 +81,8 @@ which the app CLI consumes:
 
 - `galaxy-tool-refactor format` — apply a ruleset's fixable rules then cosmetic
   formatting. The default ruleset = `canonical_codemods()` (typo repair +
-  attribute / element order + CDATA wraps + GTR020 command-var single-quoting) +
+  attribute / element order + CDATA wraps + GTR020 single-quoting of `<command>`
+  input/output file vars) +
   cosmetic — behaviour-preserving (no longer byte-identical to the pre-GTR020
   historical output; codemod `docs/decisions.md` §30). Safe, idempotent; never
   changes `profile=`.

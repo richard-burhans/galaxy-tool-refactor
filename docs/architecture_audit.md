@@ -1,5 +1,85 @@
 # Architectural audit — galaxy-tool-refactor
 
+## Re-audit 2026-06-22 — escalated delta over PRs #270–#284 (commands/ split, MCP guard, #279 bump-version-suffix, note-builder lift, scripts/-under-mypy)
+
+**Audited commit:** `d631a53` (main at audit time; the safe-fixes below landed on the
+follow-up branch). Final pre-conference check, requested with escalation. 11 finder
+scouts (7 tier + 4 dimension) → adversarial verify → synthesis; 37 agents.
+
+**Verdict: boundaries hold; the architecture is conference-ready.** No new
+high-severity finding, no boundary violation, and no abstraction inconsistency surfaced
+under escalation. The seven-tier separation, the registry's library-first facade, the
+MCP facade→JSON purity, and the CLI thin-front-end import boundary were all
+independently re-confirmed against the #270–#284 surface. The #279 bump-version-suffix
+feature is correct in code and sound by construction (proof-by-execution gated,
+identity-change correctly excluded from `format`/`upgrade`/MCP); its only defects are
+**documentation lag**. Tally: **0 new High, 3 new Medium, 13 new Low, 5 re-confirmations,
+4 refuted.**
+
+**Applied this pass (safe doc/comment fixes):** M1 [fixed] (tier-1 README adds the 5
+bump-suffix symbols), M2 [fixed] (ARCHITECTURE §7 bullet + §11 row for
+`version_suffix_bump.py`), L1 [fixed] (ARCHITECTURE §3/§11 bump primitives), L2 [fixed]
+(source §32 Reproduced-by → `test_bump_version_suffix.py`), L3 [fixed] (source §32 drop
+"on a copy of the tree" → "the passed tree"), L4 [fixed] (registry D27 Reproduced-by
+filename transposition), L5 [fixed] (codemod §53 single-tag gate attributed to
+`adapters.py`/`reorder_tool_children.py`, not the tier-1 resolver), L6 [fixed] (fmt
+`format.py` docstring + `detect.py` comment GTR003-parked), L9 [fixed] (mcp D7 adds
+`bump-version-suffix` with the identity-changing reason), L13 [fixed] (ARCHITECTURE
+`qa_gate.sh` mypy now names the `scripts/` tree + 3.10 floor), and the #4 re-confirmation
+[fixed] (`iuc_best_practices.md` 72→75, wave extended to GTR102).
+
+**Left as proposals (not applied — need a test or a structural change):**
+- **M3 [proposal]** — add a CLI guard test deriving registered command names from
+  `main.commands` (assert visible set == the 12, `gate-suggest` present-but-hidden and
+  absent from help, every command-exporting `commands/` module registered). The MCP
+  sibling got this in #270; the #274 `commands/` split left the parallel CLI surface
+  unguarded.
+- **L10 [proposal]** — convert the implicit 9-tool MCP roster literal into an explicit
+  named-exclusion assertion for `bump_version_suffix` / `adopt_version_suffix` (the
+  literal pin in `test_server.py` already fails CI on a silent addition; this is
+  hardening).
+- **L11 [proposal]** — a direct unit test over the `notes.py` `_*` builders pinning
+  purity + the formatting contract (the serialize/write half is already covered by
+  `test_serializer_allowlist`).
+- **L12 [proposal]** — extract the shared directory-importer discovery +
+  macro-expansion helpers `version_suffix_bump.py` and `version_token_share.py` both
+  carry (~35 lines, two tier-3.6 siblings; no new dependency edge). Low risk.
+- **L7 / L8 [accepted]** — `notes.py` and `options.py` expose their cross-module
+  surface under `_`-prefixed names (a private-signaling convention kept after the #275 /
+  #274 lifts). Cosmetic; recorded, not forced — the lifted-builder purity contract is met.
+
+The five independent re-confirmations and four refuted candidates are in the synthesised
+report below.
+
+---
+
+<details>
+<summary>Full synthesised escalation report (PRs #270–#284)</summary>
+
+## Re-audit 2026-06-22 — escalated delta over PRs #270–#284 (commands/ split, MCP guard, #279 bump-version-suffix, note-builder lift, scripts/-under-mypy)
+
+**Method:** escalated delta audit — finder scouts re-deriving candidates across the seven tiers and the seven cross-cutting dimensions, each candidate adversarially verified against source, then synthesised with aggressive dedup and corrected severities. **20 candidates survived verification (16 new, 5 independent re-confirmations — one survivor double-counts as both), 4 refuted.**
+
+**Headline:** the architecture **holds**. The escalation surfaced **no new high-severity finding, no boundary violation, and no abstraction inconsistency**. The one structural theme is documentation lag behind the #279 bump-version-suffix arc; the rest is naming cosmetics from the #274 `commands/` split and two low-risk contract-enforcement gaps on that same parallel CLI surface.
+
+### (1) New findings
+
+**M1** — tier-1 README public-API list omitted the five bump-suffix symbols the registry imports across the tier boundary (`version_tokens.py:288-419`; facade `:879-921`). **M2** — `version_suffix_bump.py` (`plan_suite_suffix_bump` / `SuffixBumpPlan`) was absent from ARCHITECTURE §7 + the §11 index though its `@PROFILE@` twin `macro_profile.py` has both. **M3** — no guard that registered CLI commands match `commands/` modules, and `gate-suggest`'s `hidden=True` is unpinned (the #270 MCP sibling has this guard). L1 — ARCHITECTURE §3/§11 omitted the bump primitives. L2 — source §32 Reproduced-by named the wrong test file. L3 — source §32 said `bump_suffix_tree` works "on a copy of the tree" but it mutates in place. L4 — registry D27 Reproduced-by cited a transposed nonexistent filename. L5 — codemod §53 mis-attributed the single-tag placement gate to the tier-1 resolver (it lives in `adapters.py`/`reorder_tool_children.py`). L6 — the #269 GTR003-parking sweep missed `fmt/format.py:113` + `detect.py:95`. L7/L8 — `notes.py` / `options.py` cross-module surfaces are `_`-prefixed (cosmetic). L9 — mcp D7's "two remaining CLI commands" went stale after #279. L10 — the "never on MCP" claim has docs but no named positive guard (partially-confirmed → Low). L11 — `notes.py` purity has no direct guard (partially-confirmed → Low). L12 — `version_suffix_bump.py` re-derives helpers `version_token_share.py` owns (downgraded → Low). L13 — pre-pr-audit `SKILL.md` "mypy strict ×8" stale after scripts/ joined the gate (#272).
+
+### (2) Independent re-confirmations (no action)
+
+1. tier-1 no-serializer + downward-import contract absorbed the #279 bump surface cleanly (naming follows conventions; no `bump_suffix_plan` planner is by design — CLI-only). 2. The #270 MCP guard (server tools == independently-derived service ops) holds and is non-vacuous; `service.py` has no `mcp` import. 3. The CLI thin-front-end import boundary is positively guarded (`test_tier_boundaries.py`); the `commands/` split inherits it via `rglob`. 4. `iuc_best_practices.md` "72 checks" was stale vs the live 75 (corrected Medium → Low; the authoritative docs already said 75). 5. The two #274 opt-in-command duplication shapes reconfirm prior "extract-shared" observations (recorded, not forced — divergent payloads limit sharing).
+
+### (3) Rejected candidates (refuted)
+
+- "bump-version-suffix divergent write shape" — structurally required (the shared-macros write can't be expressed by `target.write_bytes(result.formatted)`; pushing it to the CLI would leak macros-file knowledge into the app tier). - "convert-help bytes-vs-path hazard" — false premise: convert-help never macro-expands (its gate bails on `@…@` tokens), so bytes-vs-path is behaviorally identical. - "CLI thin-front-end contract guarded" — a reconfirmation of a closed invariant, not a defect. - runtime_fixes `_is_newer` / stale `SEMANTIC_PROFILE_CHANGES` — already-refuted in prior passes, no new evidence.
+
+### Recommended follow-up order
+
+M1 + L1 + M2 + L3 (the #279 doc-coverage batch — done this pass) → M3 + L10 (CLI/MCP guard hardening — proposals) → the doc-line nits (done) → optional duplication/naming cleanups L7/L8/L11/L12 (proposals).
+
+</details>
+
 ## Re-audit 2026-06-16 — consolidation delta (PRs #259–#268), multi-agent escalation
 
 **Audited commit:** `4555eeb` (main at audit time; the safe-fixes below land on the

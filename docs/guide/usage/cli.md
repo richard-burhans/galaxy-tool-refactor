@@ -3,7 +3,7 @@
 > **TL;DR.** Install, then run one of twelve commands on a tool file or a directory:
 > `format` (fix), `upgrade` (repair; bump profile only when needed), `check` (report), `find-references`
 > (locate a param's Cheetah `$var` uses across a tool **and its imported macros**),
-> `rename-param` (rename a param everywhere — tool **and its imported macros** —
+> `rename-param` (rename a param everywhere, tool **and its imported macros**,
 > atomically), `rulesets`/`rules` (introspect), `normalize-macros` (opt-in macro-library
 > fix), `convert-help` (opt-in RST → Markdown help conversion, equivalence-gated),
 > `tokenize-version` (opt-in version-token extraction), `bump-version-suffix` (opt-in:
@@ -81,9 +81,9 @@ lint-skip        Clean up planemo .lint_skip sidecars: apply the toolchain's fix
 ## Preview before you write
 
 Both `format` and `upgrade` take `--diff` (print a unified diff, write nothing) and
-`--check` (exit non-zero if anything would change — handy in CI).
+`--check` (exit non-zero if anything would change, handy in CI).
 
-**A real `format --diff`** (cosmetic normalisation — note it never changes meaning):
+**A real `format --diff`** (cosmetic normalisation; note it never changes meaning):
 
 ```diff
 $ galaxy-tool-refactor format --diff tools/coverm/macros.xml
@@ -124,7 +124,7 @@ upgraded tools/mytool/mytool.xml
 
 This is a successful partial upgrade, not an error (exit code 0). Your options:
 
-1. Open [`docs/profile_boundaries.md`](../../profile_boundaries.md), find the
+1. Open [`docs/profile_boundaries.md`](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/profile_boundaries.md), find the
    named code's section, and update the tool following Galaxy's description;
    then rerun `upgrade --modernize` to continue past the boundary.
 2. Rerun with `--modernize --allow-behavior-change` to take the bump anyway,
@@ -172,10 +172,10 @@ galaxy-tool-refactor format --ignore GTR006   tool.xml      # everything-but typ
 
 Precedence is ruff-style: `--ignore` ▸ `--select` ▸ `--ruleset` (and `--select` replaces
 the rulesets' set). `--ruleset` is repeatable / comma-separated and takes the union
-of the named sets. Rulesets: `cosmetic`, `default` (the default), `iuc`, `strict` — see
+of the named sets. Rulesets: `cosmetic`, `default` (the default), `iuc`, `strict`; see
 `galaxy-tool-refactor rulesets`. A `--select`/`--ignore` token may also be a **planemo
-linter name** (`--select HelpMissing`, case-insensitive) — it resolves to the covering
-GTR code(s); see the [parity table](../../planemo_linter_parity.md).
+linter name** (`--select HelpMissing`, case-insensitive); it resolves to the covering
+GTR code(s); see the [parity table](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/planemo_linter_parity.md).
 
 <details>
 <summary>Directories, quiet mode, and exit codes</summary>
