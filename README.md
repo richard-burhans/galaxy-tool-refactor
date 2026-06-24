@@ -78,7 +78,8 @@ which the app CLI consumes:
 
 - `galaxy-tool-refactor format` — apply a ruleset's fixable rules then cosmetic
   formatting. The default ruleset = `canonical_codemods()` (typo repair +
-  attribute / element order + CDATA wraps + GTR020 command-var single-quoting) +
+  attribute / element order + CDATA wraps + GTR020 single-quoting of `<command>`
+  input/output file vars) +
   cosmetic — behaviour-preserving (no longer byte-identical to the pre-GTR020
   historical output; codemod `docs/decisions.md` §30). Safe, idempotent; never
   changes `profile=`.
