@@ -7266,18 +7266,26 @@ def _rst_node_types(doctree: object) -> set[str]:
 
 # --- measurement: help-rst-errors (R1) ------------------------------------------
 
-# docutils message classes judged DETERMINISTICALLY fixable by a narrow surgical
-# edit anchored on the reporter's line number — the "chase what we can fix" target
-# (a future GTR089.1 partition-fix). Each maps to a recipe in the findings doc:
-# title underlines extend; a trailing transition is dropped; a "block ends without
-# a blank line; unexpected unindent" inserts the missing blank line. The ambiguous
-# residual (Unexpected indentation, unclosed inline markup, section nesting) is NOT
-# here — it stays the GTR089 advisory.
+# docutils message classes the shipped GTR089.1 repair (galaxy_tool_source.rst) has a
+# deterministic, behaviour-preserving recipe for — so a tool whose every serious error
+# is in this set is a candidate for full repair (an UPPER BOUND: the per-edit
+# structure-equivalence gate may still decline an individual instance). The set mirrors
+# exactly the two dispatch arms of `rst._plan_edits`: `_TITLE_UNDERLINE_SHORT` (extend
+# the underline) and the `_ENDS_WITHOUT_BLANK` family (insert the missing blank line).
+# `tests/test_measure.py::test_fixable_rst_classes_match_the_repair_recipes` pins that
+# correspondence so the two modules cannot drift.
+#
+# Deliberately EXCLUDED (no recipe — these stay the GTR089.2 advisory):
+#   - "Transition at the end of the document." — docutils renders a trailing `----` as
+#     an <hr>, so dropping it changes the rendered help (the gate vetoes it);
+#   - "Missing matching underline for section title overline." — docutils drops the
+#     title from the doctree, so supplying the underline ADDS rendered content (a
+#     structural change the gate vetoes), not a no-op;
+#   - "Title overline too short." — the repair only extends underlines, not overlines.
+# The ambiguous residual (Unexpected indentation, unclosed inline markup, section
+# nesting) is likewise not here.
 _FIXABLE_RST_CLASSES = frozenset({
     "Title underline too short.",
-    "Title overline too short.",
-    "Missing matching underline for section title overline.",
-    "Transition at the end of the document.",
     "Block quote ends without a blank line; unexpected unindent.",
     "Definition list ends without a blank line; unexpected unindent.",
     "Bullet list ends without a blank line; unexpected unindent.",
