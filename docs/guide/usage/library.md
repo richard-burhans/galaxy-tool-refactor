@@ -2,7 +2,7 @@
 
 > **TL;DR.** The registry facade is the library-first entry point: `run` (format),
 > `detect` (report), and `upgrade`, each taking a path / bytes / `ToolDocument` and a
-> resolved set of rule codes, returning a structured result. No printing, no `sys.exit` —
+> resolved set of rule codes, returning a structured result. No printing, no `sys.exit`;
 > it's built to be embedded.
 
 ## The facade
@@ -37,7 +37,7 @@ print(up.blocking_codes)                    # what a modernize walk would face
 ```
 
 > **Gotcha (honest).** Pass a **`Path`** (or a `ToolDocument` loaded from a path), not
-> raw `bytes`, whenever the tool `<import>`s a macro file — raw bytes have no source
+> raw `bytes`, whenever the tool `<import>`s a macro file: raw bytes have no source
 > directory, so the imports can't resolve and macro-expanded validation degrades. Bytes
 > are fine for self-contained, in-memory tools.
 
@@ -52,7 +52,7 @@ print(up.blocking_codes)                    # what a modernize walk would face
 Rule selection is shared: `resolve.resolve_codes(rulesets=…, select=…, ignore=…)` for
 `run`/`detect` (the base is the union of the named rulesets);
 `resolve.resolve_upgrade_codes(select=…, ignore=…)` for `upgrade`
-(no ruleset — upgrade is semantic). Precedence: `ignore` ▸ `select` ▸ `rulesets`.
+(no ruleset; upgrade is semantic). Precedence: `ignore` ▸ `select` ▸ `rulesets`.
 
 ## Introspection
 
@@ -68,12 +68,12 @@ for p in facade.list_rulesets():
 
 The facade composes them, but each is usable standalone:
 
-- `galaxy_tool_source` — `load_tool` / `parse_tool`, `validate_tool`,
+- `galaxy_tool_source`: `load_tool` / `parse_tool`, `validate_tool`,
   `newest_valid_profile`, typed model views. (No serializer.)
-- `galaxy_tool_fmt` — `format_tool_document(document) -> bytes` (the *only*
+- `galaxy_tool_fmt`: `format_tool_document(document) -> bytes` (the *only*
   serializer in the stack).
-- `galaxy_tool_codemod` — the `CodemodCommand` framework + bundled codemods.
-- `galaxy_tool_lint` — detect-only IUC advisory checks.
+- `galaxy_tool_codemod`: the `CodemodCommand` framework + bundled codemods.
+- `galaxy_tool_lint`: detect-only IUC advisory checks.
 
 The facade is library-first by design (registry `CLAUDE.md`): inputs are
 path/bytes/`ToolDocument`, outputs are structured, files are written only when you

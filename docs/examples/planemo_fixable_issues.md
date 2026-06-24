@@ -1,6 +1,6 @@
 # Issues planemo *reports* that we *fix*
 
-`planemo lint` (via `galaxy.tool_util.linters`) is report-only — it tells an author a
+`planemo lint` (via `galaxy.tool_util.linters`) is report-only. It tells an author a
 tool has a problem, but the author fixes it by hand. This project's differentiator is
 **auto-fixing** the subset where a fix is provably safe. This page shows a real
 before/after for each such fix, paired with the planemo linter it covers and how many
@@ -8,23 +8,23 @@ corpus tools it touches.
 
 > **Scope & honesty.** The candidate list comes from
 > [`docs/planemo_linter_parity.md`](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/planemo_linter_parity.md) (the full 146-linter
-> map). Each row's "can we *safely* fix it?" is decided per-rule when it's built — the
+> map). Each row's "can we *safely* fix it?" is decided per-rule when it's built, the
 > same behaviour-preservation discipline as everywhere else
 > ([`soundness.md`](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/guide/soundness.md)). Sometimes the homework says *no* and we
-> keep it advisory instead of fixing — that outcome is recorded here too, because
+> keep it advisory instead of fixing, that outcome is recorded here too, because
 > declining to change a tool's identity is itself the right answer.
 
 Status legend: **✅ Shipped** (runs under `format` today) · **🔭 Planned** (a FIX
 candidate not yet built) · **🛑 Advisory-by-design** (planemo flags it; we *detect* but
-deliberately don't auto-fix — doing so wouldn't be behaviour-preserving).
+deliberately don't auto-fix: doing so wouldn't be behaviour-preserving).
 
 ---
 
-## ✅ GTR035.1 — leading/trailing whitespace in a `requirement version`
+## ✅ GTR035.1: leading/trailing whitespace in a `requirement version`
 
 **Covers planemo:** `RequirementVersionWhitespace`
 (`galaxy.tool_util.linters.general`). Its sibling `ToolNameWhitespace` is the
-**GTR035.2 advisory** (reported under `--ruleset strict`, never auto-fixed —
+**GTR035.2 advisory** (reported under `--ruleset strict`, never auto-fixed:
 the name trim is a display-contract change, byte-visible in API JSON; the
 GTR035 partition, codemod §33 addendum / check D33).
 
@@ -49,26 +49,26 @@ under `format`.
 
 **Why it's safe:** Galaxy composes the conda spec verbatim
 (`package_specifier = f"{package}={version}"`, `conda_util.py:461-465`), so a
-whitespace-bearing version never resolved — a *working* tool never has one and
+whitespace-bearing version never resolved. A *working* tool never has one and
 trimming only ever repairs an already-broken requirement. **Corpus:** per-rule
 counts live in `docs/corpus_check_stats.md` / `docs/corpus_rule_stats.md`
-(regenerated with the partition) — **0 non-idempotent, 0 post-validate-failed**
+(regenerated with the partition): **0 non-idempotent, 0 post-validate-failed**
 across every sweep.
 
-## 🛑 `id` / tool `version` whitespace — detect, don't fix
+## 🛑 `id` / tool `version` whitespace: detect, don't fix
 
 **Covers planemo:** `ToolIDWhitespace`, `ToolVersionWhitespace`.
 
 The same accidental whitespace, but on a `<tool>`'s `id` or `version`. We do **not**
 auto-trim these: Galaxy uses both *raw* as the tool's identity / version key
 (`tool_util/parser/xml.py` `parse_id`/`parse_version` don't strip; `Tool.id` is the
-registration key), so trimming would change a *working* tool's identity — not
+registration key), so trimming would change a *working* tool's identity, not
 behaviour-preserving. This is the honest split of the planemo "whitespace" cluster:
 two attributes we fix, two we (will) only flag. (Advisory rule: planned.)
 
 ---
 
-## ✅ GTR036 — deprecated `<output type="data">` → `<data>`
+## ✅ GTR036: deprecated `<output type="data">` → `<data>`
 
 **Covers planemo:** `OutputsOutput` ("Avoid the use of 'output' and replace by 'data'
 or 'collection'").
@@ -86,19 +86,19 @@ or 'collection'").
 </outputs>
 ```
 
-**Why it's safe:** Galaxy routes a `<outputs>` child by tag — an `<output type="data">`
+**Why it's safe:** Galaxy routes a `<outputs>` child by tag: an `<output type="data">`
 is parsed by the *same* code path as a `<data>` (`tool_util/parser/xml.py`), so the
 rename + dropping the redundant `type="data"` is a no-op for Galaxy. **Corpus:** 1
-tool carries it; GTR036 fixes it — 0 non-idempotent, 0 post-validate-failed
+tool carries it; GTR036 fixes it, 0 non-idempotent, 0 post-validate-failed
 (`docs/corpus_rule_stats.md`).
 
-**Left advisory (not auto-fixed):** `<output type="collection">` — Galaxy remaps
+**Left advisory (not auto-fixed):** `<output type="collection">` (Galaxy remaps
 `collection_type`/`collection_type_source` and fills `type_source` via `unicodify(None)`
-when absent, so a literal rename isn't provably equivalent — and `<output>` with no
+when absent, so a literal rename isn't provably equivalent), and `<output>` with no
 `type` (an *expression* output, a different kind). Same soundness discipline as the
 `id`/`version` whitespace split above.
 
-## ✅ GTR037 — drop a redundant `name` when `argument` implies it
+## ✅ GTR037: drop a redundant `name` when `argument` implies it
 
 **Covers planemo:** `InputsNameRedundantArgument`.
 
@@ -120,11 +120,11 @@ when absent, so a literal rename isn't provably equivalent — and `<output>` wi
 `"threads"`); we drop `name` *only* when it equals that derived value, so Galaxy
 computes the identical name and every `$threads` reference still resolves. And
 `param/@name` is optional in all 28 vendored XSDs that allow `argument`, so validity is
-preserved for every profile — including novel tool XML. **Corpus:** 343 tools carry it
-(1,846 findings); GTR037 fixes **332** — 0 non-idempotent, 0 post-validate-failed
+preserved for every profile, including novel tool XML. **Corpus:** 343 tools carry it
+(1,846 findings); GTR037 fixes **332**, 0 non-idempotent, 0 post-validate-failed
 (`docs/corpus_rule_stats.md`).
 
-## 🛑 Deprecated `<options>` / select attributes — detect, don't fix
+## 🛑 Deprecated `<options>` / select attributes: detect, don't fix
 
 **Covers planemo:** `InputsSelectDynamicOptions` (deprecated `dynamic_options=`),
 `InputsSelectOptionsDeprecatedAttr` (`from_file`/`from_parameter`/`transform_lines`/
@@ -132,8 +132,8 @@ preserved for every profile — including novel tool XML. **Corpus:** 343 tools 
 
 On inspection these have **no mechanical modern equivalent**: `dynamic_options=` holds an
 arbitrary Python expression, and the deprecated `<options>` attributes require
-restructuring (e.g. defining a data table). Migrating them needs author judgment, so —
-like the `id`/`version` whitespace and `<output type="collection">` cases above — they
+restructuring (e.g. defining a data table). Migrating them needs author judgment, so
+(like the `id`/`version` whitespace and `<output type="collection">` cases above) they
 stay **advisory** (planned `check`-tier rules), reported but not auto-fixed.
 
 ---
@@ -144,7 +144,7 @@ The auto-fixable subset of planemo's linters is now **complete**: **GTR035.1** (
 trims), **GTR036** (`<output type="data">`→`<data>`), **GTR037** (redundant `name`).
 Every other candidate, on inspection, is either *identity-changing* (`id`/`version`
 whitespace) or has *no mechanical modern equivalent* (`<output type="collection">`,
-deprecated `dynamic_options`/`<options>` attrs) — so it's **advisory-by-design**, not a
+deprecated `dynamic_options`/`<options>` attrs), so it's **advisory-by-design**, not a
 gap. The next planemo-parity frontier is the ~80 *correctness* checks
 (param/validator/conditional/test rules): mostly detect-only for us too, growing the
 advisory `check` tier rather than this fixer showcase.
