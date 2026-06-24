@@ -7,10 +7,10 @@ before/after for each such fix, paired with the planemo linter it covers and how
 corpus tools it touches.
 
 > **Scope & honesty.** The candidate list comes from
-> [`docs/planemo_linter_parity.md`](../planemo_linter_parity.md) (the full 146-linter
+> [`docs/planemo_linter_parity.md`](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/planemo_linter_parity.md) (the full 146-linter
 > map). Each row's "can we *safely* fix it?" is decided per-rule when it's built — the
 > same behaviour-preservation discipline as everywhere else
-> ([`soundness.md`](../guide/soundness.md)). Sometimes the homework says *no* and we
+> ([`soundness.md`](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/guide/soundness.md)). Sometimes the homework says *no* and we
 > keep it advisory instead of fixing — that outcome is recorded here too, because
 > declining to change a tool's identity is itself the right answer.
 

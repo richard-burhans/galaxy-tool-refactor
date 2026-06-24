@@ -124,7 +124,7 @@ upgraded tools/mytool/mytool.xml
 
 This is a successful partial upgrade, not an error (exit code 0). Your options:
 
-1. Open [`docs/profile_boundaries.md`](../../profile_boundaries.md), find the
+1. Open [`docs/profile_boundaries.md`](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/profile_boundaries.md), find the
    named code's section, and update the tool following Galaxy's description;
    then rerun `upgrade --modernize` to continue past the boundary.
 2. Rerun with `--modernize --allow-behavior-change` to take the bump anyway,
@@ -175,7 +175,7 @@ the rulesets' set). `--ruleset` is repeatable / comma-separated and takes the un
 of the named sets. Rulesets: `cosmetic`, `default` (the default), `iuc`, `strict` — see
 `galaxy-tool-refactor rulesets`. A `--select`/`--ignore` token may also be a **planemo
 linter name** (`--select HelpMissing`, case-insensitive) — it resolves to the covering
-GTR code(s); see the [parity table](../../planemo_linter_parity.md).
+GTR code(s); see the [parity table](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/planemo_linter_parity.md).
 
 <details>
 <summary>Directories, quiet mode, and exit codes</summary>

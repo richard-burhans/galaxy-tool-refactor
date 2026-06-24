@@ -46,7 +46,7 @@ stays the same**: it stops below the first Galaxy `must_fix` change that
 applies to your tool and that it cannot fix with a repair proven safe on that
 tool, and never past the deployment ceiling, the newest profile every major
 public Galaxy server runs (`--target-profile` is the explicit way past it). A stop is a normal, successful outcome: the report names the blocking
-code and links to the [per-boundary reference](../profile_boundaries.md),
+code and links to the [per-boundary reference](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/profile_boundaries.md),
 which tells you what changed and what to do;
 `--modernize --allow-behavior-change` takes the bump anyway. Read
 [soundness](soundness.md); that boundary is what makes it trustworthy for review.
@@ -90,7 +90,7 @@ Advisory (IUC) findings — missing tests, no version pins, no error handling �
   treat it as "needs a human look," not "rejected."
 - The `format` fixes *are* behaviour-preserving — and that's not just asserted: every
   fixable rule is adversarially audited, with genuine breaks fixed (regression-pinned)
-  and the verdicts recorded in the [behaviour-preservation ledger](../behavior_preservation.md)
+  and the verdicts recorded in the [behaviour-preservation ledger](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/behavior_preservation.md)
   ([soundness](soundness.md#how-we-know-format-is-behaviour-preserving--the-audit)).
 - The often-discussed *batch automation* (a bot that opens fix-PRs across a whole repo)
   is **not built** — the per-tool engine above is what it would stand on. See the
