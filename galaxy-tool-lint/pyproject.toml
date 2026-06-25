@@ -1,6 +1,6 @@
 [project]
 name = "galaxy-tool-lint"
-version = "0.3.5"
+version = "0.3.6"
 description = "Advisory (detect-only) IUC best-practice checks for Galaxy tool XML — tier 3.5 of the galaxy-tool-source ecosystem."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,8 +12,8 @@ authors = [{ name = "Richard Burhans" }]
 dependencies = [
     # GTR089.2 validates <help> reStructuredText via the shared tier-1 predicate
     # (`galaxy_tool_source.rst`), so docutils is a transitive dep of tier 1, not declared here.
-    "galaxy-tool-refactor-rules==0.3.5",
-    "galaxy-tool-source==0.3.5",
+    "galaxy-tool-refactor-rules==0.3.6",
+    "galaxy-tool-source==0.3.6",
     "lxml>=5",
     "packaging>=23",
 ]
