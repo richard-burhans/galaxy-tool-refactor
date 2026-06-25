@@ -11,6 +11,8 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+## [0.3.6] — 2026-06-25
+
 ### Changed
 - **The 24.2 test-case checker now models `<repeat>`** (codemod `docs/decisions.md`
   §54). `all_test_cases_provably_clean` — the toolchain's own port of Galaxy's strict
