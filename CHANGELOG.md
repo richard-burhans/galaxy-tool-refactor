@@ -11,6 +11,28 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+### Changed
+- **The 24.2 test-case checker now models `<repeat>`** (codemod `docs/decisions.md`
+  §54). `all_test_cases_provably_clean` — the toolchain's own port of Galaxy's strict
+  24.2 test-case validator, which tightens the `24_2_fix_test_case_validation`
+  detector — previously bailed on any `<repeat>`. It now validates repeat instances
+  against the inner scope with Galaxy's `min`/`max` and pad-to-`min` semantics, proving
+  more tools clean so `upgrade` (the behaviour gate) and `check` no longer flag them for
+  24.2. Across the public corpus the provably-clean count rises by 79 tools, with **zero
+  unsound suppressions** (the `test-case-validation-truth` parity oracle holds at 0).
+
+### Fixed
+- **24.2 test-case checker: an uppercase hex `color` value is no longer treated as
+  valid** (codemod §54). Galaxy's `ensure_color_valid` accepts only lowercase
+  `#rrggbb`; the checker's `_COLOR` pattern allowed uppercase, which the new `<repeat>`
+  coverage exposed as a reachable unsound case. Tightened to match Galaxy exactly.
+- **GTR032 (lone-`&` advisory): the classifier now applies bash backslash-escaping**
+  (lint `docs/decisions.md` D39). Outside single quotes a `\` escapes the next
+  character, so an escaped `\"` / `\'` no longer toggles quote state and a literal `\&`
+  is not counted as a shell-join operator; inside single quotes `\` stays literal. A
+  precision fix to a detect-only check — corpus-neutral (the class distribution is
+  unchanged), no behaviour change.
+
 ## [0.3.5] — 2026-06-21
 
 ### Added
