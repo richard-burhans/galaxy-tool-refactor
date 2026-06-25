@@ -11,6 +11,7 @@ from lxml import etree
 from scripts._shared import sha256_of
 from scripts.measure import (
     _COLLECTION_TYPE_MEMBERS,
+    _FIXABLE_RST_CLASSES,
     _MATCH_KEYS,
     _PROFILE_NONE,
     _baseline_bucket,
@@ -2338,8 +2339,10 @@ def rst_help_corpus(tmp_path: Path) -> Path:
     _tool("invalid.xml", "", "\nsome **unclosed strong text\n")
     # valid RST using a definition list (no CommonMark equivalent) -> valid + complex
     _tool("complex.xml", "", "\nterm\n   the definition\n")
-    # invalid RST, deterministically fixable (transition at end of document)
-    _tool("fixable.xml", "", "\nA paragraph.\n\n----\n")
+    # invalid RST: a transition at the end of the document. Detected, but NOT in the
+    # deterministic-fix set — docutils renders a trailing `----` as an <hr>, so dropping
+    # it would change the rendered help (it stays the GTR089.2 advisory).
+    _tool("transition.xml", "", "\nA paragraph.\n\n----\n")
     # excluded: markdown format
     _tool("markdown.xml", " format='markdown'", "\n# A heading\n")
     # excluded: macro token in the body
@@ -2355,8 +2358,9 @@ def test_help_rst_errors_classifies_and_excludes(rst_help_corpus: Path) -> None:
     assert result.n_rst_tools == 4
     assert result.n_parse_fail == 0
     assert result.n_invalid == 2  # unclosed-strong + transition-at-end
-    # only the transition tool's errors are all in the deterministic-fix set.
-    assert result.n_fully_fixable == 1
+    # neither is fully fixable: unclosed strong is ambiguous, and a trailing transition
+    # is excluded from the fix set (it renders as <hr>, so dropping it changes output).
+    assert result.n_fully_fixable == 0
     classes = {cls for cls, _occ, _tools in result.class_buckets}
     assert any("strong" in cls for cls in classes)
     assert "Transition at the end of the document." in classes
@@ -2385,6 +2389,27 @@ def test_help_rst_measures_empty_corpus(tmp_path: Path) -> None:
     assert _measure_help_rst_features(corpus_root=tmp_path).n_rst_tools == 0
     assert _measure_help_rst_to_markdown(corpus_root=tmp_path).n_rst_tools == 0
     assert _measure_help_rst_md_convert(corpus_root=tmp_path).n_rst_tools == 0
+
+
+def test_fixable_rst_classes_match_the_repair_recipes() -> None:
+    """`_FIXABLE_RST_CLASSES` must not advertise a class the repair has no recipe for.
+
+    The measure's "deterministically fixable" set is only honest if every class in
+    it is one `rst._plan_edits` actually dispatches on — exactly
+    ``_TITLE_UNDERLINE_SHORT`` (the extend-the-underline recipe) or the
+    ``_ENDS_WITHOUT_BLANK`` family (the insert-a-blank-line recipe). A class with no
+    recipe (a trailing transition, which renders as an ``<hr>``; a missing
+    overline-underline, which drops the title from the render; a too-short overline,
+    which has no recipe at all) belongs in the GTR089.2 advisory residual, not the
+    fixable count. This guard keeps the two modules from drifting apart.
+    """
+    from galaxy_tool_source.rst import _ENDS_WITHOUT_BLANK, _TITLE_UNDERLINE_SHORT
+
+    for cls in _FIXABLE_RST_CLASSES:
+        assert cls == _TITLE_UNDERLINE_SHORT or _ENDS_WITHOUT_BLANK in cls, (
+            f"{cls!r} is in _FIXABLE_RST_CLASSES but rst._plan_edits has no recipe "
+            "for it (so the measure would over-count fully-fixable tools)"
+        )
 
 
 # --- RST -> CommonMark converter + render-equivalence gate (help-rst-md-convert) --

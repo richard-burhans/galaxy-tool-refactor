@@ -16,11 +16,14 @@ canonical RST style; changes rendering; low value).
 
 > **SHIPPED (2026-06-09).** `RepairHelpRst` (**GTR089.1**) is live in the default `format`
 > pipeline; the old `GTR089` advisory became the **GTR089.2** residual. A corpus `format` sweep
-> repairs **54 tools** (`scripts.corpus_check codemod …RepairHelpRst`: 8607 idempotent, 0
-> non-idempotent, 0 validity breaks). That is **below** the ~62 *raw fully-fixable* estimate
-> below because the shipped **render-equivalence gate** is stricter than the raw class match — it
-> vetoes any edit that changes the rendered doctree, e.g. dropping a trailing `----` transition
-> (docutils renders it as an `<hr>`). Code: tier-1 `galaxy_tool_xml.rst` (§23), codemod §37,
+> **modifies 54 tools** (`scripts.corpus_check codemod …RepairHelpRst`: 8607 idempotent, 0
+> non-idempotent, 0 validity breaks) — some fully repaired, some partially. The shipped
+> **render-equivalence gate** is stricter than a raw docutils class match: it vetoes any edit
+> that changes the rendered doctree, e.g. dropping a trailing `----` transition (rendered as an
+> `<hr>`) or supplying a missing title overline-underline (which would add the dropped title to
+> the render). Those gate-always-vetoed classes are excluded from the deterministically-fixable
+> estimate (`scripts.measure help-rst-errors`: **~48 tools / 25 % of invalid**, corrected from an
+> earlier ~62 that wrongly counted them). Code: tier-1 `galaxy_tool_xml.rst` (§23), codemod §37,
 > check D31. The "Design sketch" below is the plan that was executed.
 
 ---
@@ -71,13 +74,19 @@ All four are corpus-dependent (not run in CI), pinned by synthetic-fixture tests
 
 - **193 invalid** (≥1 docutils message at level ≥ 2, ~GTR089); 274 info-only (sub-threshold);
   0 parse failures.
-- **62 (32 % of invalid) are *fully* fixable** — every serious error is in the deterministic-fix
-  class set below. (More tools are *partially* fixable — a mix of fixable + ambiguous errors.)
+- **48 (25 % of invalid) are *fully* fixable** — every serious error is in the deterministic-fix
+  class set below (a class-membership upper bound; the per-edit structure gate may still decline an
+  instance, so the shipped code fully repairs 44). (More tools are *partially* fixable — a mix of
+  fixable + ambiguous errors.)
 - **Fixable classes** (`*`; general recipe each): the *"`<block>` ends without a blank line; unexpected
   unindent"* family (block quote 24 tools, definition list 13, explicit-markup 9, line block 10,
   option list 8, bullet list 7, literal block 6) → **insert the missing blank line** at the reported
-  line; *Title underline / overline too short* (16 + 5) → **extend the underline to ≥ title length**;
-  *Transition at the end of the document* (14) → **drop the trailing transition line**.
+  line; *Title underline too short* (16) → **extend the underline to ≥ title length**.
+- **Refused / gate-vetoed** (no behaviour-preserving recipe → stays GTR089.2 advisory):
+  *Transition at the end of the document* (14) — docutils renders a trailing `----` as an `<hr>`, so
+  dropping it changes the render; *Missing matching underline for section title overline* (5) —
+  docutils drops the title from the doctree, so supplying the underline *adds* rendered content;
+  *Title overline too short* — the repair extends underlines only.
 - **Ambiguous residual** (stays GTR089 advisory): *Unexpected indentation* (82 tools — the dominant
   class), *Unexpected section title* (8 + 5), *unclosed inline markup* (strong 10 / emphasis 8 / …),
   *Literal block expected; none found* (12), *Inconsistent literal block quoting* (4).
@@ -144,13 +153,16 @@ A **`GTR089.1` partition-fix** (`RepairHelpRst`) that applies a **deterministic 
 error class**, anchored on the reporter's **line number** (the surgical analogue of Cheetah, since
 RST has no faithful writer). The recipes are **class-general** — they repair *any* tool with the
 class, never enumerated corpus instances; the corpus only **sizes** the win and **retains real
-failures as regression fixtures** (the project's codemod pattern). **~62 corpus tools fully repaired**
-today + partial on mixed tools + every novel offender.
+failures as regression fixtures** (the project's codemod pattern). **~48 corpus tools are
+deterministically fully-fixable** (`scripts.measure help-rst-errors`; the shipped sweep modifies 54,
+some only partially) + partial on mixed tools + every novel offender.
 
 **Atomic-bail safety** (the Cheetah contract): apply the edit → **re-parse with docutils** → keep it
 only if the targeted error is gone **and no new error appeared**; else bail (change nothing). These
-fixes make implicit structure explicit (a blank line, a longer underline, a dropped end-transition)
-and are behaviour-preserving — but the re-parse gate proves it per tool rather than trusting it.
+fixes make implicit structure explicit (a blank line, a longer underline) and are
+behaviour-preserving — but the re-parse-and-structure gate proves it per tool rather than trusting
+it (which is exactly why a trailing transition is NOT dropped: docutils renders it as an `<hr>`, so
+the gate vetoes it; it stays the GTR089.2 advisory).
 
 ### (2) Normalize RST — **not recommended**
 
