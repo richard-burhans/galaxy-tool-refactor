@@ -92,9 +92,14 @@ Advisory (IUC) findings, missing tests, no version pins, no error handling, are
   fixable rule is adversarially audited, with genuine breaks fixed (regression-pinned)
   and the verdicts recorded in the [behaviour-preservation ledger](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/behavior_preservation.md)
   ([soundness](soundness.md#how-we-know-format-is-behaviour-preserving-the-audit)).
-- The often-discussed *batch automation* (a bot that opens fix-PRs across a whole repo)
-  is **not built**. The per-tool engine above is what it would stand on. See the
-  [capabilities matrix](capabilities.md) for the Shipped/Partial/Roadmap split.
+- Two pieces of *repository-scale* automation are built as working reference
+  implementations: a **bulk normalizer** that applies the behaviour-preserving subset
+  across a whole tool repository in one pass (re-validating and reverting anything unsafe,
+  per tool) and a **forward-enforcement gate** (a GitHub Action) that checks only a PR's
+  changed tools. What is **not** built is an *autonomous* bot that opens the fix-PRs by
+  itself, and neither piece is enforced on any repository today, adoption (and in which
+  mode) is the maintainers' decision. See the [capabilities matrix](capabilities.md) for
+  the Shipped/Partial/Roadmap split.
 
 ## Go deeper
 

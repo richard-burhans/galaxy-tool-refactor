@@ -66,11 +66,14 @@ Galaxy tools**, so its decisions reflect how tools are actually written, not ass
 **Today, it really does** format, safely upgrade, and check individual tools, usable now
 as a command-line tool, a software library, and a service that AI agents can call.
 
-> **Where it's going (not yet built).** The larger prize is *automation at scale*: a
-> system that works through an entire tool collection and proposes fixes for review in
-> manageable batches, and assistance that helps streamline the community's tool-review
-> process. The per-tool engine that such automation would stand on exists today; the
-> automation around it is the roadmap, not a current claim.
+> **Where it's going.** Two pieces of larger-scale automation already exist as **working
+> reference implementations**: a pass that works through an entire tool collection and
+> applies only the fixes it can prove are safe, and a pre-merge check a repository could
+> run on incoming changes. What is still ahead is the *adopted, hands-off* version, a
+> system trusted to propose fixes across the community's repositories on its own, and
+> assistance that helps streamline the community's tool-review process. Crucially, neither
+> piece runs on any repository today: whether and how to adopt them is the community's
+> decision, not ours.
 
 <details>
 <summary>One honest limit, in plain terms</summary>

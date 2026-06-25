@@ -19,7 +19,7 @@ connection is today:
 | **`planemo` / `planemo-ci-action`** | Run as a fix/upgrade backend alongside planemo's lint/test; feed the Action that lints changed-tool PRs. | 🔭 **Potential**: the most concrete "streamline reviews" path. |
 | **`gx-tool-db` / `galaxy_codex`** (tool catalogs) | Feed check/upgrade signals at catalog scale for community-wide tool-health views. | 🔭 **Potential**. |
 | **Galaxy core / ToolShed** | Publish-time or load-time validation & repair. | 🔭 **Potential**. |
-| **Batch fix-PR automation** | Walk a tool collection and open fix PRs in reviewable batches. | 🔭 **Roadmap**: engine exists; orchestration does not. |
+| **Repository-scale auto-fix** | Walk a whole tool collection and apply the safe subset; gate a PR's changed tools before merge. | 🟡 **Reference implementation**: a bulk normalizer (Half A, `scripts/bulk_normalize.py`, proven on `tools-iuc`) and a forward-gate GitHub Action (Half B, `.github/actions/forward-gate/`) are built and shipped, but **enforced on no repository** (adoption is the maintainers' call). The *autonomous* bot that opens the fix-PRs by itself remains 🔭 roadmap. |
 | **Beyond Galaxy** (Dockstore, bio.tools, bioconda; CWL) | Tool-packaging & workflow ecosystems. | 🔭 **Roadmap**. |
 
 See [vs planemo](vs-planemo.md) for why the planemo relationship is **complementary**.
