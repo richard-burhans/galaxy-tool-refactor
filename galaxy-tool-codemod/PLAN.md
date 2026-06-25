@@ -28,7 +28,11 @@ Per `docs/architecture.md` §"What galaxy-tool-source should add":
 
 1. **Macro file resolution** — given a `ToolDocument`, return every
    `Path` involved (tool + transitively-imported macros). Lets codemods
-   touch the right files. **Not yet shipped.**
+   touch the right files. **Shipped in tier 1** —
+   `galaxy_tool_source.macros.imported_macro_paths` (read-only resolution)
+   and `galaxy_tool_source.bundle` (`load_bundle` /
+   `rename_param_in_bundle`, the cross-file rename); reached through the
+   registry / CLI (`rename-param`, `find-references`), like M5 below.
 2. **Trivia contract documented** in `galaxy-tool-source/README.md`
    (structure / attrs / order / comments / CDATA / text / encoding /
    `sourceline` survive; indentation / blank lines / quote style /
@@ -39,8 +43,9 @@ Per `docs/architecture.md` §"What galaxy-tool-source should add":
    it). Side table keyed by a stable locator. **Later — wait for a
    codemod that needs it.**
 
-Items 1-2 are tracked in the parent repo. Until they land, this repo's
-M1+ milestones use ad-hoc parent-repo internals.
+Item 2 is tracked in the parent repo; items 1 and 3 have landed. This
+repo's M1+ milestones consume the shipped tier-1 resolution
+(`imported_macro_paths` / `bundle`) rather than ad-hoc parent-repo internals.
 
 ## Milestone plan
 
