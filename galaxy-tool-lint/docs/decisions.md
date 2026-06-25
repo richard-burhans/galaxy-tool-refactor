@@ -1290,3 +1290,27 @@ uv run --package galaxy-tool-source pytest galaxy-tool-source/tests/test_command
 uv run --package galaxy-tool-lint pytest galaxy-tool-lint/tests/test_checks_boolean_gates.py
 uv run python -m scripts.measure command-boolean-if   # needs the corpus
 ```
+
+## D39 (2026-06-24) — GTR032 lone-`&` classifier: bash backslash-escaping
+
+The [D34](#d34-2026-06-10--gtr032-graduates-the-lone--joining-detector-d3s-revisit-condition-met)
+`lone_amp.classify_lone_amps` quote scan tracked only single/double quote state;
+a backslash-escaped quote (`\"` / `\'`) wrongly toggled it, and an escaped `\&`
+(a literal, e.g. sed's matched-text reference) was scored as a shell operator. The
+scan now applies bash's escaping rule: **outside** single quotes a `\` escapes the
+next character (so `\"`/`\'` do not toggle quote state and `\&` is a literal, not a
+joining `&`); **inside** single quotes `\` is literal (bash escapes nothing there),
+so it is not treated as an escape.
+
+A precision/robustness fix, not a behaviour change — GTR032 stays detect-only and
+flags only the `joining` class. Corpus-neutral: `scripts.measure command-lone-amp`
+reports the identical class distribution before and after (redirect 570 / quoted 74 /
+pipe 2 / background 1 / joining 1), so D34's numbers stay comparable; the new
+synthetic unit tests pin the escaped cases the corpus happens not to exercise.
+
+### Reproduced by
+
+```sh
+uv run --package galaxy-tool-lint pytest galaxy-tool-lint/tests/test_lone_amp.py
+uv run python -m scripts.measure command-lone-amp   # needs the corpus; distribution unchanged
+```

@@ -21,16 +21,26 @@ LONE_AMP_CLASSES = (
 
 
 def classify_lone_amps(text: str, /) -> Counter[str]:
-    """Tally each lone ``&`` in *text* into a ``LONE_AMP_CLASSES`` bucket.
+    r"""Tally each lone ``&`` in *text* into a ``LONE_AMP_CLASSES`` bucket.
 
     Pure (string in, counts out), so it is unit-tested with synthetic bodies.
-    Quote state is a simple single/double scan (no escape handling — good enough
-    to tag the sed/awk literal-``&`` class). A ``&`` that is part of ``&&`` is not
-    a lone ``&`` and is never counted.
+    Quote state is a simple single/double scan with bash backslash-escaping:
+    outside single quotes a ``\`` escapes the next character, so an escaped
+    ``\"`` / ``\'`` does not toggle quote state and an escaped ``\&`` is a literal,
+    not a shell operator. Inside single quotes ``\`` is literal (bash escapes
+    nothing there), so it is not treated as an escape. A ``&`` that is part of
+    ``&&`` is not a lone ``&`` and is never counted.
     """
     counts: Counter[str] = Counter()
     in_single = in_double = False
+    skip_next = False
     for i, ch in enumerate(text):
+        if skip_next:
+            skip_next = False
+            continue
+        if ch == "\\" and not in_single:
+            skip_next = True  # bash: \ escapes the next char outside single quotes
+            continue
         if ch == "'" and not in_double:
             in_single = not in_single
             continue
