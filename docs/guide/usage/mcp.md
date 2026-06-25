@@ -34,12 +34,16 @@ An agent passes the XML in and gets structured JSON back, e.g. `check_tool`:
 // check_tool(xml="<tool …>…</tool>", rulesets=["strict"])
 {
   "violations": [
-    {"code": "GTR001", "line": 3,  "message": "Canonical 4-space indentation; no tabs."},
-    {"code": "GTR025", "line": 1,  "message": "Tool should declare <requirements>."}
-  ],
-  "advisory_codes": ["GTR021", "GTR025", "…"]
+    {"code": "GTR001", "sourceline": 1, "xpath": "/tool/command",
+     "message": "Canonical 4-space indentation; no tabs.", "advisory": false},
+    {"code": "GTR025", "sourceline": 1, "xpath": "/tool",
+     "message": "Tool should declare <requirements>.", "advisory": true}
+  ]
 }
 ```
+
+Each finding carries `advisory` (`false` = a fixable rule, `true` = a report-only
+best-practice check).
 
 `format_tool` returns the canonical XML; `upgrade_tool` returns the upgraded XML plus
 `behavior_preserving` (`true`/`false`/`null`), `baseline_profile`/`reached_profile`,
@@ -53,6 +57,73 @@ the modernize walk's behaviour ceiling additionally requires
 install, is worse, not better. The blocking codes map to sections of
 [`docs/profile_boundaries.md`](https://github.com/richard-burhans/galaxy-tool-refactor/blob/main/docs/profile_boundaries.md), so an agent can read
 exactly what changed and decide deliberately; see [soundness](../soundness.md).
+
+## An example per tool
+
+Calls and responses are real, trimmed; the same demo tool drives them
+(`<command>demo --in $input --out $output</command>`, an integer `1.0+galaxy0`
+version, an RST `<help>`). `check_tool` is shown above.
+
+<details open>
+<summary><b>Fix &amp; upgrade: <code>format_tool</code>, <code>upgrade_tool</code></b></summary>
+
+```text
+// format_tool(xml="…$input…$output…")
+{"formatted": "…<command><![CDATA[demo --in '$input' --out '$output']]></command>…",
+ "advisory": [], "notes": []}                       // file vars quoted, body CDATA-wrapped, indented
+
+// upgrade_tool(xml="…")
+{"formatted": "…", "baseline_profile": "24.2", "reached_profile": "24.2",
+ "steps_applied": [], "behavior_preserving": true, "stopped_at": null,
+ "blocking_codes": [], "auto_fixed_codes": [], "notes": []}
+```
+</details>
+
+<details>
+<summary><b>Opt-in: <code>convert_help_tool</code>, <code>tokenize_version_tool</code></b></summary>
+
+```text
+// convert_help_tool(xml="…<help><![CDATA[\nDemo\n====\n\nA **bold** tool.\n]]>…")
+{"converted": true,
+ "formatted": "…<help format=\"markdown\"><![CDATA[# Demo\n\nA **bold** tool\\.\n]]>…",
+ "skip_reason": null}                               // skip_reason is set (and converted=false) when not render-equivalent
+
+// tokenize_version_tool(xml="…version=\"1.0+galaxy0\"…<requirement …>1.0…")
+{"tokenized": true,
+ "formatted": "…version=\"@TOOL_VERSION@+galaxy@VERSION_SUFFIX@\"…<macros><token name=\"@TOOL_VERSION@\">1.0</token>…",
+ "skip_reason": null}
+```
+</details>
+
+<details>
+<summary><b>Query &amp; rename: <code>find_references_tool</code>, <code>rename_param_tool</code></b></summary>
+
+```text
+// find_references_tool(xml="…", name="input")
+{"name": "input", "occurrences": [{"section": "command", "sourceline": 1, "reference": "$input"}]}
+
+// rename_param_tool(xml="…", old="input", new="reads")
+{"old": "input", "new": "reads", "changed": true, "renamed": 2, "reason": null,
+ "formatted": "…<command>demo --in $reads --out $output</command>…<param name=\"reads\" …"}
+```
+
+On a bail, `changed` is `false`, `formatted` is `null`, and `reason` explains why.
+</details>
+
+<details>
+<summary><b>Introspect: <code>list_rulesets</code>, <code>list_rules</code></b></summary>
+
+```text
+// list_rulesets()
+[{"name": "cosmetic", "codes": ["GTR001", "GTR004"], "is_default": false, "description": "…"},
+ {"name": "default",  "codes": ["GTR001", "GTR002", "…"], "is_default": true,  "description": "…"}, …]
+
+// list_rules()  (optional include_upgrade=true adds the upgrade-only codemods)
+[{"code": "GTR001", "summary": "Canonical 4-space indentation; no tabs.", "family": "fmt",
+  "fixable": true, "rulesets": ["cosmetic", "default", "iuc", "strict"],
+  "planemo_linters": [], "since": "0.0.1", "cite": "https://…"}, …]
+```
+</details>
 
 ## Why it's a thin adapter
 

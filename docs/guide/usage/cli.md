@@ -185,3 +185,87 @@ GTR code(s); see the [parity table](https://github.com/richard-burhans/galaxy-to
 - `-q/--quiet` suppresses per-file lines, leaving the summary.
 - `format --check` / `upgrade --check` make good CI gates (non-zero = "would change").
 </details>
+
+## Every command, with an example
+
+All twelve commands, each with a real (trimmed) invocation and its output. The
+mutating ones (`format`, `upgrade`, `rename-param`, `normalize-macros`,
+`convert-help`, `tokenize-version`, `bump-version-suffix`, `lint-skip`) take
+`--check` to preview and write nothing; the bare form writes.
+
+<details open>
+<summary><b>Fix &amp; report: <code>format</code>, <code>upgrade</code>, <code>check</code></b></summary>
+
+```console
+$ galaxy-tool-refactor format --diff tools/coverm/macros.xml   # canonicalize (preview)
+$ galaxy-tool-refactor upgrade tools/mytool/mytool.xml         # repair + minimal profile bump
+$ galaxy-tool-refactor check --ruleset strict tools/qualimap/qualimap_macros.xml
+```
+
+These are shown in depth in the sections above (preview, the stop-and-explain
+upgrade, report-only).
+</details>
+
+<details>
+<summary><b>Introspect: <code>rulesets</code>, <code>rules</code></b></summary>
+
+```console
+$ galaxy-tool-refactor rulesets
+cosmetic: Cosmetic whitespace only (indent, blank lines, shorthand).
+  rules: GTR001, GTR004
+default (default): The opinionated canonical formatter: structural repair + …
+  rules: GTR001, GTR002, GTR004, GTR005, GTR006, GTR013, GTR017, GTR018.1, …
+
+$ galaxy-tool-refactor rules
+GTR001  [fmt/fixable]      rulesets:cosmetic,default,iuc,strict  planemo:-  Canonical 4-space indentation; no tabs.
+GTR002  [codemod/fixable]  rulesets:default,iuc,strict           planemo:-  Reorder every <param> element's attributes to the IUC convention.
+```
+</details>
+
+<details>
+<summary><b>Query &amp; rename: <code>find-references</code>, <code>rename-param</code></b></summary>
+
+```console
+$ galaxy-tool-refactor find-references input tools/taxonomy_krona_chart/taxonomy_krona_chart.xml
+…/taxonomy_krona_chart.xml:13  [command]  $type_of_data.input
+…/taxonomy_krona_chart.xml:23  [command]  $type_of_data.input
+2 reference(s) to 'input' across 1 tool(s)
+
+$ galaxy-tool-refactor rename-param input reads tools/taxonomy_krona_chart/taxonomy_krona_chart.xml --check
+would rename …/taxonomy_krona_chart.xml: 7 site(s) across 1 file(s)
+would rename 1 tool(s); skipped 0
+```
+
+`find-references` is read-only; `rename-param` rewrites the tool **and its imported
+macros** atomically (pass `--repo-root` to touch a macro shared with other tools).
+</details>
+
+<details>
+<summary><b>Opt-in transforms: <code>tokenize-version</code>, <code>bump-version-suffix</code>, <code>convert-help</code>, <code>normalize-macros</code>, <code>lint-skip</code></b></summary>
+
+```console
+$ galaxy-tool-refactor tokenize-version tools/taxonomy_krona_chart/taxonomy_krona_chart.xml --check
+would tokenize …/taxonomy_krona_chart.xml          # version="2.7.1+galaxy0" → @TOOL_VERSION@+galaxy@VERSION_SUFFIX@
+1 tokenized, 0 skipped
+
+$ galaxy-tool-refactor bump-version-suffix tools/taxonomy_krona_chart/taxonomy_krona_chart.xml --check
+would bump …/taxonomy_krona_chart.xml to 2.7.1+galaxy1 (published revision changed)
+1 bumped, 0 skipped
+
+$ galaxy-tool-refactor convert-help tools/pangolin/pangolin.xml --check
+skipped …/pangolin.xml: not provably render-equivalent (a non-CommonMark construct, unrepairable RST, or a render mismatch)
+0 converted, 1 skipped
+
+$ galaxy-tool-refactor normalize-macros tools/emboss/macros.xml --check
+no macro-library files needed normalization        # reports "would normalize <file>" when a literal format/ftype needs lowercasing
+
+$ galaxy-tool-refactor lint-skip tools/crispr_studio --check
+no .lint_skip suppressions could be provably removed   # removes a line only when the toolchain fully covers + clears it
+```
+
+Each acts **only when the change is provable**; a skip with a reason is the normal,
+safe result. These never run inside `format`/`upgrade`: they change a tool's identity
+(`bump-version-suffix`), its rendering engine (`convert-help`), its structure
+(`tokenize-version`), or files other than the one named (`normalize-macros`,
+`lint-skip`).
+</details>
