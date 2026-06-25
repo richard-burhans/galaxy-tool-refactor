@@ -333,7 +333,9 @@ uv run python -m scripts.measure attribute-wrapping
 # reStructuredText <help> codemod feasibility (backs
 # docs/upgrade_research/restructuredtext_codemods.md; docutils-dependent, not in CI).
 # help-rst-errors buckets docutils validity errors + sizes the deterministically-fixable
-# subset (the GTR089.1 auto-fix target: ~62 tools / 32% of invalid); help-rst-features
+# subset (the GTR089.1 auto-fix target: ~48 tools / 25% of invalid — the classes
+# rst._plan_edits has a recipe for, excluding the gate-vetoed/refused classes;
+# drift-guarded by test_measure.py); help-rst-features
 # inventories RST node types + the non-CommonMark blockers; help-rst-to-markdown reports
 # the RST->Markdown convertibility 2x2 (valid+convertible 74.5%, a node-type shape
 # heuristic); help-rst-md-convert runs the REAL doctree->CommonMark converter + the
