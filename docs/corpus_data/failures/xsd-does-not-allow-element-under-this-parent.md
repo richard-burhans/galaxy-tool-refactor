@@ -8,8 +8,8 @@
 | AAFC-BICoE-Galaxy | `maker_wrap` | `wrappers/maker/maker_wrapper/maker.xml` | `d99c77e9a44f` | [view](https://github.com/AAFC-BICoE/Galaxy/blob/d99c77e9a44fa25b69c42ca6ad7ae8c402c6debc/wrappers/maker/maker_wrapper/maker.xml) |
 | adhawan/sigqc | `sigqc` | `sigQC.xml` | `5e65b8e6c20c` | [view](https://toolshed.g2.bx.psu.edu/view/adhawan/sigqc) |
 | bebatut/convert_extract_sequence_file | `convert_extract_sequence_file` | `convert_extract_sequence_file.xml` | `158642ce204f` | [view](https://toolshed.g2.bx.psu.edu/view/bebatut/convert_extract_sequence_file) |
-| bgruening-galaxytools | `quast` | `tools/quast/quast.xml` | `1462deb15898` | [view](https://github.com/bgruening/galaxytools/blob/1462deb158987891e0f6556ebb7238d07acac68d/tools/quast/quast.xml) |
-| bgruening-galaxytools | `terpen_finder` | `tools/staging_area/terpen_finder/terpen_finder.xml` | `1462deb15898` | [view](https://github.com/bgruening/galaxytools/blob/1462deb158987891e0f6556ebb7238d07acac68d/tools/staging_area/terpen_finder/terpen_finder.xml) |
+| bgruening-galaxytools | `quast` | `tools/quast/quast.xml` | `6ba31ee4b157` | [view](https://github.com/bgruening/galaxytools/blob/6ba31ee4b15733fbe24c8d63e586c17b369981ad/tools/quast/quast.xml) |
+| bgruening-galaxytools | `terpen_finder` | `tools/staging_area/terpen_finder/terpen_finder.xml` | `6ba31ee4b157` | [view](https://github.com/bgruening/galaxytools/blob/6ba31ee4b15733fbe24c8d63e586c17b369981ad/tools/staging_area/terpen_finder/terpen_finder.xml) |
 | bgruening/deeptools_plot_heatmap | `deeptools_plot_heatmap` | `plotHeatmap.xml` | `e4c7985d4585` | [view](https://toolshed.g2.bx.psu.edu/view/bgruening/deeptools_plot_heatmap) |
 | bgruening/interproscan5 (also in github: pico_galaxy, tools-iuc) | `interproscan` | `interproscan.xml` | `e32f2ea6a139` | [view](https://toolshed.g2.bx.psu.edu/view/bgruening/interproscan5) |
 | bornea/network_attributes | `network_attributes` | `NetworkAttributes.xml` | `40339590a08d` | [view](https://toolshed.g2.bx.psu.edu/view/bornea/network_attributes) |
