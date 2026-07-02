@@ -1094,3 +1094,32 @@ galaxy-tool-fmt pytest galaxy-tool-fmt/tests/test_serializer.py`.
 - **Byte-shift.** This adds a final newline to the output of every tool whose
   source lacked one. Idempotence holds (confirmed end-to-end); the regression
   fixtures pin idempotence, not exact trailing bytes, so they are unaffected.
+
+## D23 (2026-07-02) — Malformed-XML errors explain the way forward
+
+**Date:** 2026-07-02. Prompted by issue #303, the first external bug report: a
+user pointed `check`/`format`/`upgrade` at a tool with a tag mismatch and got a
+bare `malformed XML` refusal, having expected a repair. The refusal is correct
+(see below), but it violated the project's own contract — every non-fixable
+finding points at what-to-do documentation — at the parse floor itself.
+Reproduced-by: `uv run --package galaxy-tool-fmt pytest
+galaxy-tool-fmt/tests/test_cli.py -k malformed`.
+
+- **The change.** `cli_support.report_malformed_xml` is the single renderer for
+  a `ToolXmlSyntaxError` refusal: the `error:` line, one indented line per
+  parser error (`source:line:column: message`, already precise — the lenient
+  parser's full error log), and a `note:` explaining that the toolchain works
+  only on well-formed XML, what to do (fix the reported locations by hand,
+  re-run), and a link to the guide's "What the toolchain can and cannot fix"
+  section (`SCOPE_DOC_URL`). The engine's `_report_malformed` and the app CLI's
+  five hand-rolled copies (`check` ×2, `find-references`, `rename-param` ×2,
+  `convert-help`) all now call it, so the six sites cannot drift.
+- **Why refuse rather than repair.** lxml's `recover=True` parse produces *a*
+  tree from malformed input, but that tree is a guess at the author's intended
+  structure; serialising it would silently commit the guess. Repair below the
+  parse floor is not provably behavior-preserving, so per
+  `docs/design_principles.md` it is documentation, not a fix. The guide section
+  is the pointed-to documentation.
+- **CoC framing.** The note names the constraint and the next step; it does not
+  blame the file or its author (the workspace CoC standing rule for user-facing
+  text).

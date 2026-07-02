@@ -5,7 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import click
-from galaxy_tool_fmt.cli_support import is_tool_root, iter_targets, make_backup
+from galaxy_tool_fmt.cli_support import (
+    is_tool_root,
+    iter_targets,
+    make_backup,
+    report_malformed_xml,
+)
 from galaxy_tool_refactor_registry import facade
 from galaxy_tool_source.binding import ToolXmlSyntaxError, load_tool
 
@@ -46,7 +51,7 @@ def convert_help_command(paths: tuple[Path, ...], check: bool, backup: bool) -> 
         try:
             document = load_tool(original)
         except ToolXmlSyntaxError as error:
-            click.echo(f"error: {target}: malformed XML: {error}", err=True)
+            report_malformed_xml(target, error=error)
             errored += 1
             continue
         result = facade.convert_help(document)

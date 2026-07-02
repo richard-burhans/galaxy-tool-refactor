@@ -16,6 +16,28 @@ Galaxy tool definitions are XML. This project **reads, validates, fixes, and upg
 that XML** through one rule set, reachable three ways: as a Python **library**, a
 **command line**, and an **MCP server** for agents.
 
+## What the toolchain can and cannot fix
+
+The project's governing contract (see [Soundness](soundness.md)) draws three hard
+lines. Knowing them up front saves surprises:
+
+- **Well-formed XML is the starting point.** Every command parses the file first.
+  A file the XML parser rejects (a tag mismatch, an unclosed element) is reported
+  with the exact locations and left untouched. Repairing malformed XML would mean
+  guessing at the intended structure, and a wrong guess silently changes what the
+  tool does when it runs, so the toolchain never tries. Fix the reported locations
+  by hand (most editors highlight the mismatch), then re-run. Everything below the
+  parse floor, from typo repair to profile placement, is automated; the parse
+  floor itself is yours.
+- **Automated fixes must be provably behavior-preserving.** `format`, and the
+  repair half of `upgrade`, apply only edits proven not to change what the tool
+  does when it runs. Each shipped fix carries a written proof
+  ([rule proofs](proofs/index.md)).
+- **Everything else is reported, never silently applied.** Findings that would
+  need author intent, or a behavior change, surface as advisory notes (`check`,
+  and `--ruleset strict` for the full set), each pointing at documentation for
+  what to do.
+
 ## The capability matrix
 
 ### Parse & validate
