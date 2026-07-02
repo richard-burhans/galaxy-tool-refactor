@@ -31,7 +31,7 @@ to do the work: `make help` lists the same things a skill would run.
 | Forward gate — Half B (fail PRs whose changed tools aren't canonical) | `make forward-gate FILES=… \| REF=origin/main` (= `scripts/forward_gate.py`); see [`forward_gate.md`](forward_gate.md) | — (CI gate) |
 | Forward gate — suggest mode (post canonical fixes as PR review suggestions) | `make gate-suggest REF=origin/main [REPO=… PR=…]` (= `galaxy-tool-refactor gate-suggest`) | — (CI gate) |
 | Bulk normalize — Half A (apply the blessed subset across a repo) | `make bulk-normalize ROOT=… [WRITE=1]` (= `scripts/bulk_normalize.py`) | — |
-| Coverage tracker — N6 (record % canonical for a repo over time) | `make coverage ROOT=… NAME=…` (= `scripts/coverage_tracker.py`); see [`coverage_tracker.md`](coverage_tracker.md) | — |
+| Coverage tracker — N6 (record % canonical for a repo over time) | `make coverage ROOT=… NAME=…` (= `scripts/coverage_tracker.py`; or the monthly scheduled `coverage-tracker.yml`, which opens a PR); see [`coverage_tracker.md`](coverage_tracker.md) | — |
 | Cut a release (lockstep bump + tag) | `make bump VERSION=0.3.0`, then `git tag vX && git push --tags` ([CONTRIBUTING](../CONTRIBUTING.md#releasing-maintainers)) | — |
 | Enable the local pre-push gate | `make hooks` (= `git config core.hooksPath .githooks`) | — |
 | Refresh corpus stats | `make fetch-corpus` then `make corpus-stats` (or the scheduled `corpus-stats.yml`) | — |
