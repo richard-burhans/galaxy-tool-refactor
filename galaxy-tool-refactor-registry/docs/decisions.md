@@ -1068,3 +1068,23 @@ galaxy-tool-refactor-registry/tests/test_facade.py -k block_consider`.
   must-fix one (`notes._behavior_stop_note` already names each code's level);
   under the strict gate the note's next steps additionally offer dropping
   `--block-consider`, since the default walk would not have stopped there.
+
+## D29 (2026-07-02): the Galaxy-touchpoint completeness guard
+
+The 2026-07-02 galaxy-dependency audit (the standing "review all our
+Galaxy-internal dep uses" backlog item) re-verified that
+`docs/galaxy_reimplementations.md` covers the workspace's entire executed
+Galaxy-code surface: exactly three `galaxy.*` import sites (tier-1 macro
+expansion, the lint tier's opt-in test-validation binding, and the dev-only
+parity oracles in `scripts/measure.py`) plus the CT3 `Cheetah` import in
+`cheetah_cdm.py`. No new touchpoints; every verdict stands.
+
+Rather than leave that as a point-in-time finding, the completeness claim is
+now CI-enforced: `tests/test_galaxy_touchpoints.py` scans every hand-written
+source file for `galaxy.*` / `Cheetah` imports and fails — in either
+direction — when the importing-file set differs from the ledger's recorded
+touchpoints. Sibling of the decision-citation and stat-coverage guards
+(hosted here because the registry's test suite is the cross-tier guard home).
+Verified non-vacuous (a simulated stray import fails the guard). Reproduced-by:
+`uv run --package galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_galaxy_touchpoints.py`.
