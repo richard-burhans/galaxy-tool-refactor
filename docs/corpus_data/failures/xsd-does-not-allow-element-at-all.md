@@ -6,8 +6,8 @@
 |---|---|---|---|---|
 | AAFC-BICoE-Galaxy | `mothur_seq_error` | `wrappers/Mothur_Toolsuite/mothur/tools/mothur/seq.error.xml` | `d99c77e9a44f` | [view](https://github.com/AAFC-BICoE/Galaxy/blob/d99c77e9a44fa25b69c42ca6ad7ae8c402c6debc/wrappers/Mothur_Toolsuite/mothur/tools/mothur/seq.error.xml) |
 | alermine/nebula | `bedtools_intersectBed` | `[APliBio]Nebula tools suite/Nebula/IntersectBed/bedtools_intersectBed.xml` | `0b8b39c2ce01` | [view](https://toolshed.g2.bx.psu.edu/view/alermine/nebula) |
-| bgruening-galaxytools | `graphclust` | `tools/graphclust/graphclust.xml` | `1462deb15898` | [view](https://github.com/bgruening/galaxytools/blob/1462deb158987891e0f6556ebb7238d07acac68d/tools/graphclust/graphclust.xml) |
-| bgruening-galaxytools | `mavedb_importer` | `tools/mave_tools/mavedb/mavedb.xml` | `1462deb15898` | [view](https://github.com/bgruening/galaxytools/blob/1462deb158987891e0f6556ebb7238d07acac68d/tools/mave_tools/mavedb/mavedb.xml) |
+| bgruening-galaxytools | `graphclust` | `tools/graphclust/graphclust.xml` | `6ba31ee4b157` | [view](https://github.com/bgruening/galaxytools/blob/6ba31ee4b15733fbe24c8d63e586c17b369981ad/tools/graphclust/graphclust.xml) |
+| bgruening-galaxytools | `mavedb_importer` | `tools/mave_tools/mavedb/mavedb.xml` | `6ba31ee4b157` | [view](https://github.com/bgruening/galaxytools/blob/6ba31ee4b15733fbe24c8d63e586c17b369981ad/tools/mave_tools/mavedb/mavedb.xml) |
 | bgruening/xchem_transfs_scoring (also in github: bgruening-galaxytools) | `xchem_transfs_scoring` | `transfs.xml` | `f6f9b47d02b6` | [view](https://toolshed.g2.bx.psu.edu/view/bgruening/xchem_transfs_scoring) |
 | brigidar/vcf_to_snp | `vcf_snp` | `vcf_to_snp.xml` | `a9433c403e28` | [view](https://toolshed.g2.bx.psu.edu/view/brigidar/vcf_to_snp) |
 | cschu/cs_test_me | `synteny_parse` | `synteny_parse.xml` | `ea73705ac0f6` | [view](https://toolshed.g2.bx.psu.edu/view/cschu/cs_test_me) |

@@ -5,12 +5,12 @@
 | Repository | tool_id | Path | Version | Source |
 |---|---|---|---|---|
 | AAFC-BICoE-Galaxy | `mrbayes` | `wrappers/MrBayes/mrbayes.xml` | `d99c77e9a44f` | [view](https://github.com/AAFC-BICoE/Galaxy/blob/d99c77e9a44fa25b69c42ca6ad7ae8c402c6debc/wrappers/MrBayes/mrbayes.xml) |
-| bgruening-galaxytools | `methtools_calling` | `tools/methtools/calling.xml` | `1462deb15898` | [view](https://github.com/bgruening/galaxytools/blob/1462deb158987891e0f6556ebb7238d07acac68d/tools/methtools/calling.xml) |
-| bgruening-galaxytools | `methtools_dmr` | `tools/methtools/dmr.xml` | `1462deb15898` | [view](https://github.com/bgruening/galaxytools/blob/1462deb158987891e0f6556ebb7238d07acac68d/tools/methtools/dmr.xml) |
-| bgruening-galaxytools | `methtools_filter` | `tools/methtools/filter.xml` | `1462deb15898` | [view](https://github.com/bgruening/galaxytools/blob/1462deb158987891e0f6556ebb7238d07acac68d/tools/methtools/filter.xml) |
-| bgruening-galaxytools | `methtools_plot` | `tools/methtools/plot.xml` | `1462deb15898` | [view](https://github.com/bgruening/galaxytools/blob/1462deb158987891e0f6556ebb7238d07acac68d/tools/methtools/plot.xml) |
-| bgruening-galaxytools | `methtools_tiling` | `tools/methtools/tiling.xml` | `1462deb15898` | [view](https://github.com/bgruening/galaxytools/blob/1462deb158987891e0f6556ebb7238d07acac68d/tools/methtools/tiling.xml) |
-| bgruening-galaxytools | `sed_stream_editor` | `tools/sed/sed.xml` | `1462deb15898` | [view](https://github.com/bgruening/galaxytools/blob/1462deb158987891e0f6556ebb7238d07acac68d/tools/sed/sed.xml) |
+| bgruening-galaxytools | `methtools_calling` | `tools/methtools/calling.xml` | `6ba31ee4b157` | [view](https://github.com/bgruening/galaxytools/blob/6ba31ee4b15733fbe24c8d63e586c17b369981ad/tools/methtools/calling.xml) |
+| bgruening-galaxytools | `methtools_dmr` | `tools/methtools/dmr.xml` | `6ba31ee4b157` | [view](https://github.com/bgruening/galaxytools/blob/6ba31ee4b15733fbe24c8d63e586c17b369981ad/tools/methtools/dmr.xml) |
+| bgruening-galaxytools | `methtools_filter` | `tools/methtools/filter.xml` | `6ba31ee4b157` | [view](https://github.com/bgruening/galaxytools/blob/6ba31ee4b15733fbe24c8d63e586c17b369981ad/tools/methtools/filter.xml) |
+| bgruening-galaxytools | `methtools_plot` | `tools/methtools/plot.xml` | `6ba31ee4b157` | [view](https://github.com/bgruening/galaxytools/blob/6ba31ee4b15733fbe24c8d63e586c17b369981ad/tools/methtools/plot.xml) |
+| bgruening-galaxytools | `methtools_tiling` | `tools/methtools/tiling.xml` | `6ba31ee4b157` | [view](https://github.com/bgruening/galaxytools/blob/6ba31ee4b15733fbe24c8d63e586c17b369981ad/tools/methtools/tiling.xml) |
+| bgruening-galaxytools | `sed_stream_editor` | `tools/sed/sed.xml` | `6ba31ee4b157` | [view](https://github.com/bgruening/galaxytools/blob/6ba31ee4b15733fbe24c8d63e586c17b369981ad/tools/sed/sed.xml) |
 | bimib/cobraxy | `MaREA RAS to bounds` | `ras_to_bounds.xml` | `7abeb5a41ef0` | [view](https://toolshed.g2.bx.psu.edu/view/bimib/cobraxy) |
 | enios/birna | `rankprodthree` | `rankprod2.xml` | `af56c00711c3` | [view](https://toolshed.g2.bx.psu.edu/view/enios/birna) |
 | enios/nc_rna | `rankprodthree` | `rankprod2.xml` | `8ec95406dfc1` | [view](https://toolshed.g2.bx.psu.edu/view/enios/nc_rna) |
