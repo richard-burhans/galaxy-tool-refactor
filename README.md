@@ -41,6 +41,12 @@ galaxy-tool-refactor check tool.xml       # report IUC / style deviations (read-
 galaxy-tool-refactor format tool.xml      # apply the safe, behaviour-preserving fixes
 ```
 
+The input must be well-formed XML: a file the parser rejects is reported with
+exact locations and left untouched, never repaired by guesswork. The guide's
+[What the toolchain can and cannot
+fix](https://galaxy-tool-refactor.readthedocs.io/en/latest/capabilities.html#what-the-toolchain-can-and-cannot-fix)
+section explains the boundary.
+
 To work on the toolkit itself, clone the workspace and use `uv` instead:
 
 ```bash

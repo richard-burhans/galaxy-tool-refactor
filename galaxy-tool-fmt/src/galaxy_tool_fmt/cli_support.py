@@ -174,9 +174,37 @@ def _echo_notes(outcome: TransformOutcome, options: RunOptions) -> None:
         click.echo(note)
 
 
+SCOPE_DOC_URL = (
+    "https://galaxy-tool-refactor.readthedocs.io/en/latest/capabilities.html"
+    "#what-the-toolchain-can-and-cannot-fix"
+)
+
+
+def report_malformed_xml(path: Path, *, error: ToolXmlSyntaxError) -> None:
+    """Report a malformed-XML load failure to stderr, with the way forward.
+
+    Well-formed XML is the toolchain's starting point: a file the parser rejects
+    is never edited, because repairing it would mean guessing at the intended
+    structure, and a wrong guess silently changes what the tool does. So the
+    report pairs the parser's per-location detail with what to do next and a
+    link to the scope documentation (fmt decisions §D23, issue #303).
+    """
+    click.echo(f"error: {path}: malformed XML", err=True)
+    for xml_error in error.errors:
+        click.echo(f"  {xml_error}", err=True)
+    click.echo(
+        "  note: the toolchain works only on well-formed XML and never guesses at\n"
+        "    the intended structure, so this file needs a hand edit: make the\n"
+        "    location(s) above parse (most editors highlight the mismatch), then\n"
+        "    re-run. More on what can and cannot be fixed:\n"
+        f"    {SCOPE_DOC_URL}",
+        err=True,
+    )
+
+
 def _report_malformed(path: Path, error: ToolXmlSyntaxError, counts: Counts) -> None:
     """Report a malformed-XML load failure to stderr and count it."""
-    click.echo(f"error: {path}: malformed XML: {error}", err=True)
+    report_malformed_xml(path, error=error)
     counts.errored += 1
 
 
