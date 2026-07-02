@@ -85,15 +85,18 @@ def _behavior_stop_note(
     stopped_at: str | None,
     walked: bool,
     target_profile: str | None,
+    block_consider: bool = False,
 ) -> str | None:
     """The loud, actionable stop report for a gated walk, or ``None``.
 
     Covers the two gate outcomes: the walk capped at a profile below the
     latest (*walked*), and the declaration left in place entirely because no
     vendored profile predates the first blocker. Always names the blocking
-    code, where to read about it, and the opt-out. Phrased per the Galaxy
-    Community Code of Conduct: the tool is not "broken", it is not yet provably
-    safe to upgrade further.
+    code, where to read about it, and the opt-out — under the strict
+    *block_consider* gate that includes dropping the flag, since a
+    consider-level blocker would not stop the default walk. Phrased per the
+    Galaxy Community Code of Conduct: the tool is not "broken", it is not yet
+    provably safe to upgrade further.
     """
     if not blockers:
         return None
@@ -103,9 +106,15 @@ def _behavior_stop_note(
     codes = ", ".join(
         f"{change.code} ({change.level} at {change.profile})" for change in blockers
     )
+    opt_outs = "rerun with --allow-behavior-change to upgrade anyway"
+    if block_consider:
+        opt_outs = (
+            "drop --block-consider to stop only at must-fix changes, or "
+            + opt_outs
+        )
     next_steps = (
         "see docs/profile_boundaries.md for what changes there and how to update"
-        " the tool, or rerun with --allow-behavior-change to upgrade anyway"
+        f" the tool, or {opt_outs}"
     )
     if not walked:
         return (

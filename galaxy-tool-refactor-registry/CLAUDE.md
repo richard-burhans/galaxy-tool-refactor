@@ -102,7 +102,10 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
   ceiling (D23, `deployment.py`); `target_profile` implies the walk, caps it
   (typed `UnknownProfile` on a bad value), and may exceed the deployment
   ceiling; `allow_behavior_change` lifts the walk's behaviour gate only and
-  without a walk mode raises `UpgradeFlagError`.
+  without a walk mode raises `UpgradeFlagError`; `block_consider` tightens
+  the gate to also stop at applicable consider-level changes (D28 — a walk
+  mode is required too, and combining it with `allow_behavior_change` raises
+  `UpgradeFlagConflict`).
   `UpgradeResult` carries `baseline_profile` / `reached_profile` /
   `stopped_at` (walk-only) / `blocking_codes` / `auto_fixed_codes`.
 - `macro_profile.py` — Phase-3b imported-`@PROFILE@` upgrade: `profile_token_site`
@@ -142,7 +145,7 @@ Run from the **workspace root** (`galaxy-tool-refactor/`):
   notes), lifted out of the library-first facade so the facade returns structured
   data and these render it.
 - `errors.py` — `UnknownRuleCode` / `UnknownRuleset` / `UnknownProfile` /
-  `UpgradeFlagError`.
+  `UpgradeFlagError` / `UpgradeFlagConflict`.
 
 ## Useful references
 

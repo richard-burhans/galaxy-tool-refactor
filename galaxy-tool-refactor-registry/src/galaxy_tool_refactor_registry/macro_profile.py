@@ -121,12 +121,17 @@ def _walk_cap(baseline: str, *, target_profile: str | None) -> str:
 
 
 def _gated_target(
-    document: ToolDocument, *, baseline: str, target_profile: str | None
+    document: ToolDocument,
+    *,
+    baseline: str,
+    target_profile: str | None,
+    block_consider: bool = False,
 ) -> str | None:
     """The newest profile this importer may reach under the behaviour gate.
 
     Mirrors the facade's modernize walk: blockers cap the walk at the
-    behaviour ceiling; an importer whose ceiling falls at (or below) its
+    behaviour ceiling (under *block_consider* the strict consider-blocking
+    levels, D28); an importer whose ceiling falls at (or below) its
     baseline keeps its current value (the bump becomes a no-op for it); an
     unplaceable baseline yields ``None`` (no safe target, so the group cannot
     agree). The walk cap (an explicit *target_profile*, else the deployment
@@ -134,7 +139,13 @@ def _gated_target(
     """
     if not behavior_gate.placeable_baseline(baseline):
         return None
-    blockers = behavior_gate.blocking_codes(document, baseline=baseline)
+    blockers = behavior_gate.blocking_codes(
+        document,
+        baseline=baseline,
+        levels=behavior_gate.STRICT_BLOCKING_LEVELS
+        if block_consider
+        else behavior_gate.DEFAULT_BLOCKING_LEVELS,
+    )
     ceiling = behavior_gate.behavior_ceiling(blockers)
     if behavior_gate.blocked_below_baseline(ceiling=ceiling, baseline=baseline):
         return baseline
@@ -150,6 +161,7 @@ def profile_token_site(
     *,
     modernize: bool = False,
     allow_behavior_change: bool = False,
+    block_consider: bool = False,
     target_profile: str | None = None,
 ) -> ProfileTokenSite | None:
     """Return the imported-profile-token site for *document*, or ``None``.
@@ -162,8 +174,10 @@ def profile_token_site(
     (the token's value is the importer's runtime baseline): by default the
     minimal target (keep a valid importer's value, else the minimum valid
     profile at or above it); *modernize* or *target_profile* opts into the
-    behaviour-gated walk, and *allow_behavior_change* lifts the gate, exactly
-    as on the per-tool path (the caller validates the flag composition).
+    behaviour-gated walk, *allow_behavior_change* lifts the gate, and
+    *block_consider* tightens it to the strict consider-blocking levels
+    (D28), exactly as on the per-tool path (the caller validates the flag
+    composition).
     """
     profile_raw = document.profile
     if profile_raw is None or "@" not in profile_raw:
@@ -192,7 +206,10 @@ def profile_token_site(
         )
     else:
         target = _gated_target(
-            document, baseline=definition.value, target_profile=target_profile
+            document,
+            baseline=definition.value,
+            target_profile=target_profile,
+            block_consider=block_consider,
         )
     return ProfileTokenSite(
         tool=source_path,

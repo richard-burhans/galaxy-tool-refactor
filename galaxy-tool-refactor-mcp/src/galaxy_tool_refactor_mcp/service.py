@@ -179,6 +179,7 @@ def upgrade_tool(
     ignore: Sequence[str] = (),
     modernize: bool = False,
     allow_behavior_change: bool = False,
+    block_consider: bool = False,
     target_profile: str | None = None,
 ) -> dict[str, object]:
     """Repair then format; ``profile=`` moves only as far as strictly needed.
@@ -190,7 +191,10 @@ def upgrade_tool(
     lower of the behaviour ceiling (reported via the blocking codes) and the
     deployment ceiling (the newest profile every major public Galaxy server
     runs); *allow_behavior_change* lifts the behaviour gate only (requiring a
-    walk mode, raising ``UpgradeFlagError`` otherwise); *target_profile* walks
+    walk mode, raising ``UpgradeFlagError`` otherwise); *block_consider*
+    tightens the gate to also stop at applicable consider-level changes
+    (requiring a walk mode too, and raising ``UpgradeFlagConflict`` when
+    combined with *allow_behavior_change*); *target_profile* walks
     up to an explicit vendored profile (raising ``UnknownProfile`` otherwise),
     implying the walk mode by itself and exceeding the deployment ceiling when
     asked.
@@ -202,6 +206,7 @@ def upgrade_tool(
             codes=codes,
             modernize=modernize,
             allow_behavior_change=allow_behavior_change,
+            block_consider=block_consider,
             target_profile=target_profile,
         )
     )

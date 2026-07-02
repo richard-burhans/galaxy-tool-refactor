@@ -177,7 +177,9 @@ default `galaxy-tool-refactor upgrade` **stops** at the behaviour ceiling: it
 never crosses a `must_fix` code that applies to the tool (per-tool detection
 ported from Galaxy's advisor; codemod `docs/decisions.md` §25 + §45) unless a
 runtime-gated fix provably clears it on that tool; applicable `consider` codes
-are warned about and do not stop the walk. `--allow-behavior-change` restores
+are warned about and do not stop the walk by default (the opt-in
+`--block-consider` stops at them too; registry `docs/decisions.md` D28).
+`--allow-behavior-change` restores
 the historical walk-to-latest with the §23 warning; the user-facing per-code
 "what changed and what to do" reference is
 [`profile_boundaries.md`](profile_boundaries.md) (generated, freshness-tested).

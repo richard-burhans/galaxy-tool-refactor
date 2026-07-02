@@ -35,21 +35,41 @@ class UnknownRuleset(ValueError):
 
 
 class UpgradeFlagError(ValueError):
-    """``allow_behavior_change`` was requested without a walk mode to apply it to.
+    """A gate-adjusting flag was requested without a walk mode to apply it to.
 
     The default ``upgrade`` is the minimal bump: ``profile=`` moves only as far
-    as validity strictly requires, so there is no gated walk whose gate the flag
-    could lift. Lifting the gate is meaningful only for the opt-in modernize
-    walk (``modernize``) or an explicit ``target_profile``; requiring one of
-    them keeps the flag from silently implying a walk the user did not ask for.
+    as validity strictly requires, so there is no gated walk whose gate the
+    flag (``allow_behavior_change`` lifts it, ``block_consider`` tightens it)
+    could adjust. Adjusting the gate is meaningful only for the opt-in
+    modernize walk (``modernize``) or an explicit ``target_profile``; requiring
+    one of them keeps the flag from silently implying a walk the user did not
+    ask for.
+    """
+
+    def __init__(self, flag: str = "allow_behavior_change", /) -> None:
+        self.flag = flag
+        super().__init__(
+            f"{flag} adjusts the behaviour gate on a modernize walk, but no"
+            " walk was requested; combine it with modernize or a"
+            " target_profile. The default upgrade is the minimal bump, which"
+            " the gate does not apply to."
+        )
+
+
+class UpgradeFlagConflict(ValueError):
+    """Mutually exclusive behaviour-gate flags were combined.
+
+    ``allow_behavior_change`` lifts the walk's behaviour gate entirely;
+    ``block_consider`` tightens it to stop at consider-level changes too. The
+    combination has no coherent meaning, so it is rejected rather than letting
+    one flag silently win.
     """
 
     def __init__(self) -> None:
         super().__init__(
-            "allow_behavior_change lifts the behaviour gate on a modernize"
-            " walk, but no walk was requested; combine it with modernize or a"
-            " target_profile. The default upgrade is the minimal bump, which"
-            " the gate does not apply to."
+            "block_consider tightens the behaviour gate and"
+            " allow_behavior_change lifts it; combine either with a walk mode,"
+            " not with each other."
         )
 
 

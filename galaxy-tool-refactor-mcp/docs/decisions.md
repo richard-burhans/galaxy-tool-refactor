@@ -156,3 +156,13 @@ batch operations with no single-document form; `bump-version-suffix` is
 `tokenize-version --adopt-suffix` it is deliberately CLI-only and never exposed to
 agents (cli §D21), even though its tool-local case is single-document. The server is
 now **9 tools**.
+
+## D8 (2026-07-02): `upgrade_tool` exposes `block_consider`
+
+`upgrade_tool` gains the facade's opt-in strict gate (registry D28) as a
+boolean parameter, keeping the single-document parity rule (D7): every mode of
+the facade's `upgrade` an agent could ask for is reachable over MCP. The
+server's error boundary translates the new typed `UpgradeFlagConflict`
+alongside `UpgradeFlagError`. Reproduced-by: `uv run --package
+galaxy-tool-refactor-mcp pytest galaxy-tool-refactor-mcp/tests/test_service.py
+-k block_consider`.

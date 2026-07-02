@@ -12,7 +12,7 @@
 | Tool | Input | Returns |
 |---|---|---|
 | `format_tool` | `xml`, optional `rulesets`/`select`/`ignore` | canonical XML + advisory notes |
-| `upgrade_tool` | `xml`, optional `select`/`ignore`, `modernize`, `allow_behavior_change`, `target_profile` | upgraded XML, steps, `behavior_preserving`, `baseline_profile`/`reached_profile`, `stopped_at`, `blocking_codes`, `auto_fixed_codes`, notes |
+| `upgrade_tool` | `xml`, optional `select`/`ignore`, `modernize`, `allow_behavior_change`, `block_consider`, `target_profile` | upgraded XML, steps, `behavior_preserving`, `baseline_profile`/`reached_profile`, `stopped_at`, `blocking_codes`, `auto_fixed_codes`, notes |
 | `check_tool` | `xml`, optional `rulesets`/`select`/`ignore` | report-only findings (never mutates) |
 | `convert_help_tool` | `xml` | `{converted, formatted, skip_reason}`, opt-in RST→Markdown help conversion; a skip (e.g. "profile below 24.2, run `upgrade` first") is a normal result an agent can act on |
 | `tokenize_version_tool` | `xml` | `{tokenized, formatted, skip_reason}`, opt-in @TOOL_VERSION@ extraction (expansion-equality gated); macro-importing tools fail closed (content-based, use the path-based CLI for those) |

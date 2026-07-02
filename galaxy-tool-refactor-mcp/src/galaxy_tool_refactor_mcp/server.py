@@ -21,6 +21,7 @@ from galaxy_tool_refactor_registry.errors import (
     UnknownProfile,
     UnknownRuleCode,
     UnknownRuleset,
+    UpgradeFlagConflict,
     UpgradeFlagError,
 )
 from galaxy_tool_source.binding import ToolXmlSyntaxError
@@ -45,6 +46,7 @@ def _guarded(produce: Callable[[], T], /) -> T:
         UnknownRuleset,
         UnknownRuleCode,
         UnknownProfile,
+        UpgradeFlagConflict,
         UpgradeFlagError,
     ) as error:
         raise ValueError(str(error)) from error
@@ -72,6 +74,7 @@ def _upgrade_tool(
     ignore: list[str] | None = None,
     modernize: bool = False,
     allow_behavior_change: bool = False,
+    block_consider: bool = False,
     target_profile: str | None = None,
 ) -> dict[str, object]:
     """Repair then format; profile= moves only as far as strictly needed.
@@ -84,7 +87,9 @@ def _upgrade_tool(
     stopped_at / blocking_codes) and the deployment ceiling, the newest profile
     every major public Galaxy server runs. Set allow_behavior_change to walk
     past applicable behaviour changes (requires modernize or target_profile;
-    the deployment ceiling still caps); set target_profile to walk up to an
+    the deployment ceiling still caps); set block_consider to also stop at
+    applicable consider-level changes (requires a walk mode too; cannot be
+    combined with allow_behavior_change); set target_profile to walk up to an
     explicit vendored profile (it may exceed the deployment ceiling).
     """
     return _guarded(
@@ -94,6 +99,7 @@ def _upgrade_tool(
             ignore=ignore or (),
             modernize=modernize,
             allow_behavior_change=allow_behavior_change,
+            block_consider=block_consider,
             target_profile=target_profile,
         )
     )
