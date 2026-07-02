@@ -1,0 +1,58 @@
+name: Coverage tracker (scheduled)
+
+# Appends a monthly canonical-form coverage snapshot for tools-iuc (the share
+# of its tools that already pass the forward gate's rule subset) and opens a
+# PR with the updated trend — the Carta-style adoption curve the auto-fix
+# system is measured by (docs/coverage_tracker.md, auto-fix system N6). The
+# tracker needs a repository clone, so it cannot run in the per-PR CI loop;
+# a monthly cadence matches how fast a ~2,000-tool repository drifts.
+
+on:
+  schedule:
+    - cron: "0 6 1 * *"   # the 1st of each month, 06:00 UTC
+  workflow_dispatch:        # manual "snapshot now"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: coverage-tracker
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync workspace
+        run: uv sync
+
+      - name: Clone tools-iuc (shallow — the tracker reads the working tree)
+        run: git clone --depth 1 https://github.com/galaxyproject/tools-iuc.git /tmp/tools-iuc
+
+      - name: Record the coverage snapshot
+        run: uv run python -m scripts.coverage_tracker --repo-root /tmp/tools-iuc --repo-name tools-iuc
+
+      - name: Open a PR if the trend changed
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: coverage/tracker-refresh
+          title: "docs: scheduled coverage-tracker snapshot"
+          commit-message: "docs: scheduled coverage-tracker snapshot"
+          body: |
+            Automated monthly canonical-form coverage snapshot for tools-iuc
+            (`.github/workflows/coverage-tracker.yml`), appended to
+            `docs/coverage_tracker.md` / `docs/corpus_data/coverage_history.json`.
+            Drift between snapshots is organic repository churn — review and
+            merge if the numbers look plausible.
+          add-paths: |
+            docs/coverage_tracker.md
+            docs/corpus_data/coverage_history.json

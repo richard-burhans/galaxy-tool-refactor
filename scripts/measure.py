@@ -4532,8 +4532,9 @@ def _run_upgrade_profile_shift(args: argparse.Namespace) -> None:
 # that (a) actually applies to the tool (its per-tool detector fires) and (b) the
 # toolchain cannot automatically fix. Reports the distribution of where tools get
 # stuck, keyed by the blocking profile version + behavior code, under two severity
-# policies (must_fix only; must_fix + consider). Unlike `upgrade` (which never
-# stops on behaviour, only warns), this layers the stop rule on the existing
+# policies (must_fix only; must_fix + consider) — the same two the shipped gate
+# now offers (`upgrade --modernize` blocks on must_fix; `--block-consider` opts
+# into the stricter set; registry D28). This layers the stop rule on the existing
 # range + detector primitives, so it does NOT call the facade. Auto-fixability is
 # judged exactly, by applying the mapped codemod to a copy and re-detecting — so
 # GTR015's sole-data-input partiality is modeled precisely. Writes

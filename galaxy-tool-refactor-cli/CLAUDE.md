@@ -43,7 +43,10 @@ longer imports the codemod / check tiers directly. It exposes the
   the newest profile every major public Galaxy server runs): the stop report
   names the blocking code(s) and links to `docs/profile_boundaries.md`, or
   names the deployment cap; `--allow-behavior-change` lifts the walk's
-  behaviour gate only (an error without a walk mode) and
+  behaviour gate only (an error without a walk mode),
+  `--block-consider` tightens it to also stop at applicable consider-level
+  changes (walk modes only, never combined with `--allow-behavior-change`;
+  registry D28, cli D22), and
   `--target-profile PROFILE` caps the walk (validated up front, implies the
   walk, and may exceed the deployment ceiling).
   Also bumps an imported `@PROFILE@` token in place when every profile-using

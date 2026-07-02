@@ -35,7 +35,8 @@ and `mcp` (FastMCP). The lower tiers do **not** depend on it.
   back; `write_path` is never passed. The XML `str` is encoded to `bytes` before
   the facade sees it, so it is parsed as content, never mistaken for a path.
 - **`server.py` is the error boundary.** Its handlers translate the facade's typed
-  `UnknownRuleset` / `UnknownRuleCode` / `UnknownProfile` / `UpgradeFlagError` and tier-1's `ToolXmlSyntaxError` into a
+  `UnknownRuleset` / `UnknownRuleCode` / `UnknownProfile` / `UpgradeFlagError` /
+  `UpgradeFlagConflict` and tier-1's `ToolXmlSyntaxError` into a
   plain `ValueError` whose message FastMCP returns as a tool error (the MCP
   analogue of the CLI's `click` boundary). `service.py` lets them propagate.
 - **FastMCP introspects handler signatures at runtime** (`eval_str=True`), so a

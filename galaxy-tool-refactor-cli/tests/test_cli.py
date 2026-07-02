@@ -224,6 +224,55 @@ def test_upgrade_allow_behavior_change_walks_past_the_gate(tmp_path: Path) -> No
     assert "profile-behaviour" in result.output  # the review warning remains
 
 
+def test_upgrade_block_consider_requires_a_walk_mode(tmp_path: Path) -> None:
+    """--block-consider tightens the walk's gate, so it needs a walk flag too."""
+    file = _write(tmp_path / "tool.xml", _tool_with_tests(profile="24.1"))
+    result = CliRunner().invoke(main, ["upgrade", "--block-consider", str(file)])
+    assert result.exit_code != 0
+    assert "block_consider" in result.output
+
+
+def test_upgrade_block_consider_conflicts_with_allow_behavior_change(
+    tmp_path: Path,
+) -> None:
+    """Tightening and lifting the gate at once is rejected, not silently resolved."""
+    file = _write(tmp_path / "tool.xml", _tool_with_tests(profile="24.1"))
+    result = CliRunner().invoke(
+        main,
+        [
+            "upgrade",
+            "--modernize",
+            "--block-consider",
+            "--allow-behavior-change",
+            str(file),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "tightens" in result.output and "lifts" in result.output
+
+
+def test_upgrade_modernize_block_consider_stops_at_a_consider_boundary(
+    tmp_path: Path,
+) -> None:
+    """The strict gate stops a no-profile tool at Galaxy's unconditional 16.04
+    consider code: profile= stays undeclared and the stop note offers both
+    opt-outs."""
+    no_profile = (
+        b'<tool id="m" name="M" version="1.0.0">'
+        b"<command><![CDATA[echo a && echo b]]></command><inputs/>"
+        b'<outputs><data name="o"/></outputs></tool>'
+    )
+    file = _write(tmp_path / "tool.xml", no_profile)
+    result = CliRunner().invoke(
+        main, ["upgrade", "--modernize", "--block-consider", str(file)]
+    )
+    assert result.exit_code == 0, result.output
+    assert b"profile=" not in file.read_bytes()
+    assert "left profile= unchanged" in result.output
+    assert "16_04_consider_implicit_extra_file_collection" in result.output
+    assert "--block-consider" in result.output
+
+
 def test_upgrade_target_profile_may_exceed_the_deployment_ceiling(
     tmp_path: Path,
 ) -> None:
