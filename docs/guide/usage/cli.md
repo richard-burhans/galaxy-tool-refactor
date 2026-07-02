@@ -43,6 +43,8 @@ upgrade          Repair tools, bump profile= only when strictly needed for valid
                  with an actionable report and never past the deployment ceiling (the
                  newest profile every major public Galaxy server runs);
                  --allow-behavior-change (walk modes only) lifts the behaviour gate,
+                 --block-consider (walk modes only) tightens it to also stop at
+                 consider-level changes,
                  and --target-profile walks to an explicit vendored profile (implies
                  the walk; the one way past the deployment ceiling).
 find-references  Report every Cheetah $var reference to a parameter across a tool AND its

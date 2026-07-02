@@ -17,6 +17,7 @@ from galaxy_tool_fmt.cli_support import (
 from galaxy_tool_refactor_registry import facade
 from galaxy_tool_refactor_registry.errors import (
     UnknownProfile,
+    UpgradeFlagConflict,
     UpgradeFlagError,
 )
 from galaxy_tool_refactor_registry.macro_profile import (
@@ -73,6 +74,18 @@ from galaxy_tool_refactor_cli.options import (
     ),
 )
 @click.option(
+    "--block-consider",
+    is_flag=True,
+    help=(
+        "Tighten the --modernize / --target-profile walk's behaviour gate to"
+        " also stop at applicable consider-level Galaxy changes (by default"
+        " they warn but do not stop). Requires one of those flags and cannot"
+        " be combined with --allow-behavior-change. A review-everything mode:"
+        " Galaxy emits one consider change unconditionally at 16.04, so most"
+        " low-baseline tools stop immediately."
+    ),
+)
+@click.option(
     "--target-profile",
     default=None,
     metavar="PROFILE",
@@ -94,6 +107,7 @@ def upgrade_command(
     ignore: tuple[str, ...],
     modernize: bool,
     allow_behavior_change: bool,
+    block_consider: bool,
     target_profile: str | None,
 ) -> None:
     """Repair tools, moving ``profile=`` only as far as strictly needed.
@@ -120,12 +134,14 @@ def upgrade_command(
     everywhere yet; vendored from the committed server-poll snapshot). A stop
     is reported with the blocking code(s) and where to read about them
     (``docs/profile_boundaries.md``), or with the deployment cap. Applicable
-    consider-level changes are warned about but do not stop the walk.
+    consider-level changes are warned about but do not stop the walk unless
+    ``--block-consider`` opts into stopping at them too.
     ``--target-profile`` walks up to an explicit vendored profile (implying
     the walk mode by itself), composes with the behaviour gate (the lower
     wins), and may exceed the deployment ceiling deliberately;
     ``--allow-behavior-change`` lifts the behaviour gate only and requires
-    one of the walk flags.
+    one of the walk flags (``--block-consider`` likewise, and the two cannot
+    be combined).
 
     A ``profile="@PROFILE@"`` whose token lives in an *imported* macro file is
     handled by editing that token in place — but only when every profile-using
@@ -154,9 +170,17 @@ def upgrade_command(
             "'format' / 'check'. Use --select / --ignore to adjust the rule set.",
             param_hint="--ruleset",
         )
+    if block_consider and allow_behavior_change:
+        raise click.BadParameter(
+            str(UpgradeFlagConflict()), param_hint="--block-consider"
+        )
     if allow_behavior_change and not (modernize or target_profile is not None):
         raise click.BadParameter(
             str(UpgradeFlagError()), param_hint="--allow-behavior-change"
+        )
+    if block_consider and not (modernize or target_profile is not None):
+        raise click.BadParameter(
+            str(UpgradeFlagError("block_consider")), param_hint="--block-consider"
         )
     if target_profile is not None and target_profile not in available_profiles():
         profiles = available_profiles()
@@ -182,6 +206,7 @@ def upgrade_command(
         backup=backup,
         modernize=modernize,
         allow_behavior_change=allow_behavior_change,
+        block_consider=block_consider,
         target_profile=target_profile,
     )
 
@@ -191,6 +216,7 @@ def upgrade_command(
             codes=codes,
             modernize=modernize,
             allow_behavior_change=allow_behavior_change,
+            block_consider=block_consider,
             target_profile=target_profile,
         )
         return TransformOutcome(result.formatted, notes=result.notes)
@@ -215,6 +241,7 @@ def _upgrade_macro_profile_tokens(
     backup: bool,
     modernize: bool = False,
     allow_behavior_change: bool = False,
+    block_consider: bool = False,
     target_profile: str | None = None,
 ) -> bool:
     """Upgrade imported ``@PROFILE@`` tokens across the run; return would-edit.
@@ -245,6 +272,7 @@ def _upgrade_macro_profile_tokens(
             document,
             modernize=modernize,
             allow_behavior_change=allow_behavior_change,
+            block_consider=block_consider,
             target_profile=target_profile,
         )
         if site is not None:

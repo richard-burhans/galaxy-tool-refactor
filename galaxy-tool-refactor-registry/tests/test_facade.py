@@ -1271,3 +1271,77 @@ def test_minimal_note_numeric_profile_still_says_kept() -> None:
     )
     assert note is not None and "24.0 kept" in note
     assert "validates at its declared profile" in note
+
+
+# --- the opt-in consider-blocking gate (block_consider, D28) ------------------------
+
+
+def test_upgrade_block_consider_alone_is_a_typed_error() -> None:
+    """block_consider tightens the walk's gate, so it needs a walk mode too."""
+    import pytest
+
+    from galaxy_tool_refactor_registry.errors import UpgradeFlagError
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    with pytest.raises(UpgradeFlagError):
+        facade.upgrade(_UPGRADABLE, codes=resolve_upgrade_codes(), block_consider=True)
+
+
+def test_upgrade_block_consider_conflicts_with_allow_behavior_change() -> None:
+    """Tightening and lifting the gate at once has no coherent meaning."""
+    import pytest
+
+    from galaxy_tool_refactor_registry.errors import UpgradeFlagConflict
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    with pytest.raises(UpgradeFlagConflict):
+        facade.upgrade(
+            _UPGRADABLE,
+            codes=resolve_upgrade_codes(),
+            modernize=True,
+            allow_behavior_change=True,
+            block_consider=True,
+        )
+
+
+_NO_PROFILE_SIMPLE = (
+    b'<tool id="m" name="M" version="1.0.0">'
+    b"<command><![CDATA[echo a && echo b]]></command><inputs/>"
+    b'<outputs><data name="o"/></outputs></tool>'
+)
+
+
+def test_upgrade_modernize_block_consider_stops_at_a_consider_boundary() -> None:
+    """Galaxy's 16_04 implicit-extra-file-collection consider code applies to every
+    tool, so the strict gate freezes a 16.01-baseline walk below the oldest vendored
+    profile: profile= stays undeclared and the stop note names the code + the
+    flag-specific opt-out."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    result = facade.upgrade(
+        _NO_PROFILE_SIMPLE,
+        codes=resolve_upgrade_codes(),
+        modernize=True,
+        block_consider=True,
+    )
+    assert "16_04_consider_implicit_extra_file_collection" in result.blocking_codes
+    assert b"profile=" not in result.formatted  # the walk did not run
+    stop_notes = [n for n in result.notes if "left profile= unchanged" in n]
+    assert len(stop_notes) == 1
+    assert "16_04_consider_implicit_extra_file_collection" in stop_notes[0]
+    assert "--block-consider" in stop_notes[0]
+    assert "--allow-behavior-change" in stop_notes[0]
+
+
+def test_upgrade_modernize_default_still_walks_past_consider_codes() -> None:
+    """The control: without block_consider the same tool walks (consider codes
+    warn, never stop) and no consider code appears in the blocking set."""
+    from galaxy_tool_refactor_registry.resolve import resolve_upgrade_codes
+
+    result = facade.upgrade(
+        _NO_PROFILE_SIMPLE, codes=resolve_upgrade_codes(), modernize=True
+    )
+    assert (
+        "16_04_consider_implicit_extra_file_collection" not in result.blocking_codes
+    )
+    assert b'profile="' in result.formatted  # the walk declared a profile

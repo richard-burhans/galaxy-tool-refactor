@@ -11,6 +11,19 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+### Added
+- **`upgrade --block-consider`: the opt-in strict behaviour gate** (registry
+  `docs/decisions.md` D28, cli D22, mcp D8). The `--modernize` /
+  `--target-profile` walk can now also stop at applicable `consider`-level
+  Galaxy behaviour changes, not only `must_fix` — a review-everything mode for
+  users who want no unreviewed behaviour-adjacent change at all (Galaxy emits
+  one `consider` code unconditionally at 16.04, so most low-baseline tools stop
+  immediately; that is why it is opt-in, never the default). Requires a walk
+  mode, cannot be combined with `--allow-behavior-change` (the new typed
+  `UpgradeFlagConflict`), threads through the imported-`@PROFILE@` token bump,
+  and is exposed over MCP as `upgrade_tool(block_consider=…)`. The stop report
+  additionally offers dropping the flag when it is what stopped the walk.
+
 ### Changed
 - **Malformed-XML refusals now explain the way forward** (issue #303; fmt
   `docs/decisions.md` §D23). Every command that declines a file the XML parser

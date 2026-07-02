@@ -638,3 +638,25 @@ bump is registry D27.
   no `version=`, a `version=` with no `+galaxy` suffix (the user is pointed at
   `tokenize-version --adopt-suffix`, which adds `+galaxy0` first), or a non-integer
   suffix (we only increment integer revisions).
+
+## D22 (2026-07-02): `--block-consider` — the strict-gate flag on `upgrade`
+
+The CLI face of registry D28: `upgrade --modernize --block-consider` (or with
+`--target-profile`) stops the walk at applicable `consider`-level Galaxy
+changes too, not only `must_fix`. Reproduced-by: `uv run --package
+galaxy-tool-refactor-cli pytest galaxy-tool-refactor-cli/tests/test_cli.py -k
+block_consider`.
+
+- **Same boundary discipline as `--allow-behavior-change` (D16).** Requires a
+  walk mode (`click.BadParameter` wrapping the typed `UpgradeFlagError`
+  otherwise), and the contradictory pair `--block-consider
+  --allow-behavior-change` is rejected up front (`UpgradeFlagConflict`) — the
+  LBYL check lives in the command so the user gets a parameter-anchored
+  message, mirroring the existing flag checks.
+- **Threads through both phases.** The per-file transform passes it to
+  `facade.upgrade`, and the whole-run imported-`@PROFILE@` phase passes it to
+  `profile_token_site`, so a shared token bump is computed under the same gate
+  as each importer's own walk (the D6 consistency rule).
+- **Help text warns about the freeze.** Galaxy emits one consider change
+  unconditionally at 16.04, so the flag's help says most low-baseline tools
+  stop immediately — an informed opt-in, not a surprise.

@@ -65,7 +65,11 @@ from packaging.version import Version
 from galaxy_tool_refactor_registry import deployment
 from galaxy_tool_refactor_registry.adapters import fmt_rule_by_code
 from galaxy_tool_refactor_registry.apply import apply_selection
-from galaxy_tool_refactor_registry.errors import UnknownProfile, UpgradeFlagError
+from galaxy_tool_refactor_registry.errors import (
+    UnknownProfile,
+    UpgradeFlagConflict,
+    UpgradeFlagError,
+)
 from galaxy_tool_refactor_registry.lint_skip import (
     covering_codes,
     is_completely_covered,
@@ -388,6 +392,7 @@ def upgrade(
     write_path: Path | None = None,
     modernize: bool = False,
     allow_behavior_change: bool = False,
+    block_consider: bool = False,
     target_profile: str | None = None,
 ) -> UpgradeResult:
     """Repair *source*, move ``profile=`` only as far as needed, then format.
@@ -410,13 +415,19 @@ def upgrade(
     every major public Galaxy server runs (``deployment``, vendored from the
     committed server-poll snapshot; a newer declaration could not install
     everywhere yet). Applicable consider-level changes are warned about but
-    do not stop the walk. *target_profile* walks to an explicit vendored
+    do not stop the walk by default (see *block_consider* below).
+    *target_profile* walks to an explicit vendored
     profile (raising ``UnknownProfile`` otherwise), implying the walk mode by
     itself; it composes with the behaviour gate (the lower wins) and, being
     deliberate, **may exceed the deployment ceiling** (a note still mentions
     it). *allow_behavior_change* lifts the behaviour gate only, never the
     deployment cap; it requires a walk mode (raising ``UpgradeFlagError``
-    otherwise — the minimal default has no gate to lift).
+    otherwise — the minimal default has no gate to lift). *block_consider*
+    tightens the gate instead: the walk also stops at applicable
+    consider-level changes (Galaxy emits one consider code unconditionally at
+    16.04, so this freezes most low-baseline tools — a deliberate,
+    review-everything mode; D28). It requires a walk mode too, and combining
+    it with *allow_behavior_change* raises ``UpgradeFlagConflict``.
 
     ``FixTypos`` runs first when its code is in *codes* (the repair
     precondition). Runtime-gated fixes for the profile actually crossed then
@@ -428,8 +439,12 @@ def upgrade(
     """
     target = _validated_target_profile(target_profile)
     walk_mode = modernize or target is not None
+    if block_consider and allow_behavior_change:
+        raise UpgradeFlagConflict()
     if allow_behavior_change and not walk_mode:
         raise UpgradeFlagError()
+    if block_consider and not walk_mode:
+        raise UpgradeFlagError("block_consider")
     document = _to_document(source)
     # Capture the runtime baseline AND which upgrade codes the tool trips BEFORE
     # any codemod rewrites ``profile=`` or mutates the features detectors inspect
@@ -446,7 +461,13 @@ def upgrade(
     # where a modernize walk would stop.
     blockers: tuple[ProfileUpgradeCode, ...] = ()
     if placeable and baseline is not None:
-        blockers = behavior_gate.blocking_codes(document, baseline=baseline)
+        blockers = behavior_gate.blocking_codes(
+            document,
+            baseline=baseline,
+            levels=behavior_gate.STRICT_BLOCKING_LEVELS
+            if block_consider
+            else behavior_gate.DEFAULT_BLOCKING_LEVELS,
+        )
 
     module = Module(document)
     if FixTypos.meta.code in codes:
@@ -596,7 +617,11 @@ def upgrade(
         stopped_at = None
     stop_note = (
         _behavior_stop_note(
-            blockers, stopped_at=stopped_at, walked=walk, target_profile=target
+            blockers,
+            stopped_at=stopped_at,
+            walked=walk,
+            target_profile=target,
+            block_consider=block_consider,
         )
         if walk_mode and not allow_behavior_change and not deployment_bound
         else None

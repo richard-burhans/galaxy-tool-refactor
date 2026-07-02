@@ -55,9 +55,12 @@ if TYPE_CHECKING:
 # as warnings by the facade but do not stop the walk; blocking on them would
 # freeze nearly every tool at its baseline, because Galaxy emits one consider
 # code unconditionally (16_04_consider_implicit_extra_file_collection; see
-# docs/upgrade_behavior_block_stats.md). The ``levels`` parameter on
-# ``blocking_codes`` is the seam for a future stricter mode.
+# docs/upgrade_behavior_block_stats.md). The strict policy below also blocks
+# on consider — the facade's opt-in ``block_consider`` mode (registry D28);
+# ``levels`` on ``blocking_codes`` stays the seam, the policy choice lives in
+# the facade.
 DEFAULT_BLOCKING_LEVELS: frozenset[str] = frozenset({"must_fix"})
+STRICT_BLOCKING_LEVELS: frozenset[str] = frozenset({"must_fix", "consider"})
 
 
 def auto_fixes_by_code() -> dict[str, type[RuntimeGatedFix]]:

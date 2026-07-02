@@ -1037,3 +1037,34 @@ command is cli §D21.
   edits only when importers *agree* on a target, while a suffix bump is a uniform `+1`
   that every importer shares by construction, so the gate is inert-except-`+galaxy<N>`
   rather than target-agreement.
+
+## D28 (2026-07-02): `block_consider` — the opt-in strict behaviour gate
+
+The final piece of the behavior-preserving-upgrade plan (codemod §45, D21/D22):
+an opt-in mode that tightens the modernize walk's behaviour gate to also stop
+at applicable `consider`-level Galaxy changes. Reproduced-by: `uv run
+--package galaxy-tool-refactor-registry pytest
+galaxy-tool-refactor-registry/tests/test_facade.py -k block_consider`.
+
+- **Mechanism vs policy, as designed.** The gate always had the seam
+  (`behavior_gate.blocking_codes(levels=…)`, codemod §45); this decision adds
+  the policy: `facade.upgrade(block_consider=True)` passes the codemod tier's
+  `STRICT_BLOCKING_LEVELS` (`{must_fix, consider}`) instead of the default
+  `{must_fix}`. The imported-`@PROFILE@` path (`macro_profile._gated_target`,
+  D5) threads the same flag, so a token bump honors the strict gate exactly as
+  the per-tool walk does.
+- **Why opt-in, never the default.** Galaxy emits one `consider` code
+  unconditionally at 16.04 (`16_04_consider_implicit_extra_file_collection`),
+  so the strict gate freezes nearly every low-baseline tool at its baseline
+  (`docs/upgrade_behavior_block_stats.md` sizes both policies). It is a
+  review-everything mode for users who want no unreviewed behaviour-adjacent
+  change at all, not a better default.
+- **Flag composition.** A walk mode is required (`UpgradeFlagError`, the same
+  rule as `allow_behavior_change` — the minimal default has no gate to
+  adjust). Combining it with `allow_behavior_change` (tighten and lift at
+  once) raises the new typed `UpgradeFlagConflict` rather than letting one
+  flag silently win.
+- **Reporting.** A consider-level blocker renders in the same stop note as a
+  must-fix one (`notes._behavior_stop_note` already names each code's level);
+  under the strict gate the note's next steps additionally offer dropping
+  `--block-consider`, since the default walk would not have stopped there.

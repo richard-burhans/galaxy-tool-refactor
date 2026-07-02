@@ -27,7 +27,8 @@ for v in det.violations:                    # v.code, v.line, v.message
 # opts into the behavior-preserving walk, capped at the lower of the
 # behaviour ceiling and the deployment ceiling (the newest profile every
 # major public Galaxy server runs); allow_behavior_change=True lifts the
-# behaviour gate only, target_profile caps the walk and may exceed the
+# behaviour gate only, block_consider=True tightens it to also stop at
+# consider-level changes, target_profile caps the walk and may exceed the
 # deployment ceiling.
 up = facade.upgrade(tool, codes=resolve.resolve_upgrade_codes())
 upgraded_xml: bytes = up.formatted

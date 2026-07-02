@@ -554,14 +554,16 @@ commands:
   `deployment.py`, drift-guarded against `docs/galaxy_server_versions.json`).
   Stop reports name the blocking code(s) and link to
   `docs/profile_boundaries.md`, or name the deployment cap; applicable
-  `consider` changes warn but never stop.
+  `consider` changes warn but do not stop by default (`--block-consider`
+  opts into stopping at them too; registry D28, cli D22).
   `--allow-behavior-change` lifts the walk's behaviour gate only (an error
-  without a walk mode); `--target-profile` walks to an explicit vendored
+  without a walk mode, and it cannot be combined with `--block-consider`);
+  `--target-profile` walks to an explicit vendored
   profile, implies the walk, and may exceed the deployment ceiling. The
   shared imported-`@PROFILE@` bump honors the same mode per importer. No
   `--ruleset` (rulesets are a format/check concept); `--select`/`--ignore`
   adjust its fixable rule set. (Codemod `docs/decisions.md` §45/§50,
-  registry D21/D22/D23, cli D16/D17/D18; proof:
+  registry D21/D22/D23/D28, cli D16/D17/D18/D22; proof:
   `docs/proofs/behavior-gate.md`.)
 - `galaxy-tool-refactor check` — report-only over the selected rules' detect
   phases. Fixable findings exit non-zero; advisory findings appear only

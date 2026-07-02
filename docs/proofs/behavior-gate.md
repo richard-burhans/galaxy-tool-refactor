@@ -86,13 +86,17 @@ exceed it. The claim reduces to five sub-claims:
 
 ## What the walk does NOT claim
 
-Applicable `consider`-level changes do not stop the walk, a deliberate,
-documented policy choice (blocking on them would freeze nearly every tool at
-16.04 because Galaxy emits one such code unconditionally; see
+Applicable `consider`-level changes do not stop the walk by default, a
+deliberate, documented policy choice (blocking on them would freeze nearly
+every tool at 16.04 because Galaxy emits one such code unconditionally; see
 `docs/upgrade_behavior_block_stats.md`). They are surfaced in the
 crossed-boundary warning and an honest `behavior_preserving=False`, never
-silently. `--allow-behavior-change` lifts the gate entirely and restores the
-historical structural walk, with the same reporting.
+silently. Two opt-in flags adjust the gate, in opposite directions:
+`--allow-behavior-change` lifts it entirely and restores the historical
+structural walk, with the same reporting, and `--block-consider` tightens it
+to stop at applicable `consider`-level changes too (the review-everything
+mode; registry `docs/decisions.md` D28). The mechanism is the same
+`blocking_codes(levels=…)` in both cases; only the policy set changes.
 
 ## Evidence (not the argument)
 

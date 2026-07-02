@@ -96,6 +96,37 @@ def test_upgrade_tool_allow_behavior_change_alone_raises() -> None:
         service.upgrade_tool(_UPGRADABLE, allow_behavior_change=True)
 
 
+def test_upgrade_tool_block_consider_alone_raises() -> None:
+    from galaxy_tool_refactor_registry.errors import UpgradeFlagError
+
+    with pytest.raises(UpgradeFlagError):
+        service.upgrade_tool(_UPGRADABLE, block_consider=True)
+
+
+def test_upgrade_tool_block_consider_conflicts_with_allow_behavior_change() -> None:
+    from galaxy_tool_refactor_registry.errors import UpgradeFlagConflict
+
+    with pytest.raises(UpgradeFlagConflict):
+        service.upgrade_tool(
+            _UPGRADABLE,
+            modernize=True,
+            allow_behavior_change=True,
+            block_consider=True,
+        )
+
+
+def test_upgrade_tool_block_consider_stops_at_a_consider_boundary() -> None:
+    no_profile = (
+        '<tool id="m" name="M" version="1.0.0">'
+        "<command><![CDATA[echo a && echo b]]></command><inputs/>"
+        '<outputs><data name="o"/></outputs></tool>'
+    )
+    result = service.upgrade_tool(no_profile, modernize=True, block_consider=True)
+    assert (
+        "16_04_consider_implicit_extra_file_collection" in result["blocking_codes"]
+    )
+
+
 _WITH_TESTS = (
     '<tool id="m" name="M" version="1.0.0" profile="24.1">'
     "<command><![CDATA[echo x]]></command>"
