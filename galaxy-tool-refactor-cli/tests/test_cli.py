@@ -425,7 +425,10 @@ def test_malformed_tool_is_reported_as_error(tmp_path: Path) -> None:
     file = _write(tmp_path / "bad.xml", b"<tool id='t'><unclosed>")
     result = CliRunner().invoke(main, ["upgrade", str(file)])
     assert result.exit_code == 1, result.output
-    assert "error" in result.output
+    assert "malformed XML" in result.output
+    assert "bad.xml:1:" in result.output  # the parser's per-location detail
+    assert "well-formed" in result.output  # the way forward
+    assert "readthedocs.io" in result.output  # the scope-documentation link
 
 
 def test_group_help_lists_both_commands() -> None:
@@ -567,7 +570,10 @@ def test_check_reports_malformed_as_error(tmp_path: Path) -> None:
     file = _write(tmp_path / "bad.xml", b"<tool id='t'><unclosed>")
     result = CliRunner().invoke(main, ["check", str(file)])
     assert result.exit_code == 1, result.output
-    assert "error" in result.output
+    assert "malformed XML" in result.output
+    assert "bad.xml:1:" in result.output  # the parser's per-location detail
+    assert "well-formed" in result.output  # the way forward
+    assert "readthedocs.io" in result.output  # the scope-documentation link
 
 
 def test_group_help_lists_check() -> None:

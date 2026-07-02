@@ -7,7 +7,11 @@ from collections.abc import Mapping
 from pathlib import Path
 
 import click
-from galaxy_tool_fmt.cli_support import is_tool_root, iter_targets
+from galaxy_tool_fmt.cli_support import (
+    is_tool_root,
+    iter_targets,
+    report_malformed_xml,
+)
 from galaxy_tool_refactor_registry.bundle_rename import (
     BundleRenameResult,
     ConsensusRenameResult,
@@ -119,7 +123,7 @@ def _run_consensus_rename(
                 write=not check, backup=backup,
             )
         except ToolXmlSyntaxError as error:
-            click.echo(f"error: {target}: malformed XML: {error}", err=True)
+            report_malformed_xml(target, error=error)
             errored += 1
             continue
         processed.add(target.resolve())
@@ -220,7 +224,7 @@ def rename_param_command(
                 backup=backup,
             )
         except ToolXmlSyntaxError as error:
-            click.echo(f"error: {target}: malformed XML: {error}", err=True)
+            report_malformed_xml(target, error=error)
             errored += 1
             continue
         if not result.changed:

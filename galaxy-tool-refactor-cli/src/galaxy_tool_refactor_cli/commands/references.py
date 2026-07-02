@@ -6,7 +6,11 @@ import sys
 from pathlib import Path
 
 import click
-from galaxy_tool_fmt.cli_support import is_tool_root, iter_targets
+from galaxy_tool_fmt.cli_support import (
+    is_tool_root,
+    iter_targets,
+    report_malformed_xml,
+)
 from galaxy_tool_refactor_registry.bundle_rename import find_references_in_bundle
 from galaxy_tool_source.binding import ToolXmlSyntaxError
 
@@ -47,7 +51,7 @@ def find_references_command(
         try:
             result = find_references_in_bundle(target, name=name)
         except ToolXmlSyntaxError as error:
-            click.echo(f"error: {target}: malformed XML: {error}", err=True)
+            report_malformed_xml(target, error=error)
             errored += 1
             continue
         scanned += 1

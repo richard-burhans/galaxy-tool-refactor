@@ -10,6 +10,7 @@ from galaxy_tool_fmt.cli_support import (
     is_macros_root,
     is_tool_root,
     iter_targets,
+    report_malformed_xml,
 )
 from galaxy_tool_fmt.detect import detect_macro_document
 from galaxy_tool_refactor_registry import facade
@@ -109,7 +110,7 @@ def check_command(
             try:
                 tool_document = load_tool(target)  # load from path so imports resolve
             except ToolXmlSyntaxError as error:
-                click.echo(f"error: {target}: malformed XML: {error}", err=True)
+                report_malformed_xml(target, error=error)
                 errored += 1
                 continue
             if tool_document.root.tag != "tool":
@@ -122,7 +123,7 @@ def check_command(
                 # load from path, mirroring the tool branch
                 macro_document = load_macros(target)
             except ToolXmlSyntaxError as error:
-                click.echo(f"error: {target}: malformed XML: {error}", err=True)
+                report_malformed_xml(target, error=error)
                 errored += 1
                 continue
             if macro_document.root.tag != "macros":

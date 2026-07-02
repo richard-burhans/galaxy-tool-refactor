@@ -11,6 +11,16 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+### Changed
+- **Malformed-XML refusals now explain the way forward** (issue #303; fmt
+  `docs/decisions.md` §D23). Every command that declines a file the XML parser
+  rejects now prints the parser's per-location detail plus a note saying the
+  toolchain works only on well-formed XML (it never guesses at intended
+  structure), what to do next, and a link to the new "What the toolchain can
+  and cannot fix" guide section. One shared renderer
+  (`cli_support.report_malformed_xml`) replaces the six per-command copies of
+  the old one-line message.
+
 ## [0.3.6] — 2026-06-25
 
 ### Changed
