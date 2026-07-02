@@ -35,6 +35,7 @@ to do the work: `make help` lists the same things a skill would run.
 | Cut a release (lockstep bump + tag) | `make bump VERSION=0.3.0`, then `git tag vX && git push --tags` ([CONTRIBUTING](../CONTRIBUTING.md#releasing-maintainers)) | — |
 | Enable the local pre-push gate | `make hooks` (= `git config core.hooksPath .githooks`) | — |
 | Refresh corpus stats | `make fetch-corpus` then `make corpus-stats` (or the scheduled `corpus-stats.yml`) | — |
+| Re-poll the Galaxy-server deployment floor | `uv run python -m scripts.poll_galaxy_servers` (or the monthly scheduled `deployment-poll.yml`, which opens a PR; sync registry `deployment.py` if the floor moved) | — |
 | Regenerate the planemo coverage table | `make parity` (= `scripts/gen_planemo_parity.py`; freshness-tested) | — |
 | Check vendored skills for upstream updates | `make check-skills` (= `scripts/check_vendored_skills.py`; or the scheduled `vendored-skills.yml`) | — |
 | Test-coverage report (informational, not a gate) | `make test-coverage` (= `scripts/coverage_report.sh`; or the `coverage.yml` artifact on main) | — |

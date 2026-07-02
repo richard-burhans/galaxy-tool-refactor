@@ -17,14 +17,18 @@ of truth for the vendored ``DEPLOYMENT_CEILING`` that caps
 registry decisions D23). After a re-poll moves the snapshot, update
 ``deployment.py`` to match; the drift-guard test
 (``galaxy-tool-refactor-registry/tests/test_deployment.py``) fails naming both
-files until they agree. Network failures degrade gracefully: an unreachable
-server is reported as such and excluded from the floor, and the run still
-exits 0 as long as at least one server answered.
+files until they agree. Network failures degrade gracefully for interactive
+use: an unreachable server is reported as such and excluded from the floor,
+and the run still exits 0 as long as at least one server answered. Because an
+excluded server can only *raise* the computed floor, unattended runs (the
+scheduled ``deployment-poll.yml``) pass ``--require-all``, which fails closed
+(exit 1, nothing written) unless every server answered.
 
 Run from the workspace root::
 
     uv run python -m scripts.poll_galaxy_servers
     uv run python -m scripts.poll_galaxy_servers --no-write   # report only
+    uv run python -m scripts.poll_galaxy_servers --require-all  # fail closed
 """
 
 from __future__ import annotations
@@ -208,6 +212,17 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="report only; do not write docs/galaxy_server_versions.json",
     )
+    parser.add_argument(
+        "--require-all",
+        action="store_true",
+        help=(
+            "fail (exit 1, write nothing) unless every server answered. An"
+            " unreachable server is excluded from the floor, so a partial poll"
+            " can only overstate it — unattended runs (the scheduled workflow)"
+            " must fail closed rather than propose raising the ceiling on a"
+            " network blip."
+        ),
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -216,6 +231,14 @@ def main(argv: list[str] | None = None) -> int:
     snapshot = _snapshot(versions, today)
     _report(snapshot)
 
+    unreachable = [v.name for v in versions if not v.reachable]
+    if args.require_all and unreachable:
+        logger.error(
+            "unreachable server(s) under --require-all: %s; a partial poll can"
+            " only overstate the deployment floor, so no snapshot was written",
+            ", ".join(unreachable),
+        )
+        return 1
     if not any(v.reachable for v in versions):
         logger.error("no server was reachable; not writing a snapshot")
         return 1

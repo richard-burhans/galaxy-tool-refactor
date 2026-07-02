@@ -66,3 +66,38 @@ def test_profile_ceiling_maps_floor_to_newest_vendored_at_or_below() -> None:
     # No floor, or no vendored profile low enough, yields None.
     assert profile_ceiling_for_floor(None, available) is None
     assert profile_ceiling_for_floor("16.01", available) is None
+
+
+def test_require_all_fails_closed_on_an_unreachable_server(
+    monkeypatch: object, tmp_path: object
+) -> None:
+    """--require-all: an unreachable server means exit 1 and no snapshot write.
+
+    An unreachable server is excluded from the floor, so a partial poll can
+    only overstate it — the exact failure observed 2026-07-02, when a proxy
+    blip on the one laggard server would have raised the computed floor from
+    25.1 to 26.0. Unattended runs must fail closed instead.
+    """
+    from pathlib import Path
+
+    import pytest
+    from scripts import poll_galaxy_servers as poll
+
+    assert isinstance(tmp_path, Path)
+    assert isinstance(monkeypatch, pytest.MonkeyPatch)
+
+    def fake_poll(name: str, base_url: str, /) -> ServerVersion:
+        if name == "usegalaxy.fr":
+            return _v(name, "", "", reachable=False)
+        return _v(name, "26.1", "rc1")
+
+    snapshot_path = tmp_path / "snapshot.json"
+    monkeypatch.setattr(poll, "poll_server", fake_poll)
+    monkeypatch.setattr(poll, "_SNAPSHOT_PATH", snapshot_path)
+    # the write path is printed repo-relative, so anchor the root at tmp too
+    monkeypatch.setattr(poll, "_REPO_ROOT", tmp_path)
+    assert poll.main(["--require-all"]) == 1
+    assert not snapshot_path.exists()
+    # Without the flag the same partial poll still writes (interactive use).
+    assert poll.main([]) == 0
+    assert snapshot_path.exists()
