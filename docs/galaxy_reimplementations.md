@@ -12,7 +12,12 @@ executes (vendored *data*, the per-release XSDs in
 `galaxy-tool-source/schema/` and `PROFILE_UPGRADE_CODES` in
 `profile_semantics.py`, is provenance-tracked where it lives and is not
 repeated here). The surface is deliberately tiny and isolated; each touchpoint
-has a verdict.
+has a verdict. **The completeness claim is CI-enforced** (re-verified by the
+2026-07-02 dependency audit):
+`galaxy-tool-refactor-registry/tests/test_galaxy_touchpoints.py` scans every
+hand-written source file and fails when a `galaxy.*` (or CT3 `Cheetah`) import
+appears outside the files these touchpoints record — so a new Galaxy-code use
+cannot land without an entry here.
 
 ## Why we hold a structural advantage at all
 
@@ -190,4 +195,7 @@ touchpoint section with: where the Galaxy code lives and how isolated our use
 is, the measured advantage (cite a standing `scripts.measure` command, never a
 one-off), the parity oracle that bounds the risk, and the verdict. The pre-PR
 audit's doc-accuracy step treats a re-implementation without an entry here as
-a finding.
+a finding — and the touchpoint guard
+(`galaxy-tool-refactor-registry/tests/test_galaxy_touchpoints.py`) fails CI on
+any unrecorded `galaxy.*` / `Cheetah` import site, naming this document; update
+its allowlist together with the new entry.
