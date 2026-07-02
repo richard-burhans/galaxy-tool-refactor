@@ -44,7 +44,13 @@ authoring/integration contract — an agent targets `detect()` (+ `apply()` for 
 fixable rule) and a `RuleMeta` code, and the registry wraps it into a `RuleHandle`
 exactly like a built-in.
 
-Open questions to resolve **later** (do not solve now; just avoid foreclosing):
+Open questions to resolve **later** (do not solve now; just avoid foreclosing).
+**A worked design proposal answering all four now exists —
+[`goal2_design.md`](goal2_design.md) (2026-07-02): entry-point discovery behind
+an explicit opt-in, the authoring contract as a template, the built-ins' QA
+ladder applied verbatim, and an honest package-plus-flag trust boundary, phased
+detect-only first. It remains a proposal; the locked decision stands until it
+is deliberately relaxed.**
 
 1. **Discovery.** Stay with the current hardcoded family registries
    (`coded_codemods()` / `all_rules()` / `all_checks()`, developer-only) or grow
