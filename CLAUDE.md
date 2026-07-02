@@ -166,7 +166,10 @@ uv run python -m scripts.fetch_toolshed        # clone Toolshed repos
 # dated snapshot to docs/galaxy_server_versions.json — the source of truth for the
 # vendored DEPLOYMENT_CEILING that caps `upgrade --modernize` (registry deployment.py,
 # drift-guarded; registry decisions D23). After a re-poll moves the snapshot, update
-# deployment.py to match (the guard test names both). Needs network, not in CI:
+# deployment.py to match (the guard test names both). Needs network, not in per-PR
+# CI; the monthly deployment-poll.yml re-polls with --require-all (fail closed on
+# any unreachable server — a partial poll can only overstate the floor) and PRs
+# the changed snapshot:
 uv run python -m scripts.poll_galaxy_servers   # --no-write to report only
 uv run python -m scripts.regenerate            # regenerate per-version models
 uv run python -m scripts.gen_planemo_parity    # regenerate the GTR coverage table in docs/planemo_linter_parity.md (from rule metadata; freshness-tested)

@@ -1,0 +1,63 @@
+name: Deployment-ceiling poll (scheduled)
+
+# Re-polls the major public Galaxy servers' /api/version monthly and opens a
+# PR when the committed snapshot (docs/galaxy_server_versions.json) changed.
+# That snapshot is the source of truth for the vendored DEPLOYMENT_CEILING
+# that caps `upgrade --modernize` (registry deployment.py, decisions D23).
+#
+# The poll runs with --require-all: an unreachable server is excluded from the
+# computed floor, so a partial poll can only OVERSTATE it — failing closed
+# beats opening a plausible-looking PR that would loosen the ceiling on a
+# network blip. When the floor really moves, the PR's own CI fails the
+# deployment drift-guard test until a human syncs deployment.py to the new
+# snapshot — the intended forcing function, not a flake.
+
+on:
+  schedule:
+    - cron: "0 6 2 * *"   # the 2nd of each month, 06:00 UTC
+  workflow_dispatch:        # manual "re-poll now"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: deployment-poll
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync workspace
+        run: uv sync
+
+      - name: Poll the major Galaxy servers (fail closed on any unreachable)
+        run: uv run python -m scripts.poll_galaxy_servers --require-all
+
+      - name: Open a PR if the snapshot changed
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: deployment/snapshot-refresh
+          title: "docs: scheduled Galaxy-server deployment snapshot"
+          commit-message: "docs: scheduled Galaxy-server deployment snapshot"
+          body: |
+            Automated monthly re-poll of the major public Galaxy servers
+            (`.github/workflows/deployment-poll.yml`), refreshing
+            `docs/galaxy_server_versions.json`.
+
+            If this PR's CI fails the deployment drift-guard test, the
+            deployment floor moved: sync the vendored ceiling in
+            `galaxy-tool-refactor-registry/src/galaxy_tool_refactor_registry/deployment.py`
+            to the new snapshot on this branch before merging (that review step
+            is deliberate — the ceiling caps `upgrade --modernize`).
+          add-paths: |
+            docs/galaxy_server_versions.json
