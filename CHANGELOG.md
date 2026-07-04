@@ -11,6 +11,8 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+## [0.3.7] — 2026-07-04
+
 ### Added
 - **`upgrade --block-consider`: the opt-in strict behaviour gate** (registry
   `docs/decisions.md` D28, cli D22, mcp D8). The `--modernize` /
