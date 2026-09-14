@@ -1,14 +1,14 @@
 # attribute value outside XSD's enumeration
 
-35 unique tool(s) fall into this category.
+34 unique tool(s) fall into this category.
 
 | Repository | tool_id | Path | Version | Source |
 |---|---|---|---|---|
 | amawla/edger | `edgeR` | `edgeR.xml` | `a8a56766694e` | [view](https://toolshed.g2.bx.psu.edu/view/amawla/edger) |
-| bgruening-galaxytools | `jmoleditor` | `chemicaltoolbox/data_source/jmoleditor/jmoleditor.xml` | `6ba31ee4b157` | [view](https://github.com/bgruening/galaxytools/blob/6ba31ee4b15733fbe24c8d63e586c17b369981ad/chemicaltoolbox/data_source/jmoleditor/jmoleditor.xml) |
-| bgruening-galaxytools | `graphclust_align_cluster` | `tools/GraphClust/AlignCluster/align_cluster.xml` | `6ba31ee4b157` | [view](https://github.com/bgruening/galaxytools/blob/6ba31ee4b15733fbe24c8d63e586c17b369981ad/tools/GraphClust/AlignCluster/align_cluster.xml) |
-| bgruening-galaxytools | `gspan` | `tools/GraphClust/GSPAN/fasta2shrep_gspan.xml` | `6ba31ee4b157` | [view](https://github.com/bgruening/galaxytools/blob/6ba31ee4b15733fbe24c8d63e586c17b369981ad/tools/GraphClust/GSPAN/fasta2shrep_gspan.xml) |
-| bgruening-galaxytools | `structure_to_gspan` | `tools/GraphClust/Structure_GSPAN/structure_to_gspan.xml` | `6ba31ee4b157` | [view](https://github.com/bgruening/galaxytools/blob/6ba31ee4b15733fbe24c8d63e586c17b369981ad/tools/GraphClust/Structure_GSPAN/structure_to_gspan.xml) |
+| bgruening-galaxytools | `jmoleditor` | `chemicaltoolbox/data_source/jmoleditor/jmoleditor.xml` | `6047b04f4865` | [view](https://github.com/bgruening/galaxytools/blob/6047b04f486595e74ffb4e0ab70ae1c058028658/chemicaltoolbox/data_source/jmoleditor/jmoleditor.xml) |
+| bgruening-galaxytools | `graphclust_align_cluster` | `tools/GraphClust/AlignCluster/align_cluster.xml` | `6047b04f4865` | [view](https://github.com/bgruening/galaxytools/blob/6047b04f486595e74ffb4e0ab70ae1c058028658/tools/GraphClust/AlignCluster/align_cluster.xml) |
+| bgruening-galaxytools | `gspan` | `tools/GraphClust/GSPAN/fasta2shrep_gspan.xml` | `6047b04f4865` | [view](https://github.com/bgruening/galaxytools/blob/6047b04f486595e74ffb4e0ab70ae1c058028658/tools/GraphClust/GSPAN/fasta2shrep_gspan.xml) |
+| bgruening-galaxytools | `structure_to_gspan` | `tools/GraphClust/Structure_GSPAN/structure_to_gspan.xml` | `6047b04f4865` | [view](https://github.com/bgruening/galaxytools/blob/6047b04f486595e74ffb4e0ab70ae1c058028658/tools/GraphClust/Structure_GSPAN/structure_to_gspan.xml) |
 | bgruening/chemical_data_sources (also in github: bgruening-galaxytools) | `jmoleditor` | `jmoleditor/jmoleditor.xml` | `c2055dd1927b` | [view](https://toolshed.g2.bx.psu.edu/view/bgruening/chemical_data_sources) |
 | blankenberglab/data_manager_refgenie_pull | `data_manager_refgenie_pull` | `data_manager/data_manager_refgenie_pull.xml` | `b2fa406276e7` | [view](https://toolshed.g2.bx.psu.edu/view/blankenberglab/data_manager_refgenie_pull) |
 | david-hoover/mirdeep2_and_targetspy_dh | `bowtiebuild` | `bowtie_build.xml` | `17e442abb3de` | [view](https://toolshed.g2.bx.psu.edu/view/david-hoover/mirdeep2_and_targetspy_dh) |
@@ -35,7 +35,6 @@
 | rnateam/graphclust_align_cluster (also in github: bgruening-galaxytools) | `graphclust_align_cluster` | `align_cluster.xml` | `40371e8b6ee2` | [view](https://toolshed.g2.bx.psu.edu/view/rnateam/graphclust_align_cluster) |
 | saket-choudhary/sift_web | `sift_web` | `sift_web/sift_web.xml` | `697e66764209` | [view](https://toolshed.g2.bx.psu.edu/view/saket-choudhary/sift_web) |
 | shians/voom_rnaseq | `diffexp` | `diffexp.xml` | `b2fe55fd0651` | [view](https://toolshed.g2.bx.psu.edu/view/shians/voom_rnaseq) |
-| tools-devteam | `gmaj_1` | `tools/gmaj/GMAJ.xml` | `5d53a79839c6` | [view](https://github.com/galaxyproject/tools-devteam/blob/5d53a79839c6d9b7c1f13e8f5bd9f65d69d96a46/tools/gmaj/GMAJ.xml) |
-| tools-ecology | `nfdi4earth_os4a` | `tools/nfdi4earth_os4a_importer/nfdi4earth_os4a_importer.xml` | `1aa8e9fa5a15` | [view](https://github.com/galaxyecology/tools-ecology/blob/1aa8e9fa5a1512ffe7bca3345acc43fe2aa74129/tools/nfdi4earth_os4a_importer/nfdi4earth_os4a_importer.xml) |
-| tools-iuc | `data_source_gdcwebapp` | `tools/gdcwebapp/gdcwebapp.xml` | `35a4e3647ac9` | [view](https://github.com/galaxyproject/tools-iuc/blob/35a4e3647ac9b5322413c3de5f6fd48a1e7b239e/tools/gdcwebapp/gdcwebapp.xml) |
+| tools-devteam | `gmaj_1` | `tools/gmaj/GMAJ.xml` | `ddbe2a1e6ede` | [view](https://github.com/galaxyproject/tools-devteam/blob/ddbe2a1e6eded54877d786fbcfc18e594fb12932/tools/gmaj/GMAJ.xml) |
+| tools-iuc | `data_source_gdcwebapp` | `tools/gdcwebapp/gdcwebapp.xml` | `1045e385abe8` | [view](https://github.com/galaxyproject/tools-iuc/blob/1045e385abe8dcf6687693e0652f88307a0396ee/tools/gdcwebapp/gdcwebapp.xml) |
 | vlefort/phyml (also in github: tools-iuc) | `phyml` | `phyml.xml` | `6dd988b4b760` | [view](https://toolshed.g2.bx.psu.edu/view/vlefort/phyml) |
