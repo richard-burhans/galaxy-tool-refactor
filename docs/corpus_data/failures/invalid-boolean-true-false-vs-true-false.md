@@ -33,7 +33,7 @@
 | qfabrepo/metadegalaxy_phyloseq_deseq2 | `phyloseq_DESeq2` | `phyloseq_2_deseq2.xml` | `7e24242ffa65` | [view](https://toolshed.g2.bx.psu.edu/view/qfabrepo/metadegalaxy_phyloseq_deseq2) |
 | qfabrepo/metadegalaxy_phyloseq_net | `phyloseq_net` | `phyloseq_net.xml` | `22abc415e142` | [view](https://toolshed.g2.bx.psu.edu/view/qfabrepo/metadegalaxy_phyloseq_net) |
 | qfabrepo/metadegalaxy_phyloseq_richness | `phyloseq_richness` | `phyloseq_richness.xml` | `e0225f3e8ef6` | [view](https://toolshed.g2.bx.psu.edu/view/qfabrepo/metadegalaxy_phyloseq_richness) |
-| tools-devteam | `hisat` | `tools/hisat/hisat.xml` | `5d53a79839c6` | [view](https://github.com/galaxyproject/tools-devteam/blob/5d53a79839c6d9b7c1f13e8f5bd9f65d69d96a46/tools/hisat/hisat.xml) |
+| tools-devteam | `hisat` | `tools/hisat/hisat.xml` | `ddbe2a1e6ede` | [view](https://github.com/galaxyproject/tools-devteam/blob/ddbe2a1e6eded54877d786fbcfc18e594fb12932/tools/hisat/hisat.xml) |
 | urgi-team/teiso | `ClosestToStartSite` | `TEiso/ClosestToStartSite_Wrapper.xml` | `836ce3d9d47a` | [view](https://toolshed.g2.bx.psu.edu/view/urgi-team/teiso) |
 | urgi-team/vcfgandalftools | `VCFFiltering` | `VCFGandalfTools/VCFFiltering_wrapper.xml` | `1fd1f727c330` | [view](https://toolshed.g2.bx.psu.edu/view/urgi-team/vcfgandalftools) |
 | youngkim/ezbamqc | `cshl_BAMqc` | `ezBAMQC.xml` | `9de3bbec2479` | [view](https://toolshed.g2.bx.psu.edu/view/youngkim/ezbamqc) |
