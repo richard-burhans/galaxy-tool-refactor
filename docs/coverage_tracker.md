@@ -15,6 +15,7 @@ Gate-eligible rules scored: GTR001, GTR006, GTR013, GTR017, GTR018.1, GTR019.1, 
 |---|---:|---:|---:|
 | 2026-06-15 | 2131 | 583 | 27.4% |
 | 2026-07-02 | 2153 | 617 | 28.7% |
+| 2026-10-01 | 2252 | 716 | 31.8% |
 
-Latest (2026-07-02) top blocking rules: GTR001 (1305), GTR019.1 (379), GTR013 (176), GTR018.1 (160), GTR020.1 (125), GTR037 (44), GTR089.1 (5).
+Latest (2026-10-01) top blocking rules: GTR001 (1306), GTR019.1 (378), GTR013 (174), GTR018.1 (160), GTR020.1 (127), GTR037 (41), GTR089.1 (4).
 <!-- END generated coverage trend -->
