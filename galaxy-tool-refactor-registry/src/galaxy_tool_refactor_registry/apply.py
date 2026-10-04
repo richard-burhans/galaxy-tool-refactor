@@ -13,8 +13,13 @@ longer rides a hardcoded pipeline tuple.
 Advisory (``detect_only``) codes in the selection are ignored here — they only
 report (the facade surfaces them as notes). Serialisation always goes through
 fmt, preserving "fmt is the only tier that writes/serialises XML": even a
-codemod-only or empty selection ends in ``format_tool_document_subset`` (with no
-fmt rules it just serialises the tree).
+codemod-only or empty selection ends in ``format_tool_document_subset``.
+
+⚠ THAT LAST STEP IS NOT A NO-OP ON A NON-CANONICAL FILE. It applies no rule, but
+lxml does not preserve whitespace inside a tag, so a multi-line ``<param ...>``
+comes back on one line regardless of what was edited. A codemod-only selection
+therefore still reflows a file that was not already canonical — see
+``format_tool_document_subset`` for the measurement.
 """
 
 from __future__ import annotations
