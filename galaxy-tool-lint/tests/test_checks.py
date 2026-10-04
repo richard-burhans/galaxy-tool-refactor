@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from galaxy_tool_source.binding import load_tool
 
 from galaxy_tool_lint.detect import detect_violations
@@ -1234,3 +1236,97 @@ def test_gtr095_missing_or_empty_version() -> None:
     assert "GTR095" not in _codes(_tool(version=" "))
     # A macro token is a non-empty value; it resolves at expansion.
     assert "GTR095" not in _codes(_tool(version="@TOOL_VERSION@"))
+
+
+def _macro_suite(tmp_path: Path, *, body: str, macros: str) -> Path:
+    """A tool declaring things through <expand macro=.../>, beside its macros.xml."""
+    (tmp_path / "macros.xml").write_text(f"<macros>{macros}</macros>")
+    path = tmp_path / "tool.xml"
+    path.write_text(
+        '<tool id="t" name="T" version="1.0.0" profile="24.0">'
+        "<macros><import>macros.xml</import></macros>"
+        "<description>Does a thing.</description>"
+        "<edam_topics><edam_topic>topic_0091</edam_topic></edam_topics>"
+        f"{body}"
+        '<stdio><exit_code range="1:" level="fatal"/></stdio>'
+        "<command><![CDATA[foo --in '$input']]></command>"
+        '<inputs><param name="input" type="data" format="txt"/></inputs>'
+        '<outputs><data name="out" format="txt"/></outputs>'
+        '<tests><test expect_num_outputs="1">'
+        '<param name="input" value="x"/></test></tests>'
+        "<help><![CDATA[Some help text.]]></help>"
+        "</tool>"
+    )
+    return path
+
+
+def test_gtr025_sees_requirements_supplied_by_a_macro(tmp_path: Path) -> None:
+    """A suite declaring requirements through a macro is declaring them.
+
+    Reading the raw tree reported every such tool as declaring nothing. Measured on one
+    55-wrapper repository: 40 of 42 GTR025 findings were this false positive.
+    """
+    path = _macro_suite(
+        tmp_path,
+        body='<expand macro="requirements"/>'
+        '<citations><citation type="doi">10.1/x</citation></citations>',
+        macros='<xml name="requirements"><requirements><requirement type="package" '
+        'version="1.0">foo</requirement></requirements></xml>',
+    )
+    assert "GTR025" not in _codes(path)
+
+
+def test_gtr038_sees_citations_supplied_by_a_macro(tmp_path: Path) -> None:
+    """Likewise for citations: 44 of 50 findings on that same repository."""
+    path = _macro_suite(
+        tmp_path,
+        body='<requirements><requirement type="package" version="1.0">foo</requirement>'
+        "</requirements>"
+        '<expand macro="citations"/>',
+        macros='<xml name="citations"><citations><citation type="doi">10.1/x'
+        "</citation></citations></xml>",
+    )
+    assert "GTR038" not in _codes(path)
+
+
+def test_gtr025_and_gtr038_still_fire_when_the_macro_supplies_nothing(
+    tmp_path: Path,
+) -> None:
+    """The fix must not amount to 'a tool with macros is exempt'.
+
+    A macro that expands to nothing leaves the tool genuinely undeclared, and both
+    checks must still say so.
+    """
+    path = _macro_suite(
+        tmp_path,
+        body='<expand macro="nothing"/>',
+        macros='<xml name="nothing"><description>Does a thing.</description></xml>',
+    )
+    codes = _codes(path)
+    assert "GTR025" in codes
+    assert "GTR038" in codes
+
+
+def test_gtr034_sees_an_argument_only_param() -> None:
+    """An orphan declaring only `argument=` was invisible to this rule.
+
+    GTR037 is the fixer that REMOVES a redundant `name` beside `argument`, so running
+    it used to narrow this check: the params it rewrote stopped being examined.
+    """
+    orphan = (
+        '<inputs><param name="input" type="data" format="txt"/>'
+        '<param argument="--min-score" type="float" value="0.5"/></inputs>'
+    )
+    codes = _codes(_tool(inputs=orphan))
+    assert "GTR034" in codes
+
+
+def test_gtr034_argument_only_param_that_is_used_is_not_flagged() -> None:
+    """The derived name is what the command references, so resolving it must not
+    turn every argument-only param into an orphan."""
+    used = (
+        '<inputs><param name="input" type="data" format="txt"/>'
+        '<param argument="--min-score" type="float" value="0.5"/></inputs>'
+    )
+    command = "<command><![CDATA[foo --in '$input' --min-score $min_score]]></command>"
+    assert "GTR034" not in _codes(_tool(inputs=used, command=command))

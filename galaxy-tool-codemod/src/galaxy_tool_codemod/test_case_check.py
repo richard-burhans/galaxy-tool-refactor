@@ -41,6 +41,8 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from galaxy_tool_source.param_names import derived_param_name
+
 if TYPE_CHECKING:
     from lxml import etree
 
@@ -352,7 +354,7 @@ def _argument_name(element: etree._Element, /) -> str | None:
     argument = element.get("argument")
     if argument is None:
         return None
-    return str(argument).lstrip("-").replace("-", "_")
+    return derived_param_name(str(argument))
 
 
 # --- the test side -----------------------------------------------------------------

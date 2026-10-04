@@ -27,6 +27,7 @@ from galaxy_tool_lint.checks._shared import (
     _IUC,
     _is_valid_regex,
     _violation,
+    expanded_root,
 )
 
 # IUC tool ids are lowercase letters, digits, and ``_ . + -`` — no spaces, no
@@ -181,12 +182,20 @@ class RequirementsPresent(CheckRule):
     )
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
-        root = document.root
-        requirements = root.find("requirements")
+        # Decided on the EXPANDED tree: <expand macro="requirements"/> is how most
+        # suites declare these, and reading the raw tree reports every one of them as
+        # declaring nothing. Anchored on the original root, which is the element that
+        # exists in document.tree.
+        expanded = expanded_root(document)
+        if expanded is None:
+            return  # macro expansion failed; say nothing rather than misfire
+        requirements = expanded.find("requirements")
         if requirements is None or not (
             requirements.findall("requirement") or requirements.findall("container")
         ):
-            yield _violation(document, root, self.meta, "no <requirements> declared")
+            yield _violation(
+                document, document.root, self.meta, "no <requirements> declared"
+            )
 
 
 class ErrorHandling(CheckRule):
@@ -395,14 +404,24 @@ class CitationsPresent(CheckRule):
 
     def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
         root = document.root
-        citations = root.find("citations")
-        if citations is None or not citations.findall("citation"):
+        # PRESENCE is decided on the expanded tree (a suite's
+        # <expand macro="citations"/> really does declare citations), but the
+        # per-citation text check below stays on the ORIGINAL tree: a macro-supplied
+        # citation lives in macros.xml, a different file this cannot anchor into.
+        expanded = expanded_root(document)
+        if expanded is None:
+            return  # macro expansion failed; say nothing rather than misfire
+        expanded_citations = expanded.find("citations")
+        if expanded_citations is None or not expanded_citations.findall("citation"):
             yield _violation(
                 document,
-                citations if citations is not None else root,
+                root.find("citations") if root.find("citations") is not None else root,
                 self.meta,
                 "no citations — consider citing the tool's method/software",
             )
+            return
+        citations = root.find("citations")
+        if citations is None:
             return
         for citation in citations.findall("citation"):
             citation_type = citation.get("type")
