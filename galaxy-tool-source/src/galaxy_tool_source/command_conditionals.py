@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from lxml import etree
 
 from galaxy_tool_source.cheetah_cdm import CHEETAH_VAR_RE, SpanKind, cheetah_spans
+from galaxy_tool_source.param_names import resolved_param_name
 
 GATES_OTHER_PARAMS = "gates-other-params"
 CONSTANT_ONLY = "constant-only"
@@ -80,11 +81,7 @@ def _input_param_names(root: etree._Element, /) -> tuple[set[str], set[str]]:
     if inputs is None:
         return params, booleans
     for param in inputs.iter("param"):
-        name = param.get("name")
-        if not name:
-            argument = param.get("argument")
-            if argument:
-                name = argument.lstrip("-").replace("-", "_")
+        name = resolved_param_name(param)
         if not name:
             continue
         params.add(name)
