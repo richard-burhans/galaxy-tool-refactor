@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from galaxy_tool_source.binding import load_macros
+from galaxy_tool_source.binding import load_macros, load_tool
 from galaxy_tool_source.document import ToolDocument
 
 from galaxy_tool_fmt.detect import (
@@ -108,3 +108,36 @@ def test_format_macro_document_indents_and_shorthands() -> None:
     assert b'\n    <token name="@TOOL_VERSION@">1.0</token>\n' in out
     # GTR004: the empty <thing></thing> collapses to <thing/>.
     assert b"<thing/>" in out
+
+
+def test_empty_subset_applies_no_rule_but_can_still_reflow() -> None:
+    """Applying no rule is not the same as changing nothing.
+
+    lxml does not preserve whitespace *inside* a tag, so a ``<param ...>`` written
+    across several lines comes back on one even though no rule ran. That is why a
+    codemod-only selection still reflows a file that was not already canonical --
+    measured on one 55-wrapper repository, an empty subset rewrote 51 of 55 files.
+    Callers read "applies no rule" as "leaves the file alone"; this pins the
+    difference so the docstring cannot drift back.
+    """
+    canonical = (
+        b'<tool id="t" name="T" version="1">\n'
+        b"    <inputs>\n"
+        b'        <param name="a" type="text" value=""/>\n'
+        b"    </inputs>\n"
+        b"</tool>\n"
+    )
+    multiline = (
+        b'<tool id="t" name="T" version="1">\n'
+        b"    <inputs>\n"
+        b'        <param name="a" type="text"\n'
+        b'               value=""/>\n'
+        b"    </inputs>\n"
+        b"</tool>\n"
+    )
+    # already canonical: a true round trip
+    got = format_tool_document_subset(load_tool(canonical), rule_classes=())
+    assert got == canonical
+    # not canonical: the tag is rejoined, with no rule involved
+    got = format_tool_document_subset(load_tool(multiline), rule_classes=())
+    assert got == canonical

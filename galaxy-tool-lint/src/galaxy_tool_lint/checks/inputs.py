@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, ClassVar
 from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_refactor_rules.violation import Violation
 from galaxy_tool_source.cheetah_refs import referenced_identifiers
-from galaxy_tool_source.macros import expand_from_tree, has_macros
+from galaxy_tool_source.macros import has_macros
 from lxml import etree
 
 from galaxy_tool_lint.rules import CheckRule
@@ -25,6 +25,7 @@ from galaxy_tool_lint.checks._shared import (
     _param_name,
     _string_as_bool,
     _violation,
+    expanded_root,
 )
 
 
@@ -62,31 +63,36 @@ class UnusedParam(CheckRule):
         if used is None:
             return  # macro expansion failed — bail rather than risk a false positive
         for param in inputs.iter("param"):
-            name = param.get("name")
+            # Galaxy's resolved name, so a param carrying only `argument="--min-score"`
+            # is checked too. Reading `name` alone skipped every one of them -- and
+            # GTR037 is the rule that REMOVES a redundant `name`, so running the fixer
+            # used to shrink this rule's reach.
+            name = _param_name(param)
             if not name:
-                continue
+                continue  # neither name nor argument: the GTR054 case
             parent = param.getparent()
             if parent is not None and parent.tag == "conditional":
                 continue  # the conditional's selector param is structurally used
             if name not in used:
+                declared = (
+                    f'name="{name}"'
+                    if param.get("name")
+                    else f'argument="{param.get("argument")}"'
+                )
                 yield _violation(
                     document,
                     param,
                     self.meta,
-                    f'input <param name="{name}"> is never referenced',
+                    f"input <param {declared}> is never referenced",
                 )
 
     def _used_identifiers(self, document: ToolDocument, /) -> set[str] | None:
         """Identifiers referenced across the macro-expanded tree, or ``None`` if a
         macro-using tool's expansion fails (the caller then bails)."""
-        root = document.root
-        if not has_macros(root):
-            return referenced_identifiers(root)
-        source_dir = document.source_path.parent if document.source_path else None
-        expanded, errors = expand_from_tree(root, source_dir=source_dir)
-        if expanded is None or errors:
+        expanded = expanded_root(document)
+        if expanded is None:
             return None
-        return referenced_identifiers(expanded.getroot())
+        return referenced_identifiers(expanded)
 
 
 def _iter_named_params(

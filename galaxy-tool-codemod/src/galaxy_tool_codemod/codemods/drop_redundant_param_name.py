@@ -27,6 +27,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from galaxy_tool_refactor_rules.meta import RuleMeta
+from galaxy_tool_source.param_names import derived_param_name
 
 from galaxy_tool_codemod.change import Change
 from galaxy_tool_codemod.codemod import CodemodCommand
@@ -41,7 +42,7 @@ _IUC = "https://galaxy-iuc-standards.readthedocs.io/en/latest/best_practices/too
 
 def _derived_name(argument: str, /) -> str:
     """Galaxy's name-from-argument derivation (`_parse_name(None, argument)`)."""
-    return argument.lstrip("-").replace("-", "_")
+    return derived_param_name(argument)
 
 
 def _under_inputs(cursor: Cursor, /) -> bool:

@@ -105,8 +105,19 @@ def format_tool_document_subset(
     Like ``format_tool_document`` but runs a caller-chosen subset of the
     cosmetic rules. The rules run in ``meta.order`` regardless of the order
     *rule_classes* is given in (the formatter's whitespace rules are
-    order-sensitive; see ``docs/decisions.md`` D15). An empty *rule_classes*
-    serialises the tree unchanged.
+    order-sensitive; see ``docs/decisions.md`` D15).
+
+    ⚠ AN EMPTY *rule_classes* APPLIES NO RULE, WHICH IS NOT THE SAME AS LEAVING THE
+    FILE ALONE. Serialisation goes through lxml, which does not preserve whitespace
+    *inside* a tag, so every element whose attributes were written across several
+    lines comes back on one line -- whether or not any rule touched it. On an
+    already-canonical document the round trip is byte-identical; on a document that
+    is not, it is a whole-file reflow. Measured on one 55-wrapper repository: an
+    empty subset rewrote 51 of 55 files.
+
+    The practical consequence is that a single codemod cannot be applied to a
+    non-canonical file without reflowing that file. Callers wanting a minimal diff
+    must canonicalise first, as a separate commit.
 
     This is the per-rule seam the rule-selection facade
     (``galaxy-tool-refactor-registry``) uses. A coherent subset (the shipped
