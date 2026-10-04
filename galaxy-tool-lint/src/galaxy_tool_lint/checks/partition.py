@@ -10,7 +10,10 @@ from galaxy_tool_refactor_rules.meta import RuleMeta
 from galaxy_tool_refactor_rules.violation import Violation
 from galaxy_tool_source.cdata import cdata_wrappable, needs_cdata
 from galaxy_tool_source.command_text import unquoted_cheetah_vars
-from galaxy_tool_source.command_vars import command_var_info
+from galaxy_tool_source.command_vars import (
+    command_var_info,
+    never_quote_names,
+)
 from galaxy_tool_source.shell_oracle import quote_is_behavior_preserving
 
 from galaxy_tool_lint.rules import CheckRule
@@ -123,6 +126,10 @@ class SingleQuotedCheetah(CheckRule):
         base_line = command.sourceline or 0
         xpath = str(document.tree.getpath(command))
         kinds, structural = command_var_info(document.root)
+        # Names where quoting is not merely unprovable but WRONG -- see
+        # command_vars.never_quote_names. The blanket "single-quote it" below is sound
+        # advice for a text param and a bug for a falsevalue="" boolean.
+        never_quote = never_quote_names(document.root)
         text = "".join(command.itertext())
         # GTR020.1 only rewrites a pure-text body; in a mixed-content <command> it fixes
         # nothing, so every unquoted var there is residual.
@@ -133,6 +140,14 @@ class SingleQuotedCheetah(CheckRule):
             )
             if fixed_by_gtr020_1:
                 continue  # GTR020.1 auto-fixes this one
+            # ⛔ NOT A RESIDUAL. For these the value domain is author-written and
+            # statically known, so the toolkit can decide rather than defer: quoting
+            # would change the command, leaving it bare is correct, and there is
+            # nothing for a reader to act on. Reporting it conflates "I cannot tell"
+            # with "I can tell, and the answer is do nothing" -- and the advice below
+            # would be a BUG if followed ('' is a stray argument, not nothing).
+            if occurrence.name.lstrip("$").split(".")[0] in never_quote:
+                continue
             yield Violation(
                 code=self.meta.code,
                 sourceline=base_line + occurrence.line_offset if base_line else 0,
