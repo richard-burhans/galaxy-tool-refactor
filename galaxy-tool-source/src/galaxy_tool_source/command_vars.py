@@ -46,6 +46,8 @@ import re
 
 from lxml import etree
 
+from galaxy_tool_source.param_names import resolved_param_name
+
 # Param types whose value is intrinsically a single shell token — quoting one can
 # never break word-splitting (it was always one argument). ``text`` is excluded: a
 # single value, but commonly a free-form "extra options" field meant to splat.
@@ -133,7 +135,9 @@ def input_param_info(root: etree._Element, /) -> tuple[dict[str, str], set[str]]
     if inputs is None:
         return kinds, structural
     for param in inputs.iter("param"):
-        name = param.get("name")
+        # Resolved, so an `argument="--min-score"` param is classified too. Reading
+        # `name` alone skipped them, and GTR037 turns params into exactly that shape.
+        name = resolved_param_name(param)
         if not name:
             continue
         ptype = param.get("type", "")
@@ -197,7 +201,7 @@ def io_file_names(root: etree._Element, /) -> set[str]:
     inputs = root.find("inputs")
     if inputs is not None:
         for param in inputs.iter("param"):
-            name = param.get("name")
+            name = resolved_param_name(param)
             multiple = param.get("multiple") in ("true", "True", "1")
             if name and param.get("type", "") == "data" and not multiple:
                 names.add(name)
