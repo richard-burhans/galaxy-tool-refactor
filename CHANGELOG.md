@@ -11,6 +11,55 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+## [0.3.8] — 2026-10-04
+
+### Fixed
+- **`GTR025` / `GTR038` now decide presence on the macro-expanded tree** (lint
+  `docs/decisions.md`). A suite writing `<expand macro="requirements"/>` *is*
+  declaring requirements; both checks read the unexpanded tree, so every such
+  tool was reported as declaring nothing. Measured on a 55-wrapper repository:
+  `GTR025` 42 findings → 2, `GTR038` 50 → 6. The 84 that disappear were all
+  macro-supplied, and they were burying the 8 real ones. `GTR034` already read
+  the expanded tree, so the capability existed but was not shared; the expansion
+  now lives in one cached helper (`checks/_shared.expanded_root`) that `GTR034`
+  also uses. Elements of the expanded tree are not in `document.tree`, so a
+  violation never anchors on one — `GTR038` decides presence on the expanded
+  tree but keeps its per-citation text check on the original. A failed expansion
+  reports nothing rather than guessing, which is the contract `GTR034` already
+  followed.
+- **An `argument=`-only `<param>` is no longer invisible.** A param carrying
+  only `argument="--min-score"` *is* a param named `min_score`. Four places
+  derived that separately and two readers skipped such params entirely, so they
+  were unexamined by `GTR034` and unclassifiable by `command_vars`. The new
+  tier-1 `galaxy_tool_source.param_names` is the single definition and all four
+  delegate to it.
+
+  This compounded with `GTR037`, the codemod that *removes* a redundant `name`
+  beside `argument`: running the fixer produced exactly the shape the readers
+  could not see. Applying `GTR037` alone used to move `GTR020.2` from 87
+  findings to 99 — the auto-fix made a different rule worse. It no longer does,
+  and `GTR020.2`'s standalone count on that repository drops from 87 to 53
+  because `command_vars` can now classify the params it used to skip.
+
+### Changed
+- ⚠ **Rule output changes.** Across the three fixes, full `strict` on that
+  55-wrapper repository goes from **350 findings to 233** — every one of the 117
+  a false positive. A downstream gate pinned to per-rule counts (a ratchet
+  baseline, a `--fail-under`) will see numbers *fall* on upgrade and should be
+  re-baselined. No rule was removed and none became stricter.
+- **Two docstrings described a no-op that isn't one.**
+  `format_tool_document_subset` said an empty `rule_classes` "serialises the
+  tree unchanged", and `apply.py` repeated it. It applies no rule, which is not
+  the same thing: lxml does not preserve whitespace *inside* a tag, so a
+  `<param>` written across several lines comes back on one regardless of what
+  was touched. On an already-canonical document the round trip is
+  byte-identical, which is why the claim survived; on one that is not, an empty
+  subset rewrote 51 of 55 files. The practical consequence — a single codemod
+  cannot be applied to a non-canonical file without reflowing it, so a caller
+  wanting a minimal diff must canonicalise in a separate commit first — is now
+  stated where a caller will read it. Behaviour is unchanged; a test pins both
+  halves.
+
 ## [0.3.7] — 2026-07-04
 
 ### Added
