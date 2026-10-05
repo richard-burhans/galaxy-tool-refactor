@@ -64,6 +64,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
 from lxml import etree
@@ -486,8 +487,9 @@ def render(
     Returns ``None`` if macros will not expand or any section will not render — the
     caller must treat that as *unknown*, not as a pass.
     """
-    from galaxy.util.template import fill_template  # heavy import, kept local
-
+    fill_template = _fill_template()
+    if fill_template is None:
+        return None
     expanded = _expanded(root, source_dir)
     if expanded is None:
         return None
@@ -499,6 +501,35 @@ def render(
         except Exception:  # noqa: BLE001 - any Cheetah failure means "unknown"
             return None
     return rendered
+
+
+@lru_cache(maxsize=1)
+def _fill_template() -> Any | None:
+    """Galaxy's Cheetah entry point, or ``None`` when it cannot be imported.
+
+    ⚠ ``galaxy.util.template`` needs a 2-to-3 refactoring tool at import time: it tries
+    ``lib2to3``, which was **removed from the stdlib in Python 3.13**, and falls back to
+    ``fissix``. ``galaxy-util[template]`` only pulls ``fissix`` where the marker says
+    ``lib2to3`` is absent, and a Debian/Ubuntu Python that ships without
+    ``python3-lib2to3`` satisfies neither -- so the import raises
+    ``ModuleNotFoundError`` on an interpreter where it "should" work. CI found this on
+    3.12 while a local 3.13 venv (which has ``fissix`` transitively) was green.
+
+    Degrading to ``None`` rather than raising matches ``shell_oracle``: an oracle whose
+    engine is missing reports *unknown*, never a pass. ``fissix`` is declared in the
+    workspace dev group so the suite exercises the real path on every supported
+    interpreter.
+    """
+    try:
+        from galaxy.util.template import fill_template
+    except Exception:  # noqa: BLE001 - a missing refactoring backend is the known case
+        return None
+    return fill_template
+
+
+def render_oracle_available() -> bool:
+    """Whether the oracle can render at all (Galaxy's Cheetah entry point imports)."""
+    return _fill_template() is not None
 
 
 def _collapse(text: str, /) -> str:
