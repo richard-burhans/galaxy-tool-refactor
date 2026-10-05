@@ -39,7 +39,7 @@ opt-in transformations applied by their own commands, never part of a
 format-time gate, so they are intentionally out of scope here.
 
 <!-- BEGIN generated gate-eligibility table -->
-**89 rules**: 11 gate-eligible · 1 bulk-only · 2 blocked-pending-iuc · 75 advisory-only.
+**95 rules**: 11 gate-eligible · 3 bulk-only · 2 blocked-pending-iuc · 79 advisory-only.
 
 ## Fixable rules (the auto-fix surface)
 
@@ -57,12 +57,14 @@ format-time gate, so they are intentionally out of scope here.
 | gate-eligible | GTR037 | Drop a <param> 'name' that equals the name Galaxy derives from its 'argument' (redundant; argument implies the same name). | Drop a redundant <param> name equal to the argument-derived name; behaviour-preserving, IUC-cited. |
 | gate-eligible | GTR089.1 | Repair deterministically-fixable invalid <help> reStructuredText (short title underlines, missing blank lines) behind a behaviour-preserving gate. | Repair deterministically-fixable invalid <help> reStructuredText behind a render-equivalence gate; IUC-cited. |
 | bulk-only | GTR004 | Collapse empty-with-whitespace leaves to <foo/> form. | Empty-element shorthand is an uncited house convention (conference §6); offer in the bulk pass, do not hard-gate until IUC adopts it. |
+| bulk-only | GTR096 | Fully-qualify a flat <test> parameter name to its unique nested parent|...|child input path (required at profile >= 24.2). | Qualifying a flat <test> param is required by Galaxy itself from profile 24.2 (PR #18679), so the target form is not in doubt -- but the fix CHANGES A TEST'S OUTCOME. The unqualified name was silently testing the tool's default; qualifying it makes the declared value effective, and a test that was green because it exercised nothing can legitimately go red. That belongs in a bulk pass where a human reads the new failures, not in a gate that rewrites an incoming PR's tests. |
+| bulk-only | GTR106 | Drop display="checkboxes" from a select param (IUC leaves the widget to Galaxy). | Dropping display="checkboxes" is behaviour-preserving (presentation only, identical value space), but it is an IUC REVIEW convention, not a published standard: planemo's own linters police only display<->multiple/optional consistency (GTR076), and nothing in the standards text forbids the attribute. Offer it; do not hard-gate until IUC writes it down. |
 | blocked-pending-iuc | GTR002 | Reorder every <param> element's attributes to the IUC convention. | Param attribute order is contested upstream (#8090); needs an IUC canonical-order decision (conference §3). |
 | blocked-pending-iuc | GTR005 | Reorder the root <tool> element's attributes to the documented prefix. | Root <tool> attribute order — the same attribute-reordering class as GTR002; confirm in the §3 conversation. |
 
-## Advisory-only rules (75)
+## Advisory-only rules (79)
 
 Detect-only checks — reported by `check` and pointed at docs, never auto-applied in either half:
 
-`GTR018.2`, `GTR019.2`, `GTR020.2`, `GTR021`, `GTR023`, `GTR024`, `GTR025`, `GTR026`, `GTR027`, `GTR028`, `GTR029`, `GTR032`, `GTR033`, `GTR034`, `GTR035.2`, `GTR038`, `GTR039`, `GTR040`, `GTR041`, `GTR042`, `GTR043`, `GTR044`, `GTR045`, `GTR046`, `GTR047`, `GTR048`, `GTR049`, `GTR050`, `GTR051`, `GTR052`, `GTR053`, `GTR054`, `GTR055`, `GTR056`, `GTR057`, `GTR058`, `GTR059`, `GTR060`, `GTR061`, `GTR062`, `GTR063`, `GTR064`, `GTR065`, `GTR066`, `GTR067`, `GTR068`, `GTR069`, `GTR070`, `GTR071`, `GTR072`, `GTR073`, `GTR074`, `GTR075`, `GTR076`, `GTR077`, `GTR078`, `GTR079`, `GTR080`, `GTR081`, `GTR082`, `GTR083`, `GTR084`, `GTR085`, `GTR086`, `GTR087`, `GTR088`, `GTR089.2`, `GTR090`, `GTR091`, `GTR095`, `GTR098`, `GTR099`, `GTR100`, `GTR101`, `GTR102`
+`GTR018.2`, `GTR019.2`, `GTR020.2`, `GTR021`, `GTR023`, `GTR024`, `GTR025`, `GTR026`, `GTR027`, `GTR028`, `GTR029`, `GTR032`, `GTR033`, `GTR034`, `GTR035.2`, `GTR038`, `GTR039`, `GTR040`, `GTR041`, `GTR042`, `GTR043`, `GTR044`, `GTR045`, `GTR046`, `GTR047`, `GTR048`, `GTR049`, `GTR050`, `GTR051`, `GTR052`, `GTR053`, `GTR054`, `GTR055`, `GTR056`, `GTR057`, `GTR058`, `GTR059`, `GTR060`, `GTR061`, `GTR062`, `GTR063`, `GTR064`, `GTR065`, `GTR066`, `GTR067`, `GTR068`, `GTR069`, `GTR070`, `GTR071`, `GTR072`, `GTR073`, `GTR074`, `GTR075`, `GTR076`, `GTR077`, `GTR078`, `GTR079`, `GTR080`, `GTR081`, `GTR082`, `GTR083`, `GTR084`, `GTR085`, `GTR086`, `GTR087`, `GTR088`, `GTR089.2`, `GTR090`, `GTR091`, `GTR095`, `GTR098`, `GTR099`, `GTR100`, `GTR101`, `GTR102`, `GTR104`, `GTR105`, `GTR108`, `GTR109`
 <!-- END generated gate-eligibility table -->

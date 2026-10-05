@@ -19,8 +19,8 @@ automatically at the point of entry.** Either half alone is close to pointless.
   codemods, each with a written proof, gated on idempotence and validity. Nothing
   is an LLM guessing and hoping it is right. (This is probably the real root of
   any past hesitation, so say it early.)
-- **Honest scope.** Of 89 rules, 14 are fixable and 75 stay advisory. Of the 14
-  fixable, 11 are gate-eligible (auto-applied in a ruleset today), 1 is bulk-only,
+- **Honest scope.** Of 95 rules, 16 are fixable and 79 stay advisory. Of the 16
+  fixable, 11 are gate-eligible (auto-applied in a ruleset today), 3 are bulk-only,
   and 2 are held pending an IUC decision. We are automating the mechanical surface,
   and explicitly leaving the judgment to humans.
 

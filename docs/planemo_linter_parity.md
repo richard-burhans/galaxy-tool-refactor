@@ -124,13 +124,18 @@ Membership is declared per-rule (`RuleMeta.rulesets`); see registry `docs/decisi
 | GTR093 | — | ✓ | ✓ | upgrade | — | Upgrade a tool stuck at profile 21.09 toward 22.01 (normalize collection_type + has_size Bytes; repair stdio exit_code/regex). |
 | GTR094 | — | ✓ | ✓ | codemod | — | Factor a literal version="`<base>`+galaxy`<suffix>`" into @TOOL_VERSION@/@VERSION_SUFFIX@ tokens shared with the matching package requirement (opt-in tokenize-version only). |
 | GTR095 | ToolIDMissing, ToolNameMissing, ToolVersionMissing | ✓ | ✗ | check | strict | Tool must declare a non-empty id, name, and version. |
-| GTR096 | — | ✓ | ✓ | upgrade | — | Fully-qualify a flat `<test>` parameter name to its unique nested parent|...|child input path (required at profile >= 24.2). |
+| GTR096 | — | ✓ | ✓ | codemod | strict | Fully-qualify a flat `<test>` parameter name to its unique nested parent|...|child input path (required at profile >= 24.2). |
 | GTR097 | — | ✓ | ✓ | upgrade | — | Declare the minimum profile at or above the baseline the tool validates at. |
 | GTR098 | ValidDatatypes | ✓ | ✗ | check | strict | format/ftype/ext should name a known Galaxy datatype. |
 | GTR099 | DatatypesCustomConf | ✓ | ✗ | check | strict | A tool should not ship a custom datatypes_conf.xml. |
 | GTR100 | TestsAssertionValidation | ✓ | ✗ | check | strict | Test output assertions should validate against Galaxy's assertion models. |
 | GTR101 | TestsCaseValidation | ✓ | ✗ | check | strict | Test-case parameters should validate against the tool's inputs on a modern profile. |
 | GTR102 | — | ✓ | ✗ | check | strict | A boolean param should not gate other options in `<command>` (use a `<conditional>`/select). |
+| GTR104 | — | ✓ | ✗ | check | strict | An `<xml>` macro should not contain Cheetah (use a `<token>`). |
+| GTR105 | — | ✓ | ✗ | check | strict | A param should not declare both optional=true and a value default. |
+| GTR106 | — | ✓ | ✓ | codemod | default | Drop display="checkboxes" from a select param (IUC leaves the widget to Galaxy). |
+| GTR108 | — | ✓ | ✗ | check | strict | Tool version should use @TOOL_VERSION@/@VERSION_SUFFIX@ tokens. |
+| GTR109 | — | ✓ | ✗ | check | strict | Prefer detect_errors=aggressive over exit_code. |
 <!-- END GENERATED -->
 
 The remaining unmapped planemo linters (the ~80 correctness checks + the advisory-by-design
