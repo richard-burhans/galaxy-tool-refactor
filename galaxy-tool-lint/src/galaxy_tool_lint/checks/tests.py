@@ -552,3 +552,4 @@ class TestHasExpectations(CheckRule):
                     self.meta,
                     f"test {index}: defines no outputs or expectations",
                 )
+

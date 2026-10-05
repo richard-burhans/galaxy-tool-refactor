@@ -14,6 +14,10 @@ from galaxy_tool_source.command_conditionals import (
     command_boolean_conditionals,
 )
 from galaxy_tool_source.macros import has_macros
+from galaxy_tool_source.version_tokens import (
+    GALAXY_SUFFIX_VERSION,
+    tokenization_skip_reason,
+)
 from lxml import etree
 from packaging.version import InvalidVersion, Version
 
@@ -791,3 +795,172 @@ class BooleanGatesOtherOptions(CheckRule):
                 "<command>; for options shown or hidden by a choice, use a "
                 "<conditional> with a select param instead of a boolean",
             )
+
+
+class VersionTokenized(CheckRule):
+    """GTR108 — a literal tool ``version`` where IUC wants ``@...@`` tokens.
+
+    The convention is ``version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"`` with both
+    tokens defined in ``macros.xml``. It is not cosmetic: ``@TOOL_VERSION@`` is what
+    lets the tool version and the package ``<requirement>`` version be stated once, so
+    an upstream bump cannot update one and miss the other, and ``@VERSION_SUFFIX@`` is
+    what a wrapper-only change bumps -- the whole suite in lockstep from one place.
+
+    Partitions with GTR024, which reports a literal version that is *not* PEP 440.
+    This rule takes the remainder: a perfectly valid literal that is simply not
+    tokenized. A version already containing ``@`` is silent in both.
+
+    The advice is derived from the version itself. An earlier version passed
+    ``tokenization_skip_reason`` straight through, and that text was written for a wider
+    set of callers: because this rule only fires when the version contains **no** ``@``,
+    its "already tokenized, or not using the IUC suffix convention" branch is
+    unreachable by construction here, yet it was printed for **92% of real findings**
+    (747 of 813 on a ToolShed sweep) — telling a reviewer their plain literal version
+    might be "already tokenized". The three cases are now named separately:
+
+    * ``1.0+galaxy0`` — a ``<base>+galaxy<suffix>`` literal: ``tokenize-version``.
+    * ``1.0`` — no suffix at all: ``tokenize-version --adopt-suffix``, flagged as
+      identity-changing, because adopting the convention changes the tool's version.
+    * anything else — the specific unmet precondition
+      (``tokenization_skip_reason``), which for these is genuinely about the tool.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR108",
+        summary="Tool version should use @TOOL_VERSION@/@VERSION_SUFFIX@ tokens.",
+        since="0.3.10",
+        cite=_IUC,
+        detect_only=True,
+        rulesets=frozenset({"strict"}),
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        root = document.root
+        version = root.get("version")
+        if version is None or "@" in version:
+            return  # absent (a validity matter) or already tokenized
+        if not _is_pep440(version):
+            return  # GTR024's half of the partition
+        reason = tokenization_skip_reason(document)
+        if reason is None:
+            advice = "run `galaxy-tool-refactor tokenize-version`"
+        elif GALAXY_SUFFIX_VERSION.fullmatch(version) is None:
+            # No `+galaxy<suffix>` at all. Adopting the convention changes the tool's
+            # published version, so the command is named with that warning attached
+            # rather than presented as a tidy-up.
+            advice = (
+                "it carries no +galaxy suffix, so adopting the convention changes the "
+                "tool version: `galaxy-tool-refactor tokenize-version --adopt-suffix`"
+            )
+        else:
+            advice = f"not automatable here: {reason}"
+        yield _violation(
+            document,
+            root,
+            self.meta,
+            f"version {version!r} is a literal; IUC spells it "
+            f"@TOOL_VERSION@+galaxy@VERSION_SUFFIX@ so the tool version and the "
+            f"package requirement are stated once -- {advice}",
+        )
+
+
+#: The only values Galaxy accepts (XSD ``DetectErrorType``). Anything else raises.
+_DETECT_ERROR_VALUES = frozenset({"default", "exit_code", "aggressive"})
+
+
+def _has_stderr_regex(root: etree._Element, /) -> bool:
+    """Whether ``<stdio>`` declares a regex that reads stderr.
+
+    Galaxy prepends these to whatever the ``detect_errors`` preset contributes, so a
+    tool with one already fails on stderr -- and with the author's own patterns rather
+    than ``aggressive``'s fixed two.
+    """
+    stdio = root.find("stdio")
+    if stdio is None:
+        return False
+    return any(
+        (regex.get("source") or "both") in ("stderr", "both")
+        for regex in stdio.iter("regex")
+    )
+
+
+class DetectErrorsAggressive(CheckRule):
+    """GTR109 — ``detect_errors`` set to something other than ``aggressive``.
+
+    ``exit_code`` trusts the exit status alone. A great many bioinformatics CLIs exit
+    0 after writing a fatal error to stderr, and ``aggressive`` additionally fails the
+    job on ``error:``/``exception:`` there, which is why IUC asks for it.
+
+    An advisory with a real counter-case: a tool that writes the word "error" to
+    stderr benignly (a progress line, a summary of records it skipped) fails spuriously
+    under ``aggressive``, and ``exit_code`` is then the correct, deliberate choice.
+    Reported so the choice is visible in review, not because it is wrong. Silent when
+    ``detect_errors`` is absent altogether -- that is GTR026, which also accepts
+    ``<stdio>``.
+
+    Three things the first version of this rule got wrong, all measured against
+    Galaxy's own ``parse_stdio()``:
+
+    * **An illegal value is a tool-load failure, not a style preference.** The XSD's
+      ``DetectErrorType`` admits only ``default``/``exit_code``/``aggressive``, and
+      Galaxy raises ``Unknown detect_errors value encountered`` on anything else. The
+      rule reported ``Aggressive`` — precisely what an author *intending* aggressive
+      would type — as though they had chosen ``exit_code`` semantics. It now says the
+      tool will not load, and nothing else in ``check`` reports that.
+    * **``default`` does not mean "exit code only".** With a ``profile`` it contributes
+      two exit-code checks; with **no** ``profile`` (Galaxy's ``legacy_defaults`` path)
+      it contributes **nothing at all** — neither exit code nor stderr. Measured:
+      ``profile="21.09"`` → 2 exit codes, no profile → 0. The message is now specific
+      to which of those applies.
+    * **A ``<stdio>`` stderr regex already does the job, often better.** Galaxy
+      *prepends* ``<stdio>`` regexes to the preset's checks, and a hand-written
+      pattern (an ``[ERROR]`` or ``ABORT!`` regex) beats ``aggressive``'s fixed
+      ``Error:``/``Exception:``. Such a tool is skipped: it did the more careful thing.
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR109",
+        summary="Prefer detect_errors=aggressive over exit_code.",
+        since="0.3.10",
+        cite=_IUC,
+        detect_only=True,
+        rulesets=frozenset({"strict"}),
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        command = document.root.find("command")
+        if command is None:
+            return
+        declared = command.get("detect_errors")
+        if not declared or declared == "aggressive":
+            return
+        if declared not in _DETECT_ERROR_VALUES:
+            yield _violation(
+                document,
+                command,
+                self.meta,
+                f"detect_errors={declared!r} is not one of "
+                f"{'/'.join(sorted(_DETECT_ERROR_VALUES))}: Galaxy raises "
+                f"'Unknown detect_errors value encountered' and will not load the tool",
+            )
+            return
+        if _has_stderr_regex(document.root):
+            return  # <stdio> already fails on stderr, with the author's own patterns
+        if declared == "default":
+            has_profile = bool(document.root.get("profile"))
+            effect = (
+                "adds only Galaxy's two default exit-code checks"
+                if has_profile
+                else "adds NOTHING -- with no profile= Galaxy takes its legacy "
+                "path, so the job fails on neither exit code nor stderr"
+            )
+            detail = f"detect_errors=\"default\" {effect}"
+        else:
+            detail = "detect_errors=\"exit_code\" fails a job only on a non-zero exit"
+        yield _violation(
+            document,
+            command,
+            self.meta,
+            f'{detail}; "aggressive" also fails it on error:/exception: on stderr, '
+            f"which many CLIs write before exiting 0",
+        )
