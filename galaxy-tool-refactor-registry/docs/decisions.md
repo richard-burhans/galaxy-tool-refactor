@@ -1088,3 +1088,41 @@ touchpoints. Sibling of the decision-citation and stat-coverage guards
 Verified non-vacuous (a simulated stray import fails the guard). Reproduced-by:
 `uv run --package galaxy-tool-refactor-registry pytest
 galaxy-tool-refactor-registry/tests/test_galaxy_touchpoints.py`.
+
+## D30 (2026-10-05): three new fixable rules, and a fourth bucket population
+
+`gate_eligibility.py` refuses to classify a fixable rule it has not been told about,
+which is how the three new fixable rules in 0.3.10 got classified deliberately rather
+than by default. All three landed in `BULK_ELIGIBLE_ONLY`, and the reasons differ:
+
+- **GTR106** (drop `display="checkboxes"`) and **GTR107** (SI units in `label`/`help`)
+  are both provably behaviour-preserving — neither can reach the rendered command —
+  but each is an **IUC review** convention rather than a published standard. planemo's
+  own linters police only the `display` ↔ `multiple`/`optional` consistency, and
+  nothing in the standards text forbids the attribute or mandates the unit spelling.
+  The bucket exists for exactly this: offer it in the bulk pass, do not hard-gate an
+  incoming PR on a convention IUC has not written down. GTR107 carries a second
+  reason: the substitution is a heuristic over prose, and a gate should not rewrite an
+  author's wording on a regex's word.
+- **GTR096** (qualify a flat `<test>` param) is the opposite case — the target form is
+  not in doubt at all, because **Galaxy itself** requires it from profile 24.2. It is
+  bulk-only because of blast radius, not citation: the fix **changes a test's
+  outcome**. The unqualified name was silently testing the tool's default; qualifying
+  it makes the declared value effective, and a test that was green because it
+  exercised nothing can legitimately go red. That belongs in a pass where a human
+  reads the new failures, not in a gate that rewrites an incoming PR's tests and then
+  reports the consequences as the PR's fault.
+
+The bucket names describe citation status, while GTR096's reason is blast radius. The
+rationale strings say so explicitly rather than leaving the mismatch implicit; if a
+third such rule appears, the buckets want splitting along the second axis.
+
+**`strict` is no longer "default + every advisory".** GTR096 is a *fixable* rule that
+is selectable in `strict` but deliberately absent from `"default"` (the set
+`canonical_codemods()` derives the format pipeline from). The invariant in
+`test_rulesets_resolve.py` now reads `strict − default == advisories | {GTR096}` and
+additionally asserts those two sets are disjoint, so neither kind can be quietly
+relabelled into the other. Relatedly, `test_upgrade_only_set_matches_the_codemod_catalog`
+stopped deriving "non-selectable" as `catalog − canonical` and now reads it as "the
+catalog entries declaring no ruleset", which is what the phrase actually means — the
+two coincided only while no codemod was selectable-but-not-default.
