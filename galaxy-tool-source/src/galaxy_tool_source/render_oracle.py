@@ -577,6 +577,27 @@ def render_equality_holds(
             text_after = rendered_after[label]
             if text_before == text_after:
                 continue
+            # POSITIVE CONTROL, checked only once a difference shows (so it costs
+            # nothing on the ~87% that certify cleanly): does `before` even render
+            # the same as ITSELF? A template calling `tempfile.mktemp()` or
+            # generating a password emits fresh bytes every pass, so before-vs-after
+            # differs for a reason that has nothing to do with the edit. Measured on
+            # the first full 16-rule sweep: of 97 not-proven verdicts, the large
+            # majority were this -- one tool regenerates a random 90-character key
+            # per render. Without the control the oracle blames the codemod for the
+            # template's own nondeterminism.
+            control = render(before, world, source_dir=source_dir, context=context)
+            if control is None or control.get(label) != text_before:
+                return RenderVerdict(
+                    None,
+                    None,
+                    compared,
+                    reason=(
+                        f"{label} renders nondeterministically (it differs from "
+                        f"itself in world {world.name!r}), so before-vs-after cannot "
+                        f"be attributed to the edit"
+                    ),
+                )
             text_equal = False
             if divergence is None:
                 divergence = (world.name, label, text_before, text_after)
