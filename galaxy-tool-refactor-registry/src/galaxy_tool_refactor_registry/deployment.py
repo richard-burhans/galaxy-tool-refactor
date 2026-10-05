@@ -25,10 +25,10 @@ validity always wins (zero corpus tools need one above the ceiling,
 
 from datetime import date, timedelta
 
-DEPLOYMENT_CEILING = "25.1"
+DEPLOYMENT_CEILING = "26.0"
 """The newest vendored profile every major public Galaxy server can run."""
 
-DEPLOYMENT_SNAPSHOT_DATE = date(2026, 6, 12)
+DEPLOYMENT_SNAPSHOT_DATE = date(2026, 10, 2)
 """The ``polled_on`` date of the snapshot the ceiling was vendored from."""
 
 SNAPSHOT_STALE_AFTER = timedelta(days=180)

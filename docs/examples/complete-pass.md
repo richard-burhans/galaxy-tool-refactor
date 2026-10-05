@@ -85,8 +85,8 @@ unchanged seqfilter.xml
 ```console
 $ galaxy-tool-refactor upgrade --modernize seqfilter.xml
 upgraded seqfilter.xml
-  profile walk capped at 25.1, the deployment ceiling: the newest profile every major public Galaxy server runs (snapshot 2026-06-12). A newer declaration could not install on the lagging servers yet; pass --target-profile to upgrade past it deliberately.
-  profile 18.01→25.1: upgrade crosses no behaviour change that applies to this tool — behavior-preserving.
+  profile walk capped at 26.0, the deployment ceiling: the newest profile every major public Galaxy server runs (snapshot 2026-10-02, docs/galaxy_server_versions.json). A newer declaration could not install on the lagging servers yet; pass --target-profile to upgrade past it deliberately.
+  profile 18.01→26.0: upgrade crosses no behaviour change that applies to this tool — behavior-preserving.
 1 file(s) upgraded.
 ```
 

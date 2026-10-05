@@ -51,7 +51,7 @@ This project turns much of that work into **one rule set you can run**:
   element order, CDATA wrapping). Safe and idempotent; never changes behaviour.
 - **Upgrade**: repair a tool, moving `profile=` only as far as it strictly needs
   (or, with `--modernize`, as far as behaviour provably holds and every major
-  public server can run, e.g. a real tool jumped `profile="18.01"` → `"25.1"`),
+  public server can run, e.g. a real tool jumped `profile="18.01"` → `"26.0"`),
   opt-in and semantic.
 - **Check**: report where a tool falls short of best practice (missing tests, no
   version pins, …). Report-only.
