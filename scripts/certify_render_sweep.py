@@ -23,6 +23,9 @@ Per rule it reports, over the tools the rule actually MODIFIED:
 ``NOT PROVEN``   neither held. **Not the same as unsafe** — it means this instrument
                  could not establish preservation, and the tool is named so a human
                  can judge.
+``expected``     the rule's own ``docs/proofs`` contract does not promise the command
+                 survives (a repair rule such as GTR006), so a divergence is the
+                 repair rather than a defect.
 ``unknown``      a side would not render (Python-2 Cheetah, a construct CT3 rejects, an
                  unresolvable macro) or would not parse as bash. Nothing measured.
 
@@ -63,6 +66,42 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 logger = logging.getLogger("certify_render_sweep")
+
+
+#: Contract prefixes that do NOT promise the rendered command survives. A repair rule
+#: changes behaviour on purpose -- that is the repair -- so render-equality is the wrong
+#: instrument for it and a divergence is the rule working, not a finding.
+_REPAIR_CONTRACTS = ("validity restoration", "repair-only")
+
+
+def _contract(code: str) -> str:
+    """The rule's declared contract, from the ``**Contract:**`` line of its proof.
+
+    ``docs/proofs/<code>.md`` is the repository's own statement of what each fixable
+    rule promises, so it is what this sweep measures against rather than a second list
+    that could disagree with it.
+    """
+    proof = _REPO_ROOT / "docs" / "proofs" / f"{code}.md"
+    if not proof.is_file():
+        return ""
+    for line in proof.read_text(encoding="utf-8").splitlines():
+        if line.startswith("**Contract:**"):
+            return line.split("**Contract:**", 1)[1].strip().rstrip(".").lower()
+    return ""
+
+
+def _preserves_behaviour(code: str) -> bool:
+    """Whether *code* claims the rendered command survives its edit.
+
+    ⚠ GTR006 (``FixTypos``) does not, and says so: "validity restoration, **not**
+    runtime preservation of invalid tools". It repairs e.g. ``chacked="true"`` to
+    ``checked="true"``, after which the boolean renders its ``truevalue`` where it
+    previously rendered nothing -- a deliberate behaviour change, and the entire point.
+    Reporting that as a not-proven finding was a category error on this sweep's part:
+    7 of the first run's verdicts were GTR006 doing its job.
+    """
+    contract = _contract(code)
+    return not contract.startswith(_REPAIR_CONTRACTS)
 
 
 def _fixable_appliers() -> dict[str, object]:
@@ -138,6 +177,7 @@ def main(argv: list[str] | None = None) -> int:
     overall: dict[str, Counter[str]] = {}
     for code in codes:
         applier = appliers[code]
+        preserving = _preserves_behaviour(code)
         counts: Counter[str] = Counter()
         not_proven: list[str] = []
         for display_name, path in _tools(args.source, args.limit):
@@ -162,6 +202,10 @@ def main(argv: list[str] | None = None) -> int:
                 counts["argv-equal"] += 1
             elif verdict.boundary_equal is None:
                 counts["unknown"] += 1
+            elif not preserving:
+                # The rule does not promise the command survives; a divergence here is
+                # the repair, not a defect.
+                counts["expected-by-contract"] += 1
             else:
                 counts["not-proven"] += 1
                 detail = ""
@@ -174,11 +218,13 @@ def main(argv: list[str] | None = None) -> int:
                     )
                 not_proven.append(f"{display_name}: {path.name}{detail}")
         overall[code] = counts
+        note = "" if preserving else f"   [contract: {_contract(code)} -- not certified]"
         logger.info(
             "%-10s %5d modified of %5d tools -> %4d text-equal, %4d argv-equal, "
-            "%3d NOT PROVEN, %4d unknown",
+            "%3d NOT PROVEN, %4d unknown, %4d expected-by-contract%s",
             code, counts["modified"], counts["tools"], counts["text-equal"],
             counts["argv-equal"], counts["not-proven"], counts["unknown"],
+            counts["expected-by-contract"], note,
         )
         for entry in not_proven:
             logger.warning("  NOT PROVEN  %s", entry)

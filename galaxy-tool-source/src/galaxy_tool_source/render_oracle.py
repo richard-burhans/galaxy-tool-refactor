@@ -69,6 +69,7 @@ from typing import TYPE_CHECKING, Any
 from lxml import etree
 
 from galaxy_tool_source.macros import expand_from_tree, has_macros
+from galaxy_tool_source.param_names import resolved_param_name
 from galaxy_tool_source.shell_oracle import boundary_signature
 
 if TYPE_CHECKING:
@@ -77,6 +78,10 @@ if TYPE_CHECKING:
 
 #: Elements whose text Galaxy evaluates as a Cheetah template.
 _TEMPLATED_TAGS = ("command", "configfile", "version_command")
+
+#: Types whose unset value renders as the literal string ``"None"`` rather than as
+#: empty, per ``DataToolParameter.to_param_dict_string``.
+_NONE_WHEN_UNSET = frozenset({"data", "data_collection"})
 
 #: Grouping elements that nest their children under their own name.
 _GROUPING_TAGS = frozenset({"section", "conditional", "repeat"})
@@ -297,15 +302,26 @@ def _scalar_for(param: etree._Element, ptype: str, edge: str, name: str, /) -> o
         if edge == "low":
             return _Scalar("")
         return _Scalar(param.get("value") or name)
-    # data, data_collection, color, hidden, baseurl, …: symbolic, and empty at the low
-    # edge so an `#if str($optional_input)` guard takes its absent path there.
+    # An UNSET optional param does not render the same way for every type, and getting
+    # this wrong manufactures findings. ⚠ Measured against Galaxy:
+    #
+    #   * ``DataToolParameter.to_param_dict_string`` returns the literal string
+    #     ``"None"`` when the value is ``None`` -- a four-character argv word, NOT
+    #     empty. So quoting an unset optional dataset is ``'None'`` vs ``None``: one
+    #     word either way, no argv change.
+    #   * the base ``ToolParameter.to_param_dict_string`` converts ``None`` to ``""``,
+    #     so a ``text``/numeric optional really does render empty, and quoting it adds
+    #     an empty argv word where bare interpolation contributed none.
+    #
+    # Rendering every optional param as ``""`` made the first sweep report 62
+    # not-proven verdicts against GTR020.1 that were this error, not the codemod's.
     if edge == "low" and (param.get("optional") or "").lower() in (
         "true",
         "yes",
         "on",
         "1",
     ):
-        return _Scalar("")
+        return _Scalar("None" if ptype in _NONE_WHEN_UNSET else "")
     return _Scalar(name)
 
 
@@ -342,11 +358,9 @@ def _children_of(
             continue
         name = child.get("name")
         if child.tag == "param":
+            name = resolved_param_name(child)
             if not name:
-                argument = child.get("argument")
-                if not argument:
-                    continue
-                name = argument.lstrip("-").replace("-", "_")
+                continue
             path = f"{prefix}{name}"
             values[name] = _scalar_for(child, child.get("type") or "text", edge, path)
         elif child.tag == "section" and name:
@@ -358,7 +372,13 @@ def _children_of(
             selector = child.find("param")
             when = _when_for(child, edge)
             if selector is not None:
-                selector_name = selector.get("name") or "unnamed"
+                # ⚠ The RESOLVED name, not ``name``. Reading the attribute directly
+                # meant a selector carrying only ``argument=`` keyed as "unnamed" --
+                # so GTR037, whose whole job is to drop a redundant ``name``, moved
+                # the key and the two trees "declared different values". That was 17
+                # of the first sweep's not-proven verdicts, all this bug. It is the
+                # same mistake the qualification analysis had.
+                selector_name = resolved_param_name(selector) or "unnamed"
                 chosen = when.get("value") if when is not None else None
                 branch[selector_name] = _Scalar(
                     chosen
