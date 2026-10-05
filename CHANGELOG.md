@@ -11,6 +11,59 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+## [0.3.9] — 2026-10-05
+
+### Fixed
+- **`GTR020.2` no longer advises a fix that would be a bug** (lint
+  `docs/decisions.md`). The check reports the `<command>` Cheetah vars
+  `GTR020.1` could not *prove* safe to quote, so a human can judge, and it said
+  "single-quote it as `'$x'`". For a `boolean` or a `select` that advice
+  introduces a defect: quoting a `falsevalue=""` boolean emits `''` — a stray
+  empty argument where the author meant *nothing*, and that is the dominant
+  Galaxy flag idiom — while quoting a multi-word `<option value="-b -h">` fuses
+  argv words packed in precisely to word-split.
+
+  The toolkit already had what it needed to decide. For these types the rendered
+  value is author-written and statically known, so "not a single token" is not an
+  absence of proof but a positive finding that quoting changes the command:
+  leaving the var bare is correct and there is nothing to judge. The new
+  `command_vars.never_quote_names` is that distinction and `GTR020.2` now skips
+  those vars rather than rewording the advice. A `text` param still reports — its
+  value is unknown when the tool is written, so quoting it genuinely is a
+  judgment call. Measured: 53 findings → 9 on a 55-wrapper repository, 1 → 0 on a
+  14-wrapper one. `GTR020.1`'s auto-fix set is unchanged.
+- **`bump-version-suffix` bumped a shared token once per tool** (cli
+  `docs/decisions.md` §D21). The facade bumps one document at a time, so naming
+  every tool of a suite walked the shared `@VERSION_SUFFIX@` forward once for
+  each: a 3-tool suite went `0` → `3` in one invocation and a 2-tool suite `1` →
+  `3`, multiplying the published revision by however many tools were named. The
+  only clue was the `(also lifts …)` note it printed while doing it. The command
+  now remembers which macros files a run has moved and reports the rest as
+  `already lifted`, which is what the lockstep contract always said.
+- **`bump-version-suffix` only recognised the token named `@VERSION_SUFFIX@`**
+  (tier-1 `version_tokens`). That spelling is the IUC convention, not a rule — a
+  suite holding two differently-versioned tools in one macros file has to name
+  their tokens apart. The resolver compared the *whole* version against
+  `@TOOL_VERSION@+galaxy@VERSION_SUFFIX@`, so
+  `version="@LASTZ_VERSION@+galaxy@BATCHED_LASTZ_SUFFIX@"` was reported as having
+  no `+galaxy` suffix at all, with advice to run `tokenize-version
+  --adopt-suffix` — wrong and unactionable for a version that plainly ends in
+  `+galaxy@…@`. The name is now resolved from the version itself and carried on
+  `SuffixSite`, so `current_suffix`, `bump_suffix_skip_reason`,
+  `bump_suffix_tree` and the imported-file planner all agree.
+
+### Changed
+- ⚠ **The deployment ceiling moves `25.1` → `26.0`**, from the 2026-10-02
+  re-poll (registry `deployment.py`, `docs/galaxy_server_versions.json`).
+  `usegalaxy.fr` was the lagging server and is now on 26.0; the other four run
+  26.1. **`upgrade --modernize` can therefore now walk a tool to `profile="26.0"`
+  where 0.3.8 capped it at `25.1`** — a wider walk, still behaviour-gated. The
+  minimal-bump default is unaffected (it ignores the ceiling), and
+  `--target-profile` still exceeds it deliberately.
+- ⚠ **Rule output changes**, as in 0.3.8. A downstream gate pinned to per-rule
+  counts will see `GTR020.2` *fall* and should be re-baselined. No rule was
+  removed and none became stricter.
+
 ## [0.3.8] — 2026-10-04
 
 ### Fixed
