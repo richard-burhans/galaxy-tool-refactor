@@ -44,7 +44,7 @@ up = facade.upgrade(
     modernize=True,
 )
 
-print(up.baseline_profile, "->", up.reached_profile)   # 18.01 -> 25.1
+print(up.baseline_profile, "->", up.reached_profile)   # 18.01 -> 26.0
 print("behavior preserving:", up.behavior_preserving)  # True
 upgraded_xml: bytes = up.formatted                     # the serialised result
 ```
