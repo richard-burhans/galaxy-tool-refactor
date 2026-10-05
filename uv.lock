@@ -22,7 +22,10 @@ members = [
 ]
 
 [manifest.dependency-groups]
-dev = [{ name = "pytest-cov", specifier = ">=5" }]
+dev = [
+    { name = "fissix", specifier = ">=24" },
+    { name = "pytest-cov", specifier = ">=5" },
+]
 
 [[package]]
 name = "annotated-types"
@@ -690,7 +693,7 @@ name = "fissix"
 version = "24.4.24"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "appdirs", marker = "python_full_version >= '3.13'" },
+    { name = "appdirs" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/11/fb/174b49419d4f4d057e65cecba8107a8074a67a3aea59bc80f4e50875b479/fissix-24.4.24.tar.gz", hash = "sha256:7e8f1e448d1ebc1c8be68be8bf71123650710076ea9dcecb7801804b04f43547", size = 160270, upload-time = "2024-04-24T08:11:00.758Z" }
 wheels = [
@@ -708,7 +711,7 @@ wheels = [
 
 [[package]]
 name = "galaxy-tool-codemod"
-version = "0.3.9"
+version = "0.3.10"
 source = { editable = "galaxy-tool-codemod" }
 dependencies = [
     { name = "galaxy-tool-refactor-rules" },
@@ -743,7 +746,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-fmt"
-version = "0.3.9"
+version = "0.3.10"
 source = { editable = "galaxy-tool-fmt" }
 dependencies = [
     { name = "click" },
@@ -776,7 +779,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-lint"
-version = "0.3.9"
+version = "0.3.10"
 source = { editable = "galaxy-tool-lint" }
 dependencies = [
     { name = "galaxy-tool-refactor-rules" },
@@ -818,7 +821,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-refactor"
-version = "0.3.9"
+version = "0.3.10"
 source = { editable = "galaxy-tool-refactor-meta" }
 dependencies = [
     { name = "galaxy-tool-refactor-cli" },
@@ -838,7 +841,7 @@ provides-extras = ["mcp"]
 
 [[package]]
 name = "galaxy-tool-refactor-cli"
-version = "0.3.9"
+version = "0.3.10"
 source = { editable = "galaxy-tool-refactor-cli" }
 dependencies = [
     { name = "click" },
@@ -871,7 +874,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-refactor-mcp"
-version = "0.3.9"
+version = "0.3.10"
 source = { editable = "galaxy-tool-refactor-mcp" }
 dependencies = [
     { name = "galaxy-tool-refactor-registry" },
@@ -904,7 +907,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-refactor-registry"
-version = "0.3.9"
+version = "0.3.10"
 source = { editable = "galaxy-tool-refactor-registry" }
 dependencies = [
     { name = "galaxy-tool-codemod" },
@@ -939,7 +942,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-refactor-rules"
-version = "0.3.9"
+version = "0.3.10"
 source = { editable = "galaxy-tool-refactor-rules" }
 
 [package.dev-dependencies]
@@ -960,7 +963,7 @@ dev = [
 
 [[package]]
 name = "galaxy-tool-source"
-version = "0.3.9"
+version = "0.3.10"
 source = { editable = "galaxy-tool-source" }
 dependencies = [
     { name = "click" },

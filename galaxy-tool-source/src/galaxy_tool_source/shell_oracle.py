@@ -319,11 +319,16 @@ def quote_is_behavior_preserving(
     Without the ``shell-oracle`` extra it is exactly ``provably_quotable`` — the
     license-clean default.
     """
-    if not shell_oracle_available():
-        return provably_quotable(occurrence.name, kinds, structural)
+    # ⚠ The double-quote veto runs BEFORE the availability check, because it needs no
+    # bashlex: it is a lexical scan of the line, not a parse. Placing it after the
+    # early return left the `iuc/seurat` defect live for exactly the users who do not
+    # install the GPL `shell-oracle` extra -- i.e. the license-clean default path.
+    # Caught by exercising the built wheels in a clean venv, where that extra is absent.
     rendered = _pseudo_render(body, occurrence=occurrence)
     if _inside_double_quotes(rendered, _TARGET):
         return False
+    if not shell_oracle_available():
+        return provably_quotable(occurrence.name, kinds, structural)
     context = quoting_context(rendered, _TARGET)
     if context is QuotingContext.DUP_TARGET:
         return False

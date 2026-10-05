@@ -9,7 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions are [Semantic Versioning](https://semver.org/) and, pre-1.0, the minor
 is the breaking-change channel.
 
-## [Unreleased]
+## [0.3.10] — 2026-10-05
 
 ### Added
 - **Four IUC review checks and one fixer that no linter had.** Each candidate was

@@ -212,3 +212,24 @@ def test_inside_double_quotes_tracks_escapes_and_single_quotes(
 ) -> None:
     """A single-quoted span suspends ``"``; an escaped ``\\"`` does not close one."""
     assert _inside_double_quotes(line, "T") is inside
+
+
+def test_the_double_quote_veto_holds_without_bashlex(monkeypatch) -> None:
+    """⚠ The veto must not depend on the optional (GPL) ``shell-oracle`` extra.
+
+    It is a lexical scan, not a parse. Placed after the ``shell_oracle_available()``
+    early return it left the ``iuc/seurat`` defect live for precisely the users on the
+    license-clean default path. Caught by exercising the built wheels in a clean venv,
+    where bashlex is not installed.
+    """
+    import galaxy_tool_source.shell_oracle as oracle
+
+    monkeypatch.setattr(oracle, "shell_oracle_available", lambda: False)
+    body = 'Rscript -e "render(params = list(counts = \\"$infile\\"))"'
+    occurrence, kinds, structural = _occurrence_and_kinds(body, _INFILE)
+    assert (
+        oracle.quote_is_behavior_preserving(
+            body, occurrence=occurrence, kinds=kinds, structural=structural
+        )
+        is False
+    )

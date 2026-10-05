@@ -71,7 +71,7 @@ Each codemod applied alone to every eligible tool, checked for idempotence and p
 | GTR017 | NormalizeBooleanValues | 705 | 21 | 705 | 0 | 0 | 684 | 0 |
 | GTR018.1 | WrapCommandCdata | 8,770 | 2,672 | 8,770 | 0 | 0 | 0 | 0 |
 | GTR019.1 | WrapHelpCdata | 8,770 | 3,144 | 8,770 | 0 | 0 | 0 | 0 |
-| GTR020.1 | SingleQuoteCommandVars | 8,770 | 2,749 | 8,770 | 0 | 0 | 0 | 0 |
+| GTR020.1 | SingleQuoteCommandVars | 8,770 | 2,747 | 8,770 | 0 | 0 | 0 | 0 |
 | GTR035.1 | TrimAttributeWhitespace | 8,770 | 0 | 8,770 | 0 | 0 | 0 | 0 |
 | GTR036 | ReplaceOutputElement | 8,770 | 0 | 8,770 | 0 | 0 | 0 | 0 |
 | GTR037 | DropRedundantParamName | 8,770 | 315 | 8,770 | 0 | 0 | 0 | 0 |
