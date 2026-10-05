@@ -1,27 +1,33 @@
-"""Resolve a flat ``<test>`` parameter name to its qualified input path.
+"""Qualified ``parent|...|child`` paths for ``<inputs>`` params and ``<test>`` params.
 
-From profile 24.2, Galaxy requires test parameters that target a nested input
-(inside a ``<conditional>``, ``<section>``, or ``<repeat>``) to be written with
-the fully-qualified ``parent|...|child`` path; an unqualified leaf name is
-rejected (``24_2_fix_test_case_validation``; the migration's own prescribed
-fix). This module computes that qualification **only when it is unambiguous**:
-the flat name must resolve to exactly one input parameter, and that parameter
-must be nested. A flat name that matches no input (a typo, a removed
-parameter, or a Galaxy built-in like ``chromInfo``), matches a top-level
-input (already correct), or matches more than one input (ambiguous) is left
-untouched.
+From profile 24.2 Galaxy requires a ``<test>`` parameter targeting a nested input
+(inside a ``<conditional>``, ``<section>`` or ``<repeat>``) to be written with its
+fully-qualified path; an unqualified leaf name resolves to nothing and the test
+silently runs with the tool's **defaults** instead
+(``24_2_fix_test_case_validation``). Galaxy's own
+``verify.parse.ParamContext.param_names`` yields only ``for_state()`` — the
+qualified name — once ``allow_unqualified_access`` is off, which it is for any
+profile above 24.1.
 
-The qualification edits only ``<tests>``, never a tool runtime element, and the
-unique-leaf precondition means the unqualified name already referred to exactly
-that one parameter, so the tool's behaviour and the test's intent are both
-preserved. The codemod ``FixTestParamQualification`` (GTR096) applies it on the
-``upgrade`` path; ``scripts.measure test-param-qualification`` sizes it. Both
-share ``plan_test_param_qualifications`` so they cannot drift.
+This module is the single analysis of that condition, and it lives in tier 1
+because **both** consumers need it and they sit in sibling tiers that cannot
+import each other:
+
+* ``galaxy_tool_codemod.codemods.FixTestParamQualification`` (GTR096) rewrites the
+  name, but only on the ``upgrade`` path, and only for a tool whose profile walk
+  *crosses* 24.2 — a tool authored at 24.2 or later is never visited.
+* ``galaxy_tool_lint.checks.tests.TestParamQualified`` (GTR103) reports the same
+  condition on the ``check`` path, for any profile above 24.1, which is the gap
+  the codemod structurally cannot cover.
+
+Sharing the resolution is what keeps the report and the fix from disagreeing.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
+from galaxy_tool_source.param_names import resolved_param_name
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -49,7 +55,7 @@ def input_leaf_paths(root: etree._Element, /) -> dict[str, list[tuple[str, ...]]
             if not isinstance(child.tag, str):
                 continue
             if child.tag == "param":
-                name = child.get("name")
+                name = _declared_name(child)
                 if name is not None:
                     paths.setdefault(name, []).append(prefix)
             elif child.tag == "when":
@@ -63,6 +69,53 @@ def input_leaf_paths(root: etree._Element, /) -> dict[str, list[tuple[str, ...]]
     if inputs is not None:
         walk(inputs, ())
     return paths
+
+
+def _declared_name(param: etree._Element, /) -> str | None:
+    """*param*'s resolved name, via the shared tier-1 ``resolved_param_name``.
+
+    Galaxy derives the name from ``argument`` when ``name`` is absent, and reading
+    ``name`` alone made a sibling declared with only ``argument=`` invisible: a
+    *top-level* ``argument="--threshold"`` beside a nested ``name="threshold"`` looked
+    like a single nested leaf, so the planner "qualified" a test param that was already
+    binding correctly to the top-level one. Delegated rather than re-derived so this
+    agrees with GTR034/GTR037, which resolve the same way.
+    """
+    return resolved_param_name(param)
+
+
+def crosses_a_repeat(ancestors: tuple[str, ...], root: etree._Element, /) -> bool:
+    """Whether *ancestors* passes through a ``<repeat>``, which is not qualifiable.
+
+    Galaxy's test flattening appends an **instance index** to a repeat segment
+    (``__prefix_join`` in ``parser/xml.py``: ``rep`` \u2192 ``rep_0``), so the
+    qualified name of a param inside a repeat is ``rep_0|x``, not ``rep|x``. The
+    planner used to emit ``rep|x`` \u2014 measured against Galaxy: ``x`` and ``rep|x``
+    are *both* rejected with ``Invalid parameter name found`` while ``rep_0|x`` binds.
+    So the rewrite replaced one hard error with another, and silenced the report that
+    had found it.
+
+    Choosing an index is a guess at intent (one declared ``<repeat>`` may legitimately
+    want several instances), and this module's contract is to act **only when
+    unambiguous**. So a path through a repeat is declined rather than indexed.
+    """
+    element = root.find("inputs")
+    for segment in ancestors:
+        if element is None:
+            return False
+        for child in element.iter():
+            if (
+                isinstance(child.tag, str)
+                and child.tag in _GROUPING_TAGS
+                and child.get("name") == segment
+            ):
+                if child.tag == "repeat":
+                    return True
+                element = child
+                break
+        else:
+            return False
+    return False
 
 
 def plan_test_param_qualifications(
@@ -92,6 +145,8 @@ def plan_test_param_qualifications(
             ancestors = candidates[0]
             if not ancestors:
                 continue  # a top-level input: the flat name is already correct
+            if crosses_a_repeat(ancestors, root):
+                continue  # needs an instance index; choosing one is a guess
             rewrites.append((param, "|".join((*ancestors, name))))
     return rewrites
 

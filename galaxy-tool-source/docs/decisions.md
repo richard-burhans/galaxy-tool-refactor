@@ -1457,3 +1457,80 @@ the registry above.
   other importers share is run-relative orchestration, so the registry's
   `plan_suite_suffix_bump` (D27) owns it behind a proof-by-execution gate, and
   `bump_suffix_tree` declines that site to the caller.
+
+## 33. `test_param_paths` moves down to tier 1 (2026-10-05)
+
+`plan_test_param_qualifications` — "which `<test>` params name a nested input
+unqualified, and what their qualified name is" — lived in
+`galaxy_tool_codemod/test_param_qualify.py` because the codemod GTR096 was its only
+consumer. The new lint rule GTR103 reports the same condition, and `galaxy-tool-lint`
+does not (and should not) depend on `galaxy-tool-codemod`: they are sibling tiers, and
+adding that edge to let a *report* reuse a *fixer*'s analysis would invert the
+dependency direction the workspace is built on.
+
+So the analysis moved here, to `test_param_paths.py`, which both tiers already depend
+on. It is pure lxml with no codemod concepts in it, so the move was a rename plus an
+import update in two call sites (`codemods/fix_test_param_qualification.py` and
+`scripts/measure.py`).
+
+The point is not tidiness. A fixer and a report that disagree about what counts as a
+finding is the worst failure mode available here — `check` would name a defect that
+`format` declines to touch, or fix something it never reported. One function, two
+tiers, no drift.
+
+## 34. The render-equality oracle (2026-10-05)
+
+Every fixable GTR rule ships a proof document asserting it is behaviour-preserving.
+Until now the only machine-checked invariants were **post-edit validity** and
+**idempotence** (`scripts/corpus_check.py codemod`), and neither can see the failure
+that matters: an edit that leaves the XML valid and stable while changing the
+**rendered command**. `render_oracle` is that missing check — the `--certify=render`
+seam `galaxy_tool_codemod.certify` reserved and never built.
+
+**Galaxy's own renderer, not a reimplementation.** The oracle evaluates the template
+with `galaxy.util.template.fill_template`, the function Galaxy uses, including its CT3
+compile, its `NotFound` retry through `TreeDict` and the Python-2 futurize fallback. An
+oracle that agreed with our reading of Cheetah rather than with Galaxy's would be
+exactly the error it exists to catch (recorded as Touchpoint 6). The dependency is
+free: `galaxy-util[template]` is already required here.
+
+**What is ours is the context, and it took two goes to get right.** Galaxy builds
+parameter wrappers from a live job; the oracle synthesises an assignment from
+`<inputs>` and renders both trees against **the same** one, which is what makes a
+difference in the output attributable to the edit. ⚠ On its own that also made the
+oracle blind to half the edits it has to judge: a context built from *before* still
+carries *before*'s `truevalue` and `value=`, so changing a boolean's `truevalue` or an
+integer's default rendered identically and was **certified**. Measured, on the first
+run of the probe. So the comparison has two halves and both are necessary — the trees
+must synthesise the same context (`context_fingerprint`) *and* render the same text
+under a shared one.
+
+**Three worlds, chosen by value.** One context exercises one path through the
+template's conditionals, so a rule rewriting the untaken branch of an `#if` would pass.
+`WORLDS` drives booleans to each end, numerics to 0 and to their declared default,
+conditionals onto their lowest- and highest-valued `<when>`, repeats to zero and one
+instance. The ends are picked by **sorted value**, never document position, so a
+codemod that reorders options or whens cannot shift which branch a world selects. The
+numeric case earns its keep: a changed integer default is invisible in the `low` world
+(both sides are 0) and only surfaces in `declared`.
+
+**Two instruments, because text equality is sufficient but not necessary.** GTR020.1
+changes the rendered bytes on purpose. What a quoting edit must preserve is the
+*shell's* reading — the argv partition and the fd topology — which is
+`shell_oracle.boundary_signature`. ⚠ Comparing those raw does not work: bashlex keeps
+a word's quote characters, so a word that gains quotes compares unequal even when the
+shell passes identical bytes. Hence `dequote`, POSIX quote removal,
+differential-tested against real `bash` with its three deviations pinned. Before quote
+removal the sweep reported **11 not-proven** findings against GTR020.1 on 400 tools,
+every one of them the instrument's fault; after, **0**, with 110 certified through the
+boundary path.
+
+**Tri-state, and failing closed.** `False` (the shell reads the lines differently) is a
+refutation and sticks; `None` (a side will not render, or will not parse as bash) is an
+absence of proof. Conflating them is what produced those 11 findings — one corpus tool
+renders `&& &&`, which is simply not bash. `certified` is the only thing a gate should
+read, and `None` is never a pass.
+
+Measured on 400 toolshed tools each: GTR020.1 112 of 129 certified (17 unrenderable),
+GTR037 2 of 3, GTR106 9 of 10. Zero refutations — the instrument is calibrated, which
+is not the same as the codemods being proven corpus-wide.
