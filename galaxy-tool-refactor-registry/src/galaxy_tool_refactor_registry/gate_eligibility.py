@@ -59,6 +59,24 @@ _FIXABLE_BUCKETS: Final[dict[str, tuple[str, str]]] = {
         GATE_ELIGIBLE,
         "Canonical indentation; IUC-cited, uncontroversial whitespace.",
     ),
+    "GTR096": (
+        BULK_ELIGIBLE_ONLY,
+        "Qualifying a flat <test> param is required by Galaxy itself from profile "
+        "24.2 (PR #18679), so the target form is not in doubt -- but the fix CHANGES "
+        "A TEST'S OUTCOME. The unqualified name was silently testing the tool's "
+        "default; qualifying it makes the declared value effective, and a test that "
+        "was green because it exercised nothing can legitimately go red. That belongs "
+        "in a bulk pass where a human reads the new failures, not in a gate that "
+        "rewrites an incoming PR's tests.",
+    ),
+    "GTR106": (
+        BULK_ELIGIBLE_ONLY,
+        "Dropping display=\"checkboxes\" is behaviour-preserving (presentation only, "
+        "identical value space), but it is an IUC REVIEW convention, not a published "
+        "standard: planemo's own linters police only display<->multiple/optional "
+        "consistency (GTR076), and nothing in the standards text forbids the "
+        "attribute. Offer it; do not hard-gate until IUC writes it down.",
+    ),
     "GTR002": (
         BLOCKED_PENDING_IUC,
         "Param attribute order is contested upstream (#8090); needs an IUC "

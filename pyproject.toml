@@ -28,7 +28,17 @@ ignore_missing_imports = true
 # Workspace-root dev tooling. pytest-cov backs the (non-gating) `make
 # test-coverage` report; it lands in the shared .venv so every package's
 # `uv run --package … pytest` can use it.
-dev = ["pytest-cov>=5"]
+dev = [
+    "pytest-cov>=5",
+    # galaxy.util.template imports a 2-to-3 refactoring backend: lib2to3, gone
+    # from the stdlib in 3.13, else fissix. galaxy-util[template] only pulls
+    # fissix where its marker says lib2to3 is missing, and a Debian/Ubuntu
+    # Python without python3-lib2to3 satisfies neither -- so CI's 3.12 could not
+    # import it while a local 3.13 venv could. Declared here so the
+    # render-oracle suite exercises the real renderer on every interpreter
+    # instead of silently degrading to "unknown".
+    "fissix>=24",
+]
 
 [tool.pytest.ini_options]
 # importlib mode allows duplicate test-file basenames across packages.

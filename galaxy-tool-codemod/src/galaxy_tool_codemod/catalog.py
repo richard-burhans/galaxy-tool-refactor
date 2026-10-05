@@ -17,6 +17,9 @@ from galaxy_tool_codemod.codemods.convert_help_markdown import (
 from galaxy_tool_codemod.codemods.drop_redundant_param_name import (
     DropRedundantParamName,
 )
+from galaxy_tool_codemod.codemods.drop_select_checkboxes_display import (
+    DropSelectCheckboxesDisplay,
+)
 from galaxy_tool_codemod.codemods.fix_from_work_dir_whitespace import (
     FixFromWorkDirWhitespace,
 )
@@ -89,6 +92,7 @@ def coded_codemods() -> tuple[type[CodemodCommand], ...]:
         TrimAttributeWhitespace,
         ReplaceOutputElement,
         DropRedundantParamName,
+        DropSelectCheckboxesDisplay,
         ConvertHelpToMarkdown,
         TokenizeVersion,
     ]

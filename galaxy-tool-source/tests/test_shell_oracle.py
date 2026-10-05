@@ -16,6 +16,7 @@ from galaxy_tool_source.command_text import unquoted_cheetah_vars  # noqa: E402
 from galaxy_tool_source.command_vars import input_param_info  # noqa: E402
 from galaxy_tool_source.shell_oracle import (  # noqa: E402
     QuotingContext,
+    _inside_double_quotes,
     boundary_signature,
     quote_is_behavior_preserving,
     quoting_context,
@@ -131,3 +132,83 @@ def test_policy_does_not_false_veto_glued_safe_var() -> None:
 def test_policy_narrows_fd_dup_even_when_value_domain_safe() -> None:
     inputs = b'<param name="fd" type="integer"/>'
     assert _policy("tool 2>&$fd", inputs=inputs) == [("$fd", False)]
+
+
+# --- the double-quoted veto (iuc/seurat) -------------------------------------------
+
+
+def _occurrence_and_kinds(body: str, inputs: str):
+    """Build the exact inputs GTR020.1 passes: the occurrence plus ``input_param_info``.
+
+    Derived from a real tool rather than hand-built, so ``kinds``/``structural`` are
+    keyed the way production keys them and the test cannot pass for the wrong reason.
+    """
+    from lxml import etree  # local, matching ``_root`` above
+
+    root = etree.fromstring(
+        f'<tool id="t" name="T" version="1.0.0" profile="24.0">'
+        f"<command><![CDATA[{body}]]></command><inputs>{inputs}</inputs>"
+        f'<outputs><data name="o" format="txt"/></outputs></tool>'.encode()
+    )
+    kinds, structural = input_param_info(root)
+    (occurrence,) = [v for v in unquoted_cheetah_vars(body) if "infile" in v.name]
+    return occurrence, kinds, structural
+
+
+_INFILE = '<param name="infile" type="data" format="txt"/>'
+
+
+def test_a_var_inside_double_quotes_is_never_quoted() -> None:
+    """⛔ Inside double quotes a single quote is an ORDINARY CHARACTER.
+
+    So "quoting" an expansion there does not quote it -- it inserts two literal
+    apostrophes into the value. Found on ``iuc/seurat`` by the render oracle and
+    confirmed against real bash: the tool embeds an R call in a double-quoted
+    ``Rscript -e`` argument, and GTR020.1 turned ``counts = \\"$infile\\"`` into
+    ``counts = \\"'$infile'\\"``, so R received the value with the quotes as part
+    of the string.
+
+    ``quoting_context`` reports ``UNKNOWN`` there -- bashlex sees the enclosing word
+    and the quoting lives in its raw text -- and ``UNKNOWN`` defers to the
+    value-domain rule, which sees a single token and approves. Hence a veto read off
+    the line, beside the ``DUP_TARGET`` one.
+    """
+    body = 'Rscript -e "render(params = list(counts = \\"$infile\\"))"'
+    occurrence, kinds, structural = _occurrence_and_kinds(body, _INFILE)
+    assert (
+        quote_is_behavior_preserving(
+            body, occurrence=occurrence, kinds=kinds, structural=structural
+        )
+        is False
+    )
+
+
+def test_a_plain_command_word_is_still_quotable() -> None:
+    """The veto must not swallow the ordinary case it exists alongside."""
+    body = "prog --in $infile"
+    occurrence, kinds, structural = _occurrence_and_kinds(body, _INFILE)
+    assert (
+        quote_is_behavior_preserving(
+            body, occurrence=occurrence, kinds=kinds, structural=structural
+        )
+        is True
+    )
+
+
+@pytest.mark.parametrize(
+    ("line", "inside"),
+    [
+        ('prog "$T"', True),
+        ("prog '$T'", False),
+        ('prog "a" --in $T', False),
+        ('prog "a $T b"', True),
+        ("prog 'a \" b' --in $T", False),
+        ('prog "a \\" $T"', True),
+        ("prog --in $T", False),
+    ],
+)
+def test_inside_double_quotes_tracks_escapes_and_single_quotes(
+    line: str, inside: bool
+) -> None:
+    """A single-quoted span suspends ``"``; an escaped ``\\"`` does not close one."""
+    assert _inside_double_quotes(line, "T") is inside

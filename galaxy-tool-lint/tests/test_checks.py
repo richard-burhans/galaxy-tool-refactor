@@ -12,7 +12,10 @@ from galaxy_tool_lint.detect import detect_violations
 def _tool(
     *,
     tool_id: str = "good_tool",
-    version: str = "1.0.0",
+    # The IUC spelling, because this fixture is the "follows every practice"
+    # baseline and GTR108 reports a literal version. Tests for the version rules
+    # pass a literal explicitly.
+    version: str = "@TOOL_VERSION@+galaxy@VERSION_SUFFIX@",
     description: str = "<description>Does a thing.</description>",
     edam: str = "<edam_topics><edam_topic>topic_0091</edam_topic></edam_topics>",
     requirements: str = (
@@ -1230,7 +1233,9 @@ def test_gtr095_name_falls_back_to_id() -> None:
 def test_gtr095_missing_or_empty_version() -> None:
     # version is NOT XSD-required (Galaxy defaults it to 1.0.0), so this check
     # is the only guard for the absent case - the trio's tier-1 residual.
-    assert "GTR095" in _codes(_tool().replace(b' version="1.0.0"', b"", 1))
+    assert "GTR095" in _codes(
+        _tool().replace(b' version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"', b"", 1)
+    )
     assert "GTR095" in _codes(_tool(version=""))
     # Whitespace-only is truthy for planemo (and GTR047's job), not flagged here.
     assert "GTR095" not in _codes(_tool(version=" "))

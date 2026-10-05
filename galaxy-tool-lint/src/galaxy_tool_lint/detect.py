@@ -27,6 +27,7 @@ from galaxy_tool_lint.checks.inputs import (
     DataParamFormatDeclared,
     InputOutputNamesDistinct,
     InputsPresent,
+    OptionalWithValue,
     OptionFilterAttributes,
     OptionFilterExpression,
     OptionFilterReferences,
@@ -44,6 +45,7 @@ from galaxy_tool_lint.checks.inputs import (
     SelectOptionValuePresent,
     UnusedParam,
 )
+from galaxy_tool_lint.checks.macros import CheetahInXmlMacro
 from galaxy_tool_lint.checks.outputs import (
     CollectionTypeDeclared,
     OutputFilterValid,
@@ -82,6 +84,7 @@ from galaxy_tool_lint.checks.tool import (
     CommandPresent,
     ContainerShapeRecognized,
     DescriptionPresent,
+    DetectErrorsAggressive,
     EdamXrefs,
     ErrorHandling,
     HelpPresent,
@@ -97,6 +100,7 @@ from galaxy_tool_lint.checks.tool import (
     ToolIdentityPresent,
     ToolVersionWhitespace,
     VersionFormat,
+    VersionTokenized,
 )
 from galaxy_tool_lint.checks.validators import (
     ValidatorExpressionValid,
@@ -137,7 +141,10 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         StdioRegexValid,
         ToolIdentityPresent,
         BooleanGatesOtherOptions,
+        VersionTokenized,
+        DetectErrorsAggressive,
         # partition .2 advisory residuals
+        CheetahInXmlMacro,
         CommandCdata,
         HelpCdata,
         SingleQuotedCheetah,
@@ -172,6 +179,7 @@ def all_checks() -> tuple[type[CheckRule], ...]:
         DataOptionsValid,
         BooleanValuesDistinct,
         SelectDisplayConsistent,
+        OptionalWithValue,
         OptionFilterAttributes,
         OptionFilterExpression,
         OptionFilterReferences,

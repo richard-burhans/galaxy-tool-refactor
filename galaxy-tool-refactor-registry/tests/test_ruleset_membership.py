@@ -19,13 +19,18 @@ from galaxy_tool_refactor_registry.rulesets import ruleset_codes
 
 # The upgrade-pipeline codemods: GTR007–GTR012 are internal to ``UpgradeToLatest``
 # (validity-gated); GTR097 is the minimal-bump ``UpgradeToValid`` orchestrator
-# (the default-``upgrade`` driver); GTR014–GTR016 and GTR096 are the runtime-gated
-# fixes the ``upgrade`` command applies. Explicit by intent (the repo's
-# hand-maintained-list convention) so a new no-ruleset codemod must be deliberately
-# filed here or in ``OPT_IN_COMMAND_BY_CODE`` — never silently absorbed.
+# (the default-``upgrade`` driver); GTR014–GTR016 are the runtime-gated fixes the
+# ``upgrade`` command applies. Explicit by intent (the repo's hand-maintained-list
+# convention) so a new no-ruleset codemod must be deliberately filed here or in
+# ``OPT_IN_COMMAND_BY_CODE`` — never silently absorbed.
+#
+# GTR096 left this set in 0.3.10: it is still a runtime-gated ``upgrade`` fix, but
+# it now also declares ``strict``, because the crossing gate never visits a tool
+# authored at profile 24.2 or later and the condition therefore went unfixed and
+# unreported. GTR103 reports it; this makes the fix reachable.
 _UPGRADE_PIPELINE_CODES = frozenset(
     {"GTR007", "GTR008", "GTR009", "GTR010", "GTR011", "GTR012", "GTR093"}
-    | {"GTR014", "GTR015", "GTR016", "GTR096", "GTR097"}
+    | {"GTR014", "GTR015", "GTR016", "GTR097"}
 )
 
 

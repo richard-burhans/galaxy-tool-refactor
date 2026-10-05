@@ -60,8 +60,9 @@ _CATALOG: tuple[Ruleset, ...] = (
     ),
     Ruleset(
         name="strict",
-        description="Everything in 'default' plus the advisory best-practice "
-        "checks (report-only).",
+        description="Everything in 'default', plus the advisory best-practice "
+        "checks, plus the fixable rules held out of the format pipeline "
+        "(GTR096 rewrites test-parameter names).",
     ),
 )
 

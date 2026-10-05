@@ -11,6 +11,115 @@ is the breaking-change channel.
 
 ## [Unreleased]
 
+### Added
+- **Four IUC review checks and one fixer that no linter had.** Each candidate was
+  measured against the full 89-rule strict ruleset **and** `planemo lint` before being
+  written. Seven were proposed; **two were withdrawn** after an adversarial review
+  (below), and the five that shipped were repaired by it.
+
+  - **`GTR104` — Cheetah directives inside an `<xml>` macro.** A real silent bug.
+    `<xml>` is tree splicing and `<token>` is text substitution, and the difference is
+    invisible at the call site: an `<expand macro="..."/>` written inside `<command>`
+    is not an element, it is characters in the command's text, so Galaxy's macro pass
+    never rewrites it, Cheetah is handed the literal string, the directive never runs,
+    and the flag it was meant to add is **silently missing from every job**. The XML is
+    valid and `planemo lint` is silent. Reads the tool's inline `<macros>` and the
+    macro files it imports, since a suite's `<xml>` macros live in `macros.xml`.
+  - **`GTR105` — `optional="true"` plus a `value` default, interpolated bare.** When a
+    user clears the field the command emits an empty argument where the author meant
+    the flag omitted.
+  - **`GTR108` — a literal `version` where IUC spells it
+    `@TOOL_VERSION@+galaxy@VERSION_SUFFIX@`.** Partitions with `GTR024`, which keeps
+    the non-PEP-440 half.
+  - **`GTR109` — `detect_errors` set to something other than `aggressive`.**
+  - **`GTR106` (fixable) — drop `display="checkboxes"`.** A codemod rather than an
+    advisory because `display` picks a widget and nothing else: it is absent from
+    `from_json`, `to_param_dict_string`, `get_initial_value` and all of
+    `evaluation.py`, so the submitted value and the rendered command are identical
+    either way. Joins the default `format` pipeline.
+
+- **A render-equality oracle, and `corpus_check codemod --certify=render`.** Every
+  fixable rule asserts behaviour preservation in prose; the only machine-checked
+  invariants were validity and idempotence, neither of which can see an edit that
+  keeps the XML valid and stable while changing the **rendered command**.
+  `galaxy_tool_source.render_oracle` renders a tool's
+  `<command>`/`<configfile>`/`<version_command>` with **Galaxy's own**
+  `fill_template`, before and after, across three parameter worlds, and reports
+  whether the command is byte-identical, reads identically to the shell (what a
+  quoting rule must preserve — `shell_oracle.boundary_signature` after POSIX quote
+  removal, differential-tested against real `bash`), or neither. `None` means *not
+  proven* and is never a pass. Measured on 400 toolshed tools per rule: GTR020.1 112
+  of 129 modifications certified, GTR037 2 of 3, GTR106 9 of 10, zero refutations.
+  See `galaxy-tool-source/docs/decisions.md` §34 and Touchpoint 6.
+
+### Fixed
+- ⚠ **`GTR096` rewrote a `<repeat>` test parameter to a name Galaxy rejects.** A
+  defect in released behaviour. Galaxy's test flattening appends an **instance index**
+  to a repeat segment (`__prefix_join`: `rep` → `rep_0`), so the qualified name is
+  `rep_0|x`. The planner emitted `rep|x`. Measured against Galaxy: `x` and `rep|x` are
+  *both* rejected with `Invalid parameter name found` while `rep_0|x` binds — so the
+  "fix" replaced one hard error with another **and silenced the report that had found
+  it**. Choosing an index is a guess (one `<repeat>` may legitimately want several
+  instances), so a path through a repeat is now **declined** rather than indexed.
+- ⚠ **`GTR096` "qualified" test parameters that were already correct.** Galaxy derives
+  a parameter's name from `argument` when `name` is absent, so a top-level
+  `argument="--threshold"` beside a nested `name="threshold"` means two `threshold`
+  leaves after resolution and an unqualified test param binds to the top-level one.
+  The analysis read only `name`, saw a single nested leaf, called it unambiguous, and
+  rewrote a working test — moving the value into the section, reverting the top-level
+  parameter to its default, with nothing reporting it afterwards.
+- **`GTR096` had no explicit `meta.order`**, so it inherited `RuleMeta`'s default
+  `100` and collided with `GTR019.1`. `apply.py` sorts a `frozenset` of codes by
+  `order` with a stable sort, so the tie was broken by frozenset iteration over
+  randomized string hashes — reproducible nondeterminism in the apply phase
+  (`PYTHONHASHSEED=1` and `=3` gave different pipeline orders). Now `order=95`.
+- **The `strict` ruleset described itself as "report-only"**, which stopped being true
+  once a fixable rule joined it.
+
+### Changed
+- ⚠ **`GTR096` is now selectable in `strict`.** The runtime-gated path applies only
+  while a profile walk *crosses* 24.2 (`baseline < introduced_profile <= reached`), so
+  a tool **authored** at 24.2 or later — now the common case — was never visited and
+  its unqualified test parameters stayed unfixed. `GTR101` reports the condition, so
+  the report existed and only the fix was out of reach. It stays **out** of `"default"`
+  deliberately: the format pipeline derives from that set, and this edit can turn a
+  test that was green because it exercised nothing into a red one. Classified
+  `bulk-only` in `gate_eligibility.py` for the same reason. `canonical_codemods()` is
+  unchanged by it, and `strict` is no longer exactly "default + advisories" — the
+  registry's invariant now says so and asserts the two kinds stay disjoint.
+- ⚠ **Rule output changes.** 89 rules → **95**; 14 fixable → **16**; 75 advisory →
+  **79**. A downstream gate pinned to per-rule counts needs re-baselining. No rule was
+  removed and none became stricter.
+- `galaxy_tool_codemod.test_param_qualify` moved to
+  `galaxy_tool_source.test_param_paths` (tier 1), with its unit tests, so the fixer
+  and its reporters share one resolution of "which test params are unqualified" and
+  cannot drift. The two tiers are siblings and cannot import each other.
+- **Touchpoint 6** recorded in `docs/galaxy_reimplementations.md`: the new
+  `render_oracle` renders a `<command>` with Galaxy's own
+  `galaxy.util.template.fill_template`. Verdict **KEEP** — fidelity is the product
+  here, so an oracle that agreed with our reading of Cheetah rather than with Galaxy
+  would be the very error it exists to catch.
+
+### Withdrawn before release
+- **`GTR103` (a flat `<test>` param naming a nested input).** Its premise was false.
+  From profile 24.2 `validate_on_load` is on and `parameters/case.py` **raises**
+  `Invalid parameter name found`; it does not silently test the default. The
+  silent-default window is `24.1 < profile < 24.2`, and no such profile exists. `GTR101`
+  already reports the condition in the same ruleset. The replacement considered — a
+  `<when>` inside a `<test>`, which genuinely *does* drop its params — turned out to be
+  **XSD-invalid** and already reported by the validity layer (`Element 'when': This
+  element is not expected`), in both this toolkit and planemo. No gap, so no rule.
+- **`GTR107` (SI-style units in `label`/`help`).** Unit-wrong. Under IEC 80000-13 `B`
+  is byte and `b` is bit, so `GB` is **already correct** for gigabytes and the rule
+  rewrote it to gigabits — an 8× meaning change — while being unable to distinguish a
+  memory size from a genomic length. It also mangled `TB-Profiler`, `BP` (biological
+  process), `MBP`, `NF-KB`, `GB` (GenBank) and a `--MB` flag documented in help text,
+  and two of its own tests asserted on `<section label>` / `<option label>` attributes
+  that no Galaxy schema permits. A red team also showed the premise "`label` never
+  reaches the command" is false: `SelectToolParameterWrapper.__getattr__` delegates to
+  the parameter object, so `$p.label` in a `<command>` renders the XML label.
+
+
 ## [0.3.9] — 2026-10-05
 
 ### Fixed

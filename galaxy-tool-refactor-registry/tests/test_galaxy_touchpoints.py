@@ -45,6 +45,9 @@ _GALAXY_TOUCHPOINTS = {
     # Touchpoints 3 + 4 — the dev-only parity oracles (test-case-validation-
     # truth, datatype-validation-truth, test-param-qualification).
     "scripts/measure.py",
+    # Touchpoint 6 — the render-equality oracle renders a <command> with Galaxy's
+    # own galaxy.util.template.fill_template, KEEP.
+    "galaxy-tool-source/src/galaxy_tool_source/render_oracle.py",
 }
 _CHEETAH_TOUCHPOINTS = {
     # Touchpoint 2 — the faithful CT3 lexer (galaxy-util[template]), KEEP.

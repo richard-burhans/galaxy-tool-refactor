@@ -298,6 +298,10 @@ def quote_is_behavior_preserving(
     call this so the fix/advisory partition stays exact. The only shell-context
     adjustment on top of the value-domain rule is a **narrowing**:
 
+    - **inside a double-quoted span**: never auto-quoted — a single quote is an
+      ordinary character there, so the edit inserts two literal apostrophes into the
+      value rather than quoting it (``_inside_double_quotes``; found on ``iuc/seurat``
+      by the render oracle);
     - ``DUP_TARGET`` (``>&``/``<&``): never auto-quoted — quoting a numeric fd flips a
       descriptor dup into a file redirect. Conservative: vetoes the rare file-valued
       dup targets too;
@@ -317,10 +321,55 @@ def quote_is_behavior_preserving(
     """
     if not shell_oracle_available():
         return provably_quotable(occurrence.name, kinds, structural)
-    context = quoting_context(_pseudo_render(body, occurrence=occurrence), _TARGET)
+    rendered = _pseudo_render(body, occurrence=occurrence)
+    if _inside_double_quotes(rendered, _TARGET):
+        return False
+    context = quoting_context(rendered, _TARGET)
     if context is QuotingContext.DUP_TARGET:
         return False
     return provably_quotable(occurrence.name, kinds, structural)
+
+
+def _inside_double_quotes(line: str, sentinel: str, /) -> bool:
+    """Whether ``$sentinel`` sits inside a double-quoted span of *line*.
+
+    ⚠ A second veto, and a narrowing like ``DUP_TARGET``. Inside double quotes a
+    single quote is an ORDINARY CHARACTER, not a quoting operator, so "quoting" an
+    expansion there does not quote it -- it inserts two literal apostrophes into the
+    value. Found on ``iuc/seurat`` by the render oracle and confirmed against real
+    bash: ``params = list(counts = \\"$x\\")`` became
+    ``params = list(counts = \\"'$x'\\")``, so R received ``'function.input'``
+    with the quotes as part of the string instead of ``function.input``.
+
+    ``quoting_context`` classifies that position ``UNKNOWN`` (bashlex reports the
+    enclosing word, and the quoting lives in the word's raw text), and ``UNKNOWN``
+    defers to the value-domain rule, which sees a single-token value and approves. So
+    the veto cannot come from the enum; it is read off the line directly.
+
+    Escapes are honoured, which is what makes the ``iuc/seurat`` shape resolve
+    correctly: the ``\\"`` pair inside an outer ``"..."`` is a literal quote
+    character and does not close the span. A single-quoted span suspends ``"``
+    entirely. Erring toward "inside" only ever *suppresses* a fix, which is the safe
+    direction.
+    """
+    index = line.find(f"${sentinel}")
+    if index == -1:
+        index = line.find(sentinel)
+        if index == -1:
+            return False
+    in_single = in_double = False
+    position = 0
+    while position < index:
+        char = line[position]
+        if char == "\\" and not in_single:
+            position += 2  # escaped: the next character is literal
+            continue
+        if char == "'" and not in_double:
+            in_single = not in_single
+        elif char == '"' and not in_single:
+            in_double = not in_double
+        position += 1
+    return in_double
 
 
 def _pseudo_render(body: str, /, *, occurrence: UnquotedVar) -> str:

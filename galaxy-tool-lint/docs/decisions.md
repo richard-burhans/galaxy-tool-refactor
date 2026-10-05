@@ -1314,3 +1314,47 @@ synthetic unit tests pin the escaped cases the corpus happens not to exercise.
 uv run --package galaxy-tool-lint pytest galaxy-tool-lint/tests/test_lone_amp.py
 uv run python -m scripts.measure command-lone-amp   # needs the corpus; distribution unchanged
 ```
+
+## D40 (2026-10-05) — the five IUC review checks no linter had (GTR103–GTR105, GTR108, GTR109)
+
+These came out of a hand-written reviewer's checklist. Before any of them was
+written, the condition was put to the **whole** 89-rule strict ruleset and to
+`planemo lint`; the ones either already reported were dropped, and these five were
+what remained. Two findings from that pass are worth recording because they changed
+the design:
+
+**One checklist rule was inverted, and the measurement caught it.** The checklist
+said a test `<param>` must not use `section|param` pipe syntax. Galaxy's
+`verify/parse.py` says the opposite: `ParamContext.for_state()` *is* the pipe form,
+`param_names()` yields only that form once `allow_unqualified_access` is off, and
+`_process_raw_inputs` turns it off for `Version(profile) > 24.1`. The pipe syntax is
+not a defect, it is the **required** spelling; the *unqualified* name is the defect,
+and it is a silent one — the param is dropped and the test exercises the tool's
+default. That became GTR103 (in `checks/tests.py`), the opposite of the rule we
+started from.
+
+**`detect_errors` and the version-token rule are conventions with real counter-cases,
+and the docstrings say so.** GTR109 asks for `aggressive`, but a CLI that writes
+"error" to stderr benignly fails spuriously under it and `exit_code` is then the
+correct deliberate choice; the rule exists to make the choice visible in review, not
+to call it wrong. GTR108 partitions with GTR024 rather than overlapping it — GTR024
+keeps the non-PEP-440 literal, GTR108 takes the valid-but-untokenized remainder — and
+its message carries `tokenization_skip_reason` so it never advises a command that
+would decline.
+
+**GTR104 needed to read files the lint tier had never opened.** An `<xml>` macro
+carrying Cheetah is a silent bug (an `<expand>` inside `<command>` is text, not an
+element, so the directive never runs), but a suite's `<xml>` macros live in
+`macros.xml`, not in the tool. The check follows `macros.imported_macro_paths`
+transitively and anchors its violation on the tool's own `<import>` element, because
+`document.tree.getpath()` cannot locate an element of a foreign tree — the hazard
+`_shared.expanded_root` already warns about. It skips a directive inside a
+Cheetah-evaluated element, since an `<xml>` macro whose body *is* a `<command>`
+splices that element whole and its Cheetah is evaluated normally.
+
+**Two of the original seven were wholly fixable and left this tier.** GTR106
+(`display="checkboxes"`) and GTR107 (all-caps units in `label`/`help`) edit only what
+the form renders, so they are codemods, not advisories — a practice that is *entirely*
+fixable does not belong here, and modelling it as a `.1`/`.2` partition would have
+been a fiction since there is no advisory residual. See codemod `docs/decisions.md`
+§55.

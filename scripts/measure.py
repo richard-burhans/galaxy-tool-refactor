@@ -5122,7 +5122,7 @@ def _measure_test_param_qualification(*, corpus_root: Path) -> _QualificationRes
     from galaxy.tool_util.parameters.case import validate_test_cases_for_tool_source
     from galaxy.tool_util.parser.factory import get_tool_source
     from galaxy_tool_codemod.test_case_check import all_test_cases_provably_clean
-    from galaxy_tool_codemod.test_param_qualify import qualify_test_params
+    from galaxy_tool_source.test_param_paths import qualify_test_params
 
     result = _QualificationResult(n_blocked=0, n_unblocked=0, n_partial=0)
     seen_sha: set[str] = set()

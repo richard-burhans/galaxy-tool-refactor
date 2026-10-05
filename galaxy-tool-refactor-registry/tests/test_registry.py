@@ -61,17 +61,23 @@ def test_known_codes_are_the_selectable_set() -> None:
 
 
 def test_upgrade_only_set_matches_the_codemod_catalog() -> None:
-    """Registry's non-selectable codemod codes == coded_codemods − canonical.
+    """Registry's non-selectable codemod codes == the catalog's ruleset-less ones.
 
     Both sides are *derived* (no hardcoded list that can go stale), so a new
     codemod wrongly tagged with a ruleset (and thus selectable) or one omitted
     from the catalog would be caught — incl. the runtime-gated GTR014/015.
+
+    Subtracting ``canonical_codemods()`` is **not** the same predicate: a codemod
+    may be selectable (non-empty ``rulesets``) yet stay out of the default
+    ``format`` pipeline, which derives from the ``"default"`` set alone. GTR096 is
+    the case — selectable in ``strict`` so its fix is reachable without an
+    ``upgrade``, deliberately absent from ``format``. "Non-selectable" is exactly
+    "declares no ruleset", so that is what this reads.
     """
-    from galaxy_tool_codemod.canonical import canonical_codemods
     from galaxy_tool_codemod.catalog import coded_codemods
 
-    catalog_upgrade_only = {cls.meta.code for cls in coded_codemods()} - {
-        cls.meta.code for cls in canonical_codemods()
+    catalog_upgrade_only = {
+        cls.meta.code for cls in coded_codemods() if not cls.meta.rulesets
     }
     registry_upgrade_only = set(all_handles()) - set(known_codes())
     assert registry_upgrade_only == catalog_upgrade_only

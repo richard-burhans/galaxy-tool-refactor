@@ -428,6 +428,7 @@ from galaxy_tool_source.macros import (  # noqa: E402
     has_macros,
 )
 from galaxy_tool_source.profiles import available_profiles, latest_profile  # noqa: E402
+from galaxy_tool_source.render_oracle import render_equality_holds  # noqa: E402
 
 
 def check_immutable(document: ToolDocument) -> tuple[str, str]:
@@ -2288,6 +2289,12 @@ class _CodemodSweepState:
     idempotent: int = 0
     non_idempotent: int = 0
     no_repair: int = 0
+    # --certify=render tallies. ``render_not_proven`` is the one that matters: a
+    # modified tool whose rendered command this instrument could not certify.
+    render_text_equal: int = 0
+    render_argv_equal: int = 0
+    render_not_proven: int = 0
+    render_unknown: int = 0
     post_validate_failed: int = 0
     crashed: int = 0
     # Eligible tools the codemod actually changed (pass-1 bytes differ from the
@@ -2319,6 +2326,12 @@ class _CodemodOutcome:
     # Number of changes the non-mutating ``detect`` phase reported for this
     # tool. The detect/apply parity invariant is ``bool(detected) == modified``.
     detected: int = 0
+    # Render certification (``--certify=render``), one of "" (not run),
+    # "text-equal", "argv-equal", "not-proven", "unknown". See ``_certify_render``.
+    render: str = ""
+    # For a not-proven/unknown verdict: the world, section and both renderings, so the
+    # finding can actually be chased rather than just counted.
+    render_detail: str = ""
 
 
 def _resolve_codemod(spec: str) -> type[CodemodCommand]:
@@ -2352,7 +2365,56 @@ def _resolve_codemod(spec: str) -> type[CodemodCommand]:
     return obj
 
 
-def _codemod_exercise(path: Path, codemod: CodemodCommand) -> _CodemodOutcome:
+def _certify_render(
+    before: "etree._Element", after: "etree._Element", path: Path
+) -> tuple[str, str]:
+    """Classify what the render oracle proved about one codemod application.
+
+    ``"text-equal"`` — the tool renders a byte-identical command, the strong proof.
+    ``"argv-equal"`` — the bytes differ but the shell reads the line identically (same
+    argv partition and fd topology). This is the verdict a *quoting* codemod needs:
+    GTR020.1 changes bytes on purpose, so text equality is sufficient but not necessary.
+    ``"not-proven"`` — neither held. Not the same as "unsafe": it means this
+    instrument could not establish preservation, and the finding wants a human.
+    ``"unknown"`` — a side would not render (Python-2 Cheetah, a construct CT3 rejects,
+    an unresolvable macro), so nothing was measured either way.
+    """
+    verdict = render_equality_holds(before, after, source_dir=path.parent)
+    if verdict.equal is None:
+        return "unknown", verdict.reason or ""
+    if verdict.equal:
+        return "text-equal", ""
+    if verdict.boundary_equal:
+        return "argv-equal", ""
+    if verdict.boundary_equal is None:
+        # The text differs and bashlex could not read one of the renderings -- a
+        # Cheetah-rendered line is not always valid bash (one corpus tool renders
+        # ``&& &&``). That is an absence of proof, not a refutation, and conflating
+        # the two reported 11 findings where only a few were real.
+        return "unknown", "text differs; a rendering would not parse as bash"
+    # A not-proven verdict is only useful if it can be chased, so carry the world,
+    # the section and both renderings out with it.
+    if verdict.divergence is not None:
+        world, section, text_before, text_after = verdict.divergence
+        detail = (
+            f"world={world} section={section}\n"
+            f"  before: {_collapse_for_log(text_before)}\n"
+            f"  after:  {_collapse_for_log(text_after)}"
+        )
+    else:
+        detail = verdict.reason or ""
+    return "not-proven", detail
+
+
+def _collapse_for_log(text: str, /) -> str:
+    """One-line, length-capped rendering of a command, for a log message."""
+    flat = " ".join(text.split())
+    return flat if len(flat) <= 400 else f"{flat[:400]}…"
+
+
+def _codemod_exercise(
+    path: Path, codemod: CodemodCommand, *, certify_render: bool = False
+) -> _CodemodOutcome:
     """Run ``codemod`` on ``path`` and classify the outcome.
 
     Status is one of ``"ok"``, ``"ineligible-unparseable"``,
@@ -2414,6 +2476,16 @@ def _codemod_exercise(path: Path, codemod: CodemodCommand) -> _CodemodOutcome:
         # FixTypos that found no repair, UpdateProfile on an already-correct
         # profile — leave the bytes identical.)
         modified = pass1_bytes != before_bytes
+        # Render certification compares the PRISTINE input against the post-codemod
+        # tree. ``document_one`` has been mutated in place, so the "before" side is a
+        # fresh parse of the same bytes -- not a reference to the tree we just edited.
+        render_verdict = ""
+        render_detail = ""
+        if certify_render and modified:
+            pristine = parse_module(path)
+            render_verdict, render_detail = _certify_render(
+                pristine.document.root, document_one.document.root, path
+            )
         # Detect/apply parity: detect reports a change iff apply makes one. A
         # mismatch is a framework bug (detect drifted from apply) — retain it.
         if bool(detected) != modified:
@@ -2457,7 +2529,8 @@ def _codemod_exercise(path: Path, codemod: CodemodCommand) -> _CodemodOutcome:
         if profile is None:
             return _CodemodOutcome(
                 "no-repair", modified=modified, upgrade_steps=upgrade_steps,
-                detected=detected,
+                detected=detected, render=render_verdict,
+                render_detail=render_detail,
             )
         validation = validate_tool(document_one.document, profile=profile)
         if not validation.valid:
@@ -2471,13 +2544,38 @@ def _codemod_exercise(path: Path, codemod: CodemodCommand) -> _CodemodOutcome:
                 profile=profile,
                 upgrade_steps=upgrade_steps,
                 detected=detected,
+                render=render_verdict,
+                render_detail=render_detail,
             )
     except Exception as exc:  # noqa: BLE001 — diagnostic sweep: every crash is a finding
         return _CodemodOutcome("crash", _signature(exc), traceback.format_exc())
     return _CodemodOutcome(
         "ok", modified=modified, profile=profile, upgrade_steps=upgrade_steps,
-        detected=detected,
+        detected=detected, render=render_verdict, render_detail=render_detail,
     )
+
+
+def _tally_render(
+    state: _CodemodSweepState, outcome: _CodemodOutcome, label: str
+) -> None:
+    """Fold one render verdict into *state*, naming the tool on a not-proven verdict.
+
+    Shared by ``_codemod_process_path`` (the inline sweep) and ``_codemod_reduce``
+    (the isolated-worker path) because those two already mirror each other's
+    bookkeeping by hand, and a counter added to one and not the other is exactly the
+    drift this sweep exists to catch elsewhere.
+    """
+    if not outcome.render:
+        return
+    if outcome.render == "not-proven":
+        logger.warning("RENDER NOT PROVEN  %s\n  %s", label, outcome.render_detail)
+    attribute = {
+        "text-equal": "render_text_equal",
+        "argv-equal": "render_argv_equal",
+        "not-proven": "render_not_proven",
+        "unknown": "render_unknown",
+    }[outcome.render]
+    setattr(state, attribute, getattr(state, attribute) + 1)
 
 
 def _codemod_process_path(
@@ -2488,6 +2586,7 @@ def _codemod_process_path(
     version: str,
     codemod: CodemodCommand,
     state: _CodemodSweepState,
+    certify_render: bool = False,
 ) -> bool:
     """Sweep one XML file; return ``True`` if it counted as an eligible tool.
 
@@ -2497,7 +2596,7 @@ def _codemod_process_path(
     """
     if not path.is_file():
         return False
-    outcome = _codemod_exercise(path, codemod)
+    outcome = _codemod_exercise(path, codemod, certify_render=certify_render)
     status = outcome.status
     if status == "ineligible-unparseable":
         state.ineligible_unparseable += 1
@@ -2509,6 +2608,7 @@ def _codemod_process_path(
         state.ineligible_no_valid += 1
         return False
     state.eligible += 1
+    _tally_render(state, outcome, f"{display_name}: {path.relative_to(repo_dir)}")
     if outcome.modified:
         # The codemod actually changed this tool (vs. an atomic no-op).
         state.modified += 1
@@ -2614,6 +2714,7 @@ def _codemod_reduce(
         state.final_profiles[outcome.profile] += 1
     for from_version in outcome.upgrade_steps:
         state.upgrade_steps[from_version] += 1
+    _tally_render(state, outcome, f"{result.display_name}: {result.relative}")
     if status in {"ok", "post-validate-failed", "no-repair"}:
         state.idempotent += 1
     elif status == "non-idempotent":
@@ -2691,6 +2792,20 @@ def _codemod_main(argv: list[str]) -> int:
         default=0,
         help="stop after N eligible tools (0 sweeps everything)",
     )
+    parser.add_argument(
+        "--certify",
+        choices=("none", "render"),
+        default="none",
+        help=(
+            "extra per-tool proof for every tool the codemod MODIFIED. 'render' "
+            "evaluates the tool's <command>/<configfile>/<version_command> with "
+            "Galaxy's own fill_template before and after, across three parameter "
+            "worlds, and reports whether the rendered command is byte-identical "
+            "('text-equal'), reads identically to the shell ('argv-equal' -- what a "
+            "quoting codemod must preserve), or neither ('not-proven'). Off by "
+            "default: it renders each tool six times. Default: none."
+        ),
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -2753,6 +2868,7 @@ def _codemod_main(argv: list[str]) -> int:
                 version=version,
                 codemod=codemod,
                 state=state,
+                certify_render=args.certify == "render",
             )
             # Log progress at every 500-tool boundary, but only ONCE per
             # boundary — ineligible files don't bump state.eligible, so
@@ -2782,6 +2898,16 @@ def _codemod_main(argv: list[str]) -> int:
         state.post_validate_failed,
         state.crashed,
     )
+    if args.certify == "render":
+        logger.info(
+            "render certification (of %d modified): %d text-equal, %d argv-equal, "
+            "%d NOT PROVEN, %d unknown (would not render)",
+            state.modified,
+            state.render_text_equal,
+            state.render_argv_equal,
+            state.render_not_proven,
+            state.render_unknown,
+        )
     for sig, count in state.signatures.most_common():
         logger.info("  %6d  %s", count, sig)
     # Discovery report: where did eligible tools land? For an upgrade sweep,
@@ -3478,7 +3604,21 @@ def _check_analyze(path: Path) -> _CheckToolResult | None:
     if not is_tool_root(raw):
         return _CheckToolResult(sha, is_tool=False, crashed=False, code_totals={})
     try:
-        document = load_tool(raw)
+        # ⚠ load from the PATH, not from `raw`. Parsing the bytes leaves
+        # ``document.source_path`` unset, and that silently disables every rule that
+        # has to reach a tool's macro files: ``macros.expand_from_tree`` stages
+        # ``<import>``s relative to the source directory, so with no path it serialises
+        # the tool into a temp dir alone and the expansion dies on
+        # ``[Errno 2] .../macros.xml``. Measured on the 2026-10-05 sweep: 608,860 of
+        # 617,596 macro-expansion warnings were that, and GTR104 -- which reads
+        # ``imported_macro_paths`` -- reported **0** findings corpus-wide while firing
+        # twice on the same tool loaded from its path. The rules that bail on a failed
+        # expansion (GTR025/GTR034/GTR038/GTR104) were all under-counting.
+        #
+        # ``raw`` is still what the sha is computed from, so the dedup key is unchanged;
+        # this costs one extra read per tool, which is the right trade for a sweep whose
+        # output is a published statistic.
+        document = load_tool(path)
     except ToolXmlSyntaxError:
         return _CheckToolResult(sha, is_tool=False, crashed=False, code_totals={})
     if document.root.tag != "tool":

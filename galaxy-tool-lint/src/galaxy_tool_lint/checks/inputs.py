@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from functools import lru_cache
 from typing import TYPE_CHECKING, ClassVar
@@ -1302,3 +1303,113 @@ class DataParamFormatDeclared(CheckRule):
                     f"data parameter '{name}' declares no format — the generic "
                     "'data' type will be assumed",
                 )
+
+
+# Param types whose default is expressed with ``value=``. A ``select`` marks its
+# default with ``selected="true"`` on an ``<option>`` and a ``data`` param has no
+# author-set default at all, so neither can contradict ``optional`` this way.
+# ``data_column`` and ``hidden`` do use ``value=`` and do accept ``optional`` (XSD
+# ``ParamType``), and leaving them out was an unstated false negative.
+_VALUE_DEFAULT_TYPES = frozenset(
+    {"text", "integer", "float", "color", "data_column", "hidden"}
+)
+
+# A Cheetah conditional line naming a parameter: the guarded idiom this rule must NOT
+# report. Matched on the directive keyword so a plain ``$name`` interpolation does not
+# count as a guard.
+_CONDITIONAL_LINE = re.compile(r"^[ \t]*#(?:if|unless|elif)\b.*$", re.MULTILINE)
+
+
+class OptionalWithValue(CheckRule):
+    """GTR105 — ``optional="true"`` plus a ``value`` default, interpolated bare.
+
+    ``optional="true"`` lets the user *clear* the field, so the parameter can reach
+    Cheetah as ``None``/empty; a ``value`` default means it usually will not. The pair
+    is only a defect when the ``<command>`` then interpolates the parameter **bare**,
+    because the cleared case emits an empty argument (or the string ``None``) where the
+    author meant the flag to be omitted.
+
+    ⚠ The pair **on its own** is not a defect, and an earlier version of this rule
+    said it was. Measured over the ToolShed corpus: 330 findings across 107 files, of
+    which **72.4% guard the parameter** with an ``#if``/``#unless`` naming it, 17.3%
+    interpolate it bare, and 10% never reference it. The guarded majority is a
+    deliberate, good idiom — pre-fill the upstream CLI's own default, let the user clear
+    it, and gate the flag — and 34 of those files are ``iuc/``-namespace tools that have
+    been through IUC review. Telling their authors to "drop one" would have made every
+    one of them worse: dropping ``value`` loses the documented upstream default,
+    dropping ``optional`` removes the fallback.
+
+    So the rule now reports only the unguarded remainder, where the rationale above
+    holds by construction. The guard test is deliberately **suppression-only** and
+    textual (a Cheetah conditional line mentioning the name), so a guard this misses
+    costs a finding rather than inventing one.
+
+    Restricted to the types whose default is spelled ``value=`` (``text``, ``integer``,
+    ``float``, ``color``, ``data_column``, ``hidden``). A ``data`` param's
+    ``optional="true"`` is the normal idiom for "no dataset" and a ``select`` carries
+    its default on an ``<option>``, so neither is a contradiction. An empty
+    ``value=""`` is the conventional spelling of "no default".
+    """
+
+    meta: ClassVar[RuleMeta] = RuleMeta(
+        code="GTR105",
+        summary="A param should not declare both optional=true and a value default.",
+        since="0.3.10",
+        cite=_IUC,
+        detect_only=True,
+        rulesets=frozenset({"strict"}),
+    )
+
+    def detect(self, document: ToolDocument, /) -> Iterable[Violation]:
+        for param, name, ptype in _iter_named_typed_params(document.root):
+            if ptype not in _VALUE_DEFAULT_TYPES:
+                continue
+            if not _string_as_bool(param.get("optional", "false")):
+                continue
+            value = param.get("value")
+            if value is None or not value.strip():
+                continue  # no default, or the conventional empty "no default"
+            guarded, referenced = _template_names(document.root)
+            if name not in referenced:
+                continue  # never interpolated: an orphan, which is GTR034's finding
+            if name in guarded:
+                continue  # the deliberate idiom: pre-filled default, flag gated
+            yield _violation(
+                document,
+                param,
+                self.meta,
+                f"param '{name}' is optional=true with default {value!r} and is "
+                f"interpolated unguarded -- when a user clears it the command emits an "
+                f"empty argument; gate it with #if, or drop optional",
+            )
+
+
+def _mentioned(text: str, /) -> set[str]:
+    """Every parameter identifier a Cheetah reference in *text* names.
+
+    Both the leading identifier and the final attribute of a dotted reference are
+    collected, because ``$adv.min_id`` is how a template reaches a param *declared*
+    as ``name="min_id"`` inside a section.
+    """
+    names = set(re.findall(r"\$\{?([A-Za-z_]\w*)", text))
+    names.update(re.findall(r"\$\{?(?:[A-Za-z_]\w*\.)+([A-Za-z_]\w*)", text))
+    return names
+
+
+@lru_cache(maxsize=256)
+def _template_names_cached(templates: str, /) -> tuple[frozenset[str], frozenset[str]]:
+    """``(guarded, referenced)`` parameter names for the joined *templates*."""
+    guarded: set[str] = set()
+    for line in _CONDITIONAL_LINE.findall(templates):
+        guarded.update(_mentioned(line))
+    return frozenset(guarded), frozenset(_mentioned(templates))
+
+
+def _template_names(root: etree._Element, /) -> tuple[frozenset[str], frozenset[str]]:
+    """Names a ``<command>``/``<configfile>`` conditional gates, and all it names."""
+    parts = [
+        "".join(element.itertext())
+        for tag in ("command", "configfile")
+        for element in root.iter(tag)
+    ]
+    return _template_names_cached("\n".join(parts))
