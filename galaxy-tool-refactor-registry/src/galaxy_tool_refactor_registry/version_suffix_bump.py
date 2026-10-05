@@ -110,7 +110,13 @@ def _changes_only_galaxy_suffix(before: etree._Element, after: etree._Element) -
     return masked_before == masked_after
 
 
-def plan_suite_suffix_bump(macros_path: Path, /, *, new_suffix: int) -> SuffixBumpPlan:
+def plan_suite_suffix_bump(
+    macros_path: Path,
+    /,
+    *,
+    new_suffix: int,
+    token_name: str = _VERSION_SUFFIX_TOKEN,
+) -> SuffixBumpPlan:
     """Plan bumping the shared ``@VERSION_SUFFIX@`` token in *macros_path*.
 
     Resolves every importer in the directory, builds the bumped macros file, and
@@ -126,14 +132,14 @@ def plan_suite_suffix_bump(macros_path: Path, /, *, new_suffix: int) -> SuffixBu
         document = load_macros(macros_path)
     except Exception as error:  # noqa: BLE001 — malformed shared file declines the bump
         return _bail(macros_path, f"{name} is not a well-formed <macros> file: {error}")
-    token = document.root.find(f'token[@name="{_VERSION_SUFFIX_TOKEN}"]')
+    token = document.root.find(f'token[@name="{token_name}"]')
     if token is None:
-        return _bail(macros_path, f"{name} defines no {_VERSION_SUFFIX_TOKEN} token")
+        return _bail(macros_path, f"{name} defines no {token_name} token")
     current_raw = (token.text or "").strip()
     if not current_raw.isdigit():
         return _bail(
             macros_path,
-            f"{name} defines {_VERSION_SUFFIX_TOKEN} as {current_raw!r}, "
+            f"{name} defines {token_name} as {current_raw!r}, "
             "not an integer",
         )
     old_suffix = int(current_raw)

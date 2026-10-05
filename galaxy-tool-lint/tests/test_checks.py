@@ -1330,3 +1330,37 @@ def test_gtr034_argument_only_param_that_is_used_is_not_flagged() -> None:
     )
     command = "<command><![CDATA[foo --in '$input' --min-score $min_score]]></command>"
     assert "GTR034" not in _codes(_tool(inputs=used, command=command))
+
+
+def test_gtr020_2_is_silent_where_quoting_would_be_wrong() -> None:
+    """A provably-unquotable var is not a residual: the toolkit can decide.
+
+    GTR020.2 reports vars GTR020.1 could not prove safe to quote, so a human can
+    judge. For a boolean or a select the rendered value is author-written and known
+    statically, so "not a single token" is a POSITIVE finding that quoting changes
+    the command -- there is nothing to judge, and the advice would be a bug:
+    `falsevalue=""` quoted is `''`, a stray empty argument where the author meant
+    nothing.
+    """
+
+    def codes(inputs: str, command: str = "p $flag") -> set[str]:
+        tool = (
+            '<tool id="t" name="T" version="1">'
+            f"<command><![CDATA[{command}]]></command>"
+            f"<inputs>{inputs}</inputs>"
+            '<outputs><data name="o" format="txt"/></outputs></tool>'
+        ).encode()
+        return {v.code for v in detect_violations(load_tool(tool))}
+
+    # the dominant flag idiom, and the spelling that declares no values at all
+    assert "GTR020.2" not in codes(
+        '<param name="flag" type="boolean" truevalue="--debug" falsevalue=""/>'
+    )
+    assert "GTR020.2" not in codes('<param name="flag" type="boolean"/>')
+    # a multi-word option value is packed precisely to word-split
+    assert "GTR020.2" not in codes(
+        '<param name="flag" type="select"><option value="-b -h">both</option></param>'
+    )
+    # a text param IS a judgment call -- its value is unknown when the tool is
+    # written, so the advice stands and the finding must survive
+    assert "GTR020.2" in codes('<param name="flag" type="text" value=""/>')

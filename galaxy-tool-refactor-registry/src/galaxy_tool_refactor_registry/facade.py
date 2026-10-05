@@ -945,21 +945,27 @@ def _bump_imported_suffix(
     version = document.root.get("version")
     assert site.macro_file is not None  # IMPORTED_TOKEN always carries the file
     macros_file = site.macro_file
+    # The version names its own suffix token; it is not always @VERSION_SUFFIX@.
+    token_name = site.token_name or "@VERSION_SUFFIX@"
     if scope != "suite":
-        plan = plan_suite_suffix_bump(macros_file, new_suffix=value + 1)
+        plan = plan_suite_suffix_bump(
+            macros_file, new_suffix=value + 1, token_name=token_name
+        )
         count = len(plan.importers) if plan.skip_reason is None else 0
         shared = f"shared by {count} tool(s)" if count else "imported by other tools"
         return BumpSuffixResult(
             formatted=echoed,
             bumped=False,
             skip_reason=(
-                f"suffix token @VERSION_SUFFIX@ is defined in imported "
+                f"suffix token {token_name} is defined in imported "
                 f"{macros_file.name} ({shared}); rerun with --scope suite to bump them "
                 "together"
             ),
             scope=scope,
         )
-    plan = plan_suite_suffix_bump(macros_file, new_suffix=value + 1)
+    plan = plan_suite_suffix_bump(
+        macros_file, new_suffix=value + 1, token_name=token_name
+    )
     if plan.skip_reason is not None:
         return BumpSuffixResult(
             formatted=echoed, bumped=False, skip_reason=plan.skip_reason, scope=scope

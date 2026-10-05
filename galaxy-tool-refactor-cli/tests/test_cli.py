@@ -1412,3 +1412,80 @@ def test_bump_version_suffix_in_help() -> None:
     result = CliRunner().invoke(main, ["--help"])
     assert result.exit_code == 0
     assert "bump-version-suffix" in result.output
+
+
+def test_bump_version_suffix_suite_bumps_a_shared_token_once(tmp_path: Path) -> None:
+    """Naming every tool of a suite must bump the shared token ONCE, not once each.
+
+    The whole point of a shared @VERSION_SUFFIX@ is that the importers move in
+    lockstep, and the command already knows it ("also lifts ..."). Bumping per
+    target silently multiplied the published revision by the number of tools
+    named: a 3-tool suite went 0 -> 3 in one invocation.
+    """
+    macros, a, b = _bump_shared_suite(tmp_path)
+    result = CliRunner().invoke(main, ["bump-version-suffix", str(a), str(b)])
+    assert result.exit_code == 0, result.output
+    assert '<token name="@VERSION_SUFFIX@">5</token>' in macros.read_text(
+        encoding="utf-8"
+    )
+
+
+def test_bump_version_suffix_reports_a_non_default_token_name(tmp_path: Path) -> None:
+    """A suffix token named something other than @VERSION_SUFFIX@ is still a suffix.
+
+    The resolver required the version to be exactly
+    `@TOOL_VERSION@+galaxy@VERSION_SUFFIX@`, so a tool using its own token name fell
+    through to "no +galaxy suffix to bump" -- which is wrong and unactionable when
+    the version plainly reads `...+galaxy@BATCHED_LASTZ_SUFFIX@`.
+    """
+    tool = tmp_path / "t.xml"
+    tool.write_text(
+        '<tool id="t" name="t" version="@LASTZ_VERSION@+galaxy@LASTZ_SUFFIX@"'
+        ' profile="24.0">\n'
+        "    <macros>\n"
+        '        <token name="@LASTZ_VERSION@">1.04.52</token>\n'
+        '        <token name="@LASTZ_SUFFIX@">7</token>\n'
+        "    </macros>\n"
+        "    <command><![CDATA[echo x]]></command>\n"
+        '    <inputs><param name="i" type="text"/></inputs>\n'
+        '    <outputs><data name="o"/></outputs>\n'
+        "</tool>\n",
+        encoding="utf-8",
+    )
+    result = CliRunner().invoke(main, ["bump-version-suffix", str(tool)])
+    assert result.exit_code == 0, result.output
+    assert "no +galaxy suffix" not in result.output
+    assert '<token name="@LASTZ_SUFFIX@">8</token>' in tool.read_text(encoding="utf-8")
+
+
+def test_bump_version_suffix_imported_non_default_token_name(tmp_path: Path) -> None:
+    """The imported-token path must resolve the version's own token name too.
+
+    Generalising only the tool-local sites would have left a half-fix: an inline
+    `@LASTZ_SUFFIX@` bumped while the same name in an imported macros file still
+    reported "defines no @VERSION_SUFFIX@ token".
+    """
+    macros = tmp_path / "macros.xml"
+    macros.write_text(
+        "<macros>\n"
+        '    <token name="@LASTZ_VERSION@">1.04.52</token>\n'
+        '    <token name="@LASTZ_SUFFIX@">7</token>\n'
+        "</macros>\n",
+        encoding="utf-8",
+    )
+    tool = tmp_path / "t.xml"
+    tool.write_text(
+        '<tool id="t" name="t" version="@LASTZ_VERSION@+galaxy@LASTZ_SUFFIX@"'
+        ' profile="24.0">\n'
+        "    <macros><import>macros.xml</import></macros>\n"
+        "    <command><![CDATA[echo x]]></command>\n"
+        '    <inputs><param name="i" type="text"/></inputs>\n'
+        '    <outputs><data name="o"/></outputs>\n'
+        "</tool>\n",
+        encoding="utf-8",
+    )
+    result = CliRunner().invoke(main, ["bump-version-suffix", str(tool)])
+    assert result.exit_code == 0, result.output
+    assert '<token name="@LASTZ_SUFFIX@">8</token>' in macros.read_text(
+        encoding="utf-8"
+    )

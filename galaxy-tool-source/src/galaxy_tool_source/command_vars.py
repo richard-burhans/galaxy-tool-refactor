@@ -165,6 +165,46 @@ def input_param_info(root: etree._Element, /) -> tuple[dict[str, str], set[str]]
     return kinds, structural
 
 
+def never_quote_names(root: etree._Element, /) -> set[str]:
+    """Names a ``<command>`` must **not** single-quote, as opposed to merely
+    not-*provably*-safe.
+
+    ``kinds`` collapses every unsafe param to ``"text"``, which answers "is quoting
+    provably a no-op?" but not "would quoting be a mistake?". For ``boolean`` /
+    ``select`` / ``drill_down`` the rendered value is author-written and statically
+    known, so a not-single-token verdict is a POSITIVE finding that quoting changes
+    behaviour:
+
+    - ``falsevalue=""`` quoted becomes ``''`` — a stray empty argument where the
+      author meant *nothing*. This is the dominant Galaxy flag idiom, so it is the
+      common case, not a corner one.
+    - a multi-word ``<option value="-b -h">`` quoted fuses argv words that the
+      author packed in precisely to word-split.
+
+    ``text`` is deliberately excluded: its value is unknown when the tool is written,
+    so quoting it is a judgment call rather than a mistake, and telling an author to
+    quote it is sound advice.
+    """
+    names: set[str] = set()
+    inputs = root.find("inputs")
+    if inputs is None:
+        return names
+    for param in inputs.iter("param"):
+        name = resolved_param_name(param)
+        if not name or param.get("multiple") in ("true", "True", "1"):
+            continue
+        ptype = param.get("type", "")
+        if ptype == "boolean":
+            provable = _boolean_values_are_single_tokens(param)
+        elif ptype in OPTION_VALUED_TYPES:
+            provable = _select_options_are_single_tokens(param)
+        else:
+            continue  # every other type's value is unknown until the job runs
+        if not provable:
+            names.add(name)
+    return names
+
+
 def command_var_info(root: etree._Element, /) -> tuple[dict[str, str], set[str]]:
     """``(name -> kind, structural)`` for every name a ``<command>`` can reference.
 

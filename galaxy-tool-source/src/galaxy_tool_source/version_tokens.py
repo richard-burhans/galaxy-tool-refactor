@@ -282,7 +282,13 @@ def adopt_suffix_equality_holds(document: ToolDocument, *, base: str) -> bool:
 # whose suffix lives in a ``<token>`` (resolved separately).
 _GALAXY_SUFFIX_LITERAL = re.compile(r"\+galaxy(?P<suffix>[^@]+)$")
 _VERSION_SUFFIX_TOKEN = "@VERSION_SUFFIX@"
-_FULLY_TOKENIZED_VERSION = "@TOOL_VERSION@+galaxy@VERSION_SUFFIX@"
+# ⛔ THE SUFFIX TOKEN IS NOT ALWAYS CALLED @VERSION_SUFFIX@. `@VERSION_SUFFIX@` is the
+# IUC convention, not a rule: a suite holding two differently-versioned tools in one
+# macros file has to name them apart (`@BATCHED_LASTZ_SUFFIX@`). Matching the whole
+# version against the conventional spelling reported those as having no suffix at all,
+# which reads as "this tool is not tokenized" when the version plainly ends in
+# `+galaxy@SOMETHING@`. Resolve whatever token the version actually names.
+_GALAXY_SUFFIX_TOKEN = re.compile(r"\+galaxy(?P<token>@[A-Za-z_]\w*@)$")
 
 
 class SuffixSiteKind(Enum):
@@ -306,10 +312,16 @@ class SuffixSite:
         kind: The defining-site classification.
         macro_file: The imported macros file the token lives in, set only for
             ``IMPORTED_TOKEN`` (``None`` for the two tool-local kinds).
+        token_name: The ``<token>`` the version defers its suffix to, for the two
+            token kinds (``None`` for ``VERSION_LITERAL``). Carried because it is
+            NOT always ``@VERSION_SUFFIX@`` — a suite versioning two tools apart
+            must name them apart — and every writer needs the name the version
+            actually used, not the conventional one.
     """
 
     kind: SuffixSiteKind
     macro_file: Path | None = None
+    token_name: str | None = None
 
 
 def _parse_int_suffix(raw: str, /) -> int | None:
@@ -317,6 +329,12 @@ def _parse_int_suffix(raw: str, /) -> int | None:
     if raw.isdigit():
         return int(raw)
     return None
+
+
+def _suffix_token_name(version: str, /) -> str | None:
+    """The ``<token>`` name a tokenized ``+galaxy@…@`` version defers its suffix to."""
+    match = _GALAXY_SUFFIX_TOKEN.search(version)
+    return match["token"] if match is not None else None
 
 
 def current_suffix(document: ToolDocument, /) -> tuple[int, SuffixSite] | None:
@@ -338,13 +356,14 @@ def current_suffix(document: ToolDocument, /) -> tuple[int, SuffixSite] | None:
         if value is None:
             return None
         return value, SuffixSite(SuffixSiteKind.VERSION_LITERAL)
-    if version != _FULLY_TOKENIZED_VERSION:
+    token_name = _suffix_token_name(version)
+    if token_name is None:
         return None
     definition = next(
         (
             candidate
             for candidate in token_definitions(document)
-            if candidate.name == _VERSION_SUFFIX_TOKEN
+            if candidate.name == token_name
         ),
         None,
     )
@@ -358,7 +377,9 @@ def current_suffix(document: ToolDocument, /) -> tuple[int, SuffixSite] | None:
         if definition.source is not None
         else SuffixSiteKind.INLINE_TOKEN
     )
-    return value, SuffixSite(kind, macro_file=definition.source)
+    return value, SuffixSite(
+        kind, macro_file=definition.source, token_name=token_name
+    )
 
 
 def bump_suffix_skip_reason(document: ToolDocument, /) -> str | None:
@@ -377,7 +398,8 @@ def bump_suffix_skip_reason(document: ToolDocument, /) -> str | None:
         if _parse_int_suffix(literal["suffix"]) is None:
             return f"suffix {literal['suffix']!r} is not an integer; bump it manually"
         return None
-    if version != _FULLY_TOKENIZED_VERSION:
+    token_name = _suffix_token_name(version)
+    if token_name is None:
         return (
             "no +galaxy suffix to bump; run `tokenize-version --adopt-suffix` to add "
             "+galaxy0 first"
@@ -386,15 +408,12 @@ def bump_suffix_skip_reason(document: ToolDocument, /) -> str | None:
         (
             candidate
             for candidate in token_definitions(document)
-            if candidate.name == _VERSION_SUFFIX_TOKEN
+            if candidate.name == token_name
         ),
         None,
     )
     if definition is None:
-        return (
-            "no +galaxy suffix to bump; run `tokenize-version --adopt-suffix` to add "
-            "+galaxy0 first"
-        )
+        return f"version defers its suffix to {token_name}, which is not defined"
     if _parse_int_suffix(definition.value) is None:
         return f"suffix {definition.value!r} is not an integer; bump it manually"
     return None
@@ -414,7 +433,10 @@ def bump_suffix_tree(root: etree._Element, *, new_suffix: int) -> None:
     if literal is not None:
         root.set("version", _GALAXY_SUFFIX_LITERAL.sub(f"+galaxy{new_suffix}", version))
         return
-    token = root.find(f'macros/token[@name="{_VERSION_SUFFIX_TOKEN}"]')
+    token_name = _suffix_token_name(version)
+    if token_name is None:
+        return
+    token = root.find(f'macros/token[@name="{token_name}"]')
     if token is not None:
         token.text = str(new_suffix)
 
