@@ -3604,7 +3604,21 @@ def _check_analyze(path: Path) -> _CheckToolResult | None:
     if not is_tool_root(raw):
         return _CheckToolResult(sha, is_tool=False, crashed=False, code_totals={})
     try:
-        document = load_tool(raw)
+        # ⚠ load from the PATH, not from `raw`. Parsing the bytes leaves
+        # ``document.source_path`` unset, and that silently disables every rule that
+        # has to reach a tool's macro files: ``macros.expand_from_tree`` stages
+        # ``<import>``s relative to the source directory, so with no path it serialises
+        # the tool into a temp dir alone and the expansion dies on
+        # ``[Errno 2] .../macros.xml``. Measured on the 2026-10-05 sweep: 608,860 of
+        # 617,596 macro-expansion warnings were that, and GTR104 -- which reads
+        # ``imported_macro_paths`` -- reported **0** findings corpus-wide while firing
+        # twice on the same tool loaded from its path. The rules that bail on a failed
+        # expansion (GTR025/GTR034/GTR038/GTR104) were all under-counting.
+        #
+        # ``raw`` is still what the sha is computed from, so the dedup key is unchanged;
+        # this costs one extra read per tool, which is the right trade for a sweep whose
+        # output is a published statistic.
+        document = load_tool(path)
     except ToolXmlSyntaxError:
         return _CheckToolResult(sha, is_tool=False, crashed=False, code_totals={})
     if document.root.tag != "tool":
