@@ -152,6 +152,57 @@ class _Group:
         return str(self.__dict__["_path"])
 
 
+#: The attributes Galaxy's dataset wrappers expose that a ``<command>`` actually
+#: reaches for. ``element_identifier`` is the one that matters: it is how a tool names
+#: each member of a collection, and it appears in a ``#for`` body, never on a bare
+#: single-dataset reference.
+_DATASET_ATTRIBUTES = (
+    "element_identifier",
+    "ext",
+    "name",
+    "id",
+    "hid",
+    "datatype",
+    "file_ext",
+    "is_collection",
+)
+
+
+def _dataset(path: str, index: int, /) -> _Group:
+    """One dataset as Galaxy's wrapper presents it, for a ``#for`` body to walk."""
+    children: dict[str, object] = {
+        attribute: _Scalar(f"{path}_{index}.{attribute}")
+        for attribute in _DATASET_ATTRIBUTES
+    }
+    children["metadata"] = _Group(f"{path}_{index}.metadata", {})
+    return _Group(f"{path}_{index}", children)
+
+
+def _dataset_list(path: str, edge: str, /) -> list[_Group]:
+    """What a ``multiple="true"`` / ``data_collection`` input renders as.
+
+    ⚠ Modelling these as a plain string is the single cause of every blind spot the
+    oracle had on our own wrappers: **14 of 69 tools**, all failing with
+    ``NotFound: element_identifier``. The idiom is
+
+        #for $x in $inputs
+            --name '${re.sub("[^\\w]", "_", $x.element_identifier)}'
+        #end for
+
+    and iterating a ``str`` yields single CHARACTERS, which have no attributes and
+    never reach ``_Namespace.__missing__`` because the lookup is an attribute access,
+    not a name lookup. So the whole render failed and the tool could not be certified
+    at all.
+
+    Two elements at the high edge rather than one, because a ``#for`` body that
+    renders once can hide a separator or accumulator bug that only shows on the second
+    pass; one at the declared edge; and **zero** at the low edge, so the loop body is
+    skipped entirely in that world.
+    """
+    count = {"low": 0, "declared": 1}.get(edge, 2)
+    return [_dataset(path, index) for index in range(count)]
+
+
 class _Namespace(dict):  # type: ignore[type-arg]
     """The Cheetah search list: every name resolves, declared or not.
 
@@ -363,7 +414,18 @@ def _children_of(
             if not name:
                 continue
             path = f"{prefix}{name}"
-            values[name] = _scalar_for(child, child.get("type") or "text", edge, path)
+            ptype = child.get("type") or "text"
+            multiple = (child.get("multiple") or "").lower() in (
+                "true",
+                "yes",
+                "on",
+                "1",
+            )
+            if ptype == "data_collection" or (ptype == "data" and multiple):
+                # Iterable, so a `#for` over it walks datasets rather than characters.
+                values[name] = _dataset_list(path, edge)
+            else:
+                values[name] = _scalar_for(child, ptype, edge, path)
         elif child.tag == "section" and name:
             path = f"{prefix}{name}"
             values[name] = _Group(path, _children_of(child, f"{path}.", edge))
