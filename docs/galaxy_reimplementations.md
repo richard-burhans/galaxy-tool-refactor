@@ -188,6 +188,31 @@ absent", not "the tool is valid", so they must not gate suppression removal.
   functions"). A possible contribute-back later — but the direction is function→schema, so
   our specific schema→model (xsdata) pipeline does not transfer directly.
 
+## Touchpoint 6: the command renderer (`galaxy.util.template.fill_template`) — KEEP
+
+- **Where:** `galaxy-tool-source/src/galaxy_tool_source/render_oracle.py` evaluates a
+  tool's `<command>` / `<configfile>` / `<version_command>` against a synthesised
+  parameter context, before and after an edit, to prove the edit did not change what
+  the tool runs.
+- **Why keep rather than re-implement:** this is the one touchpoint where fidelity
+  *is* the product. The oracle's entire claim is "Galaxy would run the same command",
+  and `fill_template` is the function Galaxy runs it with — including its CT3 compile,
+  its `NotFound` retry through `TreeDict`, and the Python-2 futurize fallback. A
+  re-implementation would be an oracle that agrees with our reading of Cheetah rather
+  than with Galaxy, which is precisely the error the oracle exists to catch. The
+  dependency is free: `galaxy-util[template]` is already a required dependency of this
+  tier (for macro expansion, Touchpoint 1, and the CT3 lexer, Touchpoint 2).
+- **What is ours, not Galaxy's:** the *context*. Galaxy builds parameter wrappers from
+  a live job; the oracle synthesises a deterministic assignment from `<inputs>` and
+  renders both trees against the same one, which is what makes a difference in the
+  output attributable to the edit. The synthesis deliberately reproduces two Galaxy
+  semantics that bite: a `boolean` reaches Cheetah as the **string**
+  `truevalue`/`falsevalue` (so `#if $flag` is true in both states unless
+  `falsevalue=""`), and an `integer`/`float` is a real number (so `#if $n` is false at
+  0).
+- **Verdict:** keep. Same lesson as Touchpoint 2 — prefer Galaxy's own engine wherever
+  faithfulness is the thing being asserted.
+
 ## Adding to this document
 
 When a new re-implementation lands (or a deliberate keep is decided), add a
