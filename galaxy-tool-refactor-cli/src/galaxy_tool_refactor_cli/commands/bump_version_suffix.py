@@ -46,7 +46,13 @@ def bump_version_suffix_command(
     ``--scope per-tool`` declines and tells you to rerun with ``--scope suite``. Files
     are passed by path so imported macros resolve.
     """
-    bumped = skipped = errored = 0
+    bumped = skipped = errored = lifted = 0
+    # ⛔ A SHARED TOKEN MUST BUMP ONCE PER INVOCATION, NOT ONCE PER TOOL. The facade
+    # bumps one document at a time, so naming every tool of a suite used to walk the
+    # shared token forward once for each of them: a 3-tool suite went 0 -> 3 in a
+    # single run, and the only clue was the "also lifts ..." note it printed while
+    # doing it. Remember which macros files this run has already moved.
+    already_bumped: dict[Path, Path] = {}
     for target in iter_targets(paths):
         try:
             original = target.read_bytes()
@@ -63,6 +69,16 @@ def bump_version_suffix_command(
             skipped += 1
             click.echo(f"skipped {target}: {preview.skip_reason}")
             continue
+        shared = [path for path in preview.affected_paths if path != target]
+        done = next((path for path in shared if path in already_bumped), None)
+        if done is not None:
+            # Its revision already moved, with the earlier tool's bump of the token.
+            lifted += 1
+            click.echo(
+                f"already lifted {target} by the bump to {done}"
+                f" for {already_bumped[done]}"
+            )
+            continue
         bumped += 1
         if not check:
             if backup:
@@ -70,6 +86,8 @@ def bump_version_suffix_command(
                 for affected in preview.affected_paths:
                     make_backup(affected)
             facade.bump_version_suffix(target, scope=scope, write_path=target)
+        for path in shared:
+            already_bumped[path] = target
         verb = "would bump" if check else "bumped"
         if preview.affected_importers:
             others = sorted(
@@ -87,6 +105,7 @@ def bump_version_suffix_command(
             )
     click.echo(
         f"{bumped} bumped, {skipped} skipped"
+        + (f", {lifted} already lifted" if lifted else "")
         + (f", {errored} error(s)" if errored else "")
     )
     if errored:
