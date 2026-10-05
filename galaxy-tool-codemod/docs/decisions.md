@@ -2109,7 +2109,7 @@ fix's corpus soundness proof). Follows §47 (the 24.2 detector tightening).
 - **The fix.** `FixTestParamQualification` (a runtime-gated fix, `upgrade_code`
   `24_2_fix_test_case_validation`, `introduced_profile` 24.2) rewrites only the
   unique-leaf nested case, via the shared
-  `test_param_qualify.plan_test_param_qualifications`. It is the **first**
+  `test_param_paths.plan_test_param_qualifications`. It is the **first**
   auto-fix for the 24.2 code, so it slots into the gate's 1:1
   `auto_fixes_by_code()` mapping cleanly: the gate now probes 24.2 by applying
   it and re-detecting (`test_case_check`), crediting the code for the tools
@@ -2386,3 +2386,54 @@ for future widening, behind the same zero-unsound gate.
   **UNSOUND suppressions stayed 0** (the hard gate). The reaches-latest count in
   `docs/upgrade_behavior_block_stats.md` rises accordingly and is refreshed on the next
   full corpus sweep (that page is the regenerated artifact of record, per §47).
+
+## 55. Two IUC display-text fixers (GTR106, GTR107), and why only two of seven
+
+Seven IUC review standards were added in 0.3.10 (lint `docs/decisions.md` D40).
+Three auto-fix. The dividing line is not "is the rule mechanical" but **can the fix
+be proved not to change the rendered command**:
+
+- **GTR106** removes `display="checkboxes"`. `display` is read when the form is
+  rendered and never participates in building a value, so a `multiple` select submits
+  the same list either way. It skips a `checkboxes` select that *disagrees* with
+  `multiple`/`optional`: dropping the attribute there would quietly settle a
+  contradiction the author may have meant the other way round (the missing
+  `multiple="true"` may be the real omission), and those keep reporting through
+  GTR076. `display="radio"` is out of scope, not "fixed" — IUC does not object to it.
+- **GTR107** rewrites all-caps byte/base units in `label` and `help` only. Neither
+  attribute reaches the command. Three details are load-bearing, and each has a test:
+  each prefix gets **its own** SI case (kilo is `k`, mega/giga/tera are `M`/`G`/`T`,
+  so `KB` → `kb` but `MB` → `Mb`; a blanket lowercase would produce `mb`, wrong in
+  the other direction); a **binary** unit is left alone (`KiB` is already the correct
+  IEC spelling, so lowercasing it would be a regression); and an `<option value>` is
+  never touched, because a value *is* the tool's vocabulary and rewriting `1MB` would
+  change the argument the tool receives.
+
+The other four stay detect-only because the fix is a judgment call, not because it is
+hard: for `optional="true"` + `value` nothing says which of the two the author meant;
+`detect_errors="aggressive"` *changes behaviour* (it fails a job on `error:` on
+stderr) and is wrong for a CLI that writes that benignly; converting a Cheetah-bearing
+`<xml>` macro to a `<token>` means renaming it and rewriting call sites that live
+inside CDATA; and the literal-version case already has `tokenize-version`.
+
+## 56. GTR096 becomes selectable in `strict` (not in `default`)
+
+`FixTestParamQualification` was reachable only as a runtime-gated upgrade fix, applied
+when a profile walk **crosses** 24.2 (`baseline < introduced_profile <= reached`). Per
+`runtime_fixes.py`'s own contract, "a tool at or above a fix's `introduced_profile` is
+left untouched" — so a tool *authored* at 24.2 or later, now the common case, was never
+visited, and its unqualified test params were neither fixed nor reported. That is the
+gap GTR103 reports.
+
+It now declares `rulesets={"strict"}`, so `check --ruleset strict` reports it and
+`format --ruleset strict` fixes it. It is deliberately **not** in `"default"`:
+`canonical_codemods()` derives the format pipeline from that set, and this edit can
+change a test's **outcome** — the previously-ignored parameter becomes effective, so a
+test that was green because it exercised nothing can legitimately go red. That is a
+correctness sweep a human should watch, not formatting, which is also why it is
+`bulk-only` rather than gate-eligible (registry `gate_eligibility.py`).
+
+A consequence worth naming: `strict` is no longer exactly "default + every advisory".
+The registry's invariant now reads `strict − default == advisories | {GTR096}` and
+asserts the two sets are disjoint, so a future rule cannot be quietly mislabelled into
+either.

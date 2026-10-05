@@ -26,6 +26,7 @@ _EXPECTED_CODES = {
     "GTR035.1",  # TrimAttributeWhitespace (requirement version; fix half of GTR035)
     "GTR036",  # ReplaceOutputElement (<output type="data"> -> <data>)
     "GTR037",  # DropRedundantParamName (name == argument-derived)
+    "GTR106",  # DropSelectCheckboxesDisplay (drop display="checkboxes")
     "GTR089.1",  # RepairHelpRst (fix half of the GTR089 partition)
     "GTR092",  # ConvertHelpToMarkdown (opt-in convert-help only; no ruleset)
     "GTR093",  # Upgrade21_09 (collection_type whitespace; 21.09 -> 22.01)

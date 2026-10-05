@@ -50,6 +50,7 @@ def test_canonical_front_to_back_roster_is_pinned() -> None:
         "GTR035.1",  # TrimAttributeWhitespace (requirement version; GTR035 partition)
         "GTR036",  # ReplaceOutputElement
         "GTR037",  # DropRedundantParamName
+        "GTR106",  # DropSelectCheckboxesDisplay (presentation only)
         "GTR002",  # ReorderParamAttributes
         "GTR005",  # ReorderToolAttributes
         "GTR013",  # ReorderToolChildren

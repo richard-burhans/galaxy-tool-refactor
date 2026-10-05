@@ -24,7 +24,18 @@ _TODAY_DEFAULT = frozenset({
     "GTR001", "GTR002", "GTR004", "GTR005", "GTR006", "GTR013",
     "GTR017", "GTR018.1", "GTR019.1", "GTR020.1", "GTR035.1", "GTR036", "GTR037",
     "GTR089.1",
+    # 0.3.10: the IUC widget fixer. It edits only which control the form
+    # renders, never the command, so it belongs in the default pipeline.
+    "GTR106",
 })
+
+# A fixable codemod that is selectable but deliberately NOT in the default
+# ``format`` pipeline. GTR096 (qualify a flat <test> param) is reachable via
+# ``strict`` because the crossing-gated ``upgrade`` path never visits a tool
+# authored at profile 24.2 or later, but it can change a test's OUTCOME -- a
+# previously-ignored param becomes effective -- which is a correctness sweep,
+# not formatting.
+_STRICT_ONLY_FIXABLE = frozenset({"GTR096"})
 
 
 def test_default_ruleset_is_default() -> None:
@@ -39,9 +50,11 @@ def test_ruleset_contents_preserve_todays_behavior() -> None:
     # membership (rules tier `docs/decisions.md` D4 note; not a placeholder TODO).
     assert sets["default"] == _TODAY_DEFAULT
     assert sets["iuc"] == _TODAY_DEFAULT
-    # strict = default + every advisory check (advisory-ness is a rule property).
+    # strict = default + every advisory check + the strict-only fixable codemods.
     assert sets["default"] < sets["strict"]
-    assert sets["strict"] - sets["default"] == advisory_codes()
+    assert sets["strict"] - sets["default"] == advisory_codes() | _STRICT_ONLY_FIXABLE
+    # and those extras really are the two different kinds, not one mislabelled set
+    assert advisory_codes().isdisjoint(_STRICT_ONLY_FIXABLE)
 
 
 def test_every_ruleset_code_is_known() -> None:
