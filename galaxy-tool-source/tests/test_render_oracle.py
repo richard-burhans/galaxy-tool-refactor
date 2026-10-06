@@ -339,3 +339,71 @@ def test_boundary_equality_survives_added_quotes() -> None:
 
 def test_boundary_equality_still_catches_a_real_argv_change() -> None:
     assert _boundary_equal("prog --in x", "prog --in x --extra") is False
+
+
+# --- collection inputs: the `#for ... element_identifier` idiom ---------------------
+
+
+_COLLECTION_TOOL = b"""<tool id="c" name="C" version="1.0.0" profile="24.0">
+  <command><![CDATA[
+prog
+#for $x in $inputs
+  --in '$x' --name '$x.element_identifier' --ext '$x.ext'
+#end for
+]]></command>
+  <inputs><param name="inputs" type="data" format="txt" multiple="true"/></inputs>
+  <outputs><data name="o" format="txt"/></outputs>
+</tool>"""
+
+
+def test_a_multiple_input_is_iterable_with_dataset_attributes() -> None:
+    """⛔ Modelling a ``multiple="true"`` input as a string broke 14 of 69 real tools.
+
+    ``#for $x in $inputs`` over a ``str`` iterates single CHARACTERS, which have no
+    attributes and never reach ``_Namespace.__missing__`` -- the lookup is an
+    attribute access, not a name lookup -- so the whole render failed with
+    ``NotFound: element_identifier`` and the tool could not be certified at all. That
+    one cause accounted for **every** blind spot the oracle had on our own wrappers.
+    """
+    root = etree.fromstring(_COLLECTION_TOOL)
+    rendered = render(root, WORLDS[2])  # high edge: two elements
+    assert rendered is not None, "a #for over a collection must render"
+    command = rendered["command"]
+    assert "element_identifier" in command
+    assert command.count("--name") == 2, "the high world must walk two elements"
+
+
+def test_the_low_world_skips_the_loop_body_entirely() -> None:
+    """Zero elements, so a `#for` body contributes nothing in that world."""
+    rendered = render(etree.fromstring(_COLLECTION_TOOL), WORLDS[0])
+    assert rendered is not None
+    assert "--name" not in rendered["command"]
+
+
+def test_a_data_collection_param_is_iterable_too() -> None:
+    root = etree.fromstring(
+        b'<tool id="c" name="C" version="1.0.0" profile="24.0">'
+        b"<command><![CDATA[p\n#for $e in $coll\n"
+        b"--n $e.element_identifier\n#end for\n]]></command>"
+        b'<inputs><param name="coll" type="data_collection" collection_type="list" '
+        b'format="txt"/></inputs>'
+        b'<outputs><data name="o" format="txt"/></outputs></tool>'
+    )
+    rendered = render(root, WORLDS[2])
+    assert rendered is not None and rendered["command"].count("--n") == 2
+
+
+def test_a_single_dataset_param_stays_a_scalar() -> None:
+    """Only multiple/collection inputs become lists; a plain data param must not,
+    or `--in '$input'` would render a Python list repr into the command."""
+    root = etree.fromstring(
+        b'<tool id="c" name="C" version="1.0.0" profile="24.0">'
+        b"<command><![CDATA[p --in '$input' "
+        b"--id '$input.element_identifier']]></command>"
+        b'<inputs><param name="input" type="data" format="txt"/></inputs>'
+        b'<outputs><data name="o" format="txt"/></outputs></tool>'
+    )
+    rendered = render(root, WORLDS[1])
+    assert rendered is not None
+    assert "[" not in rendered["command"], "a single dataset must not render as a list"
+    assert "input.element_identifier" in rendered["command"]
