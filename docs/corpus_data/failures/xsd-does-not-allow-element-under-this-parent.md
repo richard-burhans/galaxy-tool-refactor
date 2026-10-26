@@ -1,6 +1,6 @@
 # XSD does not allow element under this parent
 
-217 unique tool(s) fall into this category.
+215 unique tool(s) fall into this category.
 
 | Repository | tool_id | Path | Version | Source |
 |---|---|---|---|---|
@@ -8,8 +8,8 @@
 | AAFC-BICoE-Galaxy | `maker_wrap` | `wrappers/maker/maker_wrapper/maker.xml` | `d99c77e9a44f` | [view](https://github.com/AAFC-BICoE/Galaxy/blob/d99c77e9a44fa25b69c42ca6ad7ae8c402c6debc/wrappers/maker/maker_wrapper/maker.xml) |
 | adhawan/sigqc | `sigqc` | `sigQC.xml` | `5e65b8e6c20c` | [view](https://toolshed.g2.bx.psu.edu/view/adhawan/sigqc) |
 | bebatut/convert_extract_sequence_file | `convert_extract_sequence_file` | `convert_extract_sequence_file.xml` | `158642ce204f` | [view](https://toolshed.g2.bx.psu.edu/view/bebatut/convert_extract_sequence_file) |
-| bgruening-galaxytools | `quast` | `tools/quast/quast.xml` | `a8748ebc4c16` | [view](https://github.com/bgruening/galaxytools/blob/a8748ebc4c16adfee9f2ec18f7ab352aa238e305/tools/quast/quast.xml) |
-| bgruening-galaxytools | `terpen_finder` | `tools/staging_area/terpen_finder/terpen_finder.xml` | `a8748ebc4c16` | [view](https://github.com/bgruening/galaxytools/blob/a8748ebc4c16adfee9f2ec18f7ab352aa238e305/tools/staging_area/terpen_finder/terpen_finder.xml) |
+| bgruening-galaxytools | `quast` | `tools/quast/quast.xml` | `311f505042c0` | [view](https://github.com/bgruening/galaxytools/blob/311f505042c08234c57e88952e84b37fe981df79/tools/quast/quast.xml) |
+| bgruening-galaxytools | `terpen_finder` | `tools/staging_area/terpen_finder/terpen_finder.xml` | `311f505042c0` | [view](https://github.com/bgruening/galaxytools/blob/311f505042c08234c57e88952e84b37fe981df79/tools/staging_area/terpen_finder/terpen_finder.xml) |
 | bgruening/interproscan5 (also in github: pico_galaxy, tools-iuc) | `interproscan` | `interproscan.xml` | `e32f2ea6a139` | [view](https://toolshed.g2.bx.psu.edu/view/bgruening/interproscan5) |
 | bornea/network_attributes | `network_attributes` | `NetworkAttributes.xml` | `40339590a08d` | [view](https://toolshed.g2.bx.psu.edu/view/bornea/network_attributes) |
 | brinkmanlab/base64 | `base64` | `base64.xml` | `69ece7949d76` | [view](https://toolshed.g2.bx.psu.edu/view/brinkmanlab/base64) |
@@ -76,7 +76,6 @@
 | iracooke/xtandem | `proteomics_search_tandem_1` | `tandem.xml` | `bbef168551fe` | [view](https://toolshed.g2.bx.psu.edu/view/iracooke/xtandem) |
 | iracooke/xtandem | `tandem_to_pepxml_1` | `tandem_to_pepxml.xml` | `bbef168551fe` | [view](https://toolshed.g2.bx.psu.edu/view/iracooke/xtandem) |
 | iuc/data_manager_metaphlan2_database_downloader | `data_manager_metaphlan2_download` | `data_manager/data_manager_metaphlan2_download.xml` | `83f07f40b200` | [view](https://toolshed.g2.bx.psu.edu/view/iuc/data_manager_metaphlan2_database_downloader) |
-| jackcurragh/ribogalaxy_get_chrom_sizes | `get_chrom_sizes` | `get_chrom_sizes/get_chrom_sizes.xml` | `9ed20799253d` | [view](https://toolshed.g2.bx.psu.edu/view/jackcurragh/ribogalaxy_get_chrom_sizes) |
 | jjohnson/fastq_mcf | `fastq_mcf` | `fastq-mcf.xml` | `b61f1466ce8f` | [view](https://toolshed.g2.bx.psu.edu/view/jjohnson/fastq_mcf) |
 | jjohnson/netmhc | `netmhc` | `netmhc.xml` | `bb25a4e5f211` | [view](https://toolshed.g2.bx.psu.edu/view/jjohnson/netmhc) |
 | lmansi/kmetashot | `kmetashot_pipeline` | `tools/kmetashot_pipeline.xml` | `50024f0c2536` | [view](https://toolshed.g2.bx.psu.edu/view/lmansi/kmetashot) |
@@ -192,8 +191,7 @@
 | tools-devteam | `hist_high_quality_score` | `tools/short_reads_figure_high_quality_length/short_reads_figure_high_quality_length.xml` | `ddbe2a1e6ede` | [view](https://github.com/galaxyproject/tools-devteam/blob/ddbe2a1e6eded54877d786fbcfc18e594fb12932/tools/short_reads_figure_high_quality_length/short_reads_figure_high_quality_length.xml) |
 | tools-devteam | `quality_score_distribution` | `tools/short_reads_figure_score/short_reads_figure_score.xml` | `ddbe2a1e6ede` | [view](https://github.com/galaxyproject/tools-devteam/blob/ddbe2a1e6eded54877d786fbcfc18e594fb12932/tools/short_reads_figure_score/short_reads_figure_score.xml) |
 | tools-devteam | `trim_reads` | `tools/short_reads_trim_seq/short_reads_trim_seq.xml` | `ddbe2a1e6ede` | [view](https://github.com/galaxyproject/tools-devteam/blob/ddbe2a1e6eded54877d786fbcfc18e594fb12932/tools/short_reads_trim_seq/short_reads_trim_seq.xml) |
-| tools-ecology | `nfdi4earth_os4a` | `tools/nfdi4earth_os4a_importer/nfdi4earth_os4a_importer.xml` | `aae4b1608408` | [view](https://github.com/galaxyecology/tools-ecology/blob/aae4b1608408f1e76582eb65a456e75ac09288e1/tools/nfdi4earth_os4a_importer/nfdi4earth_os4a_importer.xml) |
-| triasteran/ribogalaxy_get_chrom_sizes_upd | `get_chrom_sizes` | `get_chrom_sizes/get_chrom_sizes.xml` | `f2306942d61a` | [view](https://toolshed.g2.bx.psu.edu/view/triasteran/ribogalaxy_get_chrom_sizes_upd) |
+| tools-ecology | `nfdi4earth_os4a` | `tools/nfdi4earth_os4a_importer/nfdi4earth_os4a_importer.xml` | `bb9d23712854` | [view](https://github.com/galaxyecology/tools-ecology/blob/bb9d23712854476e1c0c19f21b8f06606fbdfd51/tools/nfdi4earth_os4a_importer/nfdi4earth_os4a_importer.xml) |
 | trinity_ctat/ctat_clean_headers | `ctat_clean_headers` | `ctat_clean_headers.xml` | `67e77c325002` | [view](https://toolshed.g2.bx.psu.edu/view/trinity_ctat/ctat_clean_headers) |
 | trinity_ctat/ctat_discasm | `ctat_discasm` | `ctat_discasm.xml` | `a772e555b5a1` | [view](https://toolshed.g2.bx.psu.edu/view/trinity_ctat/ctat_discasm) |
 | trinity_ctat/ctat_fusion_inspector | `ctat_fusion_inspector` | `ctat_fusion_inspector.xml` | `1a7ec343001c` | [view](https://toolshed.g2.bx.psu.edu/view/trinity_ctat/ctat_fusion_inspector) |

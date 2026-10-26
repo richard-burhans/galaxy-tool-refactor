@@ -1,13 +1,13 @@
 # XSD does not allow element at all
 
-37 unique tool(s) fall into this category.
+35 unique tool(s) fall into this category.
 
 | Repository | tool_id | Path | Version | Source |
 |---|---|---|---|---|
 | AAFC-BICoE-Galaxy | `mothur_seq_error` | `wrappers/Mothur_Toolsuite/mothur/tools/mothur/seq.error.xml` | `d99c77e9a44f` | [view](https://github.com/AAFC-BICoE/Galaxy/blob/d99c77e9a44fa25b69c42ca6ad7ae8c402c6debc/wrappers/Mothur_Toolsuite/mothur/tools/mothur/seq.error.xml) |
 | alermine/nebula | `bedtools_intersectBed` | `[APliBio]Nebula tools suite/Nebula/IntersectBed/bedtools_intersectBed.xml` | `0b8b39c2ce01` | [view](https://toolshed.g2.bx.psu.edu/view/alermine/nebula) |
-| bgruening-galaxytools | `graphclust` | `tools/graphclust/graphclust.xml` | `a8748ebc4c16` | [view](https://github.com/bgruening/galaxytools/blob/a8748ebc4c16adfee9f2ec18f7ab352aa238e305/tools/graphclust/graphclust.xml) |
-| bgruening-galaxytools | `mavedb_importer` | `tools/mave_tools/mavedb/mavedb.xml` | `a8748ebc4c16` | [view](https://github.com/bgruening/galaxytools/blob/a8748ebc4c16adfee9f2ec18f7ab352aa238e305/tools/mave_tools/mavedb/mavedb.xml) |
+| bgruening-galaxytools | `graphclust` | `tools/graphclust/graphclust.xml` | `311f505042c0` | [view](https://github.com/bgruening/galaxytools/blob/311f505042c08234c57e88952e84b37fe981df79/tools/graphclust/graphclust.xml) |
+| bgruening-galaxytools | `mavedb_importer` | `tools/mave_tools/mavedb/mavedb.xml` | `311f505042c0` | [view](https://github.com/bgruening/galaxytools/blob/311f505042c08234c57e88952e84b37fe981df79/tools/mave_tools/mavedb/mavedb.xml) |
 | bgruening/xchem_transfs_scoring (also in github: bgruening-galaxytools) | `xchem_transfs_scoring` | `transfs.xml` | `f6f9b47d02b6` | [view](https://toolshed.g2.bx.psu.edu/view/bgruening/xchem_transfs_scoring) |
 | brigidar/vcf_to_snp | `vcf_snp` | `vcf_to_snp.xml` | `a9433c403e28` | [view](https://toolshed.g2.bx.psu.edu/view/brigidar/vcf_to_snp) |
 | cschu/cs_test_me | `synteny_parse` | `synteny_parse.xml` | `ea73705ac0f6` | [view](https://toolshed.g2.bx.psu.edu/view/cschu/cs_test_me) |
@@ -27,9 +27,7 @@
 | mvdbeek/docker_scriptrunner | `docker_scriptrunner` | `scriptrunner.xml` | `495946ffc2d6` | [view](https://toolshed.g2.bx.psu.edu/view/mvdbeek/docker_scriptrunner) |
 | nml/hivtrace (also in github: phac-nml-galaxy_tools) | `hivtrace` | `hivtrace.xml` | `948f307397ca` | [view](https://toolshed.g2.bx.psu.edu/view/nml/hivtrace) |
 | petr-novak/profrep | `profrep_mask` | `profrep_masking.xml` | `1c25246f6e68` | [view](https://toolshed.g2.bx.psu.edu/view/petr-novak/profrep) |
-| petr-novak/re_utils | `cluster_table2krona_format` | `cluster_table2krona_format.xml` | `91996b991991` | [view](https://toolshed.g2.bx.psu.edu/view/petr-novak/re_utils) |
-| petr-novak/re_utils | `paired_fastq_filtering` | `paired_fastq_filtering.xml` | `91996b991991` | [view](https://toolshed.g2.bx.psu.edu/view/petr-novak/re_utils) |
-| petr-novak/re_utils | `single_fastq_filtering` | `single_fastq_filtering.xml` | `91996b991991` | [view](https://toolshed.g2.bx.psu.edu/view/petr-novak/re_utils) |
+| petr-novak/re_utils | `cluster_table2krona_format` | `cluster_table2krona_format.xml` | `489613de6298` | [view](https://toolshed.g2.bx.psu.edu/view/petr-novak/re_utils) |
 | pieterlukasse/primo_multiomics | `TermMapperTool1` | `term_mapper.xml` | `7dfda218dca1` | [view](https://toolshed.g2.bx.psu.edu/view/pieterlukasse/primo_multiomics) |
 | portiahollyoak/gff_feature_colours | `gff_feature_colours` | `gff_feature_colours.xml` | `4f0fb855276c` | [view](https://toolshed.g2.bx.psu.edu/view/portiahollyoak/gff_feature_colours) |
 | qfab/rdp_multiclassifier | `rdpmulticlassifier` | `rdpmulticlassifier/rdp_multi_classifier.xml` | `a73ae72b47aa` | [view](https://toolshed.g2.bx.psu.edu/view/qfab/rdp_multiclassifier) |
